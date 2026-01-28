@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labor Relations Research Platform v6.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 600; }
+        .main-tab-active { background: #2563eb; color: white; }
+        #map, #nlrbMap { height: 350px; }
+        .sector-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+        .sector-PRIVATE { background: #dbeafe; color: #1e40af; }
+        .sector-FEDERAL { background: #fef3c7; color: #92400e; }
+        .naics-badge { background: #f3f4f6; color: #374151; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+        .win-badge { background: #dcfce7; color: #166534; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+        .loss-badge { background: #fee2e2; color: #991b1b; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: white; border-radius: 8px; max-width: 800px; max-height: 80vh; overflow-y: auto; width: 90%; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <header class="bg-gradient-to-r from-blue-800 to-blue-600 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <h1 class="text-2xl font-bold">Labor Relations Research Platform</h1>
+            <p class="text-sm text-blue-200 mt-1">OLMS Unions • F-7 Employers • BLS Density • NLRB Elections & ULP • Voluntary Recognition</p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-4">
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+            <div class="bg-white rounded-lg shadow p-3 text-center">
+                <div class="text-xl font-bold text-blue-600" id="statUnions">--</div>
+                <div class="text-xs text-gray-500">Unions</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-3 text-center">
+                <div class="text-xl font-bold text-green-600" id="statEmployers">--</div>
+                <div class="text-xs text-gray-500">Employers</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-3 text-center">
+                <div class="text-xl font-bold text-purple-600" id="statElections">--</div>
+                <div class="text-xs text-gray-500">Elections</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-3 text-center">
+                <div class="text-xl font-bold text-emerald-600" id="statWinRate">--</div>
+                <div class="text-xs text-gray-500">Win Rate</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-3 text-center">
+                <div class="text-xl font-bold text-orange-600" id="statULP">--</div>
+                <div class="text-xs text-gray-500">ULP Cases</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-3 text-center">
+                <div class="text-xl font-bold text-pink-600" id="statVR">--</div>
+                <div class="text-xs text-gray-500">Vol. Recognition</div>
+            </div>
+        </div>
+
+        <!-- Main Navigation -->
+        <div class="bg-white rounded-lg shadow mb-4">
+            <nav class="flex" id="mainTabs">
+                <button onclick="setMainTab('employers')" data-tab="employers" class="flex-1 px-4 py-3 text-sm font-medium rounded-tl-lg main-tab-active">🏢 Employers</button>
+                <button onclick="setMainTab('unions')" data-tab="unions" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🏛️ Unions</button>
+                <button onclick="setMainTab('nlrb')" data-tab="nlrb" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🗳️ Elections</button>
+                <button onclick="setMainTab('ulp')" data-tab="ulp" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">⚖️ ULP Cases</button>
+                <button onclick="setMainTab('vr')" data-tab="vr" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-tr-lg">🤝 Vol. Recognition</button>
+            </nav>
+        </div>
+
+
+        <!-- ========== EMPLOYERS PANEL ========== -->
+        <div id="employerPanel">
+            <div class="bg-white rounded-lg shadow mb-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">National Union</label>
+                        <select id="empAffSelect" onchange="loadLocals()" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Unions</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Local Union</label>
+                        <select id="empLocalSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">Select national first</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <select id="empStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Employer Name</label>
+                        <input type="text" id="empNameSearch" placeholder="Search..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">NAICS Sector</label>
+                        <select id="empNaicsSelect" onchange="loadIndustryInfo()" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Industries</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="searchEmployers()" class="w-full bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-sm font-medium">
+                            🔍 Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Industry Info Panel -->
+            <div id="industryPanel" class="bg-white rounded-lg shadow mb-4 p-4 hidden">
+                <h3 class="font-semibold text-gray-900 text-sm" id="industryPanelTitle">Industry Info</h3>
+                <div class="grid grid-cols-3 gap-3 mt-3">
+                    <div class="bg-amber-50 rounded-lg p-3">
+                        <div class="text-xs text-amber-800">Union Density</div>
+                        <div class="text-xl font-bold text-amber-900" id="densityValue">--</div>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-3">
+                        <div class="text-xs text-blue-800">Employment 2024</div>
+                        <div class="text-xl font-bold text-blue-900" id="employment2024">--</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-3">
+                        <div class="text-xs text-green-800">Growth 2024-2034</div>
+                        <div class="text-xl font-bold text-green-900" id="employmentGrowth">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b flex justify-between items-center">
+                            <h2 class="font-semibold text-gray-900">Employers <span id="empResultCount" class="text-gray-500 font-normal">(0)</span></h2>
+                            <span class="text-xs text-gray-400">Click row for NLRB history</span>
+                        </div>
+                        <div id="empResults" class="divide-y max-h-[450px] overflow-y-auto">
+                            <div class="p-6 text-center text-gray-500">Click Search to see results</div>
+                        </div>
+                        <div class="p-2 border-t flex justify-between items-center">
+                            <button onclick="empPrevPage()" id="empPrevBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">← Prev</button>
+                            <span id="empPageInfo" class="text-xs text-gray-600">Page 1</span>
+                            <button onclick="empNextPage()" id="empNextBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">Next →</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">Map</h2></div>
+                        <div id="map"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== UNIONS PANEL ========== -->
+        <div id="unionPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow mb-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+                    <div class="lg:col-span-2">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Union Name</label>
+                        <input type="text" id="unionNameSearch" placeholder="e.g., SEIU, Teamsters, Local 32BJ..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Affiliation</label>
+                        <select id="unionAffSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <select id="unionStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Min Members</label>
+                        <input type="number" id="unionMinMembers" placeholder="e.g., 1000" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="searchUnions()" class="w-full bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm font-medium">
+                            🔍 Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-3 border-b flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-900">Unions <span id="unionResultCount" class="text-gray-500 font-normal">(0)</span></h2>
+                    <span class="text-xs text-gray-400">Click row for NLRB history</span>
+                </div>
+                <div id="unionResults" class="divide-y max-h-[500px] overflow-y-auto">
+                    <div class="p-6 text-center text-gray-500">Click Search to see results</div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ========== NLRB ELECTIONS PANEL ========== -->
+        <div id="nlrbPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow mb-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <select id="nlrbStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Union</label>
+                        <select id="nlrbAffSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Unions</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Year From</label>
+                        <input type="number" id="nlrbYearFrom" value="2020" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Outcome</label>
+                        <select id="nlrbOutcome" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All</option>
+                            <option value="true">Union Won</option>
+                            <option value="false">Union Lost</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Employer</label>
+                        <input type="text" id="nlrbEmployer" placeholder="Search..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Min Voters</label>
+                        <input type="number" id="nlrbMinVoters" placeholder="50" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="searchElections()" class="w-full bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 text-sm font-medium">
+                            🔍 Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b flex justify-between items-center">
+                            <h2 class="font-semibold text-gray-900">Elections <span id="nlrbResultCount" class="text-gray-500 font-normal">(0)</span></h2>
+                            <div class="flex items-center space-x-3 text-xs">
+                                <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-green-500 mr-1"></span>Win</span>
+                                <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-red-500 mr-1"></span>Loss</span>
+                            </div>
+                        </div>
+                        <div id="nlrbResults" class="divide-y max-h-[400px] overflow-y-auto">
+                            <div class="p-6 text-center text-gray-500">Click Search to see elections</div>
+                        </div>
+                        <div class="p-2 border-t flex justify-between items-center">
+                            <button onclick="nlrbPrevPage()" id="nlrbPrevBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">← Prev</button>
+                            <span id="nlrbPageInfo" class="text-xs text-gray-600">Page 1</span>
+                            <button onclick="nlrbNextPage()" id="nlrbNextBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">Next →</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="bg-white rounded-lg shadow mb-4">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">Election Map</h2></div>
+                        <div id="nlrbMap"></div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">Top Unions</h2></div>
+                        <div id="topUnionsTable" class="p-2 text-xs max-h-[180px] overflow-y-auto">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== ULP CASES PANEL ========== -->
+        <div id="ulpPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow mb-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <select id="ulpStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Case Type</label>
+                        <select id="ulpCaseType" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All</option>
+                            <option value="CA">CA - Against Employer</option>
+                            <option value="CB">CB - Against Union</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">NLRA Section</label>
+                        <input type="text" id="ulpSection" placeholder="e.g., 8(a)(1)" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Charged Party</label>
+                        <input type="text" id="ulpChargedParty" placeholder="Company name..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Year From</label>
+                        <input type="number" id="ulpYearFrom" value="2020" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="searchULP()" class="w-full bg-orange-600 text-white px-3 py-1.5 rounded hover:bg-orange-700 text-sm font-medium">
+                            🔍 Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b">
+                            <h2 class="font-semibold text-gray-900">ULP Cases <span id="ulpResultCount" class="text-gray-500 font-normal">(0)</span></h2>
+                        </div>
+                        <div id="ulpResults" class="divide-y max-h-[450px] overflow-y-auto">
+                            <div class="p-6 text-center text-gray-500">Click Search to see ULP cases</div>
+                        </div>
+                        <div class="p-2 border-t flex justify-between items-center">
+                            <button onclick="ulpPrevPage()" id="ulpPrevBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">← Prev</button>
+                            <span id="ulpPageInfo" class="text-xs text-gray-600">Page 1</span>
+                            <button onclick="ulpNextPage()" id="ulpNextBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">Next →</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">Cases by Section</h2></div>
+                        <div id="sectionStats" class="p-2 text-xs max-h-[300px] overflow-y-auto">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== VOLUNTARY RECOGNITION PANEL ========== -->
+        <div id="vrPanel" class="hidden">
+            <div class="bg-white rounded-lg shadow mb-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Employer</label>
+                        <input type="text" id="vrEmployer" placeholder="Search..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Union/Affiliation</label>
+                        <select id="vrAffSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Unions</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <select id="vrStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Year</label>
+                        <select id="vrYear" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Years</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Match Status</label>
+                        <select id="vrMatchStatus" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All</option>
+                            <option value="matched">Employer Matched</option>
+                            <option value="unmatched">New Employers</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="searchVR()" class="w-full bg-pink-600 text-white px-3 py-1.5 rounded hover:bg-pink-700 text-sm font-medium">
+                            🔍 Search
+                        </button>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="loadVRMap()" class="w-full bg-pink-100 text-pink-700 px-3 py-1.5 rounded hover:bg-pink-200 text-sm font-medium border border-pink-300">
+                            🗺️ Map
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b flex justify-between items-center">
+                            <h2 class="font-semibold text-gray-900">Voluntary Recognition Cases <span id="vrResultCount" class="text-gray-500 font-normal">(0)</span></h2>
+                            <span class="text-xs text-gray-400">Click row for details</span>
+                        </div>
+                        <div id="vrResults" class="divide-y max-h-[450px] overflow-y-auto">
+                            <div class="p-6 text-center text-gray-500">Click Search to see VR cases</div>
+                        </div>
+                        <div class="p-2 border-t flex justify-between items-center">
+                            <button onclick="vrPrevPage()" id="vrPrevBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">← Prev</button>
+                            <span id="vrPageInfo" class="text-xs text-gray-600">Page 1</span>
+                            <button onclick="vrNextPage()" id="vrNextBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">Next →</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="bg-white rounded-lg shadow mb-4">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">Map</h2></div>
+                        <div id="vrMap" style="height: 250px;"></div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">VR by Year</h2></div>
+                        <div id="vrYearStats" class="p-2 text-xs max-h-[150px] overflow-y-auto">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== DETAIL MODAL ========== -->
+        <div id="detailModal" class="modal">
+            <div class="modal-content p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="modalTitle" class="text-xl font-bold text-gray-900">Details</h2>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                </div>
+                <div id="modalContent">Loading...</div>
+            </div>
+        </div>
+    </main>
+
+
+    <script>
+        const API = 'http://localhost:8001/api';
+        let map, nlrbMap, vrMap, markerCluster, nlrbMarkerCluster, vrMarkerCluster;
+        let vrOffset = 0, vrTotal = 0, vrStatsLoaded = false;
+        let empOffset = 0, empTotal = 0;
+        let nlrbOffset = 0, nlrbTotal = 0;
+        let ulpOffset = 0, ulpTotal = 0;
+        const PAGE_SIZE = 50;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initMaps();
+            loadLookups();
+            loadStats();
+            loadTopUnions();
+            loadSectionStats();
+        });
+
+        function initMaps() {
+            // Employer map
+            map = L.map('map').setView([39.8, -98.5], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
+            markerCluster = L.markerClusterGroup();
+            map.addLayer(markerCluster);
+
+            // NLRB map
+            nlrbMap = L.map('nlrbMap').setView([39.8, -98.5], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(nlrbMap);
+            nlrbMarkerCluster = L.markerClusterGroup();
+            nlrbMap.addLayer(nlrbMarkerCluster);
+            
+            // VR map
+            vrMap = L.map('vrMap').setView([39.8, -98.5], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(vrMap);
+            vrMarkerCluster = L.markerClusterGroup();
+            vrMap.addLayer(vrMarkerCluster);
+        }
+
+        async function loadStats() {
+            try {
+                const resp = await fetch(`${API}/summary`);
+                const data = await resp.json();
+                document.getElementById('statUnions').textContent = (data.unions?.total_unions || 0).toLocaleString();
+                document.getElementById('statEmployers').textContent = (data.employers?.total_employers || 0).toLocaleString();
+                document.getElementById('statElections').textContent = (data.nlrb?.elections?.total_elections || 0).toLocaleString();
+                document.getElementById('statWinRate').textContent = (data.nlrb?.elections?.win_rate || 0) + '%';
+                document.getElementById('statULP').textContent = (data.nlrb?.ulp_cases || 0).toLocaleString();
+                document.getElementById('statVR').textContent = (data.voluntary_recognition?.total_cases || 0).toLocaleString();
+            } catch (err) { console.error('Stats error:', err); }
+        }
+
+        async function loadLookups() {
+            try {
+                // Affiliations
+                const affResp = await fetch(`${API}/lookups/affiliations`);
+                const affData = await affResp.json();
+                const affOptions = (affData.affiliations || []).map(a => 
+                    `<option value="${a.aff_abbr}">${a.aff_abbr} (${(a.total_members/1000000).toFixed(1)}M)</option>`
+                ).join('');
+                document.getElementById('empAffSelect').innerHTML = '<option value="">All Unions</option>' + affOptions;
+                document.getElementById('unionAffSelect').innerHTML = '<option value="">All</option>' + affOptions;
+                document.getElementById('nlrbAffSelect').innerHTML = '<option value="">All Unions</option>' + affOptions;
+                document.getElementById('vrAffSelect').innerHTML = '<option value="">All Unions</option>' + affOptions;
+
+                // States
+                const stResp = await fetch(`${API}/lookups/states`);
+                const stData = await stResp.json();
+                const stOptions = (stData.states || []).map(s => `<option value="${s.state}">${s.state}</option>`).join('');
+                ['empStateSelect', 'unionStateSelect', 'nlrbStateSelect', 'ulpStateSelect', 'vrStateSelect'].forEach(id => {
+                    document.getElementById(id).innerHTML = '<option value="">All States</option>' + stOptions;
+                });
+
+                // NAICS Sectors
+                const naicsResp = await fetch(`${API}/lookups/naics-sectors`);
+                const naicsData = await naicsResp.json();
+                const naicsOptions = (naicsData.sectors || []).map(s => 
+                    `<option value="${s.naics_2digit}">${s.naics_2digit} - ${s.sector_name}${s.union_density_pct ? ` (${s.union_density_pct}%)` : ''}</option>`
+                ).join('');
+                document.getElementById('empNaicsSelect').innerHTML = '<option value="">All Industries</option>' + naicsOptions;
+            } catch (err) { console.error('Lookups error:', err); }
+        }
+
+        async function loadIndustryInfo() {
+            const naics = document.getElementById('empNaicsSelect').value;
+            const panel = document.getElementById('industryPanel');
+            
+            if (!naics) {
+                panel.classList.add('hidden');
+                return;
+            }
+            
+            try {
+                // Get density
+                const densityResp = await fetch(`${API}/density/naics/${naics}`);
+                const densityData = await densityResp.json();
+                
+                // Get projections
+                const projResp = await fetch(`${API}/projections/naics/${naics}`);
+                const projData = await projResp.json();
+                
+                // Update panel
+                document.getElementById('industryPanelTitle').textContent = 
+                    densityData.current?.sector_name || `NAICS ${naics}`;
+                document.getElementById('densityValue').textContent = 
+                    densityData.current?.union_density_pct ? `${densityData.current.union_density_pct}%` : 'N/A';
+                document.getElementById('employment2024').textContent = 
+                    projData.summary?.total_2024 ? (projData.summary.total_2024 / 1000).toFixed(0) + 'K' : 'N/A';
+                document.getElementById('employmentGrowth').textContent = 
+                    projData.summary?.avg_change_pct ? `${projData.summary.avg_change_pct > 0 ? '+' : ''}${projData.summary.avg_change_pct.toFixed(1)}%` : 'N/A';
+                
+                panel.classList.remove('hidden');
+            } catch (err) {
+                console.error('Industry info error:', err);
+                panel.classList.add('hidden');
+            }
+        }
+
+        async function loadLocals() {
+            const aff = document.getElementById('empAffSelect').value;
+            const select = document.getElementById('empLocalSelect');
+            if (!aff) { select.innerHTML = '<option value="">Select national first</option>'; return; }
+            try {
+                const resp = await fetch(`${API}/unions/locals/${aff}?limit=200`);
+                const data = await resp.json();
+                select.innerHTML = '<option value="">All locals</option>' + 
+                    (data.locals || []).map(l => `<option value="${l.f_num}">${l.union_name} (${l.city || ''}, ${l.state || ''})</option>`).join('');
+            } catch (err) { select.innerHTML = '<option value="">Error loading</option>'; }
+        }
+
+        // ========== MAIN TAB SWITCHING ==========
+        function setMainTab(tab) {
+            document.querySelectorAll('#mainTabs button').forEach(btn => {
+                btn.classList.remove('main-tab-active');
+                btn.classList.add('text-gray-600');
+                if (btn.dataset.tab === tab) {
+                    btn.classList.add('main-tab-active');
+                    btn.classList.remove('text-gray-600');
+                }
+            });
+            document.getElementById('employerPanel').classList.toggle('hidden', tab !== 'employers');
+            document.getElementById('unionPanel').classList.toggle('hidden', tab !== 'unions');
+            document.getElementById('nlrbPanel').classList.toggle('hidden', tab !== 'nlrb');
+            document.getElementById('ulpPanel').classList.toggle('hidden', tab !== 'ulp');
+            document.getElementById('vrPanel').classList.toggle('hidden', tab !== 'vr');
+            
+            // Invalidate map sizes when tab becomes visible
+            setTimeout(() => {
+                if (tab === 'employers') map.invalidateSize();
+                if (tab === 'nlrb') nlrbMap.invalidateSize();
+                if (tab === 'vr' && vrMap) vrMap.invalidateSize();
+            }, 100);
+            
+            // Load VR stats on first visit
+            if (tab === 'vr' && !vrStatsLoaded) {
+                loadVRYearStats();
+                vrStatsLoaded = true;
+            }
+        }
+
+        // ========== EMPLOYER SEARCH ==========
+        async function searchEmployers() {
+            const params = new URLSearchParams();
+            const name = document.getElementById('empNameSearch').value;
+            const aff = document.getElementById('empAffSelect').value;
+            const state = document.getElementById('empStateSelect').value;
+            if (name) params.append('name', name);
+            if (aff) params.append('aff_abbr', aff);
+            if (state) params.append('state', state);
+            params.append('limit', PAGE_SIZE);
+            params.append('offset', empOffset);
+
+            const container = document.getElementById('empResults');
+            container.innerHTML = '<div class="p-6 text-center text-gray-500">Searching...</div>';
+
+            try {
+                const resp = await fetch(`${API}/employers/search?${params}`);
+                const data = await resp.json();
+                empTotal = data.total || 0;
+                document.getElementById('empResultCount').textContent = `(${empTotal.toLocaleString()})`;
+                renderEmployers(data.employers || []);
+                updateEmpMap(data.employers || []);
+                updateEmpPagination();
+            } catch (err) { container.innerHTML = '<div class="p-6 text-center text-red-500">Error: Is API running?</div>'; }
+        }
+
+        function renderEmployers(employers) {
+            const container = document.getElementById('empResults');
+            if (!employers.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
+            container.innerHTML = employers.map(e => `
+                <div class="p-3 hover:bg-blue-50 cursor-pointer" onclick="showEmployerDetail('${e.employer_id}')">
+                    <div class="flex justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900">${e.employer_name}</div>
+                            <div class="text-xs text-gray-600">${[e.city, e.state].filter(Boolean).join(', ')}</div>
+                            <div class="text-xs text-gray-500">${e.latest_union_name || ''} ${e.aff_abbr ? `<span class="text-blue-600">(${e.aff_abbr})</span>` : ''}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-semibold text-blue-600">${(e.latest_unit_size || 0).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400">workers</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateEmpMap(employers) {
+            markerCluster.clearLayers();
+            employers.filter(e => e.latitude && e.longitude).forEach(e => {
+                const m = L.marker([e.latitude, e.longitude]);
+                m.bindPopup(`<b>${e.employer_name}</b><br>${e.city}, ${e.state}<br>${(e.latest_unit_size||0).toLocaleString()} workers`);
+                markerCluster.addLayer(m);
+            });
+        }
+
+        function updateEmpPagination() {
+            const page = Math.floor(empOffset / PAGE_SIZE) + 1;
+            const totalPages = Math.ceil(empTotal / PAGE_SIZE) || 1;
+            document.getElementById('empPageInfo').textContent = `Page ${page} of ${totalPages}`;
+            document.getElementById('empPrevBtn').disabled = empOffset === 0;
+            document.getElementById('empNextBtn').disabled = empOffset + PAGE_SIZE >= empTotal;
+        }
+        function empPrevPage() { if (empOffset > 0) { empOffset -= PAGE_SIZE; searchEmployers(); } }
+        function empNextPage() { if (empOffset + PAGE_SIZE < empTotal) { empOffset += PAGE_SIZE; searchEmployers(); } }
+
+
+        // ========== UNION SEARCH ==========
+        async function searchUnions() {
+            const params = new URLSearchParams();
+            const name = document.getElementById('unionNameSearch').value;
+            const aff = document.getElementById('unionAffSelect').value;
+            const state = document.getElementById('unionStateSelect').value;
+            const minMembers = document.getElementById('unionMinMembers').value;
+            if (name) params.append('name', name);
+            if (aff) params.append('aff_abbr', aff);
+            if (state) params.append('state', state);
+            if (minMembers) params.append('min_members', minMembers);
+            params.append('limit', 100);
+
+            const container = document.getElementById('unionResults');
+            container.innerHTML = '<div class="p-6 text-center text-gray-500">Searching...</div>';
+
+            try {
+                const resp = await fetch(`${API}/unions/search?${params}`);
+                const data = await resp.json();
+                document.getElementById('unionResultCount').textContent = `(${(data.total || 0).toLocaleString()})`;
+                renderUnions(data.unions || []);
+            } catch (err) { container.innerHTML = '<div class="p-6 text-center text-red-500">Error</div>'; }
+        }
+
+        function renderUnions(unions) {
+            const container = document.getElementById('unionResults');
+            if (!unions.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
+            container.innerHTML = unions.map(u => `
+                <div class="p-3 hover:bg-green-50 cursor-pointer" onclick="showUnionDetail('${u.f_num}')">
+                    <div class="flex justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900">${u.union_name}</div>
+                            <div class="text-xs text-gray-600">${[u.city, u.state].filter(Boolean).join(', ')}</div>
+                            <div class="text-xs text-gray-500">F-Num: ${u.f_num} | ${u.aff_abbr || 'Independent'}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-semibold text-green-600">${(u.members || 0).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400">members</div>
+                            <div class="text-xs text-gray-500">${u.f7_employer_count || 0} employers</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ========== NLRB ELECTION SEARCH ==========
+        async function searchElections() {
+            const params = new URLSearchParams();
+            const state = document.getElementById('nlrbStateSelect').value;
+            const aff = document.getElementById('nlrbAffSelect').value;
+            const yearFrom = document.getElementById('nlrbYearFrom').value;
+            const outcome = document.getElementById('nlrbOutcome').value;
+            const employer = document.getElementById('nlrbEmployer').value;
+            const minVoters = document.getElementById('nlrbMinVoters').value;
+            
+            if (state) params.append('state', state);
+            if (aff) params.append('aff_abbr', aff);
+            if (yearFrom) params.append('year_from', yearFrom);
+            if (outcome) params.append('union_won', outcome);
+            if (employer) params.append('employer_name', employer);
+            if (minVoters) params.append('min_voters', minVoters);
+            params.append('limit', PAGE_SIZE);
+            params.append('offset', nlrbOffset);
+
+            const container = document.getElementById('nlrbResults');
+            container.innerHTML = '<div class="p-6 text-center text-gray-500">Searching...</div>';
+
+            try {
+                const resp = await fetch(`${API}/nlrb/elections/search?${params}`);
+                const data = await resp.json();
+                nlrbTotal = data.total || 0;
+                document.getElementById('nlrbResultCount').textContent = `(${nlrbTotal.toLocaleString()})`;
+                renderElections(data.elections || []);
+                updateNlrbMap(data.elections || []);
+                updateNlrbPagination();
+            } catch (err) { container.innerHTML = '<div class="p-6 text-center text-red-500">Error</div>'; }
+        }
+
+        function renderElections(elections) {
+            const container = document.getElementById('nlrbResults');
+            if (!elections.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
+            container.innerHTML = elections.map(e => `
+                <div class="p-3 hover:bg-purple-50 cursor-pointer" onclick="showElectionDetail('${e.case_number}')">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium text-gray-900">${e.employer_name || 'Unknown Employer'}</div>
+                            <div class="text-xs text-gray-600">${[e.employer_city, e.employer_state].filter(Boolean).join(', ')}</div>
+                            <div class="text-xs text-gray-500">${e.union_name || ''} ${e.aff_abbr ? `<span class="text-purple-600">(${e.aff_abbr})</span>` : ''}</div>
+                        </div>
+                        <div class="text-right">
+                            <span class="${e.union_won ? 'win-badge' : 'loss-badge'}">${e.union_won ? 'WON' : 'LOST'}</span>
+                            <div class="text-xs text-gray-500 mt-1">${e.eligible_voters || 0} voters</div>
+                            <div class="text-xs text-gray-400">${e.election_date?.split('T')[0] || ''}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateNlrbMap(elections) {
+            nlrbMarkerCluster.clearLayers();
+            elections.filter(e => e.latitude && e.longitude).forEach(e => {
+                const color = e.union_won ? 'green' : 'red';
+                const m = L.circleMarker([e.latitude, e.longitude], { radius: 6, fillColor: color, color: color, fillOpacity: 0.7 });
+                m.bindPopup(`<b>${e.employer_name}</b><br>${e.union_name || ''}<br>${e.union_won ? '✓ Won' : '✗ Lost'}`);
+                nlrbMarkerCluster.addLayer(m);
+            });
+        }
+
+        function updateNlrbPagination() {
+            const page = Math.floor(nlrbOffset / PAGE_SIZE) + 1;
+            const totalPages = Math.ceil(nlrbTotal / PAGE_SIZE) || 1;
+            document.getElementById('nlrbPageInfo').textContent = `Page ${page} of ${totalPages}`;
+            document.getElementById('nlrbPrevBtn').disabled = nlrbOffset === 0;
+            document.getElementById('nlrbNextBtn').disabled = nlrbOffset + PAGE_SIZE >= nlrbTotal;
+        }
+        function nlrbPrevPage() { if (nlrbOffset > 0) { nlrbOffset -= PAGE_SIZE; searchElections(); } }
+        function nlrbNextPage() { if (nlrbOffset + PAGE_SIZE < nlrbTotal) { nlrbOffset += PAGE_SIZE; searchElections(); } }
+
+        async function loadTopUnions() {
+            try {
+                const resp = await fetch(`${API}/nlrb/elections/by-affiliation?min_elections=50`);
+                const data = await resp.json();
+                const stats = data.affiliation_stats || [];
+                document.getElementById('topUnionsTable').innerHTML = `
+                    <table class="w-full"><thead><tr class="text-left text-gray-500">
+                        <th class="pb-1">Union</th><th class="pb-1">Elections</th><th class="pb-1">Win%</th>
+                    </tr></thead><tbody>
+                    ${stats.slice(0, 10).map(s => `<tr class="border-t">
+                        <td class="py-1 font-medium">${s.aff_abbr}</td>
+                        <td>${s.elections.toLocaleString()}</td>
+                        <td class="${s.win_rate >= 60 ? 'text-green-600' : 'text-red-600'}">${s.win_rate}%</td>
+                    </tr>`).join('')}
+                    </tbody></table>`;
+            } catch (err) { document.getElementById('topUnionsTable').innerHTML = '<div class="text-red-500">Error</div>'; }
+        }
+
+
+        // ========== ULP CASES SEARCH ==========
+        async function searchULP() {
+            const params = new URLSearchParams();
+            const state = document.getElementById('ulpStateSelect').value;
+            const caseType = document.getElementById('ulpCaseType').value;
+            const section = document.getElementById('ulpSection').value;
+            const charged = document.getElementById('ulpChargedParty').value;
+            const yearFrom = document.getElementById('ulpYearFrom').value;
+            
+            if (state) params.append('state', state);
+            if (caseType) params.append('case_type', caseType);
+            if (section) params.append('section', section);
+            if (charged) params.append('charged_party', charged);
+            if (yearFrom) params.append('year_from', yearFrom);
+            params.append('limit', PAGE_SIZE);
+            params.append('offset', ulpOffset);
+
+            const container = document.getElementById('ulpResults');
+            container.innerHTML = '<div class="p-6 text-center text-gray-500">Searching...</div>';
+
+            try {
+                const resp = await fetch(`${API}/nlrb/ulp/search?${params}`);
+                const data = await resp.json();
+                ulpTotal = data.total || 0;
+                document.getElementById('ulpResultCount').textContent = `(${ulpTotal.toLocaleString()})`;
+                renderULP(data.cases || []);
+                updateUlpPagination();
+            } catch (err) { container.innerHTML = '<div class="p-6 text-center text-red-500">Error</div>'; }
+        }
+
+        function renderULP(cases) {
+            const container = document.getElementById('ulpResults');
+            if (!cases.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
+            container.innerHTML = cases.map(c => `
+                <div class="p-3 hover:bg-orange-50">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium text-gray-900">${c.charged_party || 'Unknown'}</div>
+                            <div class="text-xs text-gray-600">${[c.city, c.state].filter(Boolean).join(', ')}</div>
+                            <div class="text-xs text-gray-500">vs. ${c.charging_party || 'Unknown'}</div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs px-2 py-0.5 rounded ${c.case_type === 'CA' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${c.case_type}</span>
+                            <div class="text-xs text-gray-500 mt-1">${c.case_number}</div>
+                            <div class="text-xs text-gray-400">${c.earliest_date?.split('T')[0] || ''}</div>
+                        </div>
+                    </div>
+                    ${c.allegations ? `<div class="text-xs text-orange-600 mt-1">${c.allegations}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function updateUlpPagination() {
+            const page = Math.floor(ulpOffset / PAGE_SIZE) + 1;
+            const totalPages = Math.ceil(ulpTotal / PAGE_SIZE) || 1;
+            document.getElementById('ulpPageInfo').textContent = `Page ${page} of ${totalPages}`;
+            document.getElementById('ulpPrevBtn').disabled = ulpOffset === 0;
+            document.getElementById('ulpNextBtn').disabled = ulpOffset + PAGE_SIZE >= ulpTotal;
+        }
+        function ulpPrevPage() { if (ulpOffset > 0) { ulpOffset -= PAGE_SIZE; searchULP(); } }
+        function ulpNextPage() { if (ulpOffset + PAGE_SIZE < ulpTotal) { ulpOffset += PAGE_SIZE; searchULP(); } }
+
+        async function loadSectionStats() {
+            try {
+                const resp = await fetch(`${API}/nlrb/ulp/by-section`);
+                const data = await resp.json();
+                const stats = data.section_stats || [];
+                document.getElementById('sectionStats').innerHTML = `
+                    <table class="w-full"><thead><tr class="text-left text-gray-500">
+                        <th class="pb-1">Section</th><th class="pb-1">Cases</th><th class="pb-1">Emp</th><th class="pb-1">Union</th>
+                    </tr></thead><tbody>
+                    ${stats.slice(0, 15).map(s => `<tr class="border-t">
+                        <td class="py-1 font-medium">${s.section}</td>
+                        <td>${s.case_count.toLocaleString()}</td>
+                        <td class="text-red-600">${s.against_employers.toLocaleString()}</td>
+                        <td class="text-blue-600">${s.against_unions.toLocaleString()}</td>
+                    </tr>`).join('')}
+                    </tbody></table>`;
+            } catch (err) { document.getElementById('sectionStats').innerHTML = '<div class="text-red-500">Error</div>'; }
+        }
+
+        // ========== DETAIL MODALS ==========
+        function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+        async function showEmployerDetail(employerId) {
+            document.getElementById('detailModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'Employer Details';
+            document.getElementById('modalContent').innerHTML = 'Loading...';
+            
+            try {
+                const resp = await fetch(`${API}/employers/${employerId}`);
+                const data = await resp.json();
+                const emp = data.employer;
+                const elections = data.nlrb_elections || [];
+                const ulp = data.ulp_cases || [];
+                const summary = data.nlrb_summary || {};
+                
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg">${emp.employer_name}</h3>
+                            <p class="text-gray-600">${[emp.city, emp.state].filter(Boolean).join(', ')}</p>
+                            <p class="text-sm text-gray-500 mt-2">Union: ${emp.union_full_name || emp.latest_union_name || 'N/A'}</p>
+                            <p class="text-sm text-gray-500">Workers: ${(emp.latest_unit_size || 0).toLocaleString()}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm"><span class="font-semibold">${summary.total_elections || 0}</span> NLRB Elections</div>
+                            <div class="text-sm text-green-600"><span class="font-semibold">${summary.union_wins || 0}</span> Union Wins</div>
+                            <div class="text-sm text-orange-600"><span class="font-semibold">${summary.ulp_cases || 0}</span> ULP Cases</div>
+                        </div>
+                    </div>
+                    ${elections.length ? `
+                    <h4 class="font-semibold mt-4 mb-2">NLRB Elections</h4>
+                    <div class="max-h-48 overflow-y-auto border rounded">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50"><tr><th class="p-2 text-left">Date</th><th class="p-2 text-left">Union</th><th class="p-2">Voters</th><th class="p-2">Result</th></tr></thead>
+                            <tbody>${elections.map(e => `<tr class="border-t">
+                                <td class="p-2">${e.election_date?.split('T')[0] || ''}</td>
+                                <td class="p-2">${e.union_name || ''} ${e.aff_abbr ? `(${e.aff_abbr})` : ''}</td>
+                                <td class="p-2 text-center">${e.eligible_voters || 0}</td>
+                                <td class="p-2 text-center"><span class="${e.union_won ? 'win-badge' : 'loss-badge'}">${e.union_won ? 'Won' : 'Lost'}</span></td>
+                            </tr>`).join('')}</tbody>
+                        </table>
+                    </div>` : '<p class="text-gray-500 mt-4">No NLRB elections found</p>'}
+                    ${ulp.length ? `
+                    <h4 class="font-semibold mt-4 mb-2">ULP Cases (Recent)</h4>
+                    <div class="max-h-32 overflow-y-auto border rounded text-sm">
+                        ${ulp.map(c => `<div class="p-2 border-b">${c.case_number} - ${c.description || c.case_type} (${c.earliest_date?.split('T')[0] || ''})</div>`).join('')}
+                    </div>` : ''}
+                `;
+            } catch (err) { document.getElementById('modalContent').innerHTML = '<div class="text-red-500">Error loading details</div>'; }
+        }
+
+        async function showUnionDetail(fNum) {
+            document.getElementById('detailModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'Union Details';
+            document.getElementById('modalContent').innerHTML = 'Loading...';
+            
+            try {
+                const resp = await fetch(`${API}/unions/${fNum}`);
+                const data = await resp.json();
+                const union = data.union;
+                const elections = data.nlrb_elections || [];
+                const summary = data.nlrb_summary || {};
+                
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg">${union.union_name}</h3>
+                            <p class="text-gray-600">${[union.city, union.state].filter(Boolean).join(', ')}</p>
+                            <p class="text-sm text-gray-500 mt-2">Affiliation: ${union.aff_abbr || 'Independent'}</p>
+                            <p class="text-sm text-gray-500">Members: ${(union.members || 0).toLocaleString()}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm"><span class="font-semibold">${summary.total_elections || 0}</span> Elections</div>
+                            <div class="text-sm text-green-600"><span class="font-semibold">${summary.wins || 0}</span> Wins</div>
+                            <div class="text-sm text-red-600"><span class="font-semibold">${summary.losses || 0}</span> Losses</div>
+                            <div class="text-sm font-semibold">${summary.win_rate || 0}% Win Rate</div>
+                        </div>
+                    </div>
+                    ${elections.length ? `
+                    <h4 class="font-semibold mt-4 mb-2">NLRB Elections</h4>
+                    <div class="max-h-64 overflow-y-auto border rounded">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50"><tr><th class="p-2 text-left">Date</th><th class="p-2 text-left">Employer</th><th class="p-2">Voters</th><th class="p-2">Result</th></tr></thead>
+                            <tbody>${elections.slice(0,20).map(e => `<tr class="border-t">
+                                <td class="p-2">${e.election_date?.split('T')[0] || ''}</td>
+                                <td class="p-2">${e.employer_name || ''}, ${e.state || ''}</td>
+                                <td class="p-2 text-center">${e.eligible_voters || 0}</td>
+                                <td class="p-2 text-center"><span class="${e.union_won ? 'win-badge' : 'loss-badge'}">${e.union_won ? 'Won' : 'Lost'}</span></td>
+                            </tr>`).join('')}</tbody>
+                        </table>
+                    </div>` : '<p class="text-gray-500 mt-4">No NLRB elections found</p>'}
+                `;
+            } catch (err) { document.getElementById('modalContent').innerHTML = '<div class="text-red-500">Error loading details</div>'; }
+        }
+
+        async function showElectionDetail(caseNumber) {
+            document.getElementById('detailModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'Election Details';
+            document.getElementById('modalContent').innerHTML = 'Loading...';
+            
+            try {
+                const resp = await fetch(`${API}/nlrb/election/${caseNumber}`);
+                const data = await resp.json();
+                const el = data.election;
+                const participants = data.participants || [];
+                const tallies = data.tallies || [];
+                
+                const employer = participants.find(p => p.participant_type === 'Employer') || {};
+                
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-sm text-gray-500">Case: ${caseNumber}</p>
+                            <h3 class="font-bold text-lg">${employer.participant_name || 'Unknown Employer'}</h3>
+                            <p class="text-gray-600">${[employer.city, employer.state].filter(Boolean).join(', ')}</p>
+                            <p class="text-sm text-gray-500 mt-2">Date: ${el.election_date?.split('T')[0] || 'N/A'}</p>
+                            <p class="text-sm text-gray-500">Type: ${el.election_type || 'N/A'}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold ${el.union_won ? 'text-green-600' : 'text-red-600'}">${el.union_won ? 'UNION WON' : 'UNION LOST'}</div>
+                            <p class="text-sm text-gray-500">Eligible Voters: ${el.eligible_voters || 0}</p>
+                            <p class="text-sm text-gray-500">Total Votes: ${el.total_votes || 0}</p>
+                            <p class="text-sm text-gray-500">Margin: ${el.vote_margin || 0}</p>
+                        </div>
+                    </div>
+                    <h4 class="font-semibold mt-4 mb-2">Vote Tallies</h4>
+                    <div class="border rounded">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50"><tr><th class="p-2 text-left">Choice</th><th class="p-2 text-left">Union</th><th class="p-2">Votes</th><th class="p-2">Winner</th></tr></thead>
+                            <tbody>${tallies.map(t => `<tr class="border-t">
+                                <td class="p-2">${t.tally_type}</td>
+                                <td class="p-2">${t.labor_org_name || ''} ${t.aff_abbr ? `(${t.aff_abbr})` : ''}</td>
+                                <td class="p-2 text-center font-semibold">${t.votes_for || 0}</td>
+                                <td class="p-2 text-center">${t.is_winner ? '✓' : ''}</td>
+                            </tr>`).join('')}</tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (err) { document.getElementById('modalContent').innerHTML = '<div class="text-red-500">Error loading details</div>'; }
+        }
+
+        // Close modal on outside click
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // Enter key search
+        document.getElementById('empNameSearch').addEventListener('keypress', e => { if (e.key === 'Enter') searchEmployers(); });
+        document.getElementById('unionNameSearch').addEventListener('keypress', e => { if (e.key === 'Enter') searchUnions(); });
+        document.getElementById('nlrbEmployer').addEventListener('keypress', e => { if (e.key === 'Enter') searchElections(); });
+        document.getElementById('ulpChargedParty').addEventListener('keypress', e => { if (e.key === 'Enter') searchULP(); });
+        document.getElementById('vrEmployer').addEventListener('keypress', e => { if (e.key === 'Enter') searchVR(); });
+
+        // ========== VOLUNTARY RECOGNITION FUNCTIONS ==========
+        async function searchVR() {
+            const params = new URLSearchParams();
+            const employer = document.getElementById('vrEmployer').value;
+            const aff = document.getElementById('vrAffSelect').value;
+            const state = document.getElementById('vrStateSelect').value;
+            const year = document.getElementById('vrYear').value;
+            const matchStatus = document.getElementById('vrMatchStatus').value;
+            
+            if (employer) params.append('employer', employer);
+            if (aff) params.append('affiliation', aff);
+            if (state) params.append('state', state);
+            if (year) params.append('year', year);
+            if (matchStatus === 'matched') params.append('employer_matched', 'true');
+            if (matchStatus === 'unmatched') params.append('employer_matched', 'false');
+            params.append('limit', '50');
+            params.append('offset', vrOffset);
+            
+            try {
+                const resp = await fetch(`${API}/vr/search?${params}`);
+                const data = await resp.json();
+                vrTotal = data.total || 0;
+                document.getElementById('vrResultCount').textContent = `(${vrTotal.toLocaleString()})`;
+                
+                const container = document.getElementById('vrResults');
+                if (!data.results || data.results.length === 0) {
+                    container.innerHTML = '<div class="p-6 text-center text-gray-500">No VR cases found</div>';
+                } else {
+                    container.innerHTML = data.results.map(vr => `
+                        <div class="p-3 hover:bg-gray-50 cursor-pointer" onclick="showVRDetail('${vr.vr_case_number}')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-medium text-gray-900">${vr.employer_name || 'Unknown'}</div>
+                                    <div class="text-sm text-gray-600">${vr.city || ''}, ${vr.state || ''}</div>
+                                    <div class="text-xs text-gray-500 mt-1">${vr.union_name || ''}</div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs px-2 py-1 rounded ${vr.matched_employer_id ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                        ${vr.matched_employer_id ? 'F7 Match' : 'New Employer'}
+                                    </span>
+                                    <div class="text-sm font-semibold text-gray-700 mt-1">${vr.num_employees || '?'} employees</div>
+                                    <div class="text-xs text-gray-500">${vr.date_vr_request_received ? new Date(vr.date_vr_request_received).toLocaleDateString() : ''}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Pagination
+                document.getElementById('vrPrevBtn').disabled = vrOffset === 0;
+                document.getElementById('vrNextBtn').disabled = vrOffset + 50 >= vrTotal;
+                document.getElementById('vrPageInfo').textContent = `Page ${Math.floor(vrOffset/50)+1} of ${Math.ceil(vrTotal/50)}`;
+                
+            } catch (err) { 
+                console.error('VR search error:', err);
+                document.getElementById('vrResults').innerHTML = '<div class="p-6 text-center text-red-500">Error searching VR cases</div>';
+            }
+        }
+        
+        function vrPrevPage() { if (vrOffset >= 50) { vrOffset -= 50; searchVR(); } }
+        function vrNextPage() { if (vrOffset + 50 < vrTotal) { vrOffset += 50; searchVR(); } }
+        
+        async function loadVRMap() {
+            const params = new URLSearchParams();
+            const state = document.getElementById('vrStateSelect').value;
+            const aff = document.getElementById('vrAffSelect').value;
+            const year = document.getElementById('vrYear').value;
+            
+            if (state) params.append('state', state);
+            if (aff) params.append('affiliation', aff);
+            if (year) params.append('year', year);
+            params.append('limit', '500');
+            
+            try {
+                const resp = await fetch(`${API}/vr/map?${params}`);
+                const data = await resp.json();
+                
+                vrMarkerCluster.clearLayers();
+                (data.features || []).forEach(vr => {
+                    if (vr.latitude && vr.longitude) {
+                        const marker = L.marker([vr.latitude, vr.longitude])
+                            .bindPopup(`<b>${vr.employer_name}</b><br>${vr.city}, ${vr.state}<br>${vr.affiliation || ''}<br>${vr.num_employees || '?'} employees`);
+                        vrMarkerCluster.addLayer(marker);
+                    }
+                });
+                vrMap.invalidateSize();
+            } catch (err) { console.error('VR map error:', err); }
+        }
+        
+        async function loadVRYearStats() {
+            try {
+                const resp = await fetch(`${API}/vr/stats/by-year`);
+                const data = await resp.json();
+                const container = document.getElementById('vrYearStats');
+                container.innerHTML = (data.years || []).map(y => `
+                    <div class="flex justify-between py-1 border-b">
+                        <span class="font-medium">${y.year}</span>
+                        <span>${y.total_cases} cases (${y.total_employees?.toLocaleString() || 0} workers)</span>
+                    </div>
+                `).join('');
+            } catch (err) { 
+                document.getElementById('vrYearStats').innerHTML = '<div class="text-red-500">Error loading stats</div>';
+            }
+        }
+        
+        async function showVRDetail(caseNumber) {
+            document.getElementById('detailModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'Voluntary Recognition Details';
+            document.getElementById('modalContent').innerHTML = '<div class="text-center py-4">Loading...</div>';
+            
+            try {
+                const resp = await fetch(`${API}/vr/${caseNumber}`);
+                const data = await resp.json();
+                const vr = data.vr_case;
+                
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2">Employer</h4>
+                            <p class="font-medium">${vr.employer_name_normalized || vr.employer_name || 'Unknown'}</p>
+                            <p class="text-sm text-gray-600">${vr.unit_city || ''}, ${vr.unit_state || ''}</p>
+                            <p class="text-sm text-gray-600">${vr.num_employees || '?'} employees</p>
+                            ${vr.matched_employer_id ? `
+                                <p class="mt-2 text-xs text-green-600">✓ Matched to F7: ${vr.f7_employer_name || ''}</p>
+                            ` : `
+                                <p class="mt-2 text-xs text-yellow-600">⚠ New employer (not in F7)</p>
+                            `}
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2">Union</h4>
+                            <p class="font-medium">${vr.union_name_normalized || vr.union_name || 'Unknown'}</p>
+                            <p class="text-sm text-gray-600">Affiliation: ${vr.extracted_affiliation || 'N/A'}</p>
+                            ${vr.matched_union_fnum ? `
+                                <p class="mt-2 text-xs text-green-600">✓ Matched to OLMS: ${vr.olms_union_name || ''}</p>
+                                <p class="text-xs text-gray-500">${vr.olms_members?.toLocaleString() || ''} members</p>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <h4 class="font-semibold text-gray-700 mb-2">Timeline</h4>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div><span class="text-gray-500">VR Request:</span> ${vr.date_vr_request_received ? new Date(vr.date_vr_request_received).toLocaleDateString() : 'N/A'}</div>
+                            <div><span class="text-gray-500">Recognition:</span> ${vr.date_voluntary_recognition ? new Date(vr.date_voluntary_recognition).toLocaleDateString() : 'N/A'}</div>
+                            <div><span class="text-gray-500">Notice Sent:</span> ${vr.date_vr_notice_sent ? new Date(vr.date_vr_notice_sent).toLocaleDateString() : 'N/A'}</div>
+                            <div><span class="text-gray-500">Posted:</span> ${vr.date_notice_posted ? new Date(vr.date_notice_posted).toLocaleDateString() : 'N/A'}</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <h4 class="font-semibold text-gray-700 mb-2">Unit Description</h4>
+                        <p class="text-sm text-gray-600">${vr.unit_description || 'Not specified'}</p>
+                    </div>
+                    <div class="mt-4 pt-4 border-t text-xs text-gray-500">
+                        <span>Case: ${vr.vr_case_number}</span> | 
+                        <span>Region: ${vr.region_name || vr.region || ''}</span>
+                    </div>
+                `;
+            } catch (err) { 
+                document.getElementById('modalContent').innerHTML = '<div class="text-red-500">Error loading VR details</div>';
+            }
+        }
+    </script>
+</body>
+</html>

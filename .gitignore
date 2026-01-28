@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+
+# Data files (too large for git)
+*.csv
+*.xlsx
+*.xls
+*.zip
+*.pdf
+data/
+output/
+naics_crosswalks/
+
+# Temp files
+*.tmp
+*.log
+nul
+cd
+py
+
+# Claude artifacts
+.claude/
+
+# Archive
+archive/
+2024organizing_files/

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLRB Elections & Cases Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #map { height: 500px; }
+        .win-marker { background-color: #22c55e; border: 2px solid #166534; }
+        .loss-marker { background-color: #ef4444; border: 2px solid #991b1b; }
+        .marker-cluster-win { background-color: rgba(34, 197, 94, 0.6); }
+        .marker-cluster-win div { background-color: rgba(34, 197, 94, 0.8); }
+        .marker-cluster-loss { background-color: rgba(239, 68, 68, 0.6); }
+        .marker-cluster-loss div { background-color: rgba(239, 68, 68, 0.8); }
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; }
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-blue-800 text-white py-4 px-6 shadow-lg">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">NLRB Elections & Cases Explorer</h1>
+                    <p class="text-blue-200 text-sm">National Labor Relations Board Data Analysis</p>
+                </div>
+                <div class="text-right text-sm">
+                    <div id="summary-stats" class="text-blue-200">Loading...</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="bg-white shadow">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="flex space-x-8">
+                    <button onclick="showTab('dashboard')" id="tab-dashboard" class="py-4 px-2 tab-active font-medium">
+                        📊 Dashboard
+                    </button>
+                    <button onclick="showTab('elections')" id="tab-elections" class="py-4 px-2 text-gray-600 hover:text-blue-600 font-medium">
+                        🗳️ Election Search
+                    </button>
+                    <button onclick="showTab('map')" id="tab-map" class="py-4 px-2 text-gray-600 hover:text-blue-600 font-medium">
+                        🗺️ Map View
+                    </button>
+                    <button onclick="showTab('trends')" id="tab-trends" class="py-4 px-2 text-gray-600 hover:text-blue-600 font-medium">
+                        📈 Trends
+                    </button>
+                    <button onclick="showTab('ulp')" id="tab-ulp" class="py-4 px-2 text-gray-600 hover:text-blue-600 font-medium">
+                        ⚖️ ULP Cases
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-6 py-6">
+            <!-- Dashboard Tab -->
+            <div id="content-dashboard" class="tab-content">
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-lg shadow p-4 stat-card">
+                        <div class="text-gray-500 text-sm">Total Elections</div>
+                        <div id="stat-elections" class="text-3xl font-bold text-blue-600">-</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 stat-card">
+                        <div class="text-gray-500 text-sm">Union Win Rate</div>
+                        <div id="stat-winrate" class="text-3xl font-bold text-green-600">-</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 stat-card">
+                        <div class="text-gray-500 text-sm">Union Wins</div>
+                        <div id="stat-wins" class="text-3xl font-bold text-green-500">-</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 stat-card">
+                        <div class="text-gray-500 text-sm">Union Losses</div>
+                        <div id="stat-losses" class="text-3xl font-bold text-red-500">-</div>
+                    </div>
+                </div>
+
+                <!-- Top Unions and Recent Elections -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-4 border-b">
+                            <h2 class="text-lg font-semibold">Top Unions by Election Activity</h2>
+                        </div>
+                        <div class="p-4">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-gray-500">
+                                        <th class="pb-2">Union</th>
+                                        <th class="pb-2 text-right">Elections</th>
+                                        <th class="pb-2 text-right">Wins</th>
+                                        <th class="pb-2 text-right">Win %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="top-unions-table">
+                                    <tr><td colspan="4" class="py-4 text-center text-gray-400">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-4 border-b">
+                            <h2 class="text-lg font-semibold">Recent Elections</h2>
+                        </div>
+                        <div class="p-4">
+                            <div id="recent-elections" class="space-y-3">
+                                <div class="text-center text-gray-400 py-4">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Elections Search Tab -->
+            <div id="content-elections" class="tab-content hidden">
+                <!-- Search Filters -->
+                <div class="bg-white rounded-lg shadow p-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                            <select id="filter-state" class="w-full border rounded px-3 py-2">
+                                <option value="">All States</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Union</label>
+                            <select id="filter-union" class="w-full border rounded px-3 py-2">
+                                <option value="">All Unions</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Year From</label>
+                            <input type="number" id="filter-year-from" class="w-full border rounded px-3 py-2" placeholder="2010">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Year To</label>
+                            <input type="number" id="filter-year-to" class="w-full border rounded px-3 py-2" placeholder="2025">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                            <select id="filter-outcome" class="w-full border rounded px-3 py-2">
+                                <option value="">All</option>
+                                <option value="true">Union Wins</option>
+                                <option value="false">Union Losses</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Employer Name</label>
+                            <input type="text" id="filter-employer" class="w-full border rounded px-3 py-2" placeholder="Search employer...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Min Voters</label>
+                            <input type="number" id="filter-min-voters" class="w-full border rounded px-3 py-2" placeholder="e.g., 50">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="searchElections()" class="w-full bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700">
+                                🔍 Search Elections
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h2 class="text-lg font-semibold">Election Results</h2>
+                        <span id="election-count" class="text-gray-500 text-sm">-</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">Date</th>
+                                    <th class="px-4 py-3 text-left">Employer</th>
+                                    <th class="px-4 py-3 text-left">Location</th>
+                                    <th class="px-4 py-3 text-left">Union</th>
+                                    <th class="px-4 py-3 text-right">Voters</th>
+                                    <th class="px-4 py-3 text-center">Result</th>
+                                    <th class="px-4 py-3 text-right">Margin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="elections-table">
+                                <tr><td colspan="7" class="py-8 text-center text-gray-400">Use filters above to search</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 border-t flex justify-between items-center">
+                        <button onclick="prevPage()" id="btn-prev" class="px-4 py-2 border rounded disabled:opacity-50" disabled>← Previous</button>
+                        <span id="page-info" class="text-gray-500">-</span>
+                        <button onclick="nextPage()" id="btn-next" class="px-4 py-2 border rounded disabled:opacity-50" disabled>Next →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Tab -->
+            <div id="content-map" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                            <select id="map-filter-state" class="w-full border rounded px-3 py-2">
+                                <option value="">All States</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Union</label>
+                            <select id="map-filter-union" class="w-full border rounded px-3 py-2">
+                                <option value="">All Unions</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Year From</label>
+                            <input type="number" id="map-filter-year-from" class="w-full border rounded px-3 py-2" value="2020">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                            <select id="map-filter-outcome" class="w-full border rounded px-3 py-2">
+                                <option value="">All</option>
+                                <option value="true">Union Wins</option>
+                                <option value="false">Union Losses</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="loadMapData()" class="w-full bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700">
+                                🗺️ Update Map
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h2 class="text-lg font-semibold">Election Locations</h2>
+                        <div class="flex items-center space-x-4 text-sm">
+                            <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span> Union Win</span>
+                            <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-1"></span> Union Loss</span>
+                            <span id="map-count" class="text-gray-500">-</span>
+                        </div>
+                    </div>
+                    <div id="map"></div>
+                </div>
+            </div>
+
+
+            <!-- Trends Tab -->
+            <div id="content-trends" class="tab-content hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-4 border-b">
+                            <h2 class="text-lg font-semibold">Elections by Year</h2>
+                        </div>
+                        <div class="p-4">
+                            <canvas id="chart-yearly" height="300"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-4 border-b">
+                            <h2 class="text-lg font-semibold">Win Rate by Year</h2>
+                        </div>
+                        <div class="p-4">
+                            <canvas id="chart-winrate" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-white rounded-lg shadow">
+                    <div class="p-4 border-b">
+                        <h2 class="text-lg font-semibold">Elections by State</h2>
+                    </div>
+                    <div class="p-4 overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">State</th>
+                                    <th class="px-4 py-2 text-right">Elections</th>
+                                    <th class="px-4 py-2 text-right">Wins</th>
+                                    <th class="px-4 py-2 text-right">Losses</th>
+                                    <th class="px-4 py-2 text-right">Win Rate</th>
+                                    <th class="px-4 py-2 text-right">Total Voters</th>
+                                </tr>
+                            </thead>
+                            <tbody id="state-stats-table">
+                                <tr><td colspan="6" class="py-4 text-center text-gray-400">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-6 bg-white rounded-lg shadow">
+                    <div class="p-4 border-b">
+                        <h2 class="text-lg font-semibold">Elections by Union Affiliation</h2>
+                    </div>
+                    <div class="p-4 overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left">Affiliation</th>
+                                    <th class="px-4 py-2 text-left">Union Name</th>
+                                    <th class="px-4 py-2 text-right">Elections</th>
+                                    <th class="px-4 py-2 text-right">Wins</th>
+                                    <th class="px-4 py-2 text-right">Win Rate</th>
+                                    <th class="px-4 py-2 text-right">Avg Unit Size</th>
+                                </tr>
+                            </thead>
+                            <tbody id="affiliation-stats-table">
+                                <tr><td colspan="6" class="py-4 text-center text-gray-400">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ULP Tab -->
+            <div id="content-ulp" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow p-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                            <select id="ulp-filter-state" class="w-full border rounded px-3 py-2">
+                                <option value="">All States</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Case Type</label>
+                            <select id="ulp-filter-type" class="w-full border rounded px-3 py-2">
+                                <option value="">All Types</option>
+                                <option value="CA">CA - Against Employer</option>
+                                <option value="CB">CB - Against Union</option>
+                                <option value="CC">CC - Against Both</option>
+                                <option value="CD">CD - Jurisdictional</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">NLRA Section</label>
+                            <input type="text" id="ulp-filter-section" class="w-full border rounded px-3 py-2" placeholder="e.g., 8(a)(1)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Charged Party</label>
+                            <input type="text" id="ulp-filter-charged" class="w-full border rounded px-3 py-2" placeholder="Search...">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="searchULP()" class="w-full bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700">
+                                🔍 Search ULP Cases
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="lg:col-span-2 bg-white rounded-lg shadow">
+                        <div class="p-4 border-b flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">ULP Cases</h2>
+                            <span id="ulp-count" class="text-gray-500 text-sm">-</span>
+                        </div>
+                        <div class="overflow-x-auto" style="max-height: 500px; overflow-y: auto;">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left">Case #</th>
+                                        <th class="px-4 py-2 text-left">Type</th>
+                                        <th class="px-4 py-2 text-left">Charged Party</th>
+                                        <th class="px-4 py-2 text-left">Location</th>
+                                        <th class="px-4 py-2 text-left">Filed</th>
+                                        <th class="px-4 py-2 text-left">Allegations</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ulp-table">
+                                    <tr><td colspan="6" class="py-8 text-center text-gray-400">Use filters to search</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-4 border-b">
+                            <h2 class="text-lg font-semibold">ULP by NLRA Section</h2>
+                        </div>
+                        <div class="p-4">
+                            <div id="ulp-sections" class="space-y-2">
+                                <div class="text-center text-gray-400 py-4">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8001/api/nlrb';
+        let map = null;
+        let markerCluster = null;
+        let currentPage = 0;
+        let currentFilters = {};
+        let yearlyChart = null;
+        let winrateChart = null;
+
+        // US States for dropdowns
+        const US_STATES = [
+            'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
+            'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+            'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
+            'VA','WA','WV','WI','WY','DC','PR'
+        ];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            populateStateDropdowns();
+            loadDashboard();
+            loadUnionDropdowns();
+            initMap();
+            loadTrends();
+            loadULPSections();
+        });
+
+        function populateStateDropdowns() {
+            const selects = ['filter-state', 'map-filter-state', 'ulp-filter-state'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    US_STATES.forEach(st => {
+                        const opt = document.createElement('option');
+                        opt.value = st;
+                        opt.textContent = st;
+                        select.appendChild(opt);
+                    });
+                }
+            });
+        }
+
+        async function loadUnionDropdowns() {
+            try {
+                const res = await fetch(`${API_BASE}/elections/by-affiliation?min_elections=20`);
+                const data = await res.json();
+                const selects = ['filter-union', 'map-filter-union'];
+                selects.forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        data.affiliation_stats.forEach(u => {
+                            const opt = document.createElement('option');
+                            opt.value = u.aff_abbr;
+                            opt.textContent = `${u.aff_abbr} - ${u.union_name?.substring(0,30) || ''}`;
+                            select.appendChild(opt);
+                        });
+                    }
+                });
+            } catch (e) {
+                console.error('Failed to load unions:', e);
+            }
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('tab-active'));
+            
+            // Show selected tab
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('tab-active');
+            
+            // Initialize map if needed
+            if (tabName === 'map' && map) {
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+        }
+
+        // ============== DASHBOARD ==============
+        async function loadDashboard() {
+            try {
+                const res = await fetch(`${API_BASE}/summary`);
+                const data = await res.json();
+                
+                // Summary stats
+                const e = data.elections;
+                document.getElementById('stat-elections').textContent = e.total_elections?.toLocaleString() || '-';
+                document.getElementById('stat-winrate').textContent = e.win_rate_pct ? `${e.win_rate_pct}%` : '-';
+                document.getElementById('stat-wins').textContent = e.union_wins?.toLocaleString() || '-';
+                document.getElementById('stat-losses').textContent = e.union_losses?.toLocaleString() || '-';
+                document.getElementById('summary-stats').innerHTML = `
+                    ${e.total_elections?.toLocaleString() || 0} elections | 
+                    ${e.total_eligible_voters?.toLocaleString() || 0} voters
+                `;
+                
+                // Top unions
+                const tbody = document.getElementById('top-unions-table');
+                tbody.innerHTML = data.top_unions.map(u => `
+                    <tr class="border-t hover:bg-gray-50">
+                        <td class="py-2">
+                            <span class="font-medium">${u.aff_abbr}</span>
+                            <span class="text-gray-500 text-xs ml-1">${u.union_name?.substring(0,25) || ''}</span>
+                        </td>
+                        <td class="text-right">${u.elections?.toLocaleString()}</td>
+                        <td class="text-right text-green-600">${u.wins?.toLocaleString()}</td>
+                        <td class="text-right ${u.win_rate >= 50 ? 'text-green-600' : 'text-red-600'}">${u.win_rate}%</td>
+                    </tr>
+                `).join('');
+                
+                // Recent elections
+                const recent = document.getElementById('recent-elections');
+                recent.innerHTML = data.recent_elections.map(e => `
+                    <div class="border rounded p-3 hover:bg-gray-50">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium">${e.employer_name || 'Unknown Employer'}</div>
+                                <div class="text-sm text-gray-500">${e.city || ''}, ${e.state || ''}</div>
+                            </div>
+                            <span class="px-2 py-1 rounded text-xs font-medium ${e.union_won ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${e.union_won ? 'WIN' : 'LOSS'}
+                            </span>
+                        </div>
+                        <div class="mt-2 text-sm">
+                            <span class="text-blue-600">${e.union_name?.substring(0,40) || 'Unknown Union'}</span>
+                            <span class="text-gray-400 ml-2">${e.election_date || ''}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load dashboard:', e);
+            }
+        }
+
+
+        // ============== ELECTION SEARCH ==============
+        async function searchElections(page = 0) {
+            currentPage = page;
+            currentFilters = {
+                state: document.getElementById('filter-state').value,
+                aff_abbr: document.getElementById('filter-union').value,
+                employer_name: document.getElementById('filter-employer').value,
+                year_from: document.getElementById('filter-year-from').value,
+                year_to: document.getElementById('filter-year-to').value,
+                union_won: document.getElementById('filter-outcome').value,
+                min_voters: document.getElementById('filter-min-voters').value,
+                limit: 50,
+                offset: page * 50
+            };
+            
+            const params = new URLSearchParams();
+            Object.entries(currentFilters).forEach(([k, v]) => {
+                if (v !== '' && v !== null) params.append(k, v);
+            });
+            
+            try {
+                const res = await fetch(`${API_BASE}/elections/search?${params}`);
+                const data = await res.json();
+                
+                document.getElementById('election-count').textContent = `${data.total.toLocaleString()} elections found`;
+                
+                const tbody = document.getElementById('elections-table');
+                if (data.elections.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-400">No elections found</td></tr>';
+                } else {
+                    tbody.innerHTML = data.elections.map(e => `
+                        <tr class="border-t hover:bg-gray-50 cursor-pointer" onclick="showElectionDetail('${e.case_number}')">
+                            <td class="px-4 py-3">${e.election_date || '-'}</td>
+                            <td class="px-4 py-3 font-medium">${e.employer_name?.substring(0,35) || '-'}</td>
+                            <td class="px-4 py-3 text-gray-600">${e.employer_city || ''}, ${e.employer_state || ''}</td>
+                            <td class="px-4 py-3">
+                                <span class="text-blue-600">${e.aff_abbr || ''}</span>
+                                <span class="text-gray-500 text-xs ml-1">${e.union_name?.substring(0,25) || ''}</span>
+                            </td>
+                            <td class="px-4 py-3 text-right">${e.eligible_voters?.toLocaleString() || '-'}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded text-xs font-medium ${e.union_won ? 'bg-green-100 text-green-800' : e.union_won === false ? 'bg-red-100 text-red-800' : 'bg-gray-100'}">
+                                    ${e.union_won === true ? 'WIN' : e.union_won === false ? 'LOSS' : '-'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-right ${e.vote_margin > 0 ? 'text-green-600' : 'text-red-600'}">${e.vote_margin !== null ? e.vote_margin : '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+                
+                // Pagination
+                const totalPages = Math.ceil(data.total / 50);
+                document.getElementById('page-info').textContent = `Page ${page + 1} of ${totalPages}`;
+                document.getElementById('btn-prev').disabled = page === 0;
+                document.getElementById('btn-next').disabled = page >= totalPages - 1;
+            } catch (e) {
+                console.error('Search failed:', e);
+            }
+        }
+
+        function prevPage() { if (currentPage > 0) searchElections(currentPage - 1); }
+        function nextPage() { searchElections(currentPage + 1); }
+
+        function showElectionDetail(caseNumber) {
+            window.open(`${API_BASE}/election/${caseNumber}`, '_blank');
+        }
+
+        // ============== MAP ==============
+        function initMap() {
+            map = L.map('map').setView([39.8283, -98.5795], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            markerCluster = L.markerClusterGroup({
+                maxClusterRadius: 50,
+                spiderfyOnMaxZoom: true
+            });
+            map.addLayer(markerCluster);
+        }
+
+        async function loadMapData() {
+            const params = new URLSearchParams();
+            const state = document.getElementById('map-filter-state').value;
+            const union = document.getElementById('map-filter-union').value;
+            const yearFrom = document.getElementById('map-filter-year-from').value;
+            const outcome = document.getElementById('map-filter-outcome').value;
+            
+            if (state) params.append('state', state);
+            if (union) params.append('aff_abbr', union);
+            if (yearFrom) params.append('year_from', yearFrom);
+            if (outcome) params.append('union_won', outcome);
+            params.append('limit', 2000);
+            
+            try {
+                const res = await fetch(`${API_BASE}/elections/map?${params}`);
+                const data = await res.json();
+                
+                markerCluster.clearLayers();
+                
+                data.elections.forEach(e => {
+                    if (e.latitude && e.longitude) {
+                        const color = e.union_won ? '#22c55e' : '#ef4444';
+                        const icon = L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background-color:${color};width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                            iconSize: [12, 12]
+                        });
+                        
+                        const marker = L.marker([e.latitude, e.longitude], { icon });
+                        marker.bindPopup(`
+                            <div class="text-sm">
+                                <div class="font-bold">${e.employer_name || 'Unknown'}</div>
+                                <div>${e.city}, ${e.state}</div>
+                                <div class="mt-1 ${e.union_won ? 'text-green-600' : 'text-red-600'} font-medium">
+                                    ${e.union_won ? 'Union Win' : 'Union Loss'}
+                                </div>
+                                <div class="text-gray-600">${e.union_name?.substring(0,40) || ''}</div>
+                                <div class="text-gray-400 text-xs">${e.election_date || ''}</div>
+                            </div>
+                        `);
+                        markerCluster.addLayer(marker);
+                    }
+                });
+                
+                document.getElementById('map-count').textContent = `${data.elections.length} elections shown`;
+            } catch (e) {
+                console.error('Map load failed:', e);
+            }
+        }
+
+
+        // ============== TRENDS ==============
+        async function loadTrends() {
+            try {
+                // Yearly stats
+                const yearRes = await fetch(`${API_BASE}/elections/by-year`);
+                const yearData = await yearRes.json();
+                const years = yearData.yearly_stats.slice(0, 20).reverse();
+                
+                // Elections chart
+                const ctx1 = document.getElementById('chart-yearly').getContext('2d');
+                if (yearlyChart) yearlyChart.destroy();
+                yearlyChart = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: years.map(y => y.year),
+                        datasets: [{
+                            label: 'Union Wins',
+                            data: years.map(y => y.union_wins),
+                            backgroundColor: 'rgba(34, 197, 94, 0.8)'
+                        }, {
+                            label: 'Union Losses',
+                            data: years.map(y => y.union_losses),
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { x: { stacked: true }, y: { stacked: true } }
+                    }
+                });
+                
+                // Win rate chart
+                const ctx2 = document.getElementById('chart-winrate').getContext('2d');
+                if (winrateChart) winrateChart.destroy();
+                winrateChart = new Chart(ctx2, {
+                    type: 'line',
+                    data: {
+                        labels: years.map(y => y.year),
+                        datasets: [{
+                            label: 'Win Rate %',
+                            data: years.map(y => y.win_rate),
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { y: { min: 0, max: 100 } }
+                    }
+                });
+                
+                // State stats
+                const stateRes = await fetch(`${API_BASE}/elections/by-state`);
+                const stateData = await stateRes.json();
+                document.getElementById('state-stats-table').innerHTML = stateData.state_stats.slice(0, 20).map(s => `
+                    <tr class="border-t hover:bg-gray-50">
+                        <td class="px-4 py-2 font-medium">${s.state}</td>
+                        <td class="px-4 py-2 text-right">${s.total_elections?.toLocaleString()}</td>
+                        <td class="px-4 py-2 text-right text-green-600">${s.union_wins?.toLocaleString()}</td>
+                        <td class="px-4 py-2 text-right text-red-600">${s.union_losses?.toLocaleString()}</td>
+                        <td class="px-4 py-2 text-right ${s.win_rate >= 50 ? 'text-green-600' : 'text-red-600'}">${s.win_rate}%</td>
+                        <td class="px-4 py-2 text-right text-gray-600">${s.total_voters?.toLocaleString()}</td>
+                    </tr>
+                `).join('');
+                
+                // Affiliation stats
+                const affRes = await fetch(`${API_BASE}/elections/by-affiliation?min_elections=20`);
+                const affData = await affRes.json();
+                document.getElementById('affiliation-stats-table').innerHTML = affData.affiliation_stats.map(a => `
+                    <tr class="border-t hover:bg-gray-50">
+                        <td class="px-4 py-2 font-medium">${a.aff_abbr}</td>
+                        <td class="px-4 py-2 text-gray-600">${a.union_name?.substring(0,30) || ''}</td>
+                        <td class="px-4 py-2 text-right">${a.elections?.toLocaleString()}</td>
+                        <td class="px-4 py-2 text-right text-green-600">${a.wins?.toLocaleString()}</td>
+                        <td class="px-4 py-2 text-right ${a.win_rate >= 50 ? 'text-green-600' : 'text-red-600'}">${a.win_rate}%</td>
+                        <td class="px-4 py-2 text-right text-gray-600">${a.avg_unit_size?.toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Trends load failed:', e);
+            }
+        }
+
+        // ============== ULP CASES ==============
+        async function loadULPSections() {
+            try {
+                const res = await fetch(`${API_BASE}/ulp/by-section`);
+                const data = await res.json();
+                
+                document.getElementById('ulp-sections').innerHTML = data.section_stats.slice(0, 15).map(s => `
+                    <div class="flex justify-between items-center py-2 border-b">
+                        <span class="font-medium text-blue-600">${s.section}</span>
+                        <span class="text-gray-600">${s.case_count?.toLocaleString()} cases</span>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('ULP sections failed:', e);
+            }
+        }
+
+        async function searchULP() {
+            const params = new URLSearchParams();
+            const state = document.getElementById('ulp-filter-state').value;
+            const caseType = document.getElementById('ulp-filter-type').value;
+            const section = document.getElementById('ulp-filter-section').value;
+            const charged = document.getElementById('ulp-filter-charged').value;
+            
+            if (state) params.append('state', state);
+            if (caseType) params.append('case_type', caseType);
+            if (section) params.append('section', section);
+            if (charged) params.append('charged_party', charged);
+            params.append('limit', 100);
+            
+            try {
+                const res = await fetch(`${API_BASE}/ulp/search?${params}`);
+                const data = await res.json();
+                
+                document.getElementById('ulp-count').textContent = `${data.total.toLocaleString()} cases found`;
+                
+                const tbody = document.getElementById('ulp-table');
+                if (data.cases.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-400">No cases found</td></tr>';
+                } else {
+                    tbody.innerHTML = data.cases.map(c => `
+                        <tr class="border-t hover:bg-gray-50">
+                            <td class="px-4 py-2 font-mono text-xs">${c.case_number}</td>
+                            <td class="px-4 py-2">
+                                <span class="px-2 py-1 rounded text-xs ${c.case_type === 'CA' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+                                    ${c.case_type}
+                                </span>
+                            </td>
+                            <td class="px-4 py-2">${c.charged_party?.substring(0,30) || '-'}</td>
+                            <td class="px-4 py-2 text-gray-600">${c.city || ''}, ${c.state || ''}</td>
+                            <td class="px-4 py-2 text-gray-500">${c.earliest_date || '-'}</td>
+                            <td class="px-4 py-2 text-xs text-gray-500">${c.allegations?.substring(0,40) || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error('ULP search failed:', e);
+            }
+        }
+    </script>
+</body>
+</html>
