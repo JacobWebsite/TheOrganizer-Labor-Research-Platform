@@ -1,7 +1,9 @@
 """
-Labor Relations Platform API v6.3 - NAICS Granularity Enhancement
+Labor Relations Platform API v6.4 - Multi-Employer Deduplication
 Run with: py -m uvicorn labor_api_v6:app --reload --port 8001
-Features: OSHA-enriched 6-digit NAICS codes for 20,090 employers
+Features:
+- OSHA-enriched 6-digit NAICS codes for 20,090 employers
+- Multi-employer agreement deduplication (90% BLS coverage vs 203% raw)
 """
 
 from fastapi import FastAPI, Query, HTTPException
@@ -1170,10 +1172,14 @@ def get_platform_summary():
             """)
             unions = cur.fetchone()
             
-            # Employers
+            # Employers (with deduplication stats)
             cur.execute("""
-                SELECT COUNT(*) as total_employers, SUM(latest_unit_size) as covered_workers,
-                    COUNT(DISTINCT state) as states
+                SELECT COUNT(*) as total_employers,
+                    SUM(latest_unit_size) as total_workers_raw,
+                    SUM(CASE WHEN exclude_from_counts = FALSE THEN latest_unit_size ELSE 0 END) as covered_workers,
+                    COUNT(DISTINCT state) as states,
+                    COUNT(CASE WHEN exclude_from_counts = TRUE THEN 1 END) as excluded_records,
+                    ROUND(100.0 * SUM(CASE WHEN exclude_from_counts = FALSE THEN latest_unit_size ELSE 0 END) / 7200000, 1) as bls_coverage_pct
                 FROM f7_employers_deduped
             """)
             employers = cur.fetchone()
@@ -1799,6 +1805,111 @@ def get_employers_by_detailed_naics(
 
 
 # ============================================================================
+# MULTI-EMPLOYER AGREEMENT ENDPOINTS
+# ============================================================================
+
+@app.get("/api/multi-employer/stats")
+def get_multi_employer_stats():
+    """Get multi-employer agreement deduplication statistics"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Summary stats
+            cur.execute("""
+                SELECT
+                    COUNT(*) as total_employers,
+                    SUM(latest_unit_size) as total_workers_raw,
+                    SUM(CASE WHEN exclude_from_counts = FALSE THEN latest_unit_size ELSE 0 END) as counted_workers,
+                    SUM(CASE WHEN exclude_from_counts = TRUE THEN latest_unit_size ELSE 0 END) as excluded_workers,
+                    COUNT(CASE WHEN exclude_from_counts = TRUE THEN 1 END) as excluded_records,
+                    ROUND(100.0 * SUM(CASE WHEN exclude_from_counts = FALSE THEN latest_unit_size ELSE 0 END) / 7200000, 1) as bls_coverage_pct
+                FROM f7_employers_deduped
+            """)
+            summary = cur.fetchone()
+
+            # By exclusion reason
+            cur.execute("""
+                SELECT COALESCE(exclude_reason, 'INCLUDED') as reason,
+                       COUNT(*) as employers,
+                       SUM(latest_unit_size) as workers
+                FROM f7_employers_deduped
+                GROUP BY exclude_reason
+                ORDER BY SUM(latest_unit_size) DESC
+            """)
+            by_reason = cur.fetchall()
+
+            # Top multi-employer groups
+            cur.execute("""
+                SELECT multi_employer_group_id,
+                       MAX(latest_union_name) as union_name,
+                       COUNT(*) as employers_in_group,
+                       SUM(latest_unit_size) as total_workers,
+                       SUM(CASE WHEN exclude_from_counts = FALSE THEN latest_unit_size ELSE 0 END) as counted_workers
+                FROM f7_employers_deduped
+                WHERE multi_employer_group_id IS NOT NULL
+                GROUP BY multi_employer_group_id
+                ORDER BY SUM(latest_unit_size) DESC
+                LIMIT 20
+            """)
+            top_groups = cur.fetchall()
+
+            return {
+                "summary": summary,
+                "by_reason": by_reason,
+                "top_groups": top_groups
+            }
+
+
+@app.get("/api/multi-employer/groups")
+def get_multi_employer_groups(limit: int = Query(50, le=200)):
+    """Get list of multi-employer agreement groups"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT * FROM v_multi_employer_groups
+                ORDER BY total_reported_workers DESC
+                LIMIT %s
+            """, [limit])
+            return {"groups": cur.fetchall()}
+
+
+@app.get("/api/employer/{employer_id}/agreement")
+def get_employer_agreement_info(employer_id: str):
+    """Get multi-employer agreement context for an employer"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT employer_id, employer_name, multi_employer_group_id,
+                       is_primary_in_group, exclude_from_counts, exclude_reason,
+                       latest_unit_size, latest_union_name
+                FROM f7_employers_deduped
+                WHERE employer_id = %s
+            """, [employer_id])
+            employer = cur.fetchone()
+
+            if not employer:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            # Get other employers in same group
+            group_members = []
+            if employer.get('multi_employer_group_id'):
+                cur.execute("""
+                    SELECT employer_id, employer_name, city, state,
+                           latest_unit_size, is_primary_in_group, exclude_from_counts
+                    FROM f7_employers_deduped
+                    WHERE multi_employer_group_id = %s
+                    ORDER BY latest_unit_size DESC
+                    LIMIT 20
+                """, [employer['multi_employer_group_id']])
+                group_members = cur.fetchall()
+
+            return {
+                "employer": employer,
+                "group_members": group_members,
+                "group_size": len(group_members)
+            }
+
+
+# ============================================================================
 # HEALTH CHECK
 # ============================================================================
 
@@ -1826,7 +1937,7 @@ def health_check():
         return {
             "status": "healthy",
             "database": "connected",
-            "version": "6.3-naics-granularity",
+            "version": "6.4-multi-employer-dedup",
             "vr_records": vr_count,
             "osha_establishments": osha_count,
             "bls_industries": ind_count,
