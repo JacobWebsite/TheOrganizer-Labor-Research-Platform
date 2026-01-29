@@ -1,34 +1,64 @@
+"""
+Fix the unified view with correct column mappings
+"""
 import psycopg2
-from psycopg2.extras import RealDictCursor
 
 conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password='Juniordog33!'
+    host="localhost",
+    dbname="olms_multiyear",
+    user="postgres",
+    password="Juniordog33!"
 )
-cur = conn.cursor(cursor_factory=RealDictCursor)
+conn.autocommit = True
+cur = conn.cursor()
 
-# Check f7_employers_deduped columns
+print("=" * 80)
+print("CHECKING TABLE STRUCTURES")
+print("=" * 80)
+
+# Check v_f7_private_sector_cleaned columns
 cur.execute("""
-    SELECT column_name, data_type 
+    SELECT column_name, data_type
+    FROM information_schema.columns 
+    WHERE table_name = 'v_f7_private_sector_cleaned'
+    ORDER BY ordinal_position;
+""")
+print("\nv_f7_private_sector_cleaned:")
+for row in cur.fetchall():
+    print(f"  {row[0]}: {row[1]}")
+
+# Check public_sector_employers columns
+cur.execute("""
+    SELECT column_name, data_type
+    FROM information_schema.columns 
+    WHERE table_name = 'public_sector_employers'
+    ORDER BY ordinal_position;
+""")
+print("\npublic_sector_employers:")
+for row in cur.fetchall():
+    print(f"  {row[0]}: {row[1]}")
+
+# Check f7_employers_deduped
+cur.execute("""
+    SELECT column_name, data_type
     FROM information_schema.columns 
     WHERE table_name = 'f7_employers_deduped'
-    ORDER BY ordinal_position
+    ORDER BY ordinal_position;
 """)
-print('f7_employers_deduped columns:')
+print("\nf7_employers_deduped:")
 for row in cur.fetchall():
-    print(f"  {row['column_name']}: {row['data_type']}")
+    print(f"  {row[0]}: {row[1]}")
 
-# Check unions_master columns
+# Check f7_employers
 cur.execute("""
-    SELECT column_name, data_type 
+    SELECT column_name, data_type
     FROM information_schema.columns 
-    WHERE table_name = 'unions_master'
+    WHERE table_name = 'f7_employers'
     ORDER BY ordinal_position
+    LIMIT 15;
 """)
-print('\nunions_master columns:')
+print("\nf7_employers (first 15):")
 for row in cur.fetchall():
-    print(f"  {row['column_name']}: {row['data_type']}")
+    print(f"  {row[0]}: {row[1]}")
 
 conn.close()

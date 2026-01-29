@@ -1,7 +1,8 @@
 import psycopg2
 conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='Juniordog33!')
 cur = conn.cursor()
-cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='lm_data' ORDER BY ordinal_position")
-for r in cur.fetchall():
-    print(r[0])
+cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'nlrb_tallies' ORDER BY ordinal_position")
+print('nlrb_tallies columns:')
+for row in cur.fetchall():
+    print(f'  - {row[0]}')
 conn.close()
