@@ -12,7 +12,6 @@ __pycache__/
 .idea/
 
 # Data files (too large for git)
-*.csv
 *.xlsx
 *.xls
 *.zip
@@ -20,6 +19,9 @@ __pycache__/
 data/
 output/
 naics_crosswalks/
+
+# Allow CSVs in docs (small reference files)
+!docs/**/*.csv
 
 # Temp files
 *.tmp
