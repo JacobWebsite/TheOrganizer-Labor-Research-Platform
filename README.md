@@ -1,244 +1,97 @@
-# Labor Relations Data Platform
+# Labor Relations Research Platform
 
-**Last Updated:** January 24, 2026  
-**Status:** Active Development  
-**Primary Database:** PostgreSQL (`olms_multiyear`)
-
----
-
-## Quick Start (New Unified Interface)
-
-```cmd
-cd C:\Users\jakew\Downloads\labor-data-project
-py -m uvicorn api.labor_api_v6:app --reload --port 8000
-```
-
-Then open `frontend/labor_search_v6.html` in your browser.
-
----
-
-## Development Checkpoints
-
-To continue development, start a new Claude chat and say:
-
-> "Continue with Checkpoint [X]"
-
-### Data Quality & UI
-| ID | Focus | Description |
-|----|-------|-------------|
-| **A** | Data Quality | Fix union display names, local number handling |
-| **B** | Geographic | Add Leaflet maps for employer visualization |
-| **C** | Charts | Chart.js for financial trends, elections |
-| **D** | Performance | Caching, pagination, materialized views |
-| **E** | Search | Full-text search, cross-reference queries |
-| **F** | Export | CSV/PDF export, bulk data API |
-| **G** | BLS Data | Surface density data in interface |
-
-### External Data Integration
-| ID | Focus | Description |
-|----|-------|-------------|
-| **H** | Mergent Intellect | Employer enrichment - revenue, NAICS, hierarchy |
-| **I** | IRS 990 Forms | Union exec compensation, investments, PACs |
-| **J** | SEC/Edgar | Public company labor disclosures |
-| **K** | OSHA | Workplace safety records |
-| **L** | FEC/Political | PAC spending, lobbying data |
-| **M** | Contracts | Actual CBA terms and expirations |
-| **N** | News | Real-time monitoring, organizing alerts |
-| **O** | Predictive | Election forecasting, organizing likelihood |
-
-**See:** `EXTENDED_ROADMAP.md` for detailed descriptions  
-**See:** `PROJECT_STATUS_SUMMARY.md` for current state
-
----
-
-## Overview
-
-This platform integrates multiple federal government databases to create a comprehensive analytical framework for understanding labor relations in the United States. The system combines Department of Labor financial filings, NLRB election data, employer bargaining notices, and BLS density statistics spanning four decades.
-
-### Key Capabilities
-
-- Track union membership and financial trends (2010-2025)
-- Analyze officer/employee compensation across 26,000+ organizations
-- Link unions to employers through F-7 bargaining notices (71K+ deduplicated employers)
-- **91.3% affiliation match rate** on employer data (text-based parsing for unions without file numbers)
-- Compare union density by state, industry, and demographics (1983-2024)
-- **Local number display** showing actual union local designations (e.g., "SEIU LU 1199")
+**Version:** 6.4
+**Last Updated:** January 28, 2026
+**Status:** Active Development
+**GitHub:** [TheOrganizer-Labor-Research-Platform](https://github.com/JacobWebsite/TheOrganizer-Labor-Research-Platform)
 
 ---
 
 ## Quick Start
 
-### Web Interface (Recommended)
-
 ```cmd
 cd C:\Users\jakew\Downloads\labor-data-project
-py -m uvicorn labor_search_api:app --host 0.0.0.0 --port 8000
+py -m uvicorn api.labor_api_v6:app --reload --port 8001
 ```
 
-Then open `labor_search.html` in your browser.
+Open `frontend/labor_search_v6_osha.html` in your browser.
 
-**API Documentation:** http://localhost:8000/docs
-
-### Connect to PostgreSQL
-
-```bash
-# Windows
-psql -U postgres -d olms_multiyear
-# Password: Juniordog33!
-```
-
-### Key Tables/Views
-
-| Resource | Records | Description |
-|----------|---------|-------------|
-| f7_employers_deduped | 71,085 | Deduplicated employers (2020-2025) |
-| v_employer_search | 71,085 | Employer search with affiliations |
-| v_union_local_search | ~18,000 | Union locals with local numbers |
-| lm_data | 331,000+ | LM financial filings (all years) |
-
-### Key Queries
-
-```sql
--- Search employers by affiliation
-SELECT employer_name, city, state, bargaining_unit_size, affiliation
-FROM v_employer_search
-WHERE affiliation = 'SEIU'
-ORDER BY bargaining_unit_size DESC LIMIT 20;
-
--- Search union locals with local numbers
-SELECT local_display_name, local_number, city, state, members, f7_employer_count
-FROM v_union_local_search
-WHERE affiliation = 'CWA' AND members > 1000
-ORDER BY members DESC;
-
--- Top affiliations by F-7 employer count
-SELECT affiliation, affiliation_name, local_count, f7_employer_count
-FROM v_affiliation_summary
-WHERE f7_employer_count > 0
-ORDER BY f7_employer_count DESC;
-```
+**API Docs:** http://localhost:8001/docs
 
 ---
 
-## Database Schema
+## Current Coverage (January 2026)
 
-### Core Tables
+| Sector | Platform | EPI Benchmark | Coverage |
+|--------|----------|---------------|----------|
+| **Private** | 5,962,055 | 7,211,458 | **82.7%** |
+| **Public** | 5,298,619 | 6,995,000 | **75.7%** |
+| **Total** | 11,260,674 | 14,206,458 | **79.3%** |
+
+*Excludes DC due to federal HQ effects*
+
+---
+
+## For Claude/Claude Code
+
+See **[CLAUDE.md](CLAUDE.md)** for:
+- Database connection details
+- Key tables and columns
+- Current metrics
+- Quick reference queries
+
+---
+
+## Overview
+
+This platform integrates multiple federal government databases to create a comprehensive analytical framework for understanding labor relations in the United States:
+
+- **OLMS LM Filings:** 331,000+ union financial reports (2010-2025)
+- **F-7 Employer Notices:** 63,000+ deduplicated employers with bargaining units
+- **FLRA Federal Data:** 1.28M federal employees in 2,183 bargaining units
+- **EPI/BLS Benchmarks:** State-level union membership data
+- **OSHA Integration:** 6-digit NAICS codes for 20,090 employers
+
+### Key Capabilities
+
+- Track union membership and financial trends
+- Analyze officer/employee compensation across 26,000+ organizations
+- Link unions to employers through F-7 bargaining notices
+- Compare coverage against BLS/EPI benchmarks by state
+- Multi-employer agreement deduplication (reduced 203% → 82.7% of BLS)
+
+---
+
+## Database Connection
+
+```python
+import psycopg2
+conn = psycopg2.connect(
+    host='localhost',
+    dbname='olms_multiyear',
+    user='postgres',
+    password='Juniordog33!'
+)
+```
+
+### Key Tables
 
 | Table | Records | Description |
 |-------|---------|-------------|
+| `unions_master` | 26,665 | Union metadata with sector, members, F7 linkage |
+| `f7_employers_deduped` | 63,118 | Deduplicated employers with exclusion flags |
+| `state_coverage_comparison` | 51 | Coverage vs EPI benchmarks by state |
+| `epi_union_membership` | 1.4M | EPI/BLS union membership data |
+| `federal_bargaining_units` | 2,183 | FLRA federal employee data |
 | `lm_data` | 331,238 | Union LM filings (2010-2025) |
-| `f7_employers` | 150,388 | Geocoded F-7 employer notices |
-| `unions_master` | 26,665 | Union metadata with F-7 linkage |
-| `union_hierarchy` | 18,067 | **Deduplication flags for each union** |
 
-### Detail Tables
-
-| Table | Records | Description |
-|-------|---------|-------------|
-| `ar_disbursements_emp_off` | ~500K | Officer & employee compensation |
-| `ar_membership` | 216,508 | Membership by category |
-| `ar_assets_investments` | 304,816 | Investment holdings |
-| `ar_disbursements_total` | 216,372 | Spending by category |
-
-### Reference Tables
-
-| Table | Records | Description |
-|-------|---------|-------------|
-| `union_sector` | 6 | Sector classifications |
-| `union_match_status` | 6 | F-7 match status codes |
-
-### Views (Deduplicated)
+### Key Views
 
 | View | Purpose |
 |------|---------|
-| `v_union_members_counted` | **Use for totals** - only counted unions |
-| `v_union_members_deduplicated` | All unions with dedup flags |
-| `v_hierarchy_summary` | Summary by hierarchy level |
-| `v_membership_by_sector` | Totals by sector |
-| `v_membership_by_affiliation` | Totals by affiliation |
-| `v_membership_by_state` | Totals by state |
-| `v_deduplication_comparison` | Raw vs deduplicated vs BLS |
-
----
-
-## Member Deduplication
-
-### The Problem
-
-Raw LM data reports **70.1 million** members, but the BLS benchmark is only **14.3 million**. This 4.9x overcount occurs because:
-
-1. **Hierarchy double-counting**: AFL-CIO reports 13.4M, but SEIU (part of AFL-CIO) also reports 1.9M, and SEIU locals also report their members
-2. **Multi-employer bargaining**: Building trades locals counted once per employer relationship
-3. **Data quality issues**: Some unions report erroneous values (e.g., ACT reported 3.6M instead of 22K)
-
-### The Solution
-
-The `union_hierarchy` table classifies each union and flags whether to count its members:
-
-| Level | Count | Counted | Description |
-|-------|-------|---------|-------------|
-| FEDERATION | 312 | 0 | AFL-CIO, departments (aggregate other unions) |
-| INTERNATIONAL | 60 | 13.4M | SEIU, IBT, UAW, etc. (primary count level) |
-| INTERMEDIATE | 3 | 0 | District councils |
-| LOCAL | 17,709 | 1.1M | Local unions (count only independents) |
-| **TOTAL** | | **14.5M** | +1.5% vs BLS |
-
-### Key Fields in `union_hierarchy`
-
-```sql
-SELECT f_num, union_name, hierarchy_level, count_members, count_reason
-FROM union_hierarchy
-WHERE f_num = '137';  -- SEIU
-
--- Returns:
--- f_num: 137
--- union_name: SERVICE EMPLOYEES
--- hierarchy_level: INTERNATIONAL
--- count_members: TRUE
--- count_reason: International union - primary count level
-```
-
-See [MEMBER_DEDUPLICATION.md](docs/MEMBER_DEDUPLICATION.md) for full methodology.
-
----
-
-## F-7 Employer Integration
-
-### Data Loaded
-
-| Table | Records | Description |
-|-------|---------|-------------|
-| `f7_employers` | 150,388 | Unique employers from F-7 notices |
-| `unions_master` | 26,665 | Unions with F-7 employer counts |
-
-### Geocoding Stats
-
-- **Total employers:** 150,388
-- **Geocoded:** 110,996 (73.8%)
-- **Top states:** CA (17,799), NY (16,516), IL (14,817)
-
-### Sample Queries
-
-```sql
--- Employers by state
-SELECT state, COUNT(*) as employers, SUM(latest_unit_size) as workers
-FROM f7_employers
-WHERE state IS NOT NULL
-GROUP BY state
-ORDER BY employers DESC;
-
--- Unions with most employers
-SELECT f_num, union_name, f7_employer_count, f7_total_workers
-FROM unions_master
-WHERE f7_employer_count > 100
-ORDER BY f7_employer_count DESC;
-
--- Geocoded employers for mapping
-SELECT employer_name, latitude, longitude, latest_union_name
-FROM f7_employers
-WHERE latitude IS NOT NULL
-LIMIT 1000;
-```
+| `v_f7_for_bls_counts` | Only counted F7 records (exclude_from_counts = FALSE) |
+| `v_multi_employer_groups` | Multi-employer agreement groupings |
+| `v_employer_naics_enhanced` | Employers with OSHA-enriched 6-digit NAICS |
 
 ---
 
@@ -246,111 +99,141 @@ LIMIT 1000;
 
 ```
 labor-data-project/
-├── api/                   # FastAPI endpoints
-│   ├── labor_api_v6.py    # LATEST - Full platform API
-│   └── vr_api_endpoints.py
-├── archive/               # Historical/old files
-│   ├── bls_phases/        # Old BLS phase folders
-│   ├── old_scripts/       # Checkpoint scripts, old versions
-│   └── Claude Ai union project/
-├── data/                  # All data files
-│   ├── bls/               # BLS raw data
-│   ├── crosswalk/         # Union-employer linkage databases
-│   ├── f7/                # F-7 employer databases
-│   ├── nlrb/              # NLRB election data
-│   ├── olms/              # OLMS reference data
-│   ├── raw/               # Raw downloads (XML, web search, etc.)
-│   ├── unionstats/        # BLS density xlsx (40 years)
-│   └── unified_labor.db   # SQLite unified database
-├── docs/                  # Documentation and markdown files
-│   ├── README.md          # This file
-│   └── *.md               # All methodology docs
-├── frontend/              # Web interface HTML
-│   ├── labor_search_v6.html  # LATEST - Full search UI
-│   └── nlrb_explorer.html
-├── output/                # Generated exports
-│   ├── *.csv              # All CSV outputs
-│   └── *.xlsx             # Excel exports
-├── scripts/               # Python scripts by function
-│   ├── analysis/          # Coverage analysis, sector checks
-│   ├── export/            # CSV/Excel generation
-│   ├── import/            # Data loading, transformations
-│   └── maintenance/       # Verification, tests, checks
-├── sql/                   # SQL files
-│   ├── schema/            # Table/view creation
-│   └── queries/           # Query files
-├── src/                   # Legacy Python source
-├── start-claude.bat       # Start Claude Code helper
-└── union-research.skill   # Skill configuration
+├── CLAUDE.md                 # Quick reference for Claude/Claude Code
+├── README.md                 # This file
+├── api/
+│   └── labor_api_v6.py       # FastAPI v6.4 - Main API
+├── frontend/
+│   └── labor_search_v6_osha.html  # Web interface
+├── docs/
+│   ├── coverage/             # State coverage CSVs
+│   │   ├── FINAL_COVERAGE_BY_STATE.csv
+│   │   └── COVERAGE_REFERENCE_ANNOTATED.csv
+│   ├── methodology/          # Methodology documentation
+│   │   └── STATE_COVERAGE_METHODOLOGY.md
+│   └── [35+ markdown docs]   # Session summaries, status reports
+├── scripts/
+│   ├── analysis/      (33)   # Multi-employer, coverage analysis
+│   ├── coverage/      (16)   # Public/private sector scripts
+│   ├── etl/           (30)   # OSHA, NAICS, data loading
+│   ├── federal/        (9)   # Federal checkpoint scripts
+│   ├── maintenance/   (95)   # Check, fix, update scripts
+│   └── matching/      (19)   # NLRB, F7 matching scripts
+├── data/                     # Raw data files (gitignored)
+├── sql/                      # SQL scripts
+└── archive/                  # Old versions, historical files
 ```
 
 ---
 
-## Scripts Reference
+## Data Sources
 
-All scripts organized under `scripts/` directory:
+### Private Sector (~6M workers)
+- **Source:** F-7 Employer Bargaining Notices (OLMS)
+- **Deduplication:** Multi-employer agreements, SAG-AFTRA signatories removed
+- **Exclusions:** Federal employers, outliers, corrupted data
 
-### Analysis (`scripts/analysis/`)
-| Script | Purpose |
-|--------|---------|
-| `analyze_coverage.py` | Private sector coverage vs BLS |
-| `federal_deep_dive.py` | Federal sector analysis |
-| `sector_final_summary.py` | Sector breakdown summary |
+### Public Sector (~5.3M workers)
+- **Source:** Form 990 tax filings (NEA, AFT, SEIU, AFSCME)
+- **Source:** FLRA federal bargaining units (1.28M employees)
+- **Source:** OLMS state/local union LM filings
+- **Note:** NOT from F-7 employers (different jurisdiction)
 
-### Import (`scripts/import/`)
-| Script | Purpose |
-|--------|---------|
-| `load_multiyear_olms.py` | Load 331K LM filings |
-| `load_f7_data.py` | Load F-7 employers and unions_master |
-| `vr_loader_2*.py` | Load voluntary recognition data |
-| `recalc_990_*.py` | Form 990 public sector estimates |
-| `name_normalizer.py` | Union name standardization |
+### Exclusion Categories (f7_employers_deduped)
 
-### Export (`scripts/export/`)
-| Script | Purpose |
-|--------|---------|
-| `export_coverage.py` | Excel coverage export |
-| `generate_discovery_reports.py` | 2024 discovery reports |
-| `extract_locals_councils.py` | Union locals CSV export |
-
-### Maintenance (`scripts/maintenance/`)
-| Script | Purpose |
-|--------|---------|
-| `verify_discovery_2024.py` | Verify 2024 discoveries |
-| `validation_framework.py` | Data validation checks |
-| `check_*.py` | Various schema/data checks |
-| `test_*.py` | API and query tests |
+| exclude_reason | Description |
+|----------------|-------------|
+| `SAG_AFTRA_SIGNATORY` | Entertainment industry multi-employer |
+| `DUPLICATE_WORKER_COUNT` | Same workers counted multiple times |
+| `OUTLIER_WORKER_COUNT` | Unrealistic worker counts |
+| `FEDERAL_EMPLOYER` | Federal employees (CSRA jurisdiction) |
+| `REPEATED_WORKER_COUNT` | Repeated exact counts across filings |
 
 ---
 
-## Integration Status
+## API Endpoints (v6.4)
+
+### Core Endpoints
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/summary` | Platform summary with BLS coverage % |
+| `GET /api/unions` | Search unions |
+| `GET /api/employers` | Search employers |
+| `GET /api/employer/{id}` | Employer details |
+
+### Multi-Employer Endpoints
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/multi-employer/stats` | Deduplication statistics |
+| `GET /api/multi-employer/groups` | Multi-employer agreement groups |
+
+### NAICS Endpoints
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/naics/stats` | NAICS enrichment statistics |
+| `GET /api/employers/by-naics-detailed/{naics}` | 6-digit NAICS search |
+
+---
+
+## Coverage Acceptance Criteria
+
+| Status | Criteria |
+|--------|----------|
+| **Target** | ±5% of EPI benchmark |
+| **Acceptable** | ±10% or up to 15% under |
+| **Needs Attention** | >15% under or >15% over |
+
+Current status: **Private (82.7%)** and **Public (75.7%)** are both acceptable.
+
+---
+
+## Sample Queries
+
+```sql
+-- Coverage by state
+SELECT state, platform_private, epi_private, private_coverage_pct
+FROM state_coverage_comparison
+WHERE state != 'DC'
+ORDER BY private_coverage_pct DESC;
+
+-- Multi-employer groups
+SELECT * FROM v_multi_employer_groups
+ORDER BY total_workers DESC LIMIT 20;
+
+-- Employers with 6-digit NAICS
+SELECT employer_name, naics_detailed, naics_source, latest_unit_size
+FROM f7_employers_deduped
+WHERE naics_detailed IS NOT NULL
+ORDER BY latest_unit_size DESC LIMIT 20;
+
+-- Public sector unions
+SELECT union_name, members, state
+FROM unions_master
+WHERE sector IN ('FEDERAL', 'PUBLIC_SECTOR')
+ORDER BY members DESC LIMIT 20;
+```
+
+---
+
+## Development Roadmap
 
 ### Completed
+- [x] Multi-year OLMS data (331K records)
+- [x] F-7 employer deduplication (63K employers)
+- [x] Multi-employer agreement handling
+- [x] OSHA NAICS enrichment (20K employers)
+- [x] State coverage comparison framework
+- [x] Federal bargaining units (FLRA)
+- [x] API v6.4 with deduplication endpoints
 
-- [x] Multi-year OLMS data (331K records, 2010-2025)
-- [x] Financial detail tables (officer pay, membership, investments)
-- [x] F-7 employer integration (150K geocoded employers)
-- [x] Union-employer crosswalk (unions_master)
-- [x] **Member deduplication** (70M → 14.5M, matches BLS)
-- [x] Sector classification (PRIVATE, FEDERAL, PUBLIC, RLA, OTHER)
+### In Progress
+- [ ] Public sector gap analysis
+- [ ] State-level coverage improvements
 
-### Pending
-
+### Planned
 - [ ] NLRB election data integration
-- [ ] UnionStats density data (40 years)
-- [ ] BLS projection data
-- [ ] Web dashboard update
-
----
-
-## Key Metrics (2024)
-
-| Metric | Raw Value | Deduplicated |
-|--------|-----------|--------------|
-| Filings | 18,082 | 2,238 counted |
-| Members | 70.1M | 14.5M |
-| Assets | $18.8B | - |
-| Receipts | $12.6B | - |
+- [ ] Contract expiration tracking
+- [ ] Real-time organizing alerts
 
 ---
 
@@ -359,4 +242,11 @@ All scripts organized under `scripts/` directory:
 - **OLMS Data:** https://www.dol.gov/agencies/olms
 - **NLRB Data:** https://www.nlrb.gov/reports/data
 - **BLS Union Data:** https://www.bls.gov/cps/cpslutabs.htm
-- **UnionStats:** https://unionstats.com/
+- **EPI Union Stats:** https://www.epi.org/data/
+- **FLRA Federal Data:** https://www.flra.gov/
+
+---
+
+## License
+
+This project integrates publicly available federal government data for research purposes.
