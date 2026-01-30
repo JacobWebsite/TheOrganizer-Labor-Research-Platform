@@ -405,7 +405,7 @@
                 const resp = await fetch(`${API}/unions/locals/${aff}?limit=200`);
                 const data = await resp.json();
                 select.innerHTML = '<option value="">All locals</option>' + 
-                    (data.locals || []).map(l => `<option value="${l.f_num}">${l.union_name} (${l.city || ''}, ${l.state || ''})</option>`).join('');
+                    (data.locals || []).map(l => `<option value="${l.f_num}">${l.display_name || l.union_name} (${l.city || ''}, ${l.state || ''})</option>`).join('');
             } catch (err) { select.innerHTML = '<option value="">Error loading</option>'; }
         }
 

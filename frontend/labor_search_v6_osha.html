@@ -114,7 +114,7 @@
         <!-- ========== EMPLOYERS PANEL (with OSHA indicators) ========== -->
         <div id="employerPanel">
             <div class="bg-white rounded-lg shadow mb-4 p-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">National Union</label>
                         <select id="empAffSelect" onchange="loadLocals()" class="w-full rounded border-gray-300 text-sm p-1.5 border">
@@ -129,8 +129,14 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
-                        <select id="empStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                        <select id="empStateSelect" onchange="loadCities()" class="w-full rounded border-gray-300 text-sm p-1.5 border">
                             <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">City</label>
+                        <select id="empCitySelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">Select state first</option>
                         </select>
                     </div>
                     <div>
@@ -730,8 +736,27 @@
                 const resp = await fetch(`${API}/unions/locals/${aff}?limit=200`);
                 const data = await resp.json();
                 select.innerHTML = '<option value="">All locals</option>' +
-                    (data.locals || []).map(l => `<option value="${l.f_num}">${l.union_name} (${l.city || ''}, ${l.state || ''})</option>`).join('');
+                    (data.locals || []).map(l => `<option value="${l.f_num}">${l.display_name || l.union_name} (${l.city || ''}, ${l.state || ''})</option>`).join('');
             } catch (err) { select.innerHTML = '<option value="">Error loading</option>'; }
+        }
+
+        async function loadCities() {
+            const state = document.getElementById('empStateSelect').value;
+            const select = document.getElementById('empCitySelect');
+            if (!state) { 
+                select.innerHTML = '<option value="">Select state first</option>'; 
+                return; 
+            }
+            try {
+                select.innerHTML = '<option value="">Loading...</option>';
+                const resp = await fetch(`${API}/employers/cities?state=${state}&limit=200`);
+                const data = await resp.json();
+                select.innerHTML = '<option value="">All Cities</option>' + 
+                    (data.cities || []).map(c => `<option value="${c.city}">${c.city} (${c.employer_count})</option>`).join('');
+            } catch (err) { 
+                select.innerHTML = '<option value="">Error loading</option>'; 
+                console.error('City load error:', err);
+            }
         }
 
         // ========== MAIN TAB SWITCHING ==========
@@ -846,9 +871,11 @@
             const name = document.getElementById('empNameSearch').value;
             const aff = document.getElementById('empAffSelect').value;
             const state = document.getElementById('empStateSelect').value;
+            const city = document.getElementById('empCitySelect').value;
             if (name) params.append('name', name);
             if (aff) params.append('aff_abbr', aff);
             if (state) params.append('state', state);
+            if (city) params.append('city', city);
             params.append('limit', PAGE_SIZE);
             params.append('offset', empOffset);
 
@@ -1041,6 +1068,35 @@
             } catch (err) { container.innerHTML = '<div class="p-6 text-center text-red-500">Error</div>'; }
         }
 
+        function getTypeBadge(desig) {
+            if (!desig) return '';
+            const d = desig.trim();
+            const badges = {
+                'LU': '<span class="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded">Local</span>',
+                'C': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Council</span>',
+                'JC': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Joint Council</span>',
+                'DC': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">District Council</span>',
+                'D': '<span class="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">District</span>',
+                'BR': '<span class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded">Branch</span>',
+                'LG': '<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Lodge</span>',
+                'DIV': '<span class="text-xs bg-pink-100 text-pink-800 px-1.5 py-0.5 rounded">Division</span>',
+                'CH': '<span class="text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">Chapter</span>',
+                'NHQ': '<span class="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded">National HQ</span>',
+            };
+            return badges[d] || `<span class="text-xs bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded">${d}</span>`;
+        }
+
+        function getSectorBadge(sector) {
+            if (!sector) return '';
+            const badges = {
+                'PRIVATE': '<span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded ml-1">Private</span>',
+                'PUBLIC_SECTOR': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded ml-1">Public</span>',
+                'FEDERAL': '<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-1">Federal</span>',
+                'RAILROAD_AIRLINE_RLA': '<span class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded ml-1">Rail/Air</span>',
+            };
+            return badges[sector] || '';
+        }
+
         function renderUnions(unions) {
             const container = document.getElementById('unionResults');
             if (!unions.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
@@ -1048,7 +1104,7 @@
                 <div class="p-3 hover:bg-green-50 cursor-pointer" onclick="showUnionDetail('${u.f_num}')">
                     <div class="flex justify-between">
                         <div>
-                            <div class="font-medium text-gray-900">${u.union_name}</div>
+                            <div class="font-medium text-gray-900">${u.display_name || u.union_name} ${getTypeBadge(u.desig_name)}${getSectorBadge(u.sector)}</div>
                             <div class="text-xs text-gray-600">${[u.city, u.state].filter(Boolean).join(', ')}</div>
                             <div class="text-xs text-gray-500">F-Num: ${u.f_num} | ${u.aff_abbr || 'Independent'}</div>
                         </div>

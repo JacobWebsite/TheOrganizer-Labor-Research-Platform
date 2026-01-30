@@ -70,7 +70,9 @@
                 <button onclick="setMainTab('unions')" data-tab="unions" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🏛️ Unions</button>
                 <button onclick="setMainTab('nlrb')" data-tab="nlrb" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🗳️ Elections</button>
                 <button onclick="setMainTab('ulp')" data-tab="ulp" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">⚖️ ULP Cases</button>
-                <button onclick="setMainTab('vr')" data-tab="vr" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-tr-lg">🤝 Vol. Recognition</button>
+                <button onclick="setMainTab('vr')" data-tab="vr" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🤝 Vol. Recog</button>
+                <button onclick="setMainTab('public')" data-tab="public" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🏫 Public Sector</button>
+                <button onclick="setMainTab('trends')" data-tab="trends" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-tr-lg">📊 Trends</button>
             </nav>
         </div>
 
@@ -78,7 +80,7 @@
         <!-- ========== EMPLOYERS PANEL ========== -->
         <div id="employerPanel">
             <div class="bg-white rounded-lg shadow mb-4 p-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-8 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">National Union</label>
                         <select id="empAffSelect" onchange="loadLocals()" class="w-full rounded border-gray-300 text-sm p-1.5 border">
@@ -93,8 +95,14 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
-                        <select id="empStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                        <select id="empStateSelect" onchange="loadCities()" class="w-full rounded border-gray-300 text-sm p-1.5 border">
                             <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Metro Area</label>
+                        <select id="empMetroSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Metros</option>
                         </select>
                     </div>
                     <div>
@@ -163,10 +171,10 @@
         <!-- ========== UNIONS PANEL ========== -->
         <div id="unionPanel" class="hidden">
             <div class="bg-white rounded-lg shadow mb-4 p-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
-                    <div class="lg:col-span-2">
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Union Name</label>
-                        <input type="text" id="unionNameSearch" placeholder="e.g., SEIU, Teamsters, Local 32BJ..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Union Name / Local #</label>
+                        <input type="text" id="unionNameSearch" placeholder="e.g., SEIU, Local 32, 1199..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">Affiliation</label>
@@ -175,16 +183,42 @@
                         </select>
                     </div>
                     <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                        <select id="unionTypeSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
-                        <select id="unionStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                        <select id="unionStateSelect" onchange="loadUnionCities()" class="w-full rounded border-gray-300 text-sm p-1.5 border">
                             <option value="">All States</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Min Members</label>
-                        <input type="number" id="unionMinMembers" placeholder="e.g., 1000" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">City</label>
+                        <select id="unionCitySelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">Select state first</option>
+                        </select>
                     </div>
-                    <div class="flex items-end">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Sector</label>
+                        <select id="unionSectorSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All</option>
+                            <option value="PRIVATE">Private</option>
+                            <option value="PUBLIC_SECTOR">Public Sector</option>
+                            <option value="FEDERAL">Federal</option>
+                            <option value="RAILROAD_AIRLINE_RLA">Railroad/Airline</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Min Members</label>
+                        <input type="number" id="unionMinMembers" placeholder="1000" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div class="flex flex-col justify-end gap-1">
+                        <label class="flex items-center text-xs text-gray-700">
+                            <input type="checkbox" id="unionHasEmployers" class="mr-1.5 rounded border-gray-300">
+                            Has F-7 Employers
+                        </label>
                         <button onclick="searchUnions()" class="w-full bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm font-medium">
                             🔍 Search
                         </button>
@@ -195,7 +229,7 @@
             <div class="bg-white rounded-lg shadow">
                 <div class="p-3 border-b flex justify-between items-center">
                     <h2 class="font-semibold text-gray-900">Unions <span id="unionResultCount" class="text-gray-500 font-normal">(0)</span></h2>
-                    <span class="text-xs text-gray-400">Click row for NLRB history</span>
+                    <span class="text-xs text-gray-400">Click row for details & NLRB history</span>
                 </div>
                 <div id="unionResults" class="divide-y max-h-[500px] overflow-y-auto">
                     <div class="p-6 text-center text-gray-500">Click Search to see results</div>
@@ -426,6 +460,232 @@
             </div>
         </div>
 
+        <!-- ========== PUBLIC SECTOR PANEL ========== -->
+        <div id="publicPanel" class="hidden">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-blue-600" id="psStatLocals">--</div>
+                    <div class="text-xs text-gray-500">Union Locals</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-green-600" id="psStatEmployers">--</div>
+                    <div class="text-xs text-gray-500">Employers</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-purple-600" id="psStatParents">--</div>
+                    <div class="text-xs text-gray-500">Parent Unions</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-orange-600" id="psStatBU">--</div>
+                    <div class="text-xs text-gray-500">Bargaining Units</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-pink-600" id="psStatMembers">--</div>
+                    <div class="text-xs text-gray-500">Total Members</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Union Locals Search -->
+                <div>
+                    <div class="bg-white rounded-lg shadow mb-4 p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">🏛️ Public Sector Union Locals</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Parent Union</label>
+                                <select id="psParentSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                                    <option value="">All Unions</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                                <select id="psLocalsStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                                    <option value="">All States</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="searchPSLocals()" class="w-full bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-sm font-medium">
+                                    🔍 Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b flex justify-between items-center">
+                            <h2 class="font-semibold text-gray-900">Locals <span id="psLocalsCount" class="text-gray-500 font-normal">(0)</span></h2>
+                            <div class="flex gap-2">
+                                <button onclick="psPrevLocals()" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">← Prev</button>
+                                <button onclick="psNextLocals()" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">Next →</button>
+                            </div>
+                        </div>
+                        <div id="psLocalsResults" class="divide-y max-h-[400px] overflow-y-auto">
+                            <div class="p-6 text-center text-gray-500">Click Search to see results</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employers Search -->
+                <div>
+                    <div class="bg-white rounded-lg shadow mb-4 p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">🏫 Public Sector Employers</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Employer Type</label>
+                                <select id="psEmpTypeSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                                    <option value="">All Types</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                                <select id="psEmpStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                                    <option value="">All States</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="searchPSEmployers()" class="w-full bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm font-medium">
+                                    🔍 Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b flex justify-between items-center">
+                            <h2 class="font-semibold text-gray-900">Employers <span id="psEmpCount" class="text-gray-500 font-normal">(0)</span></h2>
+                            <div class="flex gap-2">
+                                <button onclick="psPrevEmps()" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">← Prev</button>
+                                <button onclick="psNextEmps()" class="px-2 py-1 text-xs border rounded hover:bg-gray-100">Next →</button>
+                            </div>
+                        </div>
+                        <div id="psEmpResults" class="divide-y max-h-[400px] overflow-y-auto">
+                            <div class="p-6 text-center text-gray-500">Click Search to see results</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== TRENDS PANEL ========== -->
+        <div id="trendsPanel" class="hidden">
+            <!-- Trends Sub-Navigation -->
+            <div class="bg-white rounded-lg shadow mb-4 p-2">
+                <div class="flex gap-2">
+                    <button onclick="setTrendsSubTab('overview')" class="trends-tab px-4 py-2 text-sm font-medium rounded bg-blue-600 text-white" data-subtab="overview">📈 Overview</button>
+                    <button onclick="setTrendsSubTab('membership')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="membership">👥 Membership</button>
+                    <button onclick="setTrendsSubTab('elections')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="elections">🗳️ Elections</button>
+                    <button onclick="setTrendsSubTab('affiliations')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="affiliations">🏛️ Affiliations</button>
+                    <button onclick="setTrendsSubTab('states')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="states">🗺️ States</button>
+                </div>
+            </div>
+
+            <!-- Overview Sub-tab -->
+            <div id="trendsOverview" class="trends-subtab">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="trendStatUnions">--</div>
+                        <div class="text-xs text-gray-500">Unions (2024)</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600" id="trendStatElections">--</div>
+                        <div class="text-xs text-gray-500">Elections (2024)</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-emerald-600" id="trendStatWinRate">--</div>
+                        <div class="text-xs text-gray-500">Win Rate (2024)</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-purple-600" id="trendStatVoters">--</div>
+                        <div class="text-xs text-gray-500">Voters Organized</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">Union Count Trend (2010-2024)</h3>
+                        <div style="height: 280px;"><canvas id="unionCountChart"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">Election Win Rate Trend</h3>
+                        <div style="height: 280px;"><canvas id="winRateChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Membership Sub-tab -->
+            <div id="trendsMembership" class="trends-subtab hidden">
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-semibold text-gray-900">National Membership Trends</h3>
+                        <span class="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded">⚠️ Raw totals include hierarchy double-counting</span>
+                    </div>
+                    <div style="height: 350px;"><canvas id="membershipChart"></canvas></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">Filings per Year</h3>
+                        <div style="height: 250px;"><canvas id="filingsChart"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">Average Members per Union</h3>
+                        <div style="height: 250px;"><canvas id="avgMembersChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Elections Sub-tab -->
+            <div id="trendsElections" class="trends-subtab hidden">
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <h3 class="font-semibold text-gray-900 mb-3">NLRB Election Outcomes by Year</h3>
+                    <div style="height: 350px;"><canvas id="electionsStackedChart"></canvas></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">Total Voters in Elections</h3>
+                        <div style="height: 250px;"><canvas id="votersChart"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">Win Rate Progression</h3>
+                        <div style="height: 250px;"><canvas id="winRateDetailChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Affiliations Sub-tab -->
+            <div id="trendsAffiliations" class="trends-subtab hidden">
+                <div class="flex items-center gap-4 mb-4">
+                    <label class="text-sm text-gray-600">Select Affiliation:</label>
+                    <select id="trendAffSelect" onchange="loadAffiliationTrend()" class="border rounded p-2 text-sm">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <h3 class="font-semibold text-gray-900 mb-3">Top Affiliations by Membership (2024)</h3>
+                    <div style="height: 400px;"><canvas id="affiliationsBarChart"></canvas></div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <h3 class="font-semibold text-gray-900 mb-3" id="affTrendTitle">Affiliation Membership Trend</h3>
+                    <div style="height: 280px;"><canvas id="affiliationTrendChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- States Sub-tab -->
+            <div id="trendsStates" class="trends-subtab hidden">
+                <div class="flex items-center gap-4 mb-4">
+                    <label class="text-sm text-gray-600">Select State:</label>
+                    <select id="trendStateSelect" onchange="loadStateTrend()" class="border rounded p-2 text-sm">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <h3 class="font-semibold text-gray-900 mb-3">Top States by Union Membership (2024)</h3>
+                    <div style="height: 400px;"><canvas id="statesBarChart"></canvas></div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <h3 class="font-semibold text-gray-900 mb-3" id="stateTrendTitle">State Membership Trend</h3>
+                    <div style="height: 280px;"><canvas id="stateTrendChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== DETAIL MODAL ========== -->
         <div id="detailModal" class="modal">
             <div class="modal-content p-6">
@@ -446,6 +706,9 @@
         let empOffset = 0, empTotal = 0;
         let nlrbOffset = 0, nlrbTotal = 0;
         let ulpOffset = 0, ulpTotal = 0;
+        let psLocalsOffset = 0, psLocalsTotal = 0;
+        let psEmpOffset = 0, psEmpTotal = 0;
+        let publicStatsLoaded = false;
         const PAGE_SIZE = 50;
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -517,6 +780,15 @@
                     `<option value="${s.naics_2digit}">${s.naics_2digit} - ${s.sector_name}${s.union_density_pct ? ` (${s.union_density_pct}%)` : ''}</option>`
                 ).join('');
                 document.getElementById('empNaicsSelect').innerHTML = '<option value="">All Industries</option>' + naicsOptions;
+
+                // Metro Areas
+                const metroResp = await fetch(`${API}/lookups/metros`);
+                const metroData = await metroResp.json();
+                const metroOptions = (metroData.metros || []).map(m => {
+                    const density = m.union_density ? ` - ${(m.union_density * 100).toFixed(1)}%` : '';
+                    return `<option value="${m.cbsa_code}">${m.cbsa_title} (${m.employer_count}${density})</option>`;
+                }).join('');
+                document.getElementById('empMetroSelect').innerHTML = '<option value="">All Metros</option>' + metroOptions;
             } catch (err) { console.error('Lookups error:', err); }
         }
 
@@ -563,11 +835,50 @@
                 const resp = await fetch(`${API}/unions/locals/${aff}?limit=200`);
                 const data = await resp.json();
                 select.innerHTML = '<option value="">All locals</option>' + 
-                    (data.locals || []).map(l => `<option value="${l.f_num}">${l.union_name} (${l.city || ''}, ${l.state || ''})</option>`).join('');
+                    (data.locals || []).map(l => `<option value="${l.f_num}">${l.display_name || l.union_name} (${l.city || ''}, ${l.state || ''})</option>`).join('');
             } catch (err) { select.innerHTML = '<option value="">Error loading</option>'; }
         }
 
+        async function loadCities() {
+            const state = document.getElementById('empStateSelect').value;
+            const select = document.getElementById('empCitySelect');
+            if (!state) { 
+                select.innerHTML = '<option value="">Select state first</option>'; 
+                return; 
+            }
+            try {
+                select.innerHTML = '<option value="">Loading...</option>';
+                const resp = await fetch(`${API}/employers/cities?state=${state}&limit=200`);
+                const data = await resp.json();
+                select.innerHTML = '<option value="">All Cities</option>' + 
+                    (data.cities || []).map(c => `<option value="${c.city}">${c.city} (${c.employer_count})</option>`).join('');
+            } catch (err) { 
+                select.innerHTML = '<option value="">Error loading</option>'; 
+                console.error('City load error:', err);
+            }
+        }
+
+        async function loadUnionCities() {
+            const state = document.getElementById('unionStateSelect').value;
+            const select = document.getElementById('unionCitySelect');
+            if (!state) { 
+                select.innerHTML = '<option value="">Select state first</option>'; 
+                return; 
+            }
+            try {
+                select.innerHTML = '<option value="">Loading...</option>';
+                const resp = await fetch(`${API}/unions/cities?state=${state}&limit=200`);
+                const data = await resp.json();
+                select.innerHTML = '<option value="">All Cities</option>' + 
+                    (data.cities || []).map(c => `<option value="${c.city}">${c.city} (${c.union_count})</option>`).join('');
+            } catch (err) { 
+                select.innerHTML = '<option value="">Error loading</option>'; 
+                console.error('Union city load error:', err);
+            }
+        }
+
         // ========== MAIN TAB SWITCHING ==========
+        let trendsLoaded = false;
         function setMainTab(tab) {
             document.querySelectorAll('#mainTabs button').forEach(btn => {
                 btn.classList.remove('main-tab-active');
@@ -582,6 +893,8 @@
             document.getElementById('nlrbPanel').classList.toggle('hidden', tab !== 'nlrb');
             document.getElementById('ulpPanel').classList.toggle('hidden', tab !== 'ulp');
             document.getElementById('vrPanel').classList.toggle('hidden', tab !== 'vr');
+            document.getElementById('publicPanel').classList.toggle('hidden', tab !== 'public');
+            document.getElementById('trendsPanel').classList.toggle('hidden', tab !== 'trends');
             
             // Invalidate map sizes when tab becomes visible
             setTimeout(() => {
@@ -595,6 +908,18 @@
                 loadVRYearStats();
                 vrStatsLoaded = true;
             }
+            
+            // Load public sector stats on first visit
+            if (tab === 'public' && !publicStatsLoaded) {
+                loadPublicSectorStats();
+                publicStatsLoaded = true;
+            }
+            
+            // Load trends on first visit
+            if (tab === 'trends' && !trendsLoaded) {
+                loadTrendsOverview();
+                trendsLoaded = true;
+            }
         }
 
         // ========== EMPLOYER SEARCH ==========
@@ -603,9 +928,11 @@
             const name = document.getElementById('empNameSearch').value;
             const aff = document.getElementById('empAffSelect').value;
             const state = document.getElementById('empStateSelect').value;
+            const metro = document.getElementById('empMetroSelect').value;
             if (name) params.append('name', name);
             if (aff) params.append('aff_abbr', aff);
             if (state) params.append('state', state);
+            if (metro) params.append('metro', metro);
             params.append('limit', PAGE_SIZE);
             params.append('offset', empOffset);
 
@@ -631,7 +958,7 @@
                     <div class="flex justify-between">
                         <div>
                             <div class="font-medium text-gray-900">${e.employer_name}</div>
-                            <div class="text-xs text-gray-600">${[e.city, e.state].filter(Boolean).join(', ')}</div>
+                            <div class="text-xs text-gray-600">${[e.city, e.state].filter(Boolean).join(', ')}${e.metro_name ? ` <span class="text-blue-500">• ${e.metro_name.split(',')[0]}</span>` : ''}</div>
                             <div class="text-xs text-gray-500">${e.latest_union_name || ''} ${e.aff_abbr ? `<span class="text-blue-600">(${e.aff_abbr})</span>` : ''}</div>
                         </div>
                         <div class="text-right">
@@ -668,12 +995,21 @@
             const params = new URLSearchParams();
             const name = document.getElementById('unionNameSearch').value;
             const aff = document.getElementById('unionAffSelect').value;
+            const unionType = document.getElementById('unionTypeSelect').value;
             const state = document.getElementById('unionStateSelect').value;
+            const city = document.getElementById('unionCitySelect').value;
+            const sector = document.getElementById('unionSectorSelect').value;
             const minMembers = document.getElementById('unionMinMembers').value;
+            const hasEmployers = document.getElementById('unionHasEmployers').checked;
+            
             if (name) params.append('name', name);
             if (aff) params.append('aff_abbr', aff);
+            if (unionType) params.append('union_type', unionType);
             if (state) params.append('state', state);
+            if (city) params.append('city', city);
+            if (sector) params.append('sector', sector);
             if (minMembers) params.append('min_members', minMembers);
+            if (hasEmployers) params.append('has_employers', 'true');
             params.append('limit', 100);
 
             const container = document.getElementById('unionResults');
@@ -687,25 +1023,67 @@
             } catch (err) { container.innerHTML = '<div class="p-6 text-center text-red-500">Error</div>'; }
         }
 
+        function getTypeBadge(desig) {
+            if (!desig) return '';
+            const d = desig.trim();
+            const badges = {
+                'LU': '<span class="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded">Local</span>',
+                'C': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Council</span>',
+                'JC': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Joint Council</span>',
+                'DC': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">District Council</span>',
+                'D': '<span class="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">District</span>',
+                'BR': '<span class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded">Branch</span>',
+                'LG': '<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">Lodge</span>',
+                'DIV': '<span class="text-xs bg-pink-100 text-pink-800 px-1.5 py-0.5 rounded">Division</span>',
+                'CH': '<span class="text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">Chapter</span>',
+                'NHQ': '<span class="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded">National HQ</span>',
+            };
+            return badges[d] || `<span class="text-xs bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded">${d}</span>`;
+        }
+
+        function getSectorBadge(sector) {
+            if (!sector) return '';
+            const badges = {
+                'PRIVATE': '<span class="text-xs bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded ml-1">Private</span>',
+                'PUBLIC_SECTOR': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded ml-1">Public</span>',
+                'FEDERAL': '<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-1">Federal</span>',
+                'RAILROAD_AIRLINE_RLA': '<span class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded ml-1">Rail/Air</span>',
+            };
+            return badges[sector] || '';
+        }
+
+        function formatMoney(amount) {
+            if (!amount || amount === 0) return null;
+            if (amount >= 1000000000) return `$${(amount / 1000000000).toFixed(1)}B`;
+            if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
+            if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`;
+            return `$${amount.toFixed(0)}`;
+        }
+
         function renderUnions(unions) {
             const container = document.getElementById('unionResults');
             if (!unions.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
-            container.innerHTML = unions.map(u => `
+            container.innerHTML = unions.map(u => {
+                const assets = formatMoney(u.ttl_assets);
+                const receipts = formatMoney(u.ttl_receipts);
+                const financials = [assets ? `Assets: ${assets}` : '', receipts ? `Rev: ${receipts}` : ''].filter(Boolean).join(' | ');
+                return `
                 <div class="p-3 hover:bg-green-50 cursor-pointer" onclick="showUnionDetail('${u.f_num}')">
                     <div class="flex justify-between">
                         <div>
-                            <div class="font-medium text-gray-900">${u.union_name}</div>
+                            <div class="font-medium text-gray-900">${u.display_name || u.union_name} ${getTypeBadge(u.desig_name)}${getSectorBadge(u.sector)}</div>
                             <div class="text-xs text-gray-600">${[u.city, u.state].filter(Boolean).join(', ')}</div>
                             <div class="text-xs text-gray-500">F-Num: ${u.f_num} | ${u.aff_abbr || 'Independent'}</div>
+                            ${financials ? `<div class="text-xs text-amber-600">${financials}</div>` : ''}
                         </div>
                         <div class="text-right">
                             <div class="font-semibold text-green-600">${(u.members || 0).toLocaleString()}</div>
                             <div class="text-xs text-gray-400">members</div>
-                            <div class="text-xs text-gray-500">${u.f7_employer_count || 0} employers</div>
+                            ${u.f7_employer_count > 0 ? `<div class="text-xs text-blue-600">${u.f7_employer_count} employers</div>` : ''}
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         // ========== NLRB ELECTION SEARCH ==========
@@ -1195,6 +1573,329 @@
             } catch (err) { 
                 document.getElementById('modalContent').innerHTML = '<div class="text-red-500">Error loading VR details</div>';
             }
+        }
+
+        // ========== PUBLIC SECTOR FUNCTIONS ==========
+        async function loadPublicSectorStats() {
+            try {
+                const resp = await fetch(`${API}/public-sector/stats`);
+                const data = await resp.json();
+                document.getElementById('psStatLocals').textContent = (data.union_locals || 0).toLocaleString();
+                document.getElementById('psStatEmployers').textContent = (data.employers || 0).toLocaleString();
+                document.getElementById('psStatParents').textContent = (data.parent_unions || 0).toLocaleString();
+                document.getElementById('psStatBU').textContent = (data.bargaining_units || 0).toLocaleString();
+                document.getElementById('psStatMembers').textContent = ((data.total_members || 0) / 1000000).toFixed(1) + 'M';
+                
+                // Populate parent union dropdown
+                const parentResp = await fetch(`${API}/public-sector/parent-unions`);
+                const parentData = await parentResp.json();
+                const parentOptions = (parentData.parent_unions || []).map(p => 
+                    `<option value="${p.abbrev}">${p.abbrev} - ${p.full_name} (${p.local_count})</option>`
+                ).join('');
+                document.getElementById('psParentSelect').innerHTML = '<option value="">All Unions</option>' + parentOptions;
+                
+                // Populate employer type dropdown
+                const typeResp = await fetch(`${API}/public-sector/employer-types`);
+                const typeData = await typeResp.json();
+                const typeOptions = (typeData.employer_types || []).map(t => 
+                    `<option value="${t.employer_type}">${t.employer_type.replace(/_/g, ' ')} (${t.count})</option>`
+                ).join('');
+                document.getElementById('psEmpTypeSelect').innerHTML = '<option value="">All Types</option>' + typeOptions;
+                
+                // Copy states to public sector dropdowns
+                const stOptions = document.getElementById('empStateSelect').innerHTML;
+                document.getElementById('psLocalsStateSelect').innerHTML = stOptions;
+                document.getElementById('psEmpStateSelect').innerHTML = stOptions;
+            } catch (err) { console.error('Public sector stats error:', err); }
+        }
+
+        async function searchPSLocals() {
+            psLocalsOffset = 0;
+            await loadPSLocals();
+        }
+
+        async function loadPSLocals() {
+            const params = new URLSearchParams();
+            const parent = document.getElementById('psParentSelect').value;
+            const state = document.getElementById('psLocalsStateSelect').value;
+            if (parent) params.append('parent_union', parent);
+            if (state) params.append('state', state);
+            params.append('limit', PAGE_SIZE);
+            params.append('offset', psLocalsOffset);
+            
+            try {
+                const resp = await fetch(`${API}/public-sector/locals?${params}`);
+                const data = await resp.json();
+                psLocalsTotal = data.total || 0;
+                document.getElementById('psLocalsCount').textContent = `(${psLocalsTotal.toLocaleString()})`;
+                renderPSLocals(data.locals || []);
+            } catch (err) { console.error('PS locals search error:', err); }
+        }
+
+        function renderPSLocals(locals) {
+            const container = document.getElementById('psLocalsResults');
+            if (!locals.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
+            container.innerHTML = locals.map(l => `
+                <div class="p-3 hover:bg-blue-50">
+                    <div class="flex justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900">${l.local_name}</div>
+                            <div class="text-xs text-gray-600">${l.parent_abbrev} • ${[l.city, l.state].filter(Boolean).join(', ')}</div>
+                            ${l.sector_type ? `<span class="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">${l.sector_type}</span>` : ''}
+                        </div>
+                        <div class="text-right">
+                            <div class="font-semibold text-blue-600">${(l.members || 0).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400">members</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function psPrevLocals() { if (psLocalsOffset > 0) { psLocalsOffset -= PAGE_SIZE; loadPSLocals(); } }
+        function psNextLocals() { if (psLocalsOffset + PAGE_SIZE < psLocalsTotal) { psLocalsOffset += PAGE_SIZE; loadPSLocals(); } }
+
+        async function searchPSEmployers() {
+            psEmpOffset = 0;
+            await loadPSEmployers();
+        }
+
+        async function loadPSEmployers() {
+            const params = new URLSearchParams();
+            const empType = document.getElementById('psEmpTypeSelect').value;
+            const state = document.getElementById('psEmpStateSelect').value;
+            if (empType) params.append('employer_type', empType);
+            if (state) params.append('state', state);
+            params.append('limit', PAGE_SIZE);
+            params.append('offset', psEmpOffset);
+            
+            try {
+                const resp = await fetch(`${API}/public-sector/employers?${params}`);
+                const data = await resp.json();
+                psEmpTotal = data.total || 0;
+                document.getElementById('psEmpCount').textContent = `(${psEmpTotal.toLocaleString()})`;
+                renderPSEmployers(data.employers || []);
+            } catch (err) { console.error('PS employers search error:', err); }
+        }
+
+        function renderPSEmployers(employers) {
+            const container = document.getElementById('psEmpResults');
+            if (!employers.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No results</div>'; return; }
+            container.innerHTML = employers.map(e => {
+                const typeBadge = getEmpTypeBadge(e.employer_type);
+                return `
+                <div class="p-3 hover:bg-green-50">
+                    <div class="flex justify-between">
+                        <div>
+                            <div class="font-medium text-gray-900">${e.employer_name}</div>
+                            <div class="text-xs text-gray-600">${[e.city, e.county, e.state].filter(Boolean).join(', ')}</div>
+                        </div>
+                        <div class="text-right">
+                            ${typeBadge}
+                            ${e.total_employees ? `<div class="text-xs text-gray-500 mt-1">${e.total_employees.toLocaleString()} emp</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function getEmpTypeBadge(type) {
+            const badges = {
+                'FEDERAL': '<span class="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded">Federal</span>',
+                'STATE_AGENCY': '<span class="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">State</span>',
+                'COUNTY': '<span class="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">County</span>',
+                'CITY': '<span class="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded">City</span>',
+                'SCHOOL_DISTRICT': '<span class="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">School</span>',
+                'UNIVERSITY': '<span class="text-xs bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded">University</span>',
+                'TRANSIT_AUTHORITY': '<span class="text-xs bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded">Transit</span>',
+                'UTILITY': '<span class="text-xs bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded">Utility</span>',
+            };
+            return badges[type] || `<span class="text-xs bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded">${type}</span>`;
+        }
+
+        function psPrevEmps() { if (psEmpOffset > 0) { psEmpOffset -= PAGE_SIZE; loadPSEmployers(); } }
+        function psNextEmps() { if (psEmpOffset + PAGE_SIZE < psEmpTotal) { psEmpOffset += PAGE_SIZE; loadPSEmployers(); } }
+
+        // ========== TRENDS VISUALIZATION ==========
+        let trendsCharts = {};
+        const chartColors = { blue: '#3b82f6', emerald: '#10b981', amber: '#f59e0b', rose: '#f43f5e', violet: '#8b5cf6', cyan: '#06b6d4' };
+
+        function setTrendsSubTab(subtab) {
+            document.querySelectorAll('.trends-tab').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('text-gray-600');
+                if (btn.dataset.subtab === subtab) {
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    btn.classList.remove('text-gray-600');
+                }
+            });
+            document.querySelectorAll('.trends-subtab').forEach(s => s.classList.add('hidden'));
+            document.getElementById('trends' + subtab.charAt(0).toUpperCase() + subtab.slice(1)).classList.remove('hidden');
+            
+            switch(subtab) {
+                case 'overview': loadTrendsOverview(); break;
+                case 'membership': loadTrendsMembership(); break;
+                case 'elections': loadTrendsElections(); break;
+                case 'affiliations': loadTrendsAffiliations(); break;
+                case 'states': loadTrendsStates(); break;
+            }
+        }
+
+        async function loadTrendsOverview() {
+            try {
+                const [natResp, elecResp] = await Promise.all([
+                    fetch(`${API}/trends/national`),
+                    fetch(`${API}/trends/elections`)
+                ]);
+                const natData = await natResp.json();
+                const elecData = await elecResp.json();
+                const latest = natData.trends[natData.trends.length - 1];
+                const latestElec = elecData.election_trends[elecData.election_trends.length - 1];
+
+                document.getElementById('trendStatUnions').textContent = latest.union_count.toLocaleString();
+                document.getElementById('trendStatElections').textContent = latestElec.total_elections.toLocaleString();
+                document.getElementById('trendStatWinRate').textContent = latestElec.win_rate + '%';
+                document.getElementById('trendStatVoters').textContent = latestElec.total_voters.toLocaleString();
+
+                if (trendsCharts.unionCount) trendsCharts.unionCount.destroy();
+                trendsCharts.unionCount = new Chart(document.getElementById('unionCountChart'), {
+                    type: 'line',
+                    data: { labels: natData.trends.map(t => t.year), datasets: [{ label: 'Union Count', data: natData.trends.map(t => t.union_count), borderColor: chartColors.blue, backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+
+                if (trendsCharts.winRate) trendsCharts.winRate.destroy();
+                trendsCharts.winRate = new Chart(document.getElementById('winRateChart'), {
+                    type: 'line',
+                    data: { labels: elecData.election_trends.map(t => t.year), datasets: [{ label: 'Win Rate %', data: elecData.election_trends.map(t => t.win_rate), borderColor: chartColors.emerald, backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 50, max: 85 } } }
+                });
+            } catch (err) { console.error('Trends overview error:', err); }
+        }
+
+        async function loadTrendsMembership() {
+            try {
+                const resp = await fetch(`${API}/trends/national`);
+                const data = await resp.json();
+
+                if (trendsCharts.membership) trendsCharts.membership.destroy();
+                trendsCharts.membership = new Chart(document.getElementById('membershipChart'), {
+                    type: 'bar',
+                    data: { labels: data.trends.map(t => t.year), datasets: [{ label: 'Members (M)', data: data.trends.map(t => t.total_members_raw / 1000000), backgroundColor: chartColors.violet, borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(1) + 'M' } } } }
+                });
+
+                if (trendsCharts.filings) trendsCharts.filings.destroy();
+                trendsCharts.filings = new Chart(document.getElementById('filingsChart'), {
+                    type: 'line',
+                    data: { labels: data.trends.map(t => t.year), datasets: [{ label: 'Filings', data: data.trends.map(t => t.filing_count), borderColor: chartColors.amber, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+
+                if (trendsCharts.avgMembers) trendsCharts.avgMembers.destroy();
+                trendsCharts.avgMembers = new Chart(document.getElementById('avgMembersChart'), {
+                    type: 'line',
+                    data: { labels: data.trends.map(t => t.year), datasets: [{ label: 'Avg Members', data: data.trends.map(t => Math.round(t.total_members_raw / t.union_count)), borderColor: chartColors.cyan, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } catch (err) { console.error('Trends membership error:', err); }
+        }
+
+        async function loadTrendsElections() {
+            try {
+                const resp = await fetch(`${API}/trends/elections`);
+                const data = await resp.json();
+
+                if (trendsCharts.electionsStacked) trendsCharts.electionsStacked.destroy();
+                trendsCharts.electionsStacked = new Chart(document.getElementById('electionsStackedChart'), {
+                    type: 'bar',
+                    data: { labels: data.election_trends.map(t => t.year), datasets: [
+                        { label: 'Union Wins', data: data.election_trends.map(t => t.union_wins), backgroundColor: chartColors.emerald, borderRadius: 4 },
+                        { label: 'Union Losses', data: data.election_trends.map(t => t.union_losses), backgroundColor: chartColors.rose, borderRadius: 4 }
+                    ]},
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+                });
+
+                if (trendsCharts.voters) trendsCharts.voters.destroy();
+                trendsCharts.voters = new Chart(document.getElementById('votersChart'), {
+                    type: 'bar',
+                    data: { labels: data.election_trends.map(t => t.year), datasets: [{ label: 'Voters', data: data.election_trends.map(t => t.total_voters), backgroundColor: chartColors.blue, borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+
+                if (trendsCharts.winRateDetail) trendsCharts.winRateDetail.destroy();
+                trendsCharts.winRateDetail = new Chart(document.getElementById('winRateDetailChart'), {
+                    type: 'line',
+                    data: { labels: data.election_trends.map(t => t.year), datasets: [{ label: 'Win Rate %', data: data.election_trends.map(t => t.win_rate), borderColor: chartColors.emerald, backgroundColor: 'rgba(16,185,129,0.2)', fill: true, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 50, max: 85 } } }
+                });
+            } catch (err) { console.error('Trends elections error:', err); }
+        }
+
+        async function loadTrendsAffiliations() {
+            try {
+                const resp = await fetch(`${API}/trends/affiliations/summary`);
+                const data = await resp.json();
+                const select = document.getElementById('trendAffSelect');
+                select.innerHTML = '<option value="">-- Select --</option>' + data.affiliations.map(a => `<option value="${a.aff_abbr}">${a.aff_abbr} (${(a.members_2024/1000000).toFixed(1)}M)</option>`).join('');
+
+                const top15 = data.affiliations.slice(0, 15);
+                if (trendsCharts.affiliationsBar) trendsCharts.affiliationsBar.destroy();
+                trendsCharts.affiliationsBar = new Chart(document.getElementById('affiliationsBarChart'), {
+                    type: 'bar',
+                    data: { labels: top15.map(a => a.aff_abbr), datasets: [{ label: '2024 Members', data: top15.map(a => a.members_2024 / 1000000), backgroundColor: top15.map((_, i) => Object.values(chartColors)[i % 6]), borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.x.toFixed(2) + 'M' } } } }
+                });
+            } catch (err) { console.error('Trends affiliations error:', err); }
+        }
+
+        async function loadAffiliationTrend() {
+            const aff = document.getElementById('trendAffSelect').value;
+            if (!aff) return;
+            try {
+                const resp = await fetch(`${API}/trends/affiliations/${aff}`);
+                const data = await resp.json();
+                document.getElementById('affTrendTitle').textContent = `${aff} Membership Trend`;
+                if (trendsCharts.affTrend) trendsCharts.affTrend.destroy();
+                trendsCharts.affTrend = new Chart(document.getElementById('affiliationTrendChart'), {
+                    type: 'line',
+                    data: { labels: data.trends.map(t => t.year), datasets: [{ label: 'Members', data: data.trends.map(t => t.total_members / 1000000), borderColor: chartColors.violet, backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } catch (err) { console.error('Affiliation trend error:', err); }
+        }
+
+        async function loadTrendsStates() {
+            try {
+                const resp = await fetch(`${API}/trends/states/summary`);
+                const data = await resp.json();
+                const select = document.getElementById('trendStateSelect');
+                select.innerHTML = '<option value="">-- Select --</option>' + data.states.map(s => `<option value="${s.state}">${s.state} (${(s.members_2024/1000000).toFixed(2)}M)</option>`).join('');
+
+                const top15 = data.states.slice(0, 15);
+                if (trendsCharts.statesBar) trendsCharts.statesBar.destroy();
+                trendsCharts.statesBar = new Chart(document.getElementById('statesBarChart'), {
+                    type: 'bar',
+                    data: { labels: top15.map(s => s.state), datasets: [{ label: '2024 Members', data: top15.map(s => s.members_2024 / 1000000), backgroundColor: top15.map((_, i) => Object.values(chartColors)[i % 6]), borderRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.x.toFixed(2) + 'M' } } } }
+                });
+            } catch (err) { console.error('Trends states error:', err); }
+        }
+
+        async function loadStateTrend() {
+            const state = document.getElementById('trendStateSelect').value;
+            if (!state) return;
+            try {
+                const resp = await fetch(`${API}/trends/state/${state}`);
+                const data = await resp.json();
+                document.getElementById('stateTrendTitle').textContent = `${state} Membership Trend`;
+                if (trendsCharts.stateTrend) trendsCharts.stateTrend.destroy();
+                trendsCharts.stateTrend = new Chart(document.getElementById('stateTrendChart'), {
+                    type: 'line',
+                    data: { labels: data.trends.map(t => t.year), datasets: [{ label: 'Members', data: data.trends.map(t => t.total_members / 1000000), borderColor: chartColors.blue, backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } catch (err) { console.error('State trend error:', err); }
         }
     </script>
 </body>

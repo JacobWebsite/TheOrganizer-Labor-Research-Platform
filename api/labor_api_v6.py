@@ -114,6 +114,83 @@ def get_naics_sectors():
             return {"sectors": cur.fetchall()}
 
 
+@app.get("/api/lookups/metros")
+def get_metros():
+    """Get all metropolitan areas with employer counts and union density"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT c.cbsa_code, c.cbsa_title, c.cbsa_type,
+                       COUNT(DISTINCT e.employer_id) as employer_count,
+                       SUM(e.latest_unit_size) as total_workers,
+                       m.pct_members as union_density
+                FROM cbsa_definitions c
+                LEFT JOIN f7_employers_deduped e ON e.cbsa_code = c.cbsa_code
+                LEFT JOIN msa_union_stats m ON m.fips_code = c.cbsa_code AND m.sector = 'Total'
+                WHERE c.cbsa_type = 'Metropolitan'
+                GROUP BY c.cbsa_code, c.cbsa_title, c.cbsa_type, m.pct_members
+                HAVING COUNT(DISTINCT e.employer_id) > 0
+                ORDER BY COUNT(DISTINCT e.employer_id) DESC
+            """)
+            return {"metros": cur.fetchall()}
+
+
+@app.get("/api/metros/{cbsa_code}/stats")
+def get_metro_stats(cbsa_code: str):
+    """Get detailed stats for a specific metro area"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Basic info
+            cur.execute("""
+                SELECT c.cbsa_code, c.cbsa_title, c.cbsa_type, c.csa_title,
+                       COUNT(DISTINCT e.employer_id) as employer_count,
+                       SUM(e.latest_unit_size) as total_workers,
+                       COUNT(DISTINCT e.latest_union_fnum) as union_count
+                FROM cbsa_definitions c
+                LEFT JOIN f7_employers_deduped e ON e.cbsa_code = c.cbsa_code
+                WHERE c.cbsa_code = %s
+                GROUP BY c.cbsa_code, c.cbsa_title, c.cbsa_type, c.csa_title
+            """, [cbsa_code])
+            metro = cur.fetchone()
+            if not metro:
+                return {"error": "Metro not found"}
+            
+            # Union density by sector
+            cur.execute("""
+                SELECT sector, employment_thousands, members_thousands, 
+                       pct_members, pct_covered
+                FROM msa_union_stats WHERE fips_code = %s
+            """, [cbsa_code])
+            density = cur.fetchall()
+            
+            # Top unions in this metro
+            cur.execute("""
+                SELECT um.aff_abbr, um.union_name, COUNT(*) as employer_count,
+                       SUM(e.latest_unit_size) as total_workers
+                FROM f7_employers_deduped e
+                JOIN unions_master um ON e.latest_union_fnum::text = um.f_num
+                WHERE e.cbsa_code = %s AND um.aff_abbr IS NOT NULL
+                GROUP BY um.aff_abbr, um.union_name
+                ORDER BY SUM(e.latest_unit_size) DESC NULLS LAST
+                LIMIT 10
+            """, [cbsa_code])
+            top_unions = cur.fetchall()
+            
+            # Counties in this metro
+            cur.execute("""
+                SELECT county_name, state_name, central_outlying
+                FROM cbsa_counties WHERE cbsa_code = %s ORDER BY central_outlying, county_name
+            """, [cbsa_code])
+            counties = cur.fetchall()
+            
+            return {
+                "metro": metro,
+                "union_density": density,
+                "top_unions": top_unions,
+                "counties": counties
+            }
+
+
 # ============================================================================
 # BLS UNION DENSITY BY INDUSTRY
 # ============================================================================
@@ -417,12 +494,33 @@ def get_top_projections(growing: bool = Query(True), limit: int = Query(20, le=1
 # EMPLOYER SEARCH
 # ============================================================================
 
+@app.get("/api/employers/cities")
+def get_cities_for_state(
+    state: str = Query(..., description="State code (e.g., CA, NY)"),
+    limit: int = Query(200, le=500)
+):
+    """Get cities for a state, ordered by employer count"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT UPPER(city) as city, COUNT(*) as employer_count
+                FROM f7_employers_deduped
+                WHERE state = %s AND city IS NOT NULL AND TRIM(city) != ''
+                GROUP BY UPPER(city)
+                ORDER BY COUNT(*) DESC, UPPER(city)
+                LIMIT %s
+            """, [state.upper(), limit])
+            return {"state": state.upper(), "cities": cur.fetchall()}
+
+
 @app.get("/api/employers/search")
 def search_employers(
     name: Optional[str] = None,
     state: Optional[str] = None,
+    city: Optional[str] = None,
     naics: Optional[str] = None,
     aff_abbr: Optional[str] = None,
+    metro: Optional[str] = None,
     has_nlrb: Optional[bool] = None,
     limit: int = Query(50, le=500),
     offset: int = 0
@@ -439,12 +537,18 @@ def search_employers(
             if state:
                 conditions.append("e.state = %s")
                 params.append(state.upper())
+            if city:
+                conditions.append("UPPER(e.city) = %s")
+                params.append(city.upper())
             if naics:
                 conditions.append("e.naics LIKE %s")
                 params.append(f"{naics}%")
             if aff_abbr:
                 conditions.append("um.aff_abbr = %s")
                 params.append(aff_abbr.upper())
+            if metro:
+                conditions.append("e.cbsa_code = %s")
+                params.append(metro)
             
             where_clause = " AND ".join(conditions)
             
@@ -461,9 +565,11 @@ def search_employers(
             cur.execute(f"""
                 SELECT e.employer_id, e.employer_name, e.city, e.state, e.naics,
                     e.latest_unit_size, e.latest_union_fnum, e.latest_union_name,
-                    e.latitude, e.longitude, um.aff_abbr
+                    e.latitude, e.longitude, um.aff_abbr,
+                    e.cbsa_code, c.cbsa_title as metro_name
                 FROM f7_employers_deduped e
                 LEFT JOIN unions_master um ON e.latest_union_fnum::text = um.f_num
+                LEFT JOIN cbsa_definitions c ON e.cbsa_code = c.cbsa_code
                 WHERE {where_clause}
                 ORDER BY e.latest_unit_size DESC NULLS LAST
                 LIMIT %s OFFSET %s
@@ -633,8 +739,243 @@ def get_employer_detail(employer_id: str):
 
 
 # ============================================================================
+# HISTORICAL TRENDS
+# ============================================================================
+
+@app.get("/api/trends/national")
+def get_national_trends():
+    """Get national union membership trends by year (2010-2024)"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Use raw lm_data aggregated by year
+            # Note: These are raw totals; reconciled totals would need additional logic
+            cur.execute("""
+                SELECT yr_covered as year,
+                       COUNT(DISTINCT f_num) as union_count,
+                       SUM(CASE WHEN members > 0 THEN members ELSE 0 END) as total_members_raw,
+                       COUNT(*) as filing_count
+                FROM lm_data
+                WHERE yr_covered BETWEEN 2010 AND 2024
+                GROUP BY yr_covered
+                ORDER BY yr_covered
+            """)
+            trends = cur.fetchall()
+            
+            return {
+                "description": "National union membership trends (raw OLMS data)",
+                "note": "Raw totals include hierarchy double-counting. BLS benchmark is ~14-15M",
+                "trends": trends
+            }
+
+
+@app.get("/api/trends/affiliations/summary")
+def get_affiliation_trends_summary():
+    """Get membership trends summary for top affiliations"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                WITH yearly AS (
+                    SELECT aff_abbr,
+                           yr_covered,
+                           SUM(CASE WHEN members > 0 THEN members ELSE 0 END) as members
+                    FROM lm_data
+                    WHERE aff_abbr IS NOT NULL AND yr_covered IN (2010, 2024)
+                    GROUP BY aff_abbr, yr_covered
+                ),
+                pivoted AS (
+                    SELECT aff_abbr,
+                           MAX(CASE WHEN yr_covered = 2010 THEN members END) as members_2010,
+                           MAX(CASE WHEN yr_covered = 2024 THEN members END) as members_2024
+                    FROM yearly
+                    GROUP BY aff_abbr
+                )
+                SELECT aff_abbr,
+                       members_2010,
+                       members_2024,
+                       members_2024 - members_2010 as change,
+                       ROUND(100.0 * (members_2024 - members_2010) / NULLIF(members_2010, 0), 1) as pct_change
+                FROM pivoted
+                WHERE members_2024 > 10000
+                ORDER BY members_2024 DESC
+                LIMIT 30
+            """)
+            return {"affiliations": cur.fetchall()}
+
+
+@app.get("/api/trends/by-affiliation/{aff_abbr}")
+def get_affiliation_trends(aff_abbr: str):
+    """Get membership trends for a specific affiliation"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT yr_covered as year,
+                       COUNT(DISTINCT f_num) as union_count,
+                       SUM(CASE WHEN members > 0 THEN members ELSE 0 END) as total_members,
+                       COUNT(*) as filing_count
+                FROM lm_data
+                WHERE aff_abbr = %s AND yr_covered BETWEEN 2010 AND 2024
+                GROUP BY yr_covered
+                ORDER BY yr_covered
+            """, [aff_abbr.upper()])
+            trends = cur.fetchall()
+            
+            return {
+                "affiliation": aff_abbr.upper(),
+                "trends": trends
+            }
+
+
+@app.get("/api/trends/states/summary")
+def get_state_trends_summary():
+    """Get membership summary by state for latest year"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                WITH state_data AS (
+                    SELECT state,
+                           yr_covered,
+                           SUM(CASE WHEN members > 0 THEN members ELSE 0 END) as members,
+                           COUNT(DISTINCT f_num) as union_count
+                    FROM lm_data
+                    WHERE state IS NOT NULL AND yr_covered IN (2010, 2024)
+                    GROUP BY state, yr_covered
+                ),
+                pivoted AS (
+                    SELECT state,
+                           MAX(CASE WHEN yr_covered = 2010 THEN members END) as members_2010,
+                           MAX(CASE WHEN yr_covered = 2024 THEN members END) as members_2024,
+                           MAX(CASE WHEN yr_covered = 2024 THEN union_count END) as unions_2024
+                    FROM state_data
+                    GROUP BY state
+                )
+                SELECT state,
+                       members_2010,
+                       members_2024,
+                       unions_2024,
+                       ROUND(100.0 * (members_2024 - members_2010) / NULLIF(members_2010, 0), 1) as pct_change
+                FROM pivoted
+                WHERE members_2024 > 0
+                ORDER BY members_2024 DESC
+            """)
+            return {"states": cur.fetchall()}
+
+
+@app.get("/api/trends/by-state/{state}")
+def get_state_trends(state: str):
+    """Get membership trends for a specific state"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT yr_covered as year,
+                       COUNT(DISTINCT f_num) as union_count,
+                       SUM(CASE WHEN members > 0 THEN members ELSE 0 END) as total_members,
+                       COUNT(*) as filing_count
+                FROM lm_data
+                WHERE state = %s AND yr_covered BETWEEN 2010 AND 2024
+                GROUP BY yr_covered
+                ORDER BY yr_covered
+            """, [state.upper()])
+            trends = cur.fetchall()
+            
+            return {
+                "state": state.upper(),
+                "trends": trends
+            }
+
+
+@app.get("/api/trends/elections")
+def get_election_trends():
+    """Get NLRB election trends by year"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT EXTRACT(YEAR FROM election_date)::int as year,
+                       COUNT(*) as total_elections,
+                       SUM(CASE WHEN union_won THEN 1 ELSE 0 END) as union_wins,
+                       SUM(CASE WHEN union_won = false THEN 1 ELSE 0 END) as union_losses,
+                       SUM(eligible_voters) as total_voters,
+                       ROUND(100.0 * SUM(CASE WHEN union_won THEN 1 ELSE 0 END) / 
+                           NULLIF(COUNT(*), 0), 1) as win_rate
+                FROM nlrb_elections
+                WHERE election_date IS NOT NULL 
+                  AND union_won IS NOT NULL
+                  AND EXTRACT(YEAR FROM election_date) BETWEEN 2007 AND 2024
+                GROUP BY EXTRACT(YEAR FROM election_date)
+                ORDER BY year
+            """)
+            return {"election_trends": cur.fetchall()}
+
+
+@app.get("/api/trends/elections/by-affiliation/{aff_abbr}")
+def get_election_trends_by_affiliation(aff_abbr: str):
+    """Get NLRB election trends for a specific union affiliation"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT EXTRACT(YEAR FROM e.election_date)::int as year,
+                       COUNT(DISTINCT e.case_number) as total_elections,
+                       SUM(CASE WHEN e.union_won THEN 1 ELSE 0 END) as union_wins,
+                       ROUND(100.0 * SUM(CASE WHEN e.union_won THEN 1 ELSE 0 END) / 
+                           NULLIF(COUNT(*), 0), 1) as win_rate
+                FROM nlrb_elections e
+                JOIN nlrb_tallies t ON e.case_number = t.case_number AND t.tally_type = 'For'
+                JOIN unions_master um ON t.matched_olms_fnum = um.f_num
+                WHERE um.aff_abbr = %s
+                  AND e.election_date IS NOT NULL 
+                  AND e.union_won IS NOT NULL
+                  AND EXTRACT(YEAR FROM e.election_date) BETWEEN 2007 AND 2024
+                GROUP BY EXTRACT(YEAR FROM e.election_date)
+                ORDER BY year
+            """, [aff_abbr.upper()])
+            
+            return {
+                "affiliation": aff_abbr.upper(),
+                "election_trends": cur.fetchall()
+            }
+
+
+@app.get("/api/trends/sectors")
+def get_sector_trends():
+    """Get employer distribution by NAICS sector"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT LEFT(e.naics, 2) as naics_2digit,
+                       ns.sector_name,
+                       COUNT(*) as employer_count,
+                       SUM(e.latest_unit_size) as total_workers,
+                       ROUND(AVG(e.latest_unit_size), 0) as avg_unit_size
+                FROM f7_employers_deduped e
+                LEFT JOIN naics_sectors ns ON LEFT(e.naics, 2) = ns.naics_2digit
+                WHERE e.naics IS NOT NULL AND LENGTH(e.naics) >= 2
+                GROUP BY LEFT(e.naics, 2), ns.sector_name
+                ORDER BY COUNT(*) DESC
+            """)
+            return {"sectors": cur.fetchall()}
+
+
+# ============================================================================
 # UNION SEARCH
 # ============================================================================
+
+@app.get("/api/unions/cities")
+def get_union_cities(
+    state: str = Query(..., description="State code (e.g., CA, NY)"),
+    limit: int = Query(200, le=500)
+):
+    """Get cities for a state from unions_master, ordered by union count"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT UPPER(city) as city, COUNT(*) as union_count, SUM(members) as total_members
+                FROM unions_master
+                WHERE state = %s AND city IS NOT NULL AND TRIM(city) != ''
+                GROUP BY UPPER(city)
+                ORDER BY COUNT(*) DESC, SUM(members) DESC
+                LIMIT %s
+            """, [state.upper(), limit])
+            return {"state": state.upper(), "cities": cur.fetchall()}
+
 
 @app.get("/api/unions/search")
 def search_unions(
@@ -642,48 +983,135 @@ def search_unions(
     aff_abbr: Optional[str] = None,
     sector: Optional[str] = None,
     state: Optional[str] = None,
+    city: Optional[str] = None,
+    union_type: Optional[str] = None,
     min_members: Optional[int] = None,
+    has_employers: Optional[bool] = None,
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Search unions with filters"""
+    """Search unions with filters including display names and hierarchy type"""
     with get_db() as conn:
         with conn.cursor() as cur:
             conditions = ["1=1"]
             params = []
             
             if name:
-                conditions.append("union_name ILIKE %s")
-                params.append(f"%{name}%")
+                # Search union_name, local_number, and display_name
+                conditions.append("""(
+                    um.union_name ILIKE %s 
+                    OR um.local_number = %s 
+                    OR v.display_name ILIKE %s
+                )""")
+                clean_name = name.replace('local ', '').replace('Local ', '').strip()
+                params.extend([f"%{name}%", clean_name, f"%{name}%"])
             if aff_abbr:
-                conditions.append("aff_abbr = %s")
+                conditions.append("um.aff_abbr = %s")
                 params.append(aff_abbr.upper())
             if sector:
-                conditions.append("sector = %s")
+                conditions.append("um.sector = %s")
                 params.append(sector.upper())
             if state:
-                conditions.append("state = %s")
+                conditions.append("um.state = %s")
                 params.append(state.upper())
+            if city:
+                conditions.append("UPPER(um.city) = %s")
+                params.append(city.upper())
+            if union_type:
+                conditions.append("TRIM(um.desig_name) = %s")
+                params.append(union_type.upper())
             if min_members:
-                conditions.append("members >= %s")
+                conditions.append("um.members >= %s")
                 params.append(min_members)
+            if has_employers:
+                conditions.append("um.has_f7_employers = true")
             
             where_clause = " AND ".join(conditions)
             
-            cur.execute(f"SELECT COUNT(*) FROM unions_master WHERE {where_clause}", params)
+            # Count query
+            cur.execute(f"""
+                SELECT COUNT(*) FROM unions_master um
+                LEFT JOIN v_union_display_names v ON um.f_num = v.f_num
+                WHERE {where_clause}
+            """, params)
             total = cur.fetchone()['count']
             
             params.extend([limit, offset])
             cur.execute(f"""
-                SELECT f_num, union_name, aff_abbr, members, city, state, sector,
-                    f7_employer_count, f7_total_workers
-                FROM unions_master
+                SELECT um.f_num, um.union_name, v.display_name, um.local_number,
+                    um.aff_abbr, um.desig_name, um.members, um.city, um.state, 
+                    um.sector, um.f7_employer_count, um.f7_total_workers, um.has_f7_employers,
+                    lm.ttl_assets, lm.ttl_receipts
+                FROM unions_master um
+                LEFT JOIN v_union_display_names v ON um.f_num = v.f_num
+                LEFT JOIN lm_data lm ON um.f_num = lm.f_num AND lm.yr_covered = 2024
                 WHERE {where_clause}
-                ORDER BY members DESC NULLS LAST
+                ORDER BY um.members DESC NULLS LAST
                 LIMIT %s OFFSET %s
             """, params)
             
             return {"total": total, "unions": cur.fetchall()}
+
+
+@app.get("/api/unions/types")
+def get_union_types():
+    """Get list of union designation types with counts"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT TRIM(desig_name) as type_code,
+                    CASE TRIM(desig_name)
+                        WHEN 'LU' THEN 'Local Union'
+                        WHEN 'NHQ' THEN 'National Headquarters'
+                        WHEN 'C' THEN 'Council'
+                        WHEN 'JC' THEN 'Joint Council'
+                        WHEN 'DC' THEN 'District Council'
+                        WHEN 'SC' THEN 'State Council'
+                        WHEN 'D' THEN 'District'
+                        WHEN 'BR' THEN 'Branch'
+                        WHEN 'LG' THEN 'Lodge'
+                        WHEN 'DIV' THEN 'Division'
+                        WHEN 'CH' THEN 'Chapter'
+                        WHEN 'CONF' THEN 'Conference'
+                        WHEN 'FED' THEN 'Federation'
+                        WHEN 'SLG' THEN 'Sub-Lodge'
+                        WHEN 'LLG' THEN 'Local Lodge'
+                        WHEN 'SA' THEN 'System Assembly'
+                        WHEN 'BCTC' THEN 'Building & Construction Trades Council'
+                        WHEN 'LEC' THEN 'Local Executive Council'
+                        ELSE TRIM(desig_name)
+                    END as type_name,
+                    SUM(cnt) as count
+                FROM (
+                    SELECT TRIM(desig_name) as desig_name, COUNT(*) as cnt
+                    FROM unions_master
+                    WHERE desig_name IS NOT NULL AND TRIM(desig_name) != ''
+                    GROUP BY desig_name
+                ) sub
+                GROUP BY TRIM(desig_name)
+                HAVING SUM(cnt) >= 10
+                ORDER BY SUM(cnt) DESC
+            """)
+            return {"types": cur.fetchall()}
+
+
+@app.get("/api/unions/cities")
+def get_union_cities(
+    state: str = Query(..., description="State code (e.g., CA, NY)"),
+    limit: int = Query(200, le=500)
+):
+    """Get cities for a state with union counts"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT UPPER(city) as city, COUNT(*) as union_count
+                FROM unions_master
+                WHERE state = %s AND city IS NOT NULL AND TRIM(city) != ''
+                GROUP BY UPPER(city)
+                ORDER BY COUNT(*) DESC, UPPER(city)
+                LIMIT %s
+            """, [state.upper(), limit])
+            return {"state": state.upper(), "cities": cur.fetchall()}
 
 
 @app.get("/api/unions/{f_num}")
@@ -752,8 +1180,8 @@ def get_locals_for_affiliation(
             params.append(limit)
             
             cur.execute(f"""
-                SELECT f_num, union_name, city, state, members, f7_employer_count
-                FROM unions_master
+                SELECT f_num, union_name, display_name, local_number, city, state, members, f7_employer_count
+                FROM v_union_display_names
                 WHERE {where_clause}
                 ORDER BY members DESC NULLS LAST
                 LIMIT %s
@@ -1947,6 +2375,194 @@ def health_check():
         }
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
+
+
+# ============================================================================
+# PUBLIC SECTOR
+# ============================================================================
+
+@app.get("/api/public-sector/stats")
+def get_public_sector_stats():
+    """Get summary statistics for public sector data"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as count FROM ps_union_locals")
+            locals_count = cur.fetchone()['count']
+            cur.execute("SELECT COUNT(*) as count FROM ps_employers")
+            employers_count = cur.fetchone()['count']
+            cur.execute("SELECT COUNT(*) as count FROM ps_parent_unions")
+            parents_count = cur.fetchone()['count']
+            cur.execute("SELECT COUNT(*) as count FROM ps_bargaining_units")
+            bu_count = cur.fetchone()['count']
+            cur.execute("SELECT SUM(members) as total FROM ps_union_locals WHERE members > 0")
+            total_members = cur.fetchone()['total'] or 0
+            cur.execute("""
+                SELECT employer_type, COUNT(*) as count 
+                FROM ps_employers 
+                GROUP BY employer_type 
+                ORDER BY count DESC
+            """)
+            employer_types = cur.fetchall()
+            cur.execute("""
+                SELECT p.abbrev, p.full_name, COUNT(l.id) as local_count, 
+                       SUM(l.members) as total_members
+                FROM ps_parent_unions p
+                LEFT JOIN ps_union_locals l ON p.id = l.parent_union_id
+                GROUP BY p.id, p.abbrev, p.full_name
+                ORDER BY total_members DESC NULLS LAST
+            """)
+            parent_summary = cur.fetchall()
+            
+            return {
+                "union_locals": locals_count,
+                "employers": employers_count,
+                "parent_unions": parents_count,
+                "bargaining_units": bu_count,
+                "total_members": total_members,
+                "employer_types": employer_types,
+                "parent_summary": parent_summary
+            }
+
+
+@app.get("/api/public-sector/parent-unions")
+def get_public_sector_parent_unions():
+    """Get list of parent unions for filtering"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT p.id, p.abbrev, p.full_name, p.federation, p.sector_focus,
+                       COUNT(l.id) as local_count
+                FROM ps_parent_unions p
+                LEFT JOIN ps_union_locals l ON p.id = l.parent_union_id
+                GROUP BY p.id
+                ORDER BY p.full_name
+            """)
+            return {"parent_unions": cur.fetchall()}
+
+
+@app.get("/api/public-sector/locals")
+def search_public_sector_locals(
+    state: Optional[str] = None,
+    parent_union: Optional[str] = None,
+    name: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Search public sector union locals"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+            
+            if state:
+                conditions.append("l.state = %s")
+                params.append(state.upper())
+            if parent_union:
+                conditions.append("p.abbrev = %s")
+                params.append(parent_union.upper())
+            if name:
+                conditions.append("l.local_name ILIKE %s")
+                params.append(f"%{name}%")
+            
+            where_clause = " AND ".join(conditions)
+            
+            cur.execute(f"""
+                SELECT COUNT(*) FROM ps_union_locals l
+                JOIN ps_parent_unions p ON l.parent_union_id = p.id
+                WHERE {where_clause}
+            """, params)
+            total = cur.fetchone()['count']
+            
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT l.id, l.local_name, l.local_designation, l.state, l.city,
+                       l.members, l.sector_type, l.f_num,
+                       p.abbrev as parent_abbrev, p.full_name as parent_name
+                FROM ps_union_locals l
+                JOIN ps_parent_unions p ON l.parent_union_id = p.id
+                WHERE {where_clause}
+                ORDER BY l.members DESC NULLS LAST
+                LIMIT %s OFFSET %s
+            """, params)
+            
+            return {"total": total, "locals": cur.fetchall()}
+
+
+@app.get("/api/public-sector/employers")
+def search_public_sector_employers(
+    state: Optional[str] = None,
+    employer_type: Optional[str] = None,
+    name: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Search public sector employers"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+            
+            if state:
+                conditions.append("state = %s")
+                params.append(state.upper())
+            if employer_type:
+                conditions.append("employer_type = %s")
+                params.append(employer_type.upper())
+            if name:
+                conditions.append("employer_name ILIKE %s")
+                params.append(f"%{name}%")
+            
+            where_clause = " AND ".join(conditions)
+            
+            cur.execute(f"SELECT COUNT(*) FROM ps_employers WHERE {where_clause}", params)
+            total = cur.fetchone()['count']
+            
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT id, employer_name, employer_type, state, city, county,
+                       total_employees, naics_code
+                FROM ps_employers
+                WHERE {where_clause}
+                ORDER BY employer_name
+                LIMIT %s OFFSET %s
+            """, params)
+            
+            return {"total": total, "employers": cur.fetchall()}
+
+
+@app.get("/api/public-sector/employer-types")
+def get_public_sector_employer_types():
+    """Get list of employer types with counts"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT employer_type, COUNT(*) as count
+                FROM ps_employers
+                GROUP BY employer_type
+                ORDER BY count DESC
+            """)
+            return {"employer_types": cur.fetchall()}
+
+
+@app.get("/api/public-sector/benchmarks")
+def get_public_sector_benchmarks(state: Optional[str] = None):
+    """Get state-level public sector benchmarks"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            if state:
+                cur.execute("""
+                    SELECT * FROM public_sector_benchmarks WHERE state = %s
+                """, [state.upper()])
+                result = cur.fetchone()
+                return {"benchmark": result}
+            else:
+                cur.execute("""
+                    SELECT state, state_name, epi_public_members, epi_public_density_pct,
+                           olms_state_local_members, olms_federal_members, data_quality_flag
+                    FROM public_sector_benchmarks
+                    ORDER BY epi_public_members DESC NULLS LAST
+                """)
+                return {"benchmarks": cur.fetchall()}
 
 
 if __name__ == "__main__":

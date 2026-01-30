@@ -1,8 +1,8 @@
 # Labor Relations Research Platform
 
-**Version:** 6.4
-**Last Updated:** January 28, 2026
-**Status:** Active Development
+**Version:** 7.0  
+**Last Updated:** January 29, 2026  
+**Status:** Active Development  
 **GitHub:** [TheOrganizer-Labor-Research-Platform](https://github.com/JacobWebsite/TheOrganizer-Labor-Research-Platform)
 
 ---
@@ -22,13 +22,18 @@ Open `frontend/labor_search_v6_osha.html` in your browser.
 
 ## Current Coverage (January 2026)
 
-| Sector | Platform | EPI Benchmark | Coverage |
-|--------|----------|---------------|----------|
-| **Private** | 5,962,055 | 7,211,458 | **82.7%** |
-| **Public** | 5,298,619 | 6,995,000 | **75.7%** |
-| **Total** | 11,260,674 | 14,206,458 | **79.3%** |
+| Sector | Platform | Benchmark | Coverage |
+|--------|----------|-----------|----------|
+| **Total Members** | 14.5M | 14.3M (BLS) | **101.4%** ✅ |
+| **Private Sector** | 6.65M | 7.2M | 92% |
+| **Federal Sector** | 1.28M | 1.1M | 116% |
+| **State/Local Public** | 6.9M | 7.0M (EPI) | **98.3%** ✅ |
 
-*Excludes DC due to federal HQ effects*
+### Public Sector Reconciliation: COMPLETE
+
+- **50 of 51 states** within ±15% of EPI benchmark
+- **1 state** (Texas) with documented methodology variance
+- **National coverage:** 98.3%
 
 ---
 
@@ -46,19 +51,90 @@ See **[CLAUDE.md](CLAUDE.md)** for:
 
 This platform integrates multiple federal government databases to create a comprehensive analytical framework for understanding labor relations in the United States:
 
-- **OLMS LM Filings:** 331,000+ union financial reports (2010-2025)
-- **F-7 Employer Notices:** 63,000+ deduplicated employers with bargaining units
-- **FLRA Federal Data:** 1.28M federal employees in 2,183 bargaining units
-- **EPI/BLS Benchmarks:** State-level union membership data
-- **OSHA Integration:** 6-digit NAICS codes for 20,090 employers
+### Data Sources
 
-### Key Capabilities
+| Source | Records | Description |
+|--------|---------|-------------|
+| **OLMS LM Filings** | 26,665 unions | Union financial reports (2010-2025) |
+| **F-7 Employer Notices** | 63,118 employers | Private sector bargaining units |
+| **NLRB Elections** | 33,096 elections | Election outcomes |
+| **NLRB Participants** | 30,399 unions | 95.7% matched to OLMS |
+| **FLRA Data** | 2,183 units | Federal sector coverage |
+| **EPI/BLS Data** | 1.4M+ records | Union density benchmarks |
+| **Public Sector Locals** | 1,520 locals | State/local unions |
+| **Public Sector Employers** | 7,987 employers | Government employers |
 
-- Track union membership and financial trends
-- Analyze officer/employee compensation across 26,000+ organizations
-- Link unions to employers through F-7 bargaining notices
-- Compare coverage against BLS/EPI benchmarks by state
-- Multi-employer agreement deduplication (reduced 203% → 82.7% of BLS)
+---
+
+## Database Schema
+
+### Core Tables
+
+```
+unions_master              -- 26,665 OLMS union filings
+f7_employers_deduped       -- 63,118 private sector employers
+nlrb_elections            -- 33,096 election records
+nlrb_participants         -- 30,399 union petitioners
+epi_state_benchmarks      -- 51 state benchmarks
+manual_employers          -- 431 state-level public sector
+```
+
+### Public Sector Schema (NEW)
+
+```
+ps_parent_unions          -- 24 international unions
+ps_union_locals           -- 1,520 local unions
+ps_employers              -- 7,987 public employers
+ps_bargaining_units       -- 438 union-employer relationships
+```
+
+---
+
+## Key Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CLAUDE.md](CLAUDE.md) | Quick reference for Claude |
+| [LABOR_PLATFORM_ROADMAP_v9.md](LABOR_PLATFORM_ROADMAP_v9.md) | Project roadmap |
+| [docs/METHODOLOGY_SUMMARY_v8.md](docs/METHODOLOGY_SUMMARY_v8.md) | Complete methodology |
+| [PUBLIC_SECTOR_SCHEMA_DOCS.md](PUBLIC_SECTOR_SCHEMA_DOCS.md) | Public sector tables |
+| [EPI_BENCHMARK_METHODOLOGY.md](EPI_BENCHMARK_METHODOLOGY.md) | Benchmark usage |
+
+---
+
+## API Endpoints
+
+### Summary
+- `GET /api/summary` - Platform metrics and coverage
+
+### Employers
+- `GET /api/employers/search` - Search by name, state, NAICS
+- `GET /api/employers/{id}` - Employer detail
+- `GET /api/employers/by-naics/{code}` - By industry
+
+### Unions
+- `GET /api/unions/search` - Search unions
+- `GET /api/unions/{f_num}` - Union detail
+
+### Elections
+- `GET /api/elections/recent` - Recent NLRB elections
+- `GET /api/elections/by-employer/{name}` - By employer
+
+---
+
+## Project Structure
+
+```
+labor-data-project/
+├── api/                    # FastAPI backend
+├── frontend/               # HTML/JS interfaces
+├── docs/                   # Documentation
+│   ├── methodology/        # Detailed methodologies
+│   └── session-summaries/  # Session documentation
+├── scripts/                # Python utilities
+├── sql/                    # SQL scripts
+└── data/                   # Data exports
+```
 
 ---
 
@@ -74,179 +150,34 @@ conn = psycopg2.connect(
 )
 ```
 
-### Key Tables
+---
 
-| Table | Records | Description |
-|-------|---------|-------------|
-| `unions_master` | 26,665 | Union metadata with sector, members, F7 linkage |
-| `f7_employers_deduped` | 63,118 | Deduplicated employers with exclusion flags |
-| `state_coverage_comparison` | 51 | Coverage vs EPI benchmarks by state |
-| `epi_union_membership` | 1.4M | EPI/BLS union membership data |
-| `federal_bargaining_units` | 2,183 | FLRA federal employee data |
-| `lm_data` | 331,238 | Union LM filings (2010-2025) |
+## Methodology Highlights
 
-### Key Views
+### Membership Deduplication
+Raw OLMS data: 70.1M → Deduplicated: 14.5M (matches BLS within 1.5%)
 
-| View | Purpose |
-|------|---------|
-| `v_f7_for_bls_counts` | Only counted F7 records (exclude_from_counts = FALSE) |
-| `v_multi_employer_groups` | Multi-employer agreement groupings |
-| `v_employer_naics_enhanced` | Employers with OSHA-enriched 6-digit NAICS |
+Key adjustments:
+- Hierarchy deduplication (federation → international → local)
+- Canadian member exclusion (-1.3M)
+- Retiree/inactive adjustment (-2.1M)
+- NEA/AFT dual affiliation correction (-903K)
+
+### Public Sector Reconciliation
+State/local unions exempt from OLMS reporting. Reconciled through:
+- NEA/AFT state affiliate research
+- Form 990 revenue analysis
+- Web research on police, fire, transit unions
+- Validation against EPI/CPS benchmarks
 
 ---
 
-## Project Structure
+## Contact
 
-```
-labor-data-project/
-├── CLAUDE.md                 # Quick reference for Claude/Claude Code
-├── README.md                 # This file
-├── api/
-│   └── labor_api_v6.py       # FastAPI v6.4 - Main API
-├── frontend/
-│   └── labor_search_v6_osha.html  # Web interface
-├── docs/
-│   ├── coverage/             # State coverage CSVs
-│   │   ├── FINAL_COVERAGE_BY_STATE.csv
-│   │   └── COVERAGE_REFERENCE_ANNOTATED.csv
-│   ├── methodology/          # Methodology documentation
-│   │   └── STATE_COVERAGE_METHODOLOGY.md
-│   └── [35+ markdown docs]   # Session summaries, status reports
-├── scripts/
-│   ├── analysis/      (33)   # Multi-employer, coverage analysis
-│   ├── coverage/      (16)   # Public/private sector scripts
-│   ├── etl/           (30)   # OSHA, NAICS, data loading
-│   ├── federal/        (9)   # Federal checkpoint scripts
-│   ├── maintenance/   (95)   # Check, fix, update scripts
-│   └── matching/      (19)   # NLRB, F7 matching scripts
-├── data/                     # Raw data files (gitignored)
-├── sql/                      # SQL scripts
-└── archive/                  # Old versions, historical files
-```
+**Project:** Labor Relations Research Platform  
+**Database:** PostgreSQL (`olms_multiyear`)  
+**Location:** `C:\Users\jakew\Downloads\labor-data-project`
 
 ---
 
-## Data Sources
-
-### Private Sector (~6M workers)
-- **Source:** F-7 Employer Bargaining Notices (OLMS)
-- **Deduplication:** Multi-employer agreements, SAG-AFTRA signatories removed
-- **Exclusions:** Federal employers, outliers, corrupted data
-
-### Public Sector (~5.3M workers)
-- **Source:** Form 990 tax filings (NEA, AFT, SEIU, AFSCME)
-- **Source:** FLRA federal bargaining units (1.28M employees)
-- **Source:** OLMS state/local union LM filings
-- **Note:** NOT from F-7 employers (different jurisdiction)
-
-### Exclusion Categories (f7_employers_deduped)
-
-| exclude_reason | Description |
-|----------------|-------------|
-| `SAG_AFTRA_SIGNATORY` | Entertainment industry multi-employer |
-| `DUPLICATE_WORKER_COUNT` | Same workers counted multiple times |
-| `OUTLIER_WORKER_COUNT` | Unrealistic worker counts |
-| `FEDERAL_EMPLOYER` | Federal employees (CSRA jurisdiction) |
-| `REPEATED_WORKER_COUNT` | Repeated exact counts across filings |
-
----
-
-## API Endpoints (v6.4)
-
-### Core Endpoints
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/summary` | Platform summary with BLS coverage % |
-| `GET /api/unions` | Search unions |
-| `GET /api/employers` | Search employers |
-| `GET /api/employer/{id}` | Employer details |
-
-### Multi-Employer Endpoints
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/multi-employer/stats` | Deduplication statistics |
-| `GET /api/multi-employer/groups` | Multi-employer agreement groups |
-
-### NAICS Endpoints
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/naics/stats` | NAICS enrichment statistics |
-| `GET /api/employers/by-naics-detailed/{naics}` | 6-digit NAICS search |
-
----
-
-## Coverage Acceptance Criteria
-
-| Status | Criteria |
-|--------|----------|
-| **Target** | ±5% of EPI benchmark |
-| **Acceptable** | ±10% or up to 15% under |
-| **Needs Attention** | >15% under or >15% over |
-
-Current status: **Private (82.7%)** and **Public (75.7%)** are both acceptable.
-
----
-
-## Sample Queries
-
-```sql
--- Coverage by state
-SELECT state, platform_private, epi_private, private_coverage_pct
-FROM state_coverage_comparison
-WHERE state != 'DC'
-ORDER BY private_coverage_pct DESC;
-
--- Multi-employer groups
-SELECT * FROM v_multi_employer_groups
-ORDER BY total_workers DESC LIMIT 20;
-
--- Employers with 6-digit NAICS
-SELECT employer_name, naics_detailed, naics_source, latest_unit_size
-FROM f7_employers_deduped
-WHERE naics_detailed IS NOT NULL
-ORDER BY latest_unit_size DESC LIMIT 20;
-
--- Public sector unions
-SELECT union_name, members, state
-FROM unions_master
-WHERE sector IN ('FEDERAL', 'PUBLIC_SECTOR')
-ORDER BY members DESC LIMIT 20;
-```
-
----
-
-## Development Roadmap
-
-### Completed
-- [x] Multi-year OLMS data (331K records)
-- [x] F-7 employer deduplication (63K employers)
-- [x] Multi-employer agreement handling
-- [x] OSHA NAICS enrichment (20K employers)
-- [x] State coverage comparison framework
-- [x] Federal bargaining units (FLRA)
-- [x] API v6.4 with deduplication endpoints
-
-### In Progress
-- [ ] Public sector gap analysis
-- [ ] State-level coverage improvements
-
-### Planned
-- [ ] NLRB election data integration
-- [ ] Contract expiration tracking
-- [ ] Real-time organizing alerts
-
----
-
-## Resources
-
-- **OLMS Data:** https://www.dol.gov/agencies/olms
-- **NLRB Data:** https://www.nlrb.gov/reports/data
-- **BLS Union Data:** https://www.bls.gov/cps/cpslutabs.htm
-- **EPI Union Stats:** https://www.epi.org/data/
-- **FLRA Federal Data:** https://www.flra.gov/
-
----
-
-## License
-
-This project integrates publicly available federal government data for research purposes.
+*Last Updated: January 29, 2026*
