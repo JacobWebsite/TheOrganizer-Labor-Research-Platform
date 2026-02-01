@@ -48,6 +48,7 @@ Contract vendors were matched to 990 employers using:
 
 ### 4. Priority Scoring
 
+#### 990-Based Targets (organizing_targets table)
 Each target receives a priority score (0-100) based on:
 
 | Factor | Weight | Description |
@@ -58,6 +59,26 @@ Each target receives a priority score (0-100) based on:
 | Multiple Contracts | 10 pts | Repeat contractors = stronger relationships |
 | 990 Data Quality | 10 pts | Complete financials enable analysis |
 | Geographic Density | 10 pts | Areas with existing AFSCME presence |
+
+#### OSHA-Based Organizing Scorecard (NEW - Enhanced)
+The platform now includes an OSHA-based organizing scorecard that integrates government contract data with workplace safety information. This 6-factor scoring system (0-100) includes:
+
+| Factor | Points | Description |
+|--------|--------|-------------|
+| Safety Violations | 0-25 | OSHA violation count, severity, and recency |
+| Industry Density | 0-15 | Existing union presence in NAICS sector |
+| Geographic Presence | 0-15 | Union activity in state |
+| Establishment Size | 0-15 | Sweet spot 100-500 employees |
+| NLRB Momentum | 0-15 | Recent organizing activity nearby |
+| **Government Contracts** | **0-15** | **NY State & NYC contract funding (NEW)** |
+
+**Government Contracts Scoring Logic:**
+- $5M+ funding: 10 base points
+- $1M+ funding: 7 base points
+- $100K+ funding: 4 base points
+- Any funding: 2 base points
+- Bonus: +5 for 5+ contracts, +3 for 2+ contracts
+- Maximum: 15 points
 
 **Priority Tiers:**
 - **TOP** (70+): Immediate action recommended
@@ -199,6 +220,7 @@ curl "http://localhost:8001/api/targets/stats"
 
 ## API Endpoints
 
+### 990-Based Targets
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/targets/search` | Search targets with filters |
@@ -206,6 +228,20 @@ curl "http://localhost:8001/api/targets/stats"
 | `GET /api/targets/{id}` | Target details with contracts |
 | `GET /api/targets/{id}/contracts` | All contracts for a target |
 | `GET /api/targets/for-union/{f_num}` | Recommended targets for a union |
+
+### OSHA-Based Organizing Scorecard (NEW)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/organizing/scorecard` | Search OSHA establishments with 6-factor scoring |
+| `GET /api/organizing/scorecard/{estab_id}` | Detailed scorecard for specific establishment |
+
+**Scorecard Query Parameters:**
+- `state` - Filter by state (e.g., NY)
+- `naics_2digit` - Filter by industry (e.g., 62 for Healthcare)
+- `min_employees` / `max_employees` - Employee count range
+- `min_score` - Minimum organizing score (0-100)
+- `has_contracts` - true/false to filter by contract presence
+- `limit` / `offset` - Pagination
 
 ### Example Queries
 

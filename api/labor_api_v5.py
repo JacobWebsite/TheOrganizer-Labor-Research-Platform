@@ -2121,6 +2121,477 @@ def get_target_contracts(
 
 
 # ============================================================================
+# ENHANCED ORGANIZING SCORECARD - OSHA + Government Contracts
+# ============================================================================
+
+def calculate_organizing_score(establishment, industry_data, state_data, nlrb_data, contract_data=None):
+    """Calculate organizing potential score (0-100) with breakdown.
+
+    Scoring factors (rebalanced to include contracts):
+    - Safety violations: 0-25 pts (reduced from 30)
+    - Industry union density: 0-15 pts (reduced from 20)
+    - Geographic union presence: 0-15 pts (reduced from 20)
+    - Establishment size: 0-15 pts (unchanged)
+    - NLRB momentum: 0-15 pts (unchanged)
+    - Government contracts: 0-15 pts (NEW)
+    """
+    scores = {
+        'safety': 0,
+        'industry': 0,
+        'geographic': 0,
+        'size': 0,
+        'momentum': 0,
+        'contracts': 0
+    }
+
+    # 1. SAFETY VIOLATIONS (0-25 points) - reduced from 30
+    willful = establishment.get('willful_count', 0) or 0
+    repeat = establishment.get('repeat_count', 0) or 0
+    serious = establishment.get('serious_count', 0) or 0
+    total_violations = establishment.get('total_violations', 0) or 0
+
+    if total_violations > 0:
+        # Base score from violation count
+        scores['safety'] = min(12, total_violations * 2)
+        # Severity bonus
+        scores['safety'] += min(8, willful * 4 + repeat * 3 + serious * 1)
+        # Recency bonus (if last_inspection_date within 2 years - simplified)
+        last_inspection = establishment.get('last_inspection_date')
+        if last_inspection:
+            scores['safety'] += 5  # Bonus for having recent data
+
+    scores['safety'] = min(25, scores['safety'])
+
+    # 2. INDUSTRY UNION DENSITY (0-15 points) - reduced from 20
+    naics_2 = str(establishment.get('naics_code', ''))[:2] if establishment.get('naics_code') else None
+    if naics_2 and naics_2 in industry_data:
+        ind = industry_data[naics_2]
+        union_employers = ind.get('union_employers', 0) or 0
+        if union_employers > 1000:
+            scores['industry'] = 15
+        elif union_employers > 500:
+            scores['industry'] = 12
+        elif union_employers > 100:
+            scores['industry'] = 8
+        elif union_employers > 20:
+            scores['industry'] = 4
+
+    # 3. GEOGRAPHIC UNION PRESENCE (0-15 points) - reduced from 20
+    state = establishment.get('site_state')
+    if state and state in state_data:
+        st = state_data[state]
+        union_count = st.get('union_count', 0) or 0
+        if union_count > 2000:
+            scores['geographic'] = 15
+        elif union_count > 1000:
+            scores['geographic'] = 12
+        elif union_count > 500:
+            scores['geographic'] = 8
+        elif union_count > 100:
+            scores['geographic'] = 4
+
+    # 4. ESTABLISHMENT SIZE (0-15 points)
+    size = establishment.get('employee_count', 0) or 0
+    if 200 <= size <= 500:
+        scores['size'] = 15
+    elif 100 <= size < 200 or 500 < size <= 1000:
+        scores['size'] = 12
+    elif 50 <= size < 100 or 1000 < size <= 2000:
+        scores['size'] = 8
+    elif size > 2000:
+        scores['size'] = 5
+    elif size >= 25:
+        scores['size'] = 3
+
+    # 5. NLRB MOMENTUM (0-15 points)
+    if state and state in nlrb_data:
+        nlrb = nlrb_data[state]
+        case_count = nlrb.get('case_count', 0) or 0
+        wins = nlrb.get('wins', 0) or 0
+
+        if case_count > 100:
+            scores['momentum'] = 10
+        elif case_count > 50:
+            scores['momentum'] = 7
+        elif case_count > 20:
+            scores['momentum'] = 4
+
+        # Win rate bonus
+        if case_count > 10 and wins > 0:
+            win_rate = wins / case_count
+            if win_rate > 0.5:
+                scores['momentum'] += 5
+            elif win_rate > 0.3:
+                scores['momentum'] += 3
+
+        scores['momentum'] = min(15, scores['momentum'])
+
+    # 6. GOVERNMENT CONTRACTS (0-15 points) - NEW
+    if contract_data:
+        estab_name = establishment.get('estab_name', '') or ''
+        estab_name_normalized = establishment.get('estab_name_normalized', '') or estab_name.upper()
+
+        # Check for contract match
+        contract_match = contract_data.get(estab_name_normalized)
+        if contract_match:
+            total_funding = contract_match.get('total_funding', 0) or 0
+            contract_count = contract_match.get('contract_count', 0) or 0
+
+            # Base points from funding amount
+            if total_funding >= 5_000_000:
+                scores['contracts'] = 10
+            elif total_funding >= 1_000_000:
+                scores['contracts'] = 7
+            elif total_funding >= 100_000:
+                scores['contracts'] = 4
+            elif total_funding > 0:
+                scores['contracts'] = 2
+
+            # Bonus for multiple contracts (indicates stable relationship)
+            if contract_count >= 5:
+                scores['contracts'] += 5
+            elif contract_count >= 2:
+                scores['contracts'] += 3
+
+            scores['contracts'] = min(15, scores['contracts'])
+
+    total = sum(scores.values())
+
+    return {
+        'total': total,
+        'safety': scores['safety'],
+        'industry': scores['industry'],
+        'geographic': scores['geographic'],
+        'size': scores['size'],
+        'momentum': scores['momentum'],
+        'contracts': scores['contracts']
+    }
+
+
+@app.get("/api/organizing/scorecard")
+def get_organizing_scorecard(
+    state: Optional[str] = None,
+    naics_2digit: Optional[str] = None,
+    min_employees: int = Query(50, ge=1),
+    max_employees: int = Query(10000, le=100000),
+    min_score: int = Query(0, ge=0, le=100),
+    has_contracts: Optional[bool] = Query(None, description="Filter to only establishments with govt contracts"),
+    limit: int = Query(100, le=500),
+    offset: int = 0
+):
+    """
+    Generate organizing target scorecard for OSHA establishments.
+
+    Enhanced scoring factors (0-100 total):
+    - Safety violations: 0-25 points (severity, frequency, recency)
+    - Industry union density: 0-15 points (higher density = easier organizing)
+    - Geographic union presence: 0-15 points (more nearby unions = more resources)
+    - Establishment size: 0-15 points (larger = more impact)
+    - Recent NLRB activity: 0-15 points (indicates organizing momentum)
+    - Government contracts: 0-15 points (NEW - NY state & NYC contracts)
+    """
+    conditions = ["1=1"]  # Start with non-union establishments (OSHA doesn't track union status reliably)
+    params = []
+
+    if state:
+        conditions.append("o.site_state = %s")
+        params.append(state.upper())
+
+    if naics_2digit:
+        conditions.append("LEFT(o.naics_code, 2) = %s")
+        params.append(naics_2digit)
+
+    conditions.append("COALESCE(o.employee_count, 0) >= %s")
+    params.append(min_employees)
+
+    conditions.append("COALESCE(o.employee_count, 0) <= %s")
+    params.append(max_employees)
+
+    where_clause = " AND ".join(conditions)
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get industry union density benchmarks
+            cur.execute("""
+                SELECT
+                    LEFT(e.naics, 2) as naics_2,
+                    COUNT(DISTINCT e.employer_id) as union_employers,
+                    SUM(e.latest_unit_size) as union_workers
+                FROM f7_employers_deduped e
+                WHERE e.naics IS NOT NULL
+                GROUP BY LEFT(e.naics, 2)
+            """)
+            industry_union_data = {r['naics_2']: r for r in cur.fetchall()}
+
+            # Get state union presence
+            cur.execute("""
+                SELECT state, COUNT(*) as union_count, SUM(members) as total_members
+                FROM unions_master
+                WHERE state IS NOT NULL
+                GROUP BY state
+            """)
+            state_union_data = {r['state']: r for r in cur.fetchall()}
+
+            # Get recent NLRB activity by state (using participants and elections tables)
+            cur.execute("""
+                SELECT
+                    p.state,
+                    COUNT(DISTINCT p.case_number) as case_count,
+                    SUM(CASE WHEN e.union_won = TRUE THEN 1 ELSE 0 END) as wins
+                FROM nlrb_participants p
+                JOIN nlrb_cases c ON p.case_number = c.case_number
+                LEFT JOIN nlrb_elections e ON p.case_number = e.case_number
+                WHERE c.earliest_date >= CURRENT_DATE - INTERVAL '3 years'
+                AND p.state IS NOT NULL
+                AND p.participant_type = 'employer'
+                GROUP BY p.state
+            """)
+            nlrb_activity = {r['state']: r for r in cur.fetchall()}
+
+            # Get contract data aggregated by normalized vendor name
+            cur.execute("""
+                SELECT
+                    vendor_name_normalized,
+                    SUM(current_amount) as total_funding,
+                    COUNT(*) as contract_count
+                FROM (
+                    SELECT vendor_name_normalized, current_amount FROM ny_state_contracts
+                    UNION ALL
+                    SELECT vendor_name_normalized, current_amount FROM nyc_contracts
+                ) combined
+                WHERE vendor_name_normalized IS NOT NULL
+                GROUP BY vendor_name_normalized
+            """)
+            contract_data = {r['vendor_name_normalized']: r for r in cur.fetchall()}
+
+            # Get OSHA establishments from the organizing targets view
+            # Note: Join with osha_establishments to get estab_name_normalized for contract matching
+            cur.execute(f"""
+                SELECT
+                    o.establishment_id,
+                    o.estab_name,
+                    oe.estab_name_normalized,
+                    o.site_address,
+                    o.site_city,
+                    o.site_state,
+                    o.site_zip,
+                    o.naics_code,
+                    o.employee_count,
+                    o.total_inspections,
+                    o.last_inspection_date,
+                    COALESCE(o.willful_count, 0) as willful_count,
+                    COALESCE(o.repeat_count, 0) as repeat_count,
+                    COALESCE(o.serious_count, 0) as serious_count,
+                    COALESCE(o.total_violations, 0) as total_violations,
+                    COALESCE(o.total_penalties, 0) as total_penalties,
+                    o.risk_level
+                FROM v_osha_organizing_targets o
+                LEFT JOIN osha_establishments oe ON o.establishment_id = oe.establishment_id
+                WHERE {where_clause}
+                AND o.employee_count IS NOT NULL
+                ORDER BY o.total_violations DESC NULLS LAST, o.employee_count DESC NULLS LAST
+                LIMIT %s OFFSET %s
+            """, params + [limit * 3, offset])  # Get extra for filtering after scoring
+
+            raw_results = cur.fetchall()
+
+            # Calculate scores for each establishment
+            scored_results = []
+            for r in raw_results:
+                score_breakdown = calculate_organizing_score(
+                    dict(r),
+                    industry_union_data,
+                    state_union_data,
+                    nlrb_activity,
+                    contract_data
+                )
+
+                total_score = score_breakdown['total']
+
+                # Apply filters
+                if total_score < min_score:
+                    continue
+
+                if has_contracts is True and score_breakdown['contracts'] == 0:
+                    continue
+                elif has_contracts is False and score_breakdown['contracts'] > 0:
+                    continue
+
+                # Get contract info for display
+                estab_name_normalized = r.get('estab_name_normalized') or (r.get('estab_name', '') or '').upper()
+                contract_match = contract_data.get(estab_name_normalized, {})
+
+                scored_results.append({
+                    **dict(r),
+                    'organizing_score': total_score,
+                    'score_breakdown': score_breakdown,
+                    'contract_info': {
+                        'total_funding': contract_match.get('total_funding', 0),
+                        'contract_count': contract_match.get('contract_count', 0)
+                    } if contract_match else None
+                })
+
+            # Sort by score and limit
+            scored_results.sort(key=lambda x: x['organizing_score'], reverse=True)
+            final_results = scored_results[:limit]
+
+            # Get total count for pagination
+            cur.execute(f"""
+                SELECT COUNT(*) as cnt
+                FROM v_osha_organizing_targets o
+                WHERE {where_clause}
+                AND o.employee_count IS NOT NULL
+            """, params)
+            total_count = cur.fetchone()['cnt']
+
+            return {
+                "results": final_results,
+                "total_count": total_count,
+                "scored_count": len(scored_results),
+                "filters": {
+                    "state": state,
+                    "naics_2digit": naics_2digit,
+                    "min_employees": min_employees,
+                    "max_employees": max_employees,
+                    "min_score": min_score,
+                    "has_contracts": has_contracts
+                },
+                "scoring_methodology": {
+                    "safety_violations": "0-25 pts based on count, severity, recency",
+                    "industry_density": "0-15 pts based on existing union presence in industry",
+                    "geographic_presence": "0-15 pts based on union activity in state",
+                    "establishment_size": "0-15 pts favoring medium-large establishments",
+                    "nlrb_momentum": "0-15 pts based on recent organizing activity nearby",
+                    "government_contracts": "0-15 pts based on NY State & NYC contract funding"
+                }
+            }
+
+
+@app.get("/api/organizing/scorecard/{estab_id}")
+def get_establishment_scorecard(estab_id: str):
+    """Get detailed scorecard for a specific OSHA establishment."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get establishment details
+            cur.execute("""
+                SELECT
+                    o.establishment_id,
+                    o.estab_name,
+                    oe.estab_name_normalized,
+                    o.site_address,
+                    o.site_city,
+                    o.site_state,
+                    o.site_zip,
+                    o.naics_code,
+                    o.employee_count,
+                    o.total_inspections,
+                    o.last_inspection_date,
+                    COALESCE(o.willful_count, 0) as willful_count,
+                    COALESCE(o.repeat_count, 0) as repeat_count,
+                    COALESCE(o.serious_count, 0) as serious_count,
+                    COALESCE(o.total_violations, 0) as total_violations,
+                    COALESCE(o.total_penalties, 0) as total_penalties,
+                    o.risk_level
+                FROM v_osha_organizing_targets o
+                LEFT JOIN osha_establishments oe ON o.establishment_id = oe.establishment_id
+                WHERE o.establishment_id = %s
+            """, [estab_id])
+            estab = cur.fetchone()
+
+            if not estab:
+                raise HTTPException(status_code=404, detail="Establishment not found")
+
+            # Get industry data
+            cur.execute("""
+                SELECT LEFT(e.naics, 2) as naics_2, COUNT(DISTINCT e.employer_id) as union_employers
+                FROM f7_employers_deduped e WHERE e.naics IS NOT NULL GROUP BY LEFT(e.naics, 2)
+            """)
+            industry_data = {r['naics_2']: r for r in cur.fetchall()}
+
+            # Get state data
+            cur.execute("""
+                SELECT state, COUNT(*) as union_count FROM unions_master WHERE state IS NOT NULL GROUP BY state
+            """)
+            state_data = {r['state']: r for r in cur.fetchall()}
+
+            # Get NLRB data
+            cur.execute("""
+                SELECT p.state, COUNT(DISTINCT p.case_number) as case_count,
+                    SUM(CASE WHEN e.union_won = TRUE THEN 1 ELSE 0 END) as wins
+                FROM nlrb_participants p
+                JOIN nlrb_cases c ON p.case_number = c.case_number
+                LEFT JOIN nlrb_elections e ON p.case_number = e.case_number
+                WHERE c.earliest_date >= CURRENT_DATE - INTERVAL '3 years'
+                AND p.state IS NOT NULL AND p.participant_type = 'employer'
+                GROUP BY p.state
+            """)
+            nlrb_data = {r['state']: r for r in cur.fetchall()}
+
+            # Get contract data
+            cur.execute("""
+                SELECT vendor_name_normalized, SUM(current_amount) as total_funding, COUNT(*) as contract_count
+                FROM (
+                    SELECT vendor_name_normalized, current_amount FROM ny_state_contracts
+                    UNION ALL SELECT vendor_name_normalized, current_amount FROM nyc_contracts
+                ) combined WHERE vendor_name_normalized IS NOT NULL GROUP BY vendor_name_normalized
+            """)
+            contract_data = {r['vendor_name_normalized']: r for r in cur.fetchall()}
+
+            # Calculate score
+            score_breakdown = calculate_organizing_score(
+                dict(estab), industry_data, state_data, nlrb_data, contract_data
+            )
+
+            # Get contract details
+            estab_name_normalized = estab.get('estab_name_normalized') or (estab.get('estab_name', '') or '').upper()
+            contract_match = contract_data.get(estab_name_normalized, {})
+
+            # Get actual contract records
+            contracts = []
+            if contract_match.get('contract_count', 0) > 0:
+                cur.execute("""
+                    SELECT 'NY State' as source, contract_title as title, agency_name, current_amount, start_date, end_date
+                    FROM ny_state_contracts WHERE vendor_name_normalized = %s
+                    UNION ALL
+                    SELECT 'NYC' as source, purpose as title, agency_name, current_amount, start_date, end_date
+                    FROM nyc_contracts WHERE vendor_name_normalized = %s
+                    ORDER BY current_amount DESC NULLS LAST LIMIT 10
+                """, [estab_name_normalized, estab_name_normalized])
+                contracts = [dict(r) for r in cur.fetchall()]
+
+            # Get violation details
+            cur.execute("""
+                SELECT violation_type, issuance_date, current_penalty, standard, viol_desc
+                FROM osha_violations_detail
+                WHERE establishment_id = %s
+                ORDER BY issuance_date DESC
+                LIMIT 10
+            """, [estab_id])
+            violations = [dict(r) for r in cur.fetchall()]
+
+            return {
+                "establishment": dict(estab),
+                "organizing_score": score_breakdown['total'],
+                "score_breakdown": score_breakdown,
+                "violations": {
+                    "count": estab['total_violations'],
+                    "severity_score": estab['willful_count'] * 5 + estab['repeat_count'] * 4 + estab['serious_count'] * 3,
+                    "recent": violations
+                },
+                "contracts": {
+                    "total_funding": contract_match.get('total_funding', 0),
+                    "contract_count": contract_match.get('contract_count', 0),
+                    "records": contracts
+                },
+                "context": {
+                    "industry_union_presence": industry_data.get(str(estab.get('naics_code', ''))[:2], {}),
+                    "state_union_presence": state_data.get(estab.get('site_state'), {}),
+                    "nlrb_activity": nlrb_data.get(estab.get('site_state'), {})
+                }
+            }
+
+
+# ============================================================================
 # HEALTH CHECK
 # ============================================================================
 
