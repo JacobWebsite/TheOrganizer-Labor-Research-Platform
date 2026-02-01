@@ -1,8 +1,8 @@
 # Labor Relations Research Platform
 
-**Version:** 7.0  
-**Last Updated:** January 29, 2026  
-**Status:** Active Development  
+**Version:** 7.0
+**Last Updated:** February 2026
+**Status:** Active Development
 **GitHub:** [TheOrganizer-Labor-Research-Platform](https://github.com/JacobWebsite/TheOrganizer-Labor-Research-Platform)
 
 ---
@@ -11,27 +11,27 @@
 
 ```cmd
 cd C:\Users\jakew\Downloads\labor-data-project
-py -m uvicorn api.labor_api_v6:app --reload --port 8001
+py -m uvicorn api.labor_api_v6:app --reload --port 8000
 ```
 
-Open `frontend/labor_search_v6_osha.html` in your browser.
+Open `frontend/labor_search_v6.html` in your browser.
 
-**API Docs:** http://localhost:8001/docs
+**API Docs:** http://localhost:8000/docs
 
 ---
 
-## Current Coverage (January 2026)
+## Current Coverage (February 2026)
 
 | Sector | Platform | Benchmark | Coverage |
 |--------|----------|-----------|----------|
-| **Total Members** | 14.5M | 14.3M (BLS) | **101.4%** ✅ |
+| **Total Members** | 14.5M | 14.3M (BLS) | **101.4%** |
 | **Private Sector** | 6.65M | 7.2M | 92% |
 | **Federal Sector** | 1.28M | 1.1M | 116% |
-| **State/Local Public** | 6.9M | 7.0M (EPI) | **98.3%** ✅ |
+| **State/Local Public** | 6.9M | 7.0M (EPI) | **98.3%** |
 
 ### Public Sector Reconciliation: COMPLETE
 
-- **50 of 51 states** within ±15% of EPI benchmark
+- **50 of 51 states** within +/-15% of EPI benchmark
 - **1 state** (Texas) with documented methodology variance
 - **National coverage:** 98.3%
 
@@ -42,16 +42,32 @@ Open `frontend/labor_search_v6_osha.html` in your browser.
 See **[CLAUDE.md](CLAUDE.md)** for:
 - Database connection details
 - Key tables and columns
-- Current metrics
+- API endpoints
+- Feature documentation
 - Quick reference queries
 
 ---
 
-## Overview
+## Key Features
 
-This platform integrates multiple federal government databases to create a comprehensive analytical framework for understanding labor relations in the United States:
+### 1. Organizing Scorecard (6-factor, 0-100 points)
+Data-driven target identification using OSHA violations, industry density, geographic presence, establishment size, NLRB momentum, and government contracts.
 
-### Data Sources
+### 2. AFSCME NY Organizing Targets
+5,428 targets identified from IRS 990 + NY government contract data, with $18.35B total funding and tiered priority scoring.
+
+### 3. Geographic Analysis
+MSA/Metro area analysis, city-level employer search, CBSA mapping for 40.8% of employers.
+
+### 4. Historical Trends (2010-2024)
+16 years of membership data with national, state, and affiliation breakdowns.
+
+### 5. Membership Deduplication
+Raw 70.1M deduplicated to 14.5M, matching BLS within 1.5%.
+
+---
+
+## Data Sources
 
 | Source | Records | Description |
 |--------|---------|-------------|
@@ -59,34 +75,53 @@ This platform integrates multiple federal government databases to create a compr
 | **F-7 Employer Notices** | 63,118 employers | Private sector bargaining units |
 | **NLRB Elections** | 33,096 elections | Election outcomes |
 | **NLRB Participants** | 30,399 unions | 95.7% matched to OLMS |
-| **FLRA Data** | 2,183 units | Federal sector coverage |
-| **EPI/BLS Data** | 1.4M+ records | Union density benchmarks |
+| **OSHA Establishments** | 1,007,217 | Workplace safety data |
+| **OSHA Violations** | 2,245,020 | $3.52B in penalties |
 | **Public Sector Locals** | 1,520 locals | State/local unions |
 | **Public Sector Employers** | 7,987 employers | Government employers |
+| **NY State Contracts** | 51,500 | Government contracts |
+| **NYC Contracts** | 49,767 | NYC government contracts |
+| **990 Employers** | 5,942 | Nonprofit employer data |
 
 ---
 
-## Database Schema
+## API Endpoints
 
-### Core Tables
+### Core
+- `GET /api/health` - Health check
+- `GET /api/summary` - Platform summary
 
-```
-unions_master              -- 26,665 OLMS union filings
-f7_employers_deduped       -- 63,118 private sector employers
-nlrb_elections            -- 33,096 election records
-nlrb_participants         -- 30,399 union petitioners
-epi_state_benchmarks      -- 51 state benchmarks
-manual_employers          -- 431 state-level public sector
-```
+### Employers
+- `GET /api/employers/search` - Search by name, state, NAICS, city
+- `GET /api/employers/{id}` - Employer detail
+- `GET /api/employers/cities` - City list
 
-### Public Sector Schema (NEW)
+### Unions
+- `GET /api/unions/search` - Search unions
+- `GET /api/unions/{f_num}` - Union detail
+- `GET /api/unions/locals/{aff}` - Locals by affiliation
 
-```
-ps_parent_unions          -- 24 international unions
-ps_union_locals           -- 1,520 local unions
-ps_employers              -- 7,987 public employers
-ps_bargaining_units       -- 438 union-employer relationships
-```
+### NLRB
+- `GET /api/nlrb/elections/search` - Election search
+- `GET /api/elections/recent` - Recent elections
+
+### OSHA
+- `GET /api/osha/summary` - OSHA summary
+- `GET /api/osha/establishments/search` - Establishment search
+
+### Public Sector
+- `GET /api/public-sector/stats` - Summary statistics
+- `GET /api/public-sector/locals` - Search locals
+- `GET /api/public-sector/employers` - Search employers
+
+### Organizing Targets
+- `GET /api/targets/search` - Search targets
+- `GET /api/organizing/scorecard` - 6-factor scorecard search
+
+### Trends
+- `GET /api/trends/national` - National trends
+- `GET /api/trends/by-state/{state}` - State trends
+- `GET /api/trends/by-affiliation/{aff}` - Affiliation trends
 
 ---
 
@@ -94,31 +129,14 @@ ps_bargaining_units       -- 438 union-employer relationships
 
 | Document | Description |
 |----------|-------------|
-| [CLAUDE.md](CLAUDE.md) | Quick reference for Claude |
-| [LABOR_PLATFORM_ROADMAP_v9.md](LABOR_PLATFORM_ROADMAP_v9.md) | Project roadmap |
+| [CLAUDE.md](CLAUDE.md) | Comprehensive reference for Claude Code |
+| [LABOR_PLATFORM_ROADMAP_v10.md](LABOR_PLATFORM_ROADMAP_v10.md) | Current roadmap |
 | [docs/METHODOLOGY_SUMMARY_v8.md](docs/METHODOLOGY_SUMMARY_v8.md) | Complete methodology |
-| [PUBLIC_SECTOR_SCHEMA_DOCS.md](PUBLIC_SECTOR_SCHEMA_DOCS.md) | Public sector tables |
-| [EPI_BENCHMARK_METHODOLOGY.md](EPI_BENCHMARK_METHODOLOGY.md) | Benchmark usage |
-
----
-
-## API Endpoints
-
-### Summary
-- `GET /api/summary` - Platform metrics and coverage
-
-### Employers
-- `GET /api/employers/search` - Search by name, state, NAICS
-- `GET /api/employers/{id}` - Employer detail
-- `GET /api/employers/by-naics/{code}` - By industry
-
-### Unions
-- `GET /api/unions/search` - Search unions
-- `GET /api/unions/{f_num}` - Union detail
-
-### Elections
-- `GET /api/elections/recent` - Recent NLRB elections
-- `GET /api/elections/by-employer/{name}` - By employer
+| [PUBLIC_SECTOR_SCHEMA_DOCS.md](PUBLIC_SECTOR_SCHEMA_DOCS.md) | Public sector schema |
+| [EPI_BENCHMARK_METHODOLOGY.md](EPI_BENCHMARK_METHODOLOGY.md) | Benchmark methodology |
+| [docs/AFSCME_NY_CASE_STUDY.md](docs/AFSCME_NY_CASE_STUDY.md) | Organizing targets feature |
+| [docs/FORM_990_FINAL_RESULTS.md](docs/FORM_990_FINAL_RESULTS.md) | 990 methodology results |
+| [docs/EXTENDED_ROADMAP.md](docs/EXTENDED_ROADMAP.md) | Future checkpoints H-O |
 
 ---
 
@@ -128,12 +146,12 @@ ps_bargaining_units       -- 438 union-employer relationships
 labor-data-project/
 ├── api/                    # FastAPI backend
 ├── frontend/               # HTML/JS interfaces
-├── docs/                   # Documentation
-│   ├── methodology/        # Detailed methodologies
-│   └── session-summaries/  # Session documentation
+├── docs/                   # Key documentation
 ├── scripts/                # Python utilities
 ├── sql/                    # SQL scripts
-└── data/                   # Data exports
+├── data/                   # Data exports
+├── archive/                # Historical documentation
+└── files/                  # Supporting files
 ```
 
 ---
@@ -152,32 +170,12 @@ conn = psycopg2.connect(
 
 ---
 
-## Methodology Highlights
-
-### Membership Deduplication
-Raw OLMS data: 70.1M → Deduplicated: 14.5M (matches BLS within 1.5%)
-
-Key adjustments:
-- Hierarchy deduplication (federation → international → local)
-- Canadian member exclusion (-1.3M)
-- Retiree/inactive adjustment (-2.1M)
-- NEA/AFT dual affiliation correction (-903K)
-
-### Public Sector Reconciliation
-State/local unions exempt from OLMS reporting. Reconciled through:
-- NEA/AFT state affiliate research
-- Form 990 revenue analysis
-- Web research on police, fire, transit unions
-- Validation against EPI/CPS benchmarks
-
----
-
 ## Contact
 
-**Project:** Labor Relations Research Platform  
-**Database:** PostgreSQL (`olms_multiyear`)  
+**Project:** Labor Relations Research Platform
+**Database:** PostgreSQL (`olms_multiyear`)
 **Location:** `C:\Users\jakew\Downloads\labor-data-project`
 
 ---
 
-*Last Updated: January 29, 2026*
+*Last Updated: February 2026*
