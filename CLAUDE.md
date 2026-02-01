@@ -96,7 +96,7 @@ conn = psycopg2.connect(
 
 ---
 
-## API Endpoints (localhost:8000)
+## API Endpoints (localhost:8001)
 
 ### Core
 - `GET /api/health` - Health check
@@ -142,6 +142,13 @@ conn = psycopg2.connect(
 - `GET /api/targets/for-union/{f_num}` - Recommended for union
 - `GET /api/organizing/scorecard` - 6-factor OSHA scorecard search
 - `GET /api/organizing/scorecard/{estab_id}` - Scorecard detail
+
+### Unified Employers (NEW)
+- `GET /api/employers/unified/stats` - Stats by source type (F7, NLRB, VR, PUBLIC)
+- `GET /api/employers/unified/search` - Search all unified employers
+- `GET /api/employers/unified/{id}` - Employer detail with OSHA matches
+- `GET /api/employers/unified/sources` - List source types with counts
+- `GET /api/osha/unified-matches` - Search OSHA matches from unified employers
 
 ### Geographic
 - `GET /api/metros` - List metro areas
@@ -219,11 +226,10 @@ conn = psycopg2.connect(
 
 | File | Purpose |
 |------|---------|
-| `frontend/labor_search_v6.html` | Main search interface (6 tabs) |
-| `frontend/labor_search_v6_osha.html` | OSHA-enhanced version |
-| `files/organizer_v5.html` | Organizing targets/scorecard UI |
+| **`files/organizer_v5.html`** | **PRIMARY FRONTEND - All new features go here** |
+| `frontend/labor_search_v6.html` | Legacy research interface (deprecated for new work) |
 
-**UI Tabs:** Employers, Unions, NLRB, OSHA, Public Sector, Trends
+**IMPORTANT:** All frontend and backend development should target the Organizer interface (`files/organizer_v5.html`). This is the polished, production-ready UI focused on organizing workflows.
 
 ---
 
@@ -276,8 +282,8 @@ SELECT * FROM v_osha_organizing_targets WHERE score >= 50;
 
 ```cmd
 cd C:\Users\jakew\Downloads\labor-data-project
-py -m uvicorn api.labor_api_v6:app --reload --port 8000
+py -m uvicorn api.labor_api_v6:app --reload --port 8001
 ```
 
-Open `frontend/labor_search_v6.html` in browser.
-API docs: http://localhost:8000/docs
+Open `files/organizer_v5.html` in browser.
+API docs: http://localhost:8001/docs

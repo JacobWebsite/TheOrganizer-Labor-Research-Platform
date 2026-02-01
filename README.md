@@ -11,12 +11,12 @@
 
 ```cmd
 cd C:\Users\jakew\Downloads\labor-data-project
-py -m uvicorn api.labor_api_v6:app --reload --port 8000
+py -m uvicorn api.labor_api_v6:app --reload --port 8001
 ```
 
-Open `frontend/labor_search_v6.html` in your browser.
+Open `files/organizer_v5.html` in your browser.
 
-**API Docs:** http://localhost:8000/docs
+**API Docs:** http://localhost:8001/docs
 
 ---
 

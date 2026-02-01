@@ -1397,7 +1397,7 @@
         // ==========================================
         // STATE
         // ==========================================
-        const API_BASE = 'http://localhost:8000/api';
+        const API_BASE = 'http://localhost:8001/api';
         
         let currentMode = 'employers'; // 'employers' or 'unions'
         let currentResults = [];
@@ -2843,7 +2843,7 @@
                 }
             } catch (e) {
                 console.error('Search failed:', e);
-                showError('Search failed. Please check that the API is running on localhost:8000');
+                showError('Search failed. Please check that the API is running on localhost:8001');
             } finally {
                 showLoading(false);
             }

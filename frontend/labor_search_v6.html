@@ -73,6 +73,7 @@
                 <button onclick="setMainTab('vr')" data-tab="vr" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🤝 Vol. Recog</button>
                 <button onclick="setMainTab('public')" data-tab="public" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🏫 Public Sector</button>
                 <button onclick="setMainTab('targets')" data-tab="targets" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🎯 Targets</button>
+                <button onclick="setMainTab('unified')" data-tab="unified" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🔗 Unified</button>
                 <button onclick="setMainTab('trends')" data-tab="trends" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-tr-lg">📊 Trends</button>
             </nav>
         </div>
@@ -876,6 +877,100 @@
             </div>
         </div>
 
+        <!-- ========== UNIFIED EMPLOYERS PANEL ========== -->
+        <div id="unifiedPanel" class="hidden">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-blue-600" id="unifiedTotalEmployers">--</div>
+                    <div class="text-xs text-gray-500">Total Employers</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-green-600" id="unifiedOshaMatches">--</div>
+                    <div class="text-xs text-gray-500">OSHA Matches</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-purple-600" id="unifiedUnionConnected">--</div>
+                    <div class="text-xs text-gray-500">Union Connected</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-orange-600" id="unifiedF7Count">--</div>
+                    <div class="text-xs text-gray-500">F7 Source</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-pink-600" id="unifiedNlrbCount">--</div>
+                    <div class="text-xs text-gray-500">NLRB Source</div>
+                </div>
+            </div>
+
+            <!-- Search Filters -->
+            <div class="bg-white rounded-lg shadow mb-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-7 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Employer Name</label>
+                        <input type="text" id="unifiedNameSearch" placeholder="Search..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <select id="unifiedStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Source Type</label>
+                        <select id="unifiedSourceSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Sources</option>
+                            <option value="F7">F7 (Private CBA)</option>
+                            <option value="NLRB">NLRB Participants</option>
+                            <option value="VR">Voluntary Recognition</option>
+                            <option value="PUBLIC">Public Sector</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Has Union</label>
+                        <select id="unifiedHasUnion" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">Any</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Has OSHA</label>
+                        <select id="unifiedHasOsha" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">Any</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="searchUnifiedEmployers()" class="w-full bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-sm font-medium">
+                            🔍 Search
+                        </button>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="resetUnifiedSearch()" class="w-full bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm font-medium">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-3 border-b flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-900">Unified Employers <span id="unifiedResultCount" class="text-gray-500 font-normal">(0)</span></h2>
+                    <div class="flex gap-2 items-center">
+                        <button onclick="prevUnifiedPage()" id="unifiedPrevBtn" class="px-3 py-1 border rounded text-sm disabled:opacity-50" disabled>← Prev</button>
+                        <span id="unifiedPageInfo" class="text-sm text-gray-600">Page 1</span>
+                        <button onclick="nextUnifiedPage()" id="unifiedNextBtn" class="px-3 py-1 border rounded text-sm disabled:opacity-50" disabled>Next →</button>
+                    </div>
+                </div>
+                <div id="unifiedResults" class="divide-y max-h-[600px] overflow-y-auto">
+                    <div class="p-6 text-center text-gray-500">Search to view unified employers</div>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== DETAIL MODAL ========== -->
         <div id="detailModal" class="modal">
             <div class="modal-content p-6">
@@ -901,6 +996,8 @@
         let publicStatsLoaded = false;
         let targetOffset = 0, targetTotal = 0;
         let targetsStatsLoaded = false;
+        let unifiedOffset = 0, unifiedTotal = 0;
+        let unifiedStatsLoaded = false;
         const PAGE_SIZE = 50;
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1087,6 +1184,7 @@
             document.getElementById('vrPanel').classList.toggle('hidden', tab !== 'vr');
             document.getElementById('publicPanel').classList.toggle('hidden', tab !== 'public');
             document.getElementById('targetsPanel').classList.toggle('hidden', tab !== 'targets');
+            document.getElementById('unifiedPanel').classList.toggle('hidden', tab !== 'unified');
             document.getElementById('trendsPanel').classList.toggle('hidden', tab !== 'trends');
             
             // Invalidate map sizes when tab becomes visible
@@ -1118,6 +1216,12 @@
             if (tab === 'trends' && !trendsLoaded) {
                 loadTrendsOverview();
                 trendsLoaded = true;
+            }
+
+            // Load unified stats on first visit
+            if (tab === 'unified' && !unifiedStatsLoaded) {
+                loadUnifiedStats();
+                unifiedStatsLoaded = true;
             }
         }
 
@@ -2237,6 +2341,227 @@
             } catch (err) {
                 console.error('Export error:', err);
                 alert('Error exporting targets');
+            }
+        }
+
+        // ========== UNIFIED EMPLOYERS ==========
+        async function loadUnifiedStats() {
+            try {
+                const resp = await fetch(`${API}/employers/unified/stats`);
+                const data = await resp.json();
+
+                document.getElementById('unifiedTotalEmployers').textContent = (data.total_employers || 0).toLocaleString();
+                document.getElementById('unifiedOshaMatches').textContent = (data.total_osha_matches || 0).toLocaleString();
+                document.getElementById('unifiedUnionConnected').textContent = (data.union_connected_matches || 0).toLocaleString();
+
+                // Find F7 and NLRB counts from by_source
+                const f7 = data.by_source?.find(s => s.source_type === 'F7');
+                const nlrb = data.by_source?.find(s => s.source_type === 'NLRB');
+                document.getElementById('unifiedF7Count').textContent = (f7?.employer_count || 0).toLocaleString();
+                document.getElementById('unifiedNlrbCount').textContent = (nlrb?.employer_count || 0).toLocaleString();
+
+                // Populate state dropdown
+                const states = await fetch(`${API}/lookups/states`).then(r => r.json());
+                const stateSelect = document.getElementById('unifiedStateSelect');
+                stateSelect.innerHTML = '<option value="">All States</option>';
+                states.states.forEach(s => {
+                    stateSelect.innerHTML += `<option value="${s.state}">${s.state}</option>`;
+                });
+            } catch (err) {
+                console.error('Error loading unified stats:', err);
+            }
+        }
+
+        async function searchUnifiedEmployers() {
+            const params = new URLSearchParams();
+            const name = document.getElementById('unifiedNameSearch').value;
+            const state = document.getElementById('unifiedStateSelect').value;
+            const source = document.getElementById('unifiedSourceSelect').value;
+            const hasUnion = document.getElementById('unifiedHasUnion').value;
+            const hasOsha = document.getElementById('unifiedHasOsha').value;
+
+            if (name) params.append('name', name);
+            if (state) params.append('state', state);
+            if (source) params.append('source_type', source);
+            if (hasUnion) params.append('has_union', hasUnion);
+            if (hasOsha) params.append('has_osha', hasOsha);
+            params.append('limit', PAGE_SIZE);
+            params.append('offset', unifiedOffset);
+
+            const container = document.getElementById('unifiedResults');
+            container.innerHTML = '<div class="p-6 text-center text-gray-500">Searching...</div>';
+
+            try {
+                const resp = await fetch(`${API}/employers/unified/search?${params}`);
+                const data = await resp.json();
+                unifiedTotal = data.total || 0;
+                document.getElementById('unifiedResultCount').textContent = `(${unifiedTotal.toLocaleString()})`;
+                renderUnifiedEmployers(data.employers || []);
+                updateUnifiedPagination();
+            } catch (err) {
+                container.innerHTML = '<div class="p-6 text-center text-red-500">Error loading results</div>';
+            }
+        }
+
+        function renderUnifiedEmployers(employers) {
+            const container = document.getElementById('unifiedResults');
+            if (!employers.length) {
+                container.innerHTML = '<div class="p-6 text-center text-gray-500">No employers found</div>';
+                return;
+            }
+
+            const sourceBadgeClass = {
+                'F7': 'bg-blue-100 text-blue-800',
+                'NLRB': 'bg-purple-100 text-purple-800',
+                'VR': 'bg-green-100 text-green-800',
+                'PUBLIC': 'bg-orange-100 text-orange-800'
+            };
+
+            const sourceLabels = {
+                'F7': 'F7 CBA',
+                'NLRB': 'NLRB',
+                'VR': 'Vol. Recog',
+                'PUBLIC': 'Public'
+            };
+
+            container.innerHTML = employers.map(e => `
+                <div class="p-3 hover:bg-gray-50 cursor-pointer" onclick="showUnifiedEmployerDetail(${e.unified_id})">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-gray-900">${e.employer_name}</span>
+                                <span class="text-xs px-2 py-0.5 rounded ${sourceBadgeClass[e.source_type] || 'bg-gray-100 text-gray-600'}">
+                                    ${sourceLabels[e.source_type] || e.source_type}
+                                </span>
+                                ${e.osha_match_count > 0 ? `<span class="text-xs px-2 py-0.5 rounded bg-red-100 text-red-800">🔬 ${e.osha_match_count} OSHA</span>` : ''}
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">
+                                ${e.city || ''}${e.city && e.state ? ', ' : ''}${e.state || ''}
+                                ${e.naics ? `<span class="ml-2 text-xs bg-gray-100 px-1 rounded">${e.naics}</span>` : ''}
+                            </div>
+                            ${e.union_name ? `<div class="text-sm text-blue-600 mt-1">🏛️ ${e.union_name}</div>` : ''}
+                        </div>
+                        <div class="text-right">
+                            ${e.employee_count ? `<div class="text-sm font-medium text-gray-900">${e.employee_count.toLocaleString()} employees</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateUnifiedPagination() {
+            const currentPage = Math.floor(unifiedOffset / PAGE_SIZE) + 1;
+            const totalPages = Math.ceil(unifiedTotal / PAGE_SIZE);
+            document.getElementById('unifiedPageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('unifiedPrevBtn').disabled = unifiedOffset === 0;
+            document.getElementById('unifiedNextBtn').disabled = unifiedOffset + PAGE_SIZE >= unifiedTotal;
+        }
+
+        function prevUnifiedPage() {
+            if (unifiedOffset >= PAGE_SIZE) {
+                unifiedOffset -= PAGE_SIZE;
+                searchUnifiedEmployers();
+            }
+        }
+
+        function nextUnifiedPage() {
+            if (unifiedOffset + PAGE_SIZE < unifiedTotal) {
+                unifiedOffset += PAGE_SIZE;
+                searchUnifiedEmployers();
+            }
+        }
+
+        function resetUnifiedSearch() {
+            document.getElementById('unifiedNameSearch').value = '';
+            document.getElementById('unifiedStateSelect').value = '';
+            document.getElementById('unifiedSourceSelect').value = '';
+            document.getElementById('unifiedHasUnion').value = '';
+            document.getElementById('unifiedHasOsha').value = '';
+            unifiedOffset = 0;
+            document.getElementById('unifiedResults').innerHTML = '<div class="p-6 text-center text-gray-500">Search to view unified employers</div>';
+            document.getElementById('unifiedResultCount').textContent = '(0)';
+        }
+
+        async function showUnifiedEmployerDetail(unifiedId) {
+            document.getElementById('modalTitle').textContent = 'Employer Details';
+            document.getElementById('modalContent').innerHTML = '<div class="text-center py-4">Loading...</div>';
+            document.getElementById('detailModal').classList.add('active');
+
+            try {
+                const resp = await fetch(`${API}/employers/unified/${unifiedId}`);
+                const data = await resp.json();
+                const e = data.employer;
+
+                const sourceBadgeClass = {
+                    'F7': 'bg-blue-100 text-blue-800',
+                    'NLRB': 'bg-purple-100 text-purple-800',
+                    'VR': 'bg-green-100 text-green-800',
+                    'PUBLIC': 'bg-orange-100 text-orange-800'
+                };
+
+                let html = `
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold">${e.employer_name}</h3>
+                        <span class="text-xs px-2 py-0.5 rounded ${sourceBadgeClass[e.source_type] || 'bg-gray-100'}">${e.source_type}</span>
+                        <div class="text-gray-600 mt-1">${e.city || ''}${e.city && e.state ? ', ' : ''}${e.state || ''} ${e.zip || ''}</div>
+                        ${e.street ? `<div class="text-gray-500 text-sm">${e.street}</div>` : ''}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-gray-50 rounded p-3">
+                            <div class="text-xs text-gray-500">Source ID</div>
+                            <div class="font-medium">${e.source_id || 'N/A'}</div>
+                        </div>
+                        <div class="bg-gray-50 rounded p-3">
+                            <div class="text-xs text-gray-500">NAICS</div>
+                            <div class="font-medium">${e.naics || 'N/A'}</div>
+                        </div>
+                        <div class="bg-gray-50 rounded p-3">
+                            <div class="text-xs text-gray-500">Employees</div>
+                            <div class="font-medium">${e.employee_count ? e.employee_count.toLocaleString() : 'N/A'}</div>
+                        </div>
+                        <div class="bg-gray-50 rounded p-3">
+                            <div class="text-xs text-gray-500">Union</div>
+                            <div class="font-medium">${e.union_name || e.full_union_name || 'N/A'}</div>
+                        </div>
+                    </div>`;
+
+                // OSHA matches
+                if (data.osha_matches && data.osha_matches.length > 0) {
+                    html += `
+                        <div class="mb-4">
+                            <h4 class="font-semibold text-gray-900 mb-2">🔬 OSHA Establishments (${data.osha_matches.length})</h4>
+                            <div class="space-y-2 max-h-48 overflow-y-auto">`;
+
+                    data.osha_matches.forEach(m => {
+                        html += `
+                            <div class="bg-red-50 rounded p-2 text-sm">
+                                <div class="font-medium">${m.estab_name}</div>
+                                <div class="text-gray-600">${m.site_city || ''}, ${m.site_state || ''}</div>
+                                <div class="text-xs text-gray-500">Match: ${m.match_method} (${(m.match_confidence * 100).toFixed(0)}% confidence)</div>
+                            </div>`;
+                    });
+                    html += `</div></div>`;
+                }
+
+                // Violations summary
+                if (data.violations_summary && data.violations_summary.total_violations > 0) {
+                    const v = data.violations_summary;
+                    html += `
+                        <div class="bg-red-100 rounded p-3">
+                            <h4 class="font-semibold text-red-900 mb-2">⚠️ Safety Violations</h4>
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div>Total Violations: <span class="font-bold">${v.total_violations.toLocaleString()}</span></div>
+                                <div>Recent (5yr): <span class="font-bold">${v.recent_violations.toLocaleString()}</span></div>
+                                <div>Serious: <span class="font-bold text-red-700">${v.serious_violations.toLocaleString()}</span></div>
+                                <div>Total Penalties: <span class="font-bold">$${(v.total_penalties || 0).toLocaleString()}</span></div>
+                            </div>
+                        </div>`;
+                }
+
+                document.getElementById('modalContent').innerHTML = html;
+            } catch (err) {
+                document.getElementById('modalContent').innerHTML = '<div class="text-red-500">Error loading details</div>';
             }
         }
 

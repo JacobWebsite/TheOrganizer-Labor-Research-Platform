@@ -2565,6 +2565,251 @@ def get_public_sector_benchmarks(state: Optional[str] = None):
                 return {"benchmarks": cur.fetchall()}
 
 
+# ============================================================================
+# UNIFIED EMPLOYERS - All employer sources combined
+# ============================================================================
+
+@app.get("/api/employers/unified/stats")
+def get_unified_employer_stats():
+    """Get statistics for unified employers by source type"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # By source type
+            cur.execute("""
+                SELECT source_type, COUNT(*) as employer_count,
+                       COUNT(union_fnum) as with_union,
+                       SUM(employee_count) as total_employees
+                FROM unified_employers_osha
+                GROUP BY source_type
+                ORDER BY COUNT(*) DESC
+            """)
+            by_source = cur.fetchall()
+
+            # OSHA match stats
+            cur.execute("""
+                SELECT u.source_type,
+                       COUNT(DISTINCT m.establishment_id) as osha_establishments,
+                       COUNT(DISTINCT m.unified_employer_id) as employers_matched
+                FROM osha_unified_matches m
+                JOIN unified_employers_osha u ON u.unified_id = m.unified_employer_id
+                GROUP BY u.source_type
+                ORDER BY COUNT(DISTINCT m.establishment_id) DESC
+            """)
+            osha_matches = cur.fetchall()
+
+            # Overall totals
+            cur.execute("SELECT COUNT(*) as total FROM unified_employers_osha")
+            total_employers = cur.fetchone()['total']
+
+            cur.execute("SELECT COUNT(DISTINCT establishment_id) as total FROM osha_unified_matches")
+            total_osha_matches = cur.fetchone()['total']
+
+            cur.execute("""
+                SELECT COUNT(DISTINCT m.establishment_id)
+                FROM osha_unified_matches m
+                JOIN unified_employers_osha u ON u.unified_id = m.unified_employer_id
+                WHERE u.union_fnum IS NOT NULL
+            """)
+            union_connected = cur.fetchone()['count']
+
+            return {
+                "total_employers": total_employers,
+                "total_osha_matches": total_osha_matches,
+                "union_connected_matches": union_connected,
+                "by_source": by_source,
+                "osha_matches_by_source": osha_matches
+            }
+
+
+@app.get("/api/employers/unified/search")
+def search_unified_employers(
+    name: Optional[str] = None,
+    state: Optional[str] = None,
+    city: Optional[str] = None,
+    source_type: Optional[str] = None,
+    has_union: Optional[bool] = None,
+    has_osha: Optional[bool] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Search all unified employers across all sources (F7, NLRB, VR, PUBLIC)"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+
+            if name:
+                conditions.append("u.employer_name ILIKE %s")
+                params.append(f"%{name}%")
+            if state:
+                conditions.append("u.state = %s")
+                params.append(state.upper())
+            if city:
+                conditions.append("UPPER(u.city) = %s")
+                params.append(city.upper())
+            if source_type:
+                conditions.append("u.source_type = %s")
+                params.append(source_type.upper())
+            if has_union is True:
+                conditions.append("u.union_fnum IS NOT NULL")
+            if has_union is False:
+                conditions.append("u.union_fnum IS NULL")
+            if has_osha is True:
+                conditions.append("EXISTS (SELECT 1 FROM osha_unified_matches m WHERE m.unified_employer_id = u.unified_id)")
+            if has_osha is False:
+                conditions.append("NOT EXISTS (SELECT 1 FROM osha_unified_matches m WHERE m.unified_employer_id = u.unified_id)")
+
+            where_clause = " AND ".join(conditions)
+
+            # Count
+            cur.execute(f"SELECT COUNT(*) FROM unified_employers_osha u WHERE {where_clause}", params)
+            total = cur.fetchone()['count']
+
+            # Results with OSHA match count
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT u.unified_id, u.source_type, u.source_id, u.employer_name,
+                       u.city, u.state, u.zip, u.naics, u.union_fnum, u.union_name,
+                       u.employee_count,
+                       COUNT(m.id) as osha_match_count
+                FROM unified_employers_osha u
+                LEFT JOIN osha_unified_matches m ON m.unified_employer_id = u.unified_id
+                WHERE {where_clause}
+                GROUP BY u.unified_id, u.source_type, u.source_id, u.employer_name,
+                         u.city, u.state, u.zip, u.naics, u.union_fnum, u.union_name,
+                         u.employee_count
+                ORDER BY u.employee_count DESC NULLS LAST, u.employer_name
+                LIMIT %s OFFSET %s
+            """, params)
+
+            return {"total": total, "employers": cur.fetchall()}
+
+
+@app.get("/api/employers/unified/{unified_id}")
+def get_unified_employer(unified_id: int):
+    """Get details for a specific unified employer including OSHA matches"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Main employer data
+            cur.execute("""
+                SELECT u.*, um.union_name as full_union_name, um.aff_abbr, um.members as union_members
+                FROM unified_employers_osha u
+                LEFT JOIN unions_master um ON u.union_fnum = um.f_num
+                WHERE u.unified_id = %s
+            """, [unified_id])
+            employer = cur.fetchone()
+
+            if not employer:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            # OSHA matches
+            cur.execute("""
+                SELECT m.establishment_id, m.match_method, m.match_confidence,
+                       o.estab_name, o.site_city, o.site_state, o.site_zip,
+                       o.naics_code, o.owner_type
+                FROM osha_unified_matches m
+                JOIN osha_establishments o ON o.establishment_id = m.establishment_id
+                WHERE m.unified_employer_id = %s
+                ORDER BY m.match_confidence DESC
+            """, [unified_id])
+            osha_matches = cur.fetchall()
+
+            # If OSHA matches exist, get violations summary
+            violations_summary = None
+            if osha_matches:
+                estab_ids = [m['establishment_id'] for m in osha_matches]
+                cur.execute("""
+                    SELECT COUNT(*) as total_violations,
+                           SUM(CASE WHEN issuance_date >= NOW() - INTERVAL '5 years' THEN 1 ELSE 0 END) as recent_violations,
+                           SUM(current_penalty) as total_penalties,
+                           SUM(CASE WHEN viol_type IN ('S', 'W') THEN 1 ELSE 0 END) as serious_violations
+                    FROM osha_violations_detail
+                    WHERE establishment_id = ANY(%s)
+                """, [estab_ids])
+                violations_summary = cur.fetchone()
+
+            return {
+                "employer": employer,
+                "osha_matches": osha_matches,
+                "violations_summary": violations_summary
+            }
+
+
+@app.get("/api/osha/unified-matches")
+def search_osha_unified_matches(
+    state: Optional[str] = None,
+    source_type: Optional[str] = None,
+    has_union: Optional[bool] = None,
+    min_confidence: float = Query(0.0, ge=0.0, le=1.0),
+    match_method: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Search OSHA establishments matched to unified employers"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["m.match_confidence >= %s"]
+            params = [min_confidence]
+
+            if state:
+                conditions.append("o.site_state = %s")
+                params.append(state.upper())
+            if source_type:
+                conditions.append("u.source_type = %s")
+                params.append(source_type.upper())
+            if has_union is True:
+                conditions.append("u.union_fnum IS NOT NULL")
+            if has_union is False:
+                conditions.append("u.union_fnum IS NULL")
+            if match_method:
+                conditions.append("m.match_method = %s")
+                params.append(match_method.upper())
+
+            where_clause = " AND ".join(conditions)
+
+            # Count
+            cur.execute(f"""
+                SELECT COUNT(*)
+                FROM osha_unified_matches m
+                JOIN osha_establishments o ON o.establishment_id = m.establishment_id
+                JOIN unified_employers_osha u ON u.unified_id = m.unified_employer_id
+                WHERE {where_clause}
+            """, params)
+            total = cur.fetchone()['count']
+
+            # Results
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT m.id, m.establishment_id, m.match_method, m.match_confidence,
+                       o.estab_name, o.site_city, o.site_state, o.naics_code,
+                       u.unified_id, u.source_type, u.employer_name as matched_employer,
+                       u.union_fnum, u.union_name
+                FROM osha_unified_matches m
+                JOIN osha_establishments o ON o.establishment_id = m.establishment_id
+                JOIN unified_employers_osha u ON u.unified_id = m.unified_employer_id
+                WHERE {where_clause}
+                ORDER BY m.match_confidence DESC, o.estab_name
+                LIMIT %s OFFSET %s
+            """, params)
+
+            return {"total": total, "matches": cur.fetchall()}
+
+
+@app.get("/api/employers/unified/sources")
+def get_unified_source_types():
+    """Get list of source types with counts"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT source_type, COUNT(*) as count,
+                       COUNT(union_fnum) as with_union
+                FROM unified_employers_osha
+                GROUP BY source_type
+                ORDER BY COUNT(*) DESC
+            """)
+            return {"source_types": cur.fetchall()}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
