@@ -55,6 +55,31 @@ conn = psycopg2.connect(
 | `osha_f7_matches` | 79,981 | Linkages to F-7 employers (44.6% match rate) |
 | `v_osha_organizing_targets` | - | Organizing target view |
 
+### Unified Employer Tables (NEW)
+| Table | Records | Description |
+|-------|---------|-------------|
+| `unified_employers_osha` | 100,768 | All employer sources combined |
+| `osha_unified_matches` | 42,812 | OSHA matches to unified employers |
+
+**Unified Employers by Source:**
+| Source | Count | Description |
+|--------|-------|-------------|
+| F7 | 63,118 | F-7 employers (private sector CBAs) |
+| NLRB | 28,839 | NLRB participants not in F-7 |
+| PUBLIC | 7,987 | Public sector employers |
+| VR | 824 | Voluntary recognition not in F-7 |
+
+**OSHA Matches by Source:**
+| Source | Establishments | Employers |
+|--------|---------------|-----------|
+| F7 | 38,024 | 13,400 |
+| NLRB | 4,607 | 2,306 |
+| VR | 94 | 31 |
+| PUBLIC | 87 | 43 |
+| **Total** | **42,812** | **15,780** |
+
+86% of matches (36,814) have a union connection via `union_fnum`.
+
 ### Contract/Target Tables (AFSCME NY)
 | Table | Records | Description |
 |-------|---------|-------------|
