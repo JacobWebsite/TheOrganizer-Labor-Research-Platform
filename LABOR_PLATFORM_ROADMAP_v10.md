@@ -179,17 +179,24 @@ GET /api/trends/elections-by-year
 
 ## Phase 3: Data Quality Improvements (Priority: MEDIUM)
 
-### 3.1 OSHA-to-F7 Match Improvement
-**Current:** 31.6% of F-7 employers matched to OSHA
+### 3.1 OSHA-to-F7 Match Improvement - IMPROVED ⚠️
+**Before:** 31.6% of F-7 employers matched to OSHA (20,094)
+**After:** 44.6% of F-7 employers matched to OSHA (28,137)
 **Target:** 50%+
 
-**Additional Matching Methods:**
-1. EIN lookup (where available from employer_ein_crosswalk)
-2. Address normalization improvements
-3. Corporate name variant matching
-4. Parent company linkage
+**Completed Feb 2026:**
+1. ✅ ZIP code + fuzzy name + NAICS validation
+2. ✅ Address normalization with abbreviations (St→Street, etc.)
+3. ✅ State + prefix matching with similarity threshold
+4. ✅ City + NAICS + lower similarity threshold
+5. ✅ Corporate suffix stripping (Inc, LLC, Corp)
 
-**Effort:** 8-12 hours
+**Remaining potential:**
+- EIN lookup (requires external data)
+- Parent company linkage (requires Mergent data)
+
+**Methods added:** 13 new matching algorithms
+**Improvement:** +8,043 employers (+12.8%)
 
 ### 3.2 Headquarters Location Fix
 **Problem:** DC shows 8.3M public sector members due to national HQ locations
@@ -296,7 +303,7 @@ Group together as final platform enrichment:
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
 | F-7 Match Rate | 96.2% | 98%+ | ⏳ |
-| OSHA-F7 Match | 31.6% | 50%+ | ⏳ |
+| OSHA-F7 Match | 44.6% | 50%+ | ⚠️ Close |
 | BLS Coverage | 101.4% | 95-105% | ✅ |
 | Public Sector Coverage | 98.3% | 90%+ | ✅ |
 | UI Local Numbers | Done | Done | ✅ |

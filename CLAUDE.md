@@ -52,7 +52,7 @@ conn = psycopg2.connect(
 |-------|---------|-------------|
 | `osha_establishments` | 1,007,217 | OSHA-covered workplaces |
 | `osha_violations_detail` | 2,245,020 | Violation records ($3.52B penalties) |
-| `osha_f7_matches` | 60,105 | Linkages to F-7 employers |
+| `osha_f7_matches` | 79,981 | Linkages to F-7 employers (44.6% match rate) |
 | `v_osha_organizing_targets` | - | Organizing target view |
 
 ### Contract/Target Tables (AFSCME NY)
