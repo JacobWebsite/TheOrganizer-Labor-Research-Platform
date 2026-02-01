@@ -72,6 +72,7 @@
                 <button onclick="setMainTab('ulp')" data-tab="ulp" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">⚖️ ULP Cases</button>
                 <button onclick="setMainTab('vr')" data-tab="vr" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🤝 Vol. Recog</button>
                 <button onclick="setMainTab('public')" data-tab="public" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🏫 Public Sector</button>
+                <button onclick="setMainTab('targets')" data-tab="targets" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">🎯 Targets</button>
                 <button onclick="setMainTab('trends')" data-tab="trends" class="flex-1 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-tr-lg">📊 Trends</button>
             </nav>
         </div>
@@ -565,6 +566,137 @@
             </div>
         </div>
 
+        <!-- ========== ORGANIZING TARGETS PANEL ========== -->
+        <div id="targetsPanel" class="hidden">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-blue-600" id="targetStatTotal">--</div>
+                    <div class="text-xs text-gray-500">Total Targets</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-green-600" id="targetStatTop">--</div>
+                    <div class="text-xs text-gray-500">TOP Tier</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-purple-600" id="targetStatHigh">--</div>
+                    <div class="text-xs text-gray-500">HIGH Tier</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-orange-600" id="targetStatFunding">--</div>
+                    <div class="text-xs text-gray-500">Total Funding</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-3 text-center">
+                    <div class="text-xl font-bold text-pink-600" id="targetStatEmployees">--</div>
+                    <div class="text-xs text-gray-500">Est. Employees</div>
+                </div>
+            </div>
+
+            <!-- Search Filters -->
+            <div class="bg-white rounded-lg shadow mb-4 p-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">State</label>
+                        <select id="targetStateSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="NY">New York</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Sector</label>
+                        <select id="targetSectorSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Sectors</option>
+                            <option value="Social Services">Social Services</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Education">Education</option>
+                            <option value="Senior Care">Senior Care</option>
+                            <option value="Housing">Housing</option>
+                            <option value="Arts/Entertainment">Arts/Culture</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">City</label>
+                        <input type="text" id="targetCitySearch" placeholder="e.g., Brooklyn..." class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Priority Tier</label>
+                        <select id="targetTierSelect" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">All Tiers</option>
+                            <option value="TOP">TOP</option>
+                            <option value="HIGH">HIGH</option>
+                            <option value="MEDIUM">MEDIUM</option>
+                            <option value="LOW">LOW</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Min Contract $</label>
+                        <select id="targetMinContract" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="">Any</option>
+                            <option value="100000">$100K+</option>
+                            <option value="500000">$500K+</option>
+                            <option value="1000000">$1M+</option>
+                            <option value="5000000">$5M+</option>
+                            <option value="10000000">$10M+</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Sort By</label>
+                        <select id="targetSortBy" class="w-full rounded border-gray-300 text-sm p-1.5 border">
+                            <option value="score">Priority Score</option>
+                            <option value="funding">Contract Value</option>
+                            <option value="employees">Employee Count</option>
+                            <option value="name">Name</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="searchTargets()" class="w-full bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 text-sm font-medium">
+                            🔍 Search
+                        </button>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="exportTargets()" class="w-full bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm font-medium">
+                            📥 Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <!-- Results List -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b flex justify-between items-center">
+                            <h2 class="font-semibold text-gray-900">Organizing Targets <span id="targetResultCount" class="text-gray-500 font-normal">(0)</span></h2>
+                            <span class="text-xs text-gray-400">Click row for contracts & details</span>
+                        </div>
+                        <div id="targetResults" class="divide-y max-h-[500px] overflow-y-auto">
+                            <div class="p-6 text-center text-gray-500">Click Search to see targets</div>
+                        </div>
+                        <div class="p-2 border-t flex justify-between items-center">
+                            <button onclick="targetPrevPage()" id="targetPrevBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">← Prev</button>
+                            <span id="targetPageInfo" class="text-xs text-gray-600">Page 1</span>
+                            <button onclick="targetNextPage()" id="targetNextBtn" disabled class="px-2 py-1 bg-gray-100 rounded text-xs disabled:opacity-50">Next →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Panel -->
+                <div>
+                    <div class="bg-white rounded-lg shadow mb-4">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">By Industry</h2></div>
+                        <div id="targetIndustryStats" class="p-2 text-xs max-h-[200px] overflow-y-auto">
+                            <div class="text-gray-400">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-3 border-b"><h2 class="font-semibold text-gray-900">Top Cities</h2></div>
+                        <div id="targetCityStats" class="p-2 text-xs max-h-[200px] overflow-y-auto">
+                            <div class="text-gray-400">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== TRENDS PANEL ========== -->
         <div id="trendsPanel" class="hidden">
             <!-- Trends Sub-Navigation -->
@@ -575,6 +707,7 @@
                     <button onclick="setTrendsSubTab('elections')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="elections">🗳️ Elections</button>
                     <button onclick="setTrendsSubTab('affiliations')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="affiliations">🏛️ Affiliations</button>
                     <button onclick="setTrendsSubTab('states')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="states">🗺️ States</button>
+                    <button onclick="setTrendsSubTab('epi')" class="trends-tab px-4 py-2 text-sm font-medium rounded text-gray-600 hover:bg-gray-100" data-subtab="epi">📉 EPI Density</button>
                 </div>
             </div>
 
@@ -684,6 +817,63 @@
                     <div style="height: 280px;"><canvas id="stateTrendChart"></canvas></div>
                 </div>
             </div>
+
+            <!-- EPI Historical Density Sub-tab -->
+            <div id="trendsEpi" class="trends-subtab hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="epiCurrentMembers">--</div>
+                        <div class="text-xs text-gray-500">Union Members (2024)</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-green-600" id="epiCurrentRate">--</div>
+                        <div class="text-xs text-gray-500">Membership Rate</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-purple-600" id="epiPeakRate">--</div>
+                        <div class="text-xs text-gray-500">Peak Rate (1983)</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-2xl font-bold text-orange-600" id="epiCovered">--</div>
+                        <div class="text-xs text-gray-500">Covered by Contracts</div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-semibold text-gray-900">National Union Density (1983-2024)</h3>
+                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">Source: EPI Analysis of CPS</span>
+                    </div>
+                    <div style="height: 350px;"><canvas id="epiNationalChart"></canvas></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <h3 class="font-semibold text-gray-900 mb-3">State Union Membership Rates (2023)</h3>
+                        <div id="epiStateRates" class="space-y-2 max-h-96 overflow-y-auto">
+                            <div class="text-gray-400 text-sm">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center gap-4 mb-3">
+                            <h3 class="font-semibold text-gray-900">Compare States</h3>
+                            <select id="epiCompareState1" class="border rounded p-1 text-sm">
+                                <option value="California">California</option>
+                            </select>
+                            <select id="epiCompareState2" class="border rounded p-1 text-sm">
+                                <option value="Texas">Texas</option>
+                            </select>
+                            <button onclick="loadEpiStateComparison()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">Compare</button>
+                        </div>
+                        <div style="height: 280px;"><canvas id="epiCompareChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-4">
+                    <h3 class="font-semibold text-gray-900 mb-3">Membership by Region (2023)</h3>
+                    <div style="height: 280px;"><canvas id="epiRegionChart"></canvas></div>
+                </div>
+            </div>
         </div>
 
         <!-- ========== DETAIL MODAL ========== -->
@@ -709,6 +899,8 @@
         let psLocalsOffset = 0, psLocalsTotal = 0;
         let psEmpOffset = 0, psEmpTotal = 0;
         let publicStatsLoaded = false;
+        let targetOffset = 0, targetTotal = 0;
+        let targetsStatsLoaded = false;
         const PAGE_SIZE = 50;
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -894,6 +1086,7 @@
             document.getElementById('ulpPanel').classList.toggle('hidden', tab !== 'ulp');
             document.getElementById('vrPanel').classList.toggle('hidden', tab !== 'vr');
             document.getElementById('publicPanel').classList.toggle('hidden', tab !== 'public');
+            document.getElementById('targetsPanel').classList.toggle('hidden', tab !== 'targets');
             document.getElementById('trendsPanel').classList.toggle('hidden', tab !== 'trends');
             
             // Invalidate map sizes when tab becomes visible
@@ -914,7 +1107,13 @@
                 loadPublicSectorStats();
                 publicStatsLoaded = true;
             }
-            
+
+            // Load targets stats on first visit
+            if (tab === 'targets' && !targetsStatsLoaded) {
+                loadTargetsStats();
+                targetsStatsLoaded = true;
+            }
+
             // Load trends on first visit
             if (tab === 'trends' && !trendsLoaded) {
                 loadTrendsOverview();
@@ -1267,15 +1466,45 @@
             document.getElementById('detailModal').classList.add('active');
             document.getElementById('modalTitle').textContent = 'Employer Details';
             document.getElementById('modalContent').innerHTML = 'Loading...';
-            
+
             try {
-                const resp = await fetch(`${API}/employers/${employerId}`);
-                const data = await resp.json();
+                // Fetch employer data and enhanced NLRB participant matching in parallel
+                const [empResp, nlrbEnhancedResp] = await Promise.all([
+                    fetch(`${API}/employers/${employerId}`),
+                    fetch(`${API}/nlrb/participants/employers/${employerId}/cases`).catch(() => ({ json: () => ({}) }))
+                ]);
+                const data = await empResp.json();
+                const nlrbEnhanced = await nlrbEnhancedResp.json().catch(() => ({}));
                 const emp = data.employer;
                 const elections = data.nlrb_elections || [];
                 const ulp = data.ulp_cases || [];
                 const summary = data.nlrb_summary || {};
-                
+
+                // Enhanced NLRB cases from participant matching
+                const enhancedCases = nlrbEnhanced.matched_cases || [];
+                const fuzzyMatches = nlrbEnhanced.fuzzy_matches || [];
+                const enhancedElections = nlrbEnhanced.elections || [];
+
+                // Build enhanced NLRB section
+                const enhancedNlrbHtml = (enhancedCases.length || fuzzyMatches.length) ? `
+                    <div class="bg-blue-50 rounded-lg p-3 mt-4">
+                        <h4 class="font-semibold text-sm text-blue-800 mb-2">Enhanced NLRB Matching (Participant Data)</h4>
+                        <div class="text-xs text-blue-600 mb-2">
+                            Found ${enhancedCases.length} matched cases, ${fuzzyMatches.length} potential matches
+                        </div>
+                        ${enhancedCases.slice(0, 5).map(c => `
+                            <div class="bg-white rounded p-2 mb-1 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="font-mono text-xs">${c.case_number}</span>
+                                    <span class="text-xs ${c.case_type?.startsWith('R') ? 'text-blue-600' : 'text-orange-600'}">${c.case_type || 'Unknown'}</span>
+                                </div>
+                                <div class="text-xs text-gray-500">${c.earliest_date?.split('T')[0] || ''} - ${c.case_type_desc || ''}</div>
+                                ${c.match_confidence ? `<div class="text-xs text-green-600">Match: ${Math.round(c.match_confidence * 100)}%</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '';
+
                 document.getElementById('modalContent').innerHTML = `
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
@@ -1303,6 +1532,7 @@
                             </tr>`).join('')}</tbody>
                         </table>
                     </div>` : '<p class="text-gray-500 mt-4">No NLRB elections found</p>'}
+                    ${enhancedNlrbHtml}
                     ${ulp.length ? `
                     <h4 class="font-semibold mt-4 mb-2">ULP Cases (Recent)</h4>
                     <div class="max-h-32 overflow-y-auto border rounded text-sm">
@@ -1316,14 +1546,42 @@
             document.getElementById('detailModal').classList.add('active');
             document.getElementById('modalTitle').textContent = 'Union Details';
             document.getElementById('modalContent').innerHTML = 'Loading...';
-            
+
             try {
-                const resp = await fetch(`${API}/unions/${fNum}`);
-                const data = await resp.json();
+                // Fetch union data and membership detail in parallel
+                const [unionResp, membershipResp] = await Promise.all([
+                    fetch(`${API}/unions/${fNum}`),
+                    fetch(`${API}/membership/union/${fNum}`).catch(() => ({ json: () => ({ membership_history: [] }) }))
+                ]);
+                const data = await unionResp.json();
+                const membershipData = await membershipResp.json().catch(() => ({ membership_history: [] }));
                 const union = data.union;
                 const elections = data.nlrb_elections || [];
                 const summary = data.nlrb_summary || {};
-                
+                const membershipHistory = membershipData.membership_history || [];
+                const latestMembership = membershipHistory[0];
+
+                // Build membership detail HTML
+                const membershipHtml = latestMembership ? `
+                    <div class="bg-gray-50 rounded-lg p-3 mt-4">
+                        <h4 class="font-semibold text-sm text-gray-700 mb-2">Membership Breakdown (${latestMembership.year})</h4>
+                        <div class="grid grid-cols-3 gap-2 text-sm">
+                            <div class="text-center">
+                                <div class="font-bold text-blue-600">${(latestMembership.total_members || 0).toLocaleString()}</div>
+                                <div class="text-xs text-gray-500">Total Members</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="font-bold text-green-600">${(latestMembership.voting_members || 0).toLocaleString()}</div>
+                                <div class="text-xs text-gray-500">Voting Members</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="font-bold text-orange-600">${(latestMembership.non_voting_members || 0).toLocaleString()}</div>
+                                <div class="text-xs text-gray-500">Non-Voting</div>
+                            </div>
+                        </div>
+                    </div>
+                ` : '';
+
                 document.getElementById('modalContent').innerHTML = `
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
@@ -1339,6 +1597,7 @@
                             <div class="text-sm font-semibold">${summary.win_rate || 0}% Win Rate</div>
                         </div>
                     </div>
+                    ${membershipHtml}
                     ${elections.length ? `
                     <h4 class="font-semibold mt-4 mb-2">NLRB Elections</h4>
                     <div class="max-h-64 overflow-y-auto border rounded">
@@ -1716,6 +1975,271 @@
         function psPrevEmps() { if (psEmpOffset > 0) { psEmpOffset -= PAGE_SIZE; loadPSEmployers(); } }
         function psNextEmps() { if (psEmpOffset + PAGE_SIZE < psEmpTotal) { psEmpOffset += PAGE_SIZE; loadPSEmployers(); } }
 
+        // ========== ORGANIZING TARGETS ==========
+        async function loadTargetsStats() {
+            try {
+                const resp = await fetch(`${API}/targets/stats`);
+                const data = await resp.json();
+
+                // Update summary stats
+                const overall = data.overall || {};
+                document.getElementById('targetStatTotal').textContent = (overall.total_targets || 0).toLocaleString();
+                document.getElementById('targetStatTop').textContent = (overall.top_tier || 0).toLocaleString();
+                document.getElementById('targetStatHigh').textContent = (overall.high_tier || 0).toLocaleString();
+                document.getElementById('targetStatFunding').textContent = '$' + ((overall.total_funding || 0) / 1e9).toFixed(1) + 'B';
+                document.getElementById('targetStatEmployees').textContent = ((overall.total_employees || 0) / 1000).toFixed(0) + 'K';
+
+                // Industry stats
+                const industryContainer = document.getElementById('targetIndustryStats');
+                if (data.by_industry && data.by_industry.length) {
+                    industryContainer.innerHTML = data.by_industry.map(i => `
+                        <div class="flex justify-between py-1 border-b last:border-0">
+                            <span class="truncate">${i.industry_category || 'Unknown'}</span>
+                            <span class="text-gray-600">${i.count} <span class="text-green-600">(${i.high_priority} hi)</span></span>
+                        </div>
+                    `).join('');
+                }
+
+                // City stats
+                const cityContainer = document.getElementById('targetCityStats');
+                if (data.by_city && data.by_city.length) {
+                    cityContainer.innerHTML = data.by_city.map(c => `
+                        <div class="flex justify-between py-1 border-b last:border-0">
+                            <span class="truncate">${c.city}</span>
+                            <span class="text-gray-600">${c.count} ($${(c.funding/1e6).toFixed(0)}M)</span>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error('Targets stats error:', err);
+            }
+        }
+
+        async function searchTargets() {
+            targetOffset = 0;
+            await loadTargets();
+        }
+
+        async function loadTargets() {
+            const params = new URLSearchParams();
+            const state = document.getElementById('targetStateSelect').value;
+            const sector = document.getElementById('targetSectorSelect').value;
+            const city = document.getElementById('targetCitySearch').value;
+            const tier = document.getElementById('targetTierSelect').value;
+            const minContract = document.getElementById('targetMinContract').value;
+            const sortBy = document.getElementById('targetSortBy').value;
+
+            if (state) params.append('state', state);
+            if (sector) params.append('sector', sector);
+            if (city) params.append('city', city);
+            if (tier) params.append('tier', tier);
+            if (minContract) params.append('min_contract_value', minContract);
+            if (sortBy) params.append('sort_by', sortBy);
+            params.append('limit', PAGE_SIZE);
+            params.append('offset', targetOffset);
+
+            const container = document.getElementById('targetResults');
+            container.innerHTML = '<div class="p-6 text-center text-gray-500">Searching...</div>';
+
+            try {
+                const resp = await fetch(`${API}/targets/search?${params}`);
+                const data = await resp.json();
+                targetTotal = data.total || 0;
+                document.getElementById('targetResultCount').textContent = `(${targetTotal.toLocaleString()})`;
+                renderTargets(data.targets || []);
+
+                // Pagination
+                document.getElementById('targetPrevBtn').disabled = targetOffset === 0;
+                document.getElementById('targetNextBtn').disabled = targetOffset + PAGE_SIZE >= targetTotal;
+                document.getElementById('targetPageInfo').textContent = `Page ${Math.floor(targetOffset/PAGE_SIZE)+1} of ${Math.ceil(targetTotal/PAGE_SIZE) || 1}`;
+            } catch (err) {
+                console.error('Targets search error:', err);
+                container.innerHTML = '<div class="p-6 text-center text-red-500">Error loading targets</div>';
+            }
+        }
+
+        function renderTargets(targets) {
+            const container = document.getElementById('targetResults');
+            if (!targets.length) {
+                container.innerHTML = '<div class="p-6 text-center text-gray-500">No targets found. Try different filters.</div>';
+                return;
+            }
+
+            container.innerHTML = targets.map(t => {
+                const tierColors = {
+                    'TOP': 'bg-purple-100 text-purple-800',
+                    'HIGH': 'bg-blue-100 text-blue-800',
+                    'MEDIUM': 'bg-green-100 text-green-800',
+                    'LOW': 'bg-gray-100 text-gray-600'
+                };
+                const tierClass = tierColors[t.priority_tier] || tierColors['LOW'];
+                const funding = parseFloat(t.total_govt_funding || 0);
+                const fundingStr = funding >= 1e6 ? '$' + (funding/1e6).toFixed(1) + 'M' : '$' + (funding/1000).toFixed(0) + 'K';
+
+                return `
+                <div class="p-3 hover:bg-purple-50 cursor-pointer" onclick="showTargetDetail(${t.id})">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-gray-900 truncate">${t.employer_name}</div>
+                            <div class="text-sm text-gray-600">${t.city || ''}, ${t.state || ''}</div>
+                            <div class="text-xs text-gray-500 mt-1">${t.industry_category || 'Unknown sector'}</div>
+                        </div>
+                        <div class="text-right ml-2">
+                            <span class="text-xs px-2 py-1 rounded ${tierClass}">${t.priority_tier}</span>
+                            <div class="text-sm font-semibold text-green-600 mt-1">${fundingStr}</div>
+                            <div class="text-xs text-gray-500">${t.employee_count || '?'} emp</div>
+                            ${t.ny_state_contract_count ? `<div class="text-xs text-blue-500">${t.ny_state_contract_count} NYS</div>` : ''}
+                            ${t.nyc_contract_count ? `<div class="text-xs text-orange-500">${t.nyc_contract_count} NYC</div>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function targetPrevPage() { if (targetOffset >= PAGE_SIZE) { targetOffset -= PAGE_SIZE; loadTargets(); } }
+        function targetNextPage() { if (targetOffset + PAGE_SIZE < targetTotal) { targetOffset += PAGE_SIZE; loadTargets(); } }
+
+        async function showTargetDetail(targetId) {
+            document.getElementById('detailModal').classList.add('active');
+            document.getElementById('modalTitle').textContent = 'Organizing Target Details';
+            document.getElementById('modalContent').innerHTML = '<div class="text-center py-4">Loading...</div>';
+
+            try {
+                const resp = await fetch(`${API}/targets/${targetId}`);
+                const data = await resp.json();
+                const t = data.target;
+
+                const funding = parseFloat(t.total_govt_funding || 0);
+                const fundingStr = funding >= 1e6 ? '$' + (funding/1e6).toFixed(1) + 'M' : '$' + (funding/1000).toFixed(0) + 'K';
+
+                let contractsHtml = '';
+                if (data.ny_state_contracts && data.ny_state_contracts.length) {
+                    contractsHtml += `<h4 class="font-semibold text-gray-700 mt-4 mb-2">NY State Contracts (${data.ny_state_contracts.length})</h4>`;
+                    contractsHtml += '<div class="space-y-2 max-h-48 overflow-y-auto">';
+                    contractsHtml += data.ny_state_contracts.slice(0, 10).map(c => `
+                        <div class="p-2 bg-blue-50 rounded text-sm">
+                            <div class="font-medium">${c.agency_name || 'Unknown Agency'}</div>
+                            <div class="text-xs text-gray-600">${c.contract_title || c.service_description || ''}</div>
+                            <div class="text-xs text-green-600">${c.current_amount ? '$' + parseFloat(c.current_amount).toLocaleString() : 'N/A'}</div>
+                        </div>
+                    `).join('');
+                    contractsHtml += '</div>';
+                }
+
+                if (data.nyc_contracts && data.nyc_contracts.length) {
+                    contractsHtml += `<h4 class="font-semibold text-gray-700 mt-4 mb-2">NYC Contracts (${data.nyc_contracts.length})</h4>`;
+                    contractsHtml += '<div class="space-y-2 max-h-48 overflow-y-auto">';
+                    contractsHtml += data.nyc_contracts.slice(0, 10).map(c => `
+                        <div class="p-2 bg-orange-50 rounded text-sm">
+                            <div class="font-medium">${c.agency_name || 'Unknown Agency'}</div>
+                            <div class="text-xs text-gray-600">${c.purpose || ''}</div>
+                            <div class="text-xs text-green-600">${c.current_amount ? '$' + parseFloat(c.current_amount).toLocaleString() : 'N/A'}</div>
+                        </div>
+                    `).join('');
+                    contractsHtml += '</div>';
+                }
+
+                document.getElementById('modalContent').innerHTML = `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2">Organization</h4>
+                            <p class="font-medium text-lg">${t.employer_name}</p>
+                            <p class="text-sm text-gray-600">${t.city || ''}, ${t.state || ''}</p>
+                            <p class="text-sm text-gray-500 mt-1">${t.industry_category || 'Unknown sector'}</p>
+                            ${t.ein ? `<p class="text-xs text-gray-400 mt-2">EIN: ${t.ein}</p>` : ''}
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2">Priority Assessment</h4>
+                            <div class="text-2xl font-bold ${t.priority_tier === 'TOP' ? 'text-purple-600' : t.priority_tier === 'HIGH' ? 'text-blue-600' : 'text-green-600'}">
+                                ${t.priority_tier} (${t.priority_score})
+                            </div>
+                            <div class="mt-2 text-sm">
+                                <div><span class="text-gray-500">Employees:</span> ${t.employee_count?.toLocaleString() || 'Unknown'}</div>
+                                <div><span class="text-gray-500">Revenue:</span> ${t.total_revenue ? '$' + (parseFloat(t.total_revenue)/1e6).toFixed(1) + 'M' : 'Unknown'}</div>
+                                <div><span class="text-gray-500">Govt Funding:</span> ${fundingStr}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <h4 class="font-semibold text-gray-700 mb-2">Government Contract Summary</h4>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="bg-blue-50 p-2 rounded">
+                                <div class="text-xs text-blue-800">NY State Contracts</div>
+                                <div class="font-bold text-blue-900">${t.ny_state_contract_count || 0} contracts</div>
+                                <div class="text-xs">${t.ny_state_contract_total ? '$' + (parseFloat(t.ny_state_contract_total)/1e6).toFixed(1) + 'M' : '$0'}</div>
+                            </div>
+                            <div class="bg-orange-50 p-2 rounded">
+                                <div class="text-xs text-orange-800">NYC Contracts</div>
+                                <div class="font-bold text-orange-900">${t.nyc_contract_count || 0} contracts</div>
+                                <div class="text-xs">${t.nyc_contract_total ? '$' + (parseFloat(t.nyc_contract_total)/1e6).toFixed(1) + 'M' : '$0'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    ${contractsHtml}
+                    ${t.has_existing_afscme_contract ? `
+                        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                            <div class="text-sm text-yellow-800">⚠️ Already organized by: ${t.existing_union_name || 'AFSCME'}</div>
+                        </div>
+                    ` : ''}
+                `;
+            } catch (err) {
+                console.error('Target detail error:', err);
+                document.getElementById('modalContent').innerHTML = '<div class="text-red-500">Error loading target details</div>';
+            }
+        }
+
+        async function exportTargets() {
+            const params = new URLSearchParams();
+            const state = document.getElementById('targetStateSelect').value;
+            const sector = document.getElementById('targetSectorSelect').value;
+            const tier = document.getElementById('targetTierSelect').value;
+            const minContract = document.getElementById('targetMinContract').value;
+
+            if (state) params.append('state', state);
+            if (sector) params.append('sector', sector);
+            if (tier) params.append('tier', tier);
+            if (minContract) params.append('min_contract_value', minContract);
+            params.append('limit', 1000);  // Export up to 1000
+
+            try {
+                const resp = await fetch(`${API}/targets/search?${params}`);
+                const data = await resp.json();
+                const targets = data.targets || [];
+
+                if (!targets.length) {
+                    alert('No targets to export. Try a different search.');
+                    return;
+                }
+
+                // Create CSV
+                const headers = ['Name', 'City', 'State', 'Industry', 'Tier', 'Score', 'Employees', 'Total Funding', 'NYS Contracts', 'NYC Contracts'];
+                const rows = targets.map(t => [
+                    `"${(t.employer_name || '').replace(/"/g, '""')}"`,
+                    t.city || '',
+                    t.state || '',
+                    t.industry_category || '',
+                    t.priority_tier || '',
+                    t.priority_score || '',
+                    t.employee_count || '',
+                    t.total_govt_funding || 0,
+                    t.ny_state_contract_count || 0,
+                    t.nyc_contract_count || 0
+                ]);
+
+                const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `organizing_targets_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('Export error:', err);
+                alert('Error exporting targets');
+            }
+        }
+
         // ========== TRENDS VISUALIZATION ==========
         let trendsCharts = {};
         const chartColors = { blue: '#3b82f6', emerald: '#10b981', amber: '#f59e0b', rose: '#f43f5e', violet: '#8b5cf6', cyan: '#06b6d4' };
@@ -1738,6 +2262,7 @@
                 case 'elections': loadTrendsElections(); break;
                 case 'affiliations': loadTrendsAffiliations(); break;
                 case 'states': loadTrendsStates(); break;
+                case 'epi': loadEpiData(); break;
             }
         }
 
@@ -1896,6 +2421,188 @@
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                 });
             } catch (err) { console.error('State trend error:', err); }
+        }
+
+        // ========== EPI HISTORICAL DENSITY ==========
+        let epiDataLoaded = false;
+        let epiStateList = [];
+
+        async function loadEpiData() {
+            if (epiDataLoaded) return;
+            try {
+                const [nationalResp, statesResp, regionsResp] = await Promise.all([
+                    fetch(`${API}/epi/national-trends?start_year=1983`),
+                    fetch(`${API}/epi/by-state?year=2023`),
+                    fetch(`${API}/epi/by-region?year=2023`)
+                ]);
+                const nationalData = await nationalResp.json();
+                const statesData = await statesResp.json();
+                const regionsData = await regionsResp.json();
+
+                // Store state list for comparison dropdowns
+                epiStateList = statesData.states.map(s => s.state);
+                populateEpiStateDropdowns();
+
+                // Update stats
+                const latest = nationalData.trends[nationalData.trends.length - 1];
+                const peak = nationalData.trends[0];
+                document.getElementById('epiCurrentMembers').textContent = latest ? (latest.members / 1000000).toFixed(1) + 'M' : '--';
+                document.getElementById('epiCurrentRate').textContent = latest ? latest.membership_rate + '%' : '--';
+                document.getElementById('epiPeakRate').textContent = peak ? peak.membership_rate + '%' : '--';
+                document.getElementById('epiCovered').textContent = latest ? (latest.covered / 1000000).toFixed(1) + 'M' : '--';
+
+                // National density chart
+                renderEpiNationalChart(nationalData.trends);
+
+                // State rates
+                renderEpiStateRates(statesData.states);
+
+                // Regions chart
+                renderEpiRegionChart(regionsData.regions);
+
+                epiDataLoaded = true;
+            } catch (err) {
+                console.error('EPI data error:', err);
+                document.getElementById('epiStateRates').innerHTML = '<div class="text-red-500 text-sm">Error loading EPI data</div>';
+            }
+        }
+
+        function populateEpiStateDropdowns() {
+            const select1 = document.getElementById('epiCompareState1');
+            const select2 = document.getElementById('epiCompareState2');
+            const options = epiStateList.map(s => `<option value="${s}">${s}</option>`).join('');
+            select1.innerHTML = options;
+            select2.innerHTML = options;
+            // Default selections
+            select1.value = 'California';
+            select2.value = 'Texas';
+        }
+
+        function renderEpiNationalChart(trends) {
+            if (trendsCharts.epiNational) trendsCharts.epiNational.destroy();
+            trendsCharts.epiNational = new Chart(document.getElementById('epiNationalChart'), {
+                type: 'line',
+                data: {
+                    labels: trends.map(t => t.year),
+                    datasets: [{
+                        label: 'Membership Rate %',
+                        data: trends.map(t => t.membership_rate),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Coverage Rate %',
+                        data: trends.map(t => t.coverage_rate),
+                        borderColor: '#10b981',
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Members (M)',
+                        data: trends.map(t => t.members / 1000000),
+                        borderColor: '#f59e0b',
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    if (ctx.dataset.label.includes('%')) return `${ctx.dataset.label}: ${ctx.parsed.y}%`;
+                                    return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}M`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { type: 'linear', position: 'left', min: 5, max: 25, title: { display: true, text: 'Rate (%)' } },
+                        y1: { type: 'linear', position: 'right', min: 10, max: 25, title: { display: true, text: 'Members (M)' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function renderEpiStateRates(states) {
+            const el = document.getElementById('epiStateRates');
+            if (!states.length) { el.innerHTML = '<div class="text-gray-400">No state data</div>'; return; }
+
+            const maxRate = Math.max(...states.map(s => s.membership_rate || 0));
+            el.innerHTML = states.slice(0, 25).map(s => `
+                <div class="flex items-center gap-2 py-1">
+                    <span class="text-xs font-semibold w-24 truncate">${s.state}</span>
+                    <div class="flex-1 h-3 bg-gray-200 rounded-full">
+                        <div class="h-full bg-blue-500 rounded-full" style="width: ${(s.membership_rate / maxRate) * 100}%"></div>
+                    </div>
+                    <span class="text-xs text-gray-600 w-12 text-right font-medium">${s.membership_rate}%</span>
+                    <span class="text-xs text-gray-400 w-16 text-right">${(s.members / 1000000).toFixed(2)}M</span>
+                </div>
+            `).join('');
+        }
+
+        function renderEpiRegionChart(regions) {
+            if (trendsCharts.epiRegion) trendsCharts.epiRegion.destroy();
+            trendsCharts.epiRegion = new Chart(document.getElementById('epiRegionChart'), {
+                type: 'bar',
+                data: {
+                    labels: regions.map(r => r.region),
+                    datasets: [{
+                        label: 'Membership Rate %',
+                        data: regions.map(r => r.membership_rate),
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#f43f5e'],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Rate (%)' } } }
+                }
+            });
+        }
+
+        async function loadEpiStateComparison() {
+            const state1 = document.getElementById('epiCompareState1').value;
+            const state2 = document.getElementById('epiCompareState2').value;
+            if (!state1 || !state2) return;
+
+            try {
+                const resp = await fetch(`${API}/epi/compare-states?states=${state1},${state2}&start_year=2000`);
+                const data = await resp.json();
+
+                const colors = ['#3b82f6', '#f43f5e'];
+                const datasets = Object.entries(data.data).map(([state, values], idx) => ({
+                    label: state,
+                    data: values.map(v => v.rate),
+                    borderColor: colors[idx],
+                    backgroundColor: colors[idx] + '20',
+                    fill: false,
+                    tension: 0.3
+                }));
+
+                // Get years from first state
+                const years = Object.values(data.data)[0]?.map(v => v.year) || [];
+
+                if (trendsCharts.epiCompare) trendsCharts.epiCompare.destroy();
+                trendsCharts.epiCompare = new Chart(document.getElementById('epiCompareChart'), {
+                    type: 'line',
+                    data: { labels: years, datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'top' } },
+                        scales: { y: { title: { display: true, text: 'Membership Rate (%)' } } }
+                    }
+                });
+            } catch (err) { console.error('EPI comparison error:', err); }
         }
     </script>
 </body>
