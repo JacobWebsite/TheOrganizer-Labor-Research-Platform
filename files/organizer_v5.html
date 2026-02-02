@@ -2617,7 +2617,7 @@
             document.getElementById('dashTopEmployers').innerHTML = employers.length > 0
                 ? employers.slice(0, 10).map(emp => `
                     <div class="flex justify-between items-center p-2 bg-warmgray-50 rounded hover:bg-warmgray-100 cursor-pointer"
-                         onclick="selectEmployerFromDashboard(${emp.employer_id})">
+                         onclick="selectEmployerFromDashboard('${emp.employer_id}')">
                         <div>
                             <div class="font-medium text-sm text-warmgray-900">${escapeHtml(emp.employer_name)}</div>
                             <div class="text-xs text-warmgray-500">
@@ -2726,11 +2726,22 @@
             executeSearch();
         }
 
-        function selectEmployerFromDashboard(employerId) {
+        async function selectEmployerFromDashboard(employerId) {
             closeNationalDashboard();
             setSearchMode('employers');
-            // Navigate to employer detail via selectItem
-            selectItem(employerId);
+            // Fetch the employer and add to results before selecting
+            try {
+                const response = await fetch(`${API_BASE}/employers/${employerId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.employer) {
+                        currentResults = [data.employer];
+                        selectItem(employerId);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load employer:', e);
+            }
         }
 
         function searchLocalsForCurrentAffiliation() {
@@ -3939,7 +3950,8 @@
         
         // Escape HTML to prevent XSS
         function escapeHtml(str) {
-            if (!str) return '';
+            if (str === null || str === undefined) return '';
+            if (typeof str !== 'string') str = String(str);
             return str.replace(/&/g, '&amp;')
                       .replace(/</g, '&lt;')
                       .replace(/>/g, '&gt;')
@@ -4823,7 +4835,7 @@
                     <div class="space-y-2 max-h-48 overflow-y-auto">
                         ${employers.map(emp => `
                             <div class="flex justify-between items-center p-2 bg-warmgray-50 rounded hover:bg-warmgray-100 cursor-pointer"
-                                 onclick="switchToEmployerAndSelect(${emp.employer_id})">
+                                 onclick="switchToEmployerAndSelect('${emp.employer_id}')">
                                 <div>
                                     <div class="font-medium text-sm text-warmgray-900 entity-link">${escapeHtml(emp.employer_name)}</div>
                                     <div class="text-xs text-warmgray-500">${escapeHtml(emp.city || '')}, ${emp.state || ''}</div>
@@ -4999,10 +5011,21 @@
         }
         
         async function switchToEmployerAndSelect(employerId) {
-            // Switch to employer mode and select the employer
+            // Switch to employer mode and fetch employer before selecting
             setSearchMode('employers');
-            // Use selectItem to navigate to the employer detail
-            selectItem(employerId);
+            // Fetch the employer and add to results before selecting
+            try {
+                const response = await fetch(`${API_BASE}/employers/${employerId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.employer) {
+                        currentResults = [data.employer];
+                        selectItem(employerId);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load employer:', e);
+            }
         }
         
         async function selectUnionByFnum(fNum) {
@@ -5359,7 +5382,7 @@
             
             // Location list
             document.getElementById('cfLocationList').innerHTML = data.family_members.slice(0, 100).map(m => `
-                <div class="px-4 py-3 hover:bg-warmgray-50 cursor-pointer" onclick="selectCorporateLocation(${m.employer_id})">
+                <div class="px-4 py-3 hover:bg-warmgray-50 cursor-pointer" onclick="selectCorporateLocation('${m.employer_id}')">
                     <div class="flex justify-between items-start">
                         <div>
                             <div class="font-medium text-warmgray-900">${escapeHtml(m.employer_name)}</div>
