@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from typing import Optional, List
+import re
 
 app = FastAPI(
     title="Labor Relations Research API",
@@ -35,6 +36,23 @@ DB_CONFIG = {
 
 def get_db():
     return psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+
+
+# Law firm detection patterns for NLRB data quality
+LAW_FIRM_PATTERNS = [
+    r'\bLLP\b', r'\bLLC\b.*LAW', r'\bATTORNEY',
+    r'\bLAW\s+(FIRM|OFFICE|GROUP|OFFICES)', r'\bESQ\.?\b', r'\bCOUNSEL\b',
+    r'\bLAW\s+&\s+', r'\b&\s+LAW\b', r'\bLAWYERS?\b', r'\bLEGAL\s+SERVICES'
+]
+
+def is_likely_law_firm(name: str) -> bool:
+    """Detect if an employer name is likely a law firm (data quality issue in NLRB)"""
+    if not name:
+        return False
+    for pattern in LAW_FIRM_PATTERNS:
+        if re.search(pattern, name, re.IGNORECASE):
+            return True
+    return False
 
 
 # ============================================================================
@@ -554,16 +572,59 @@ def search_employers(
     naics: Optional[str] = None,
     aff_abbr: Optional[str] = None,
     metro: Optional[str] = None,
+    sector: Optional[str] = None,
     has_nlrb: Optional[bool] = None,
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Search employers with filters"""
+    """Search employers with filters. Use sector=PUBLIC_SECTOR to search public sector employers."""
     with get_db() as conn:
         with conn.cursor() as cur:
+            # Handle public sector search separately
+            if sector and sector.upper() == 'PUBLIC_SECTOR':
+                conditions = ["1=1"]
+                params = []
+
+                if name:
+                    conditions.append("employer_name ILIKE %s")
+                    params.append(f"%{name}%")
+                if state:
+                    conditions.append("state = %s")
+                    params.append(state.upper())
+                if city:
+                    conditions.append("UPPER(city) = %s")
+                    params.append(city.upper())
+
+                where_clause = " AND ".join(conditions)
+
+                # Count
+                cur.execute(f"""
+                    SELECT COUNT(*) FROM ps_employers WHERE {where_clause}
+                """, params)
+                total = cur.fetchone()['count']
+
+                # Results
+                params.extend([limit, offset])
+                cur.execute(f"""
+                    SELECT id as employer_id, employer_name, city, state,
+                           total_employees as latest_unit_size,
+                           employer_type, employer_type as employer_subtype,
+                           NULL as naics, NULL as latest_union_fnum, NULL as latest_union_name,
+                           NULL as latitude, NULL as longitude, NULL as aff_abbr,
+                           NULL as cbsa_code, NULL as metro_name,
+                           'PUBLIC' as source_type, 'PUBLIC_SECTOR' as union_sector
+                    FROM ps_employers
+                    WHERE {where_clause}
+                    ORDER BY total_employees DESC NULLS LAST
+                    LIMIT %s OFFSET %s
+                """, params)
+
+                return {"total": total, "employers": cur.fetchall()}
+
+            # Standard F-7 employer search
             conditions = ["1=1"]
             params = []
-            
+
             if name:
                 conditions.append("e.employer_name ILIKE %s")
                 params.append(f"%{name}%")
@@ -582,9 +643,9 @@ def search_employers(
             if metro:
                 conditions.append("e.cbsa_code = %s")
                 params.append(metro)
-            
+
             where_clause = " AND ".join(conditions)
-            
+
             # Count
             cur.execute(f"""
                 SELECT COUNT(*) FROM f7_employers_deduped e
@@ -592,7 +653,7 @@ def search_employers(
                 WHERE {where_clause}
             """, params)
             total = cur.fetchone()['count']
-            
+
             # Results
             params.extend([limit, offset])
             cur.execute(f"""
@@ -607,7 +668,7 @@ def search_employers(
                 ORDER BY e.latest_unit_size DESC NULLS LAST
                 LIMIT %s OFFSET %s
             """, params)
-            
+
             return {"total": total, "employers": cur.fetchall()}
 
 
@@ -1633,8 +1694,13 @@ def search_nlrb_elections(
                 ORDER BY e.case_number, e.election_date DESC
                 LIMIT %s OFFSET %s
             """, params)
-            
-            return {"total": total, "limit": limit, "offset": offset, "elections": cur.fetchall()}
+
+            elections = cur.fetchall()
+            # Add law firm detection flag to each election
+            for election in elections:
+                election['is_law_firm'] = is_likely_law_firm(election.get('employer_name'))
+
+            return {"total": total, "limit": limit, "offset": offset, "elections": elections}
 
 
 @app.get("/api/nlrb/elections/map")
@@ -2026,12 +2092,13 @@ def get_stats_breakdown(
 
             # By Industry (top 5 NAICS 2-digit)
             cur.execute(f"""
-                SELECT LEFT(naics, 2) as naics_code,
-                       LEFT(naics, 2) as industry_name,
-                       COUNT(*) as employer_count, COALESCE(SUM(latest_unit_size), 0) as worker_count
+                SELECT LEFT(f.naics, 2) as naics_code,
+                       COALESCE(ns.sector_name, LEFT(f.naics, 2)) as industry_name,
+                       COUNT(*) as employer_count, COALESCE(SUM(f.latest_unit_size), 0) as worker_count
                 FROM f7_employers_deduped f
-                WHERE {where_clause} AND naics IS NOT NULL AND LENGTH(naics) >= 2
-                GROUP BY LEFT(naics, 2)
+                LEFT JOIN naics_sectors ns ON LEFT(f.naics, 2) = ns.naics_2digit
+                WHERE {where_clause} AND f.naics IS NOT NULL AND LENGTH(f.naics) >= 2
+                GROUP BY LEFT(f.naics, 2), ns.sector_name
                 ORDER BY worker_count DESC NULLS LAST
                 LIMIT 5
             """, params)
@@ -2050,9 +2117,21 @@ def get_stats_breakdown(
             """, params)
             by_metro = cur.fetchall()
 
+            # By Sector (union sector - Private, Public, Federal, RLA)
+            cur.execute(f"""
+                SELECT COALESCE(um.sector, 'Unknown') as sector_name,
+                       COUNT(*) as employer_count, COALESCE(SUM(f.latest_unit_size), 0) as worker_count
+                FROM f7_employers_deduped f
+                LEFT JOIN unions_master um ON f.latest_union_fnum::text = um.f_num
+                WHERE {where_clause}
+                GROUP BY um.sector
+                ORDER BY worker_count DESC NULLS LAST
+            """, params)
+            by_sector = cur.fetchall()
+
             return {
                 "totals": totals,
-                "by_sector": [],
+                "by_sector": by_sector,
                 "by_industry": by_industry,
                 "by_metro": by_metro
             }
@@ -2552,7 +2631,17 @@ def get_organizing_scorecard(
     limit: int = Query(default=100, le=500),
     offset: int = 0
 ):
-    """Get scored organizing targets based on OSHA violations and other factors"""
+    """
+    Get scored organizing targets based on 8-factor system (0-100 points):
+    - Company union shops (20): Related locations with union presence
+    - Industry density (10): Union density in NAICS sector
+    - State density (10): State union membership relative to national
+    - Size (10): Establishment size sweet spot
+    - OSHA (10): Violation severity and recency
+    - NLRB (10): Past election activity
+    - Contracts (10): Government contract funding
+    - Projections (10): BLS industry growth outlook
+    """
     conditions = ["employee_count >= %s", "employee_count <= %s"]
     params = [min_employees, max_employees]
 
@@ -2567,45 +2656,105 @@ def get_organizing_scorecard(
 
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Get scored results - score based on violations, penalties, employee count
+            # Pre-fetch lookup data for efficiency
+            cur.execute("SELECT naics_2digit, union_density_pct FROM v_naics_union_density")
+            industry_density = {r['naics_2digit']: float(r['union_density_pct'] or 0) for r in cur.fetchall()}
+
+            # Use members_total as a proxy for state union density (higher = more union friendly)
+            cur.execute("SELECT state, members_total FROM epi_state_benchmarks")
+            state_density = {r['state']: float(r['members_total'] or 0) for r in cur.fetchall()}
+
+            cur.execute("SELECT matrix_code, employment_change_pct FROM bls_industry_projections")
+            projections = {r['matrix_code']: float(r['employment_change_pct'] or 0) for r in cur.fetchall()}
+
+            # Get base results
             cur.execute(f"""
-                WITH scored AS (
-                    SELECT *,
-                        -- Calculate organizing score (0-100)
-                        LEAST(100, (
-                            -- Violation severity (0-25 points)
-                            LEAST(25, (willful_count * 10 + repeat_count * 5 + serious_count * 2)) +
-                            -- Penalty amount (0-25 points)
-                            LEAST(25, COALESCE(total_penalties, 0) / 20000) +
-                            -- Establishment size sweet spot (0-15 points)
-                            CASE
-                                WHEN employee_count BETWEEN 100 AND 500 THEN 15
-                                WHEN employee_count BETWEEN 50 AND 1000 THEN 10
-                                ELSE 5
-                            END +
-                            -- Recency (0-15 points)
-                            CASE
-                                WHEN last_inspection_date > CURRENT_DATE - INTERVAL '2 years' THEN 15
-                                WHEN last_inspection_date > CURRENT_DATE - INTERVAL '5 years' THEN 10
-                                ELSE 5
-                            END +
-                            -- Risk level bonus (0-20 points)
-                            CASE risk_level
-                                WHEN 'CRITICAL' THEN 20
-                                WHEN 'HIGH' THEN 15
-                                WHEN 'MODERATE' THEN 10
-                                ELSE 0
-                            END
-                        ))::int as organizing_score
-                    FROM v_osha_organizing_targets
-                    WHERE {where_clause}
-                )
-                SELECT * FROM scored
-                WHERE organizing_score >= %s
-                ORDER BY organizing_score DESC, total_penalties DESC NULLS LAST
-                LIMIT %s OFFSET %s
-            """, params + [min_score, limit, offset])
-            results = cur.fetchall()
+                SELECT * FROM v_osha_organizing_targets
+                WHERE {where_clause}
+                ORDER BY total_penalties DESC NULLS LAST
+                LIMIT 500
+            """, params)
+            base_results = cur.fetchall()
+
+            # Calculate scores in Python
+            scored_results = []
+            for r in base_results:
+                naics_2 = (r.get('naics_code') or '')[:2]
+                site_state = r.get('site_state', '')
+                emp_count = r.get('employee_count', 0) or 0
+
+                # 1. Company union shops (simplified - check if matched employer exists)
+                score_company_unions = 20 if r.get('matched_employer_id') else 0
+
+                # 2. Industry density
+                ind_pct = industry_density.get(naics_2, 0)
+                score_industry_density = 10 if ind_pct > 20 else 8 if ind_pct > 10 else 5 if ind_pct > 5 else 2
+
+                # 3. State density (using members_total as proxy - higher counts = stronger unions)
+                st_members = state_density.get(site_state, 0)
+                score_state_density = 10 if st_members > 1000000 else 8 if st_members > 500000 else 5 if st_members > 200000 else 2
+
+                # 4. Size
+                score_size = 10 if 100 <= emp_count <= 500 else 5 if emp_count > 25 else 2
+
+                # 5. OSHA violations
+                willful = r.get('willful_count', 0) or 0
+                repeat = r.get('repeat_count', 0) or 0
+                serious = r.get('serious_count', 0) or 0
+                score_osha = min(10, willful * 4 + repeat * 2 + serious)
+
+                # 6. NLRB (simplified - based on violation history as proxy)
+                score_nlrb = 5 if r.get('total_violations', 0) > 5 else 2
+
+                # 7. Contracts (simplified)
+                score_contracts = 0
+
+                # 8. Projections
+                proj_pct = projections.get(f"{naics_2}0000", 0)
+                score_projections = 10 if proj_pct > 10 else 7 if proj_pct > 5 else 4 if proj_pct > 0 else 2
+
+                organizing_score = (score_company_unions + score_industry_density + score_state_density +
+                                   score_size + score_osha + score_nlrb + score_contracts + score_projections)
+
+                if organizing_score >= min_score:
+                    # Create explicit dict to ensure proper serialization
+                    result = {
+                        'establishment_id': r.get('establishment_id'),
+                        'estab_name': r.get('estab_name'),
+                        'site_address': r.get('site_address'),
+                        'site_city': r.get('site_city'),
+                        'site_state': r.get('site_state'),
+                        'site_zip': r.get('site_zip'),
+                        'naics_code': r.get('naics_code'),
+                        'employee_count': r.get('employee_count'),
+                        'total_inspections': r.get('total_inspections'),
+                        'last_inspection_date': str(r.get('last_inspection_date')) if r.get('last_inspection_date') else None,
+                        'willful_count': r.get('willful_count'),
+                        'repeat_count': r.get('repeat_count'),
+                        'serious_count': r.get('serious_count'),
+                        'total_violations': r.get('total_violations'),
+                        'total_penalties': float(r.get('total_penalties')) if r.get('total_penalties') else None,
+                        'accident_count': r.get('accident_count'),
+                        'fatality_count': r.get('fatality_count'),
+                        'risk_level': r.get('risk_level'),
+                        'matched_employer_id': r.get('matched_employer_id'),
+                        'organizing_score': organizing_score,
+                        'score_breakdown': {
+                            'company_unions': score_company_unions,
+                            'industry_density': score_industry_density,
+                            'state_density': score_state_density,
+                            'size': score_size,
+                            'osha': score_osha,
+                            'nlrb': score_nlrb,
+                            'contracts': score_contracts,
+                            'projections': score_projections
+                        }
+                    }
+                    scored_results.append(result)
+
+            # Sort by score and apply pagination
+            scored_results.sort(key=lambda x: x['organizing_score'], reverse=True)
+            paginated = scored_results[offset:offset + limit]
 
             cur.execute(f"""
                 SELECT COUNT(*) as cnt FROM v_osha_organizing_targets
@@ -2614,9 +2763,9 @@ def get_organizing_scorecard(
             total = cur.fetchone()['cnt']
 
             return {
-                "results": results,
+                "results": paginated,
                 "total": total,
-                "scored_count": total,
+                "scored_count": len(scored_results),
                 "limit": limit,
                 "offset": offset
             }
@@ -2624,38 +2773,120 @@ def get_organizing_scorecard(
 
 @app.get("/api/organizing/scorecard/{estab_id}")
 def get_scorecard_detail(estab_id: str):
-    """Get detailed scorecard for a specific establishment"""
+    """Get detailed scorecard for a specific establishment with 8-factor breakdown"""
     with get_db() as conn:
         with conn.cursor() as cur:
+            # Get base establishment data
             cur.execute("""
-                SELECT *,
-                    LEAST(100, (
-                        LEAST(25, (willful_count * 10 + repeat_count * 5 + serious_count * 2)) +
-                        LEAST(25, COALESCE(total_penalties, 0) / 20000) +
-                        CASE
-                            WHEN employee_count BETWEEN 100 AND 500 THEN 15
-                            WHEN employee_count BETWEEN 50 AND 1000 THEN 10
-                            ELSE 5
-                        END +
-                        CASE
-                            WHEN last_inspection_date > CURRENT_DATE - INTERVAL '2 years' THEN 15
-                            WHEN last_inspection_date > CURRENT_DATE - INTERVAL '5 years' THEN 10
-                            ELSE 5
-                        END +
-                        CASE risk_level
-                            WHEN 'CRITICAL' THEN 20
-                            WHEN 'HIGH' THEN 15
-                            WHEN 'MODERATE' THEN 10
-                            ELSE 0
-                        END
-                    ))::int as organizing_score
-                FROM v_osha_organizing_targets
-                WHERE establishment_id = %s
+                SELECT * FROM v_osha_organizing_targets WHERE establishment_id = %s
             """, [estab_id])
-            result = cur.fetchone()
-            if not result:
+            base = cur.fetchone()
+            if not base:
                 raise HTTPException(status_code=404, detail="Establishment not found")
-            return result
+
+            naics_2 = base.get('naics_code', '')[:2] if base.get('naics_code') else None
+            state = base.get('site_state')
+            emp_count = base.get('employee_count', 0)
+            estab_name = base.get('estab_name', '')
+
+            # Calculate individual factor scores
+            # 1. Company union shops (check for related union locations)
+            cur.execute("""
+                SELECT COUNT(*) > 0 as has_union FROM f7_employers_deduped
+                WHERE similarity(employer_name_aggressive, %s) > 0.5
+            """, [estab_name])
+            has_related_union = cur.fetchone()['has_union']
+            score_company_unions = 20 if has_related_union else 0
+
+            # 2. Industry density
+            score_industry_density = 2
+            if naics_2:
+                cur.execute("""
+                    SELECT union_density_pct FROM v_naics_union_density WHERE naics_2digit = %s
+                """, [naics_2])
+                density_row = cur.fetchone()
+                if density_row and density_row['union_density_pct']:
+                    pct = float(density_row['union_density_pct'])
+                    score_industry_density = 10 if pct > 20 else 8 if pct > 10 else 5 if pct > 5 else 2
+
+            # 3. State density (using members_total as proxy)
+            score_state_density = 2
+            if state:
+                cur.execute("""
+                    SELECT members_total FROM epi_state_benchmarks WHERE state = %s
+                """, [state])
+                state_row = cur.fetchone()
+                if state_row and state_row['members_total']:
+                    members = float(state_row['members_total'])
+                    score_state_density = 10 if members > 1000000 else 8 if members > 500000 else 5 if members > 200000 else 2
+
+            # 4. Size score
+            score_size = 10 if 100 <= emp_count <= 500 else 5 if emp_count > 25 else 2
+
+            # 5. OSHA score
+            willful = base.get('willful_count', 0) or 0
+            repeat = base.get('repeat_count', 0) or 0
+            serious = base.get('serious_count', 0) or 0
+            score_osha = min(10, willful * 4 + repeat * 2 + serious)
+
+            # 6. NLRB score
+            cur.execute("""
+                SELECT COUNT(*) as cnt FROM nlrb_participants
+                WHERE participant_name ILIKE %s AND participant_type = 'Employer'
+            """, [f"%{estab_name[:20]}%"])
+            nlrb_count = cur.fetchone()['cnt']
+            score_nlrb = min(10, nlrb_count * 5)
+
+            # 7. Contracts score
+            cur.execute("""
+                SELECT COALESCE(SUM(current_amount), 0) as total FROM ny_state_contracts
+                WHERE vendor_name ILIKE %s
+            """, [f"%{estab_name[:15]}%"])
+            ny_funding = cur.fetchone()['total'] or 0
+            cur.execute("""
+                SELECT COALESCE(SUM(current_amount), 0) as total FROM nyc_contracts
+                WHERE vendor_name ILIKE %s
+            """, [f"%{estab_name[:15]}%"])
+            nyc_funding = cur.fetchone()['total'] or 0
+            total_funding = ny_funding + nyc_funding
+            score_contracts = 10 if total_funding > 5000000 else 7 if total_funding > 1000000 else 4 if total_funding > 100000 else 2 if total_funding > 0 else 0
+
+            # 8. Projections score
+            score_projections = 4
+            if naics_2:
+                cur.execute("""
+                    SELECT employment_change_pct FROM bls_industry_projections WHERE matrix_code = %s
+                """, [f"{naics_2}0000"])
+                proj_row = cur.fetchone()
+                if proj_row and proj_row['employment_change_pct']:
+                    change = float(proj_row['employment_change_pct'])
+                    score_projections = 10 if change > 10 else 7 if change > 5 else 4 if change > 0 else 2
+
+            organizing_score = (score_company_unions + score_industry_density + score_state_density +
+                              score_size + score_osha + score_nlrb + score_contracts + score_projections)
+
+            return {
+                "establishment": base,
+                "organizing_score": organizing_score,
+                "score_breakdown": {
+                    "company_unions": score_company_unions,
+                    "industry_density": score_industry_density,
+                    "state_density": score_state_density,
+                    "size": score_size,
+                    "osha": score_osha,
+                    "nlrb": score_nlrb,
+                    "contracts": score_contracts,
+                    "projections": score_projections
+                },
+                "contracts": {
+                    "contract_count": 1 if total_funding > 0 else 0,
+                    "total_funding": total_funding
+                },
+                "context": {
+                    "has_related_union": has_related_union,
+                    "nlrb_count": nlrb_count
+                }
+            }
 
 
 @app.get("/api/osha/employer-safety/{f7_employer_id}")

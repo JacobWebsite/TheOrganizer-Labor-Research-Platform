@@ -144,10 +144,10 @@
         .typeahead-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f5f3f0; }
         .typeahead-item:last-child { border-bottom: none; }
         .typeahead-item:hover, .typeahead-item.bg-warmgray-100 { background: #f5f3f0; }
-        .typeahead-category { 
-            position: sticky; 
-            top: 0; 
-            background: #faf9f7; 
+        .typeahead-category {
+            position: sticky;
+            top: 0;
+            background: #faf9f7;
             border-bottom: 1px solid #e8e5e0;
             font-size: 11px;
             padding: 8px 14px;
@@ -155,6 +155,37 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-weight: 600;
+        }
+
+        /* Map containment fixes - prevent pop-out bugs */
+        #fullMapContainer, #detailMap, #corporateFamilyMap {
+            contain: layout paint;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Body scroll lock when modal is open */
+        body.modal-open {
+            overflow: hidden;
+        }
+
+        /* Clickable entity links */
+        .entity-link {
+            cursor: pointer;
+            text-decoration-line: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 2px;
+        }
+        .entity-link:hover {
+            text-decoration-style: solid;
+            color: #c41e3a;
+        }
+
+        /* Law firm warning badge */
+        .badge-law-firm {
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 10px;
         }
     </style>
 </head>
@@ -933,10 +964,19 @@
                 <div id="dashSectors" class="flex gap-2">
                     <!-- Sector badges -->
                 </div>
-                <button onclick="closeNationalDashboard()" 
-                    class="px-6 py-2 bg-warmgray-900 text-white font-semibold rounded-lg hover:bg-warmgray-800 transition-colors">
-                    Close
-                </button>
+                <div class="flex gap-3">
+                    <button id="searchLocalsBtn" onclick="searchLocalsForCurrentAffiliation()"
+                        class="px-4 py-2 bg-warmgray-100 text-warmgray-700 font-semibold rounded-lg hover:bg-warmgray-200 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        Search All Locals
+                    </button>
+                    <button onclick="closeNationalDashboard()"
+                        class="px-6 py-2 bg-warmgray-900 text-white font-semibold rounded-lg hover:bg-warmgray-800 transition-colors">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1608,6 +1648,11 @@
                         <input type="number" id="electionsMinVoters" value="" min="1" placeholder="Any"
                             class="w-20 px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                     </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="electionsExcludeLawFirms" checked
+                            class="w-4 h-4 rounded border-warmgray-300 text-blue-600 focus:ring-blue-500">
+                        <label for="electionsExcludeLawFirms" class="text-xs text-warmgray-600">Exclude law firms</label>
+                    </div>
                     <button onclick="loadElections()"
                         class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
                         Search
@@ -2013,6 +2058,9 @@
             setupTypeahead();
             setupGeoChangeListeners();
             setupKeyboardShortcuts();
+
+            // Sort dropdown triggers search
+            document.getElementById('sortBy').addEventListener('change', () => executeSearch());
             
             // Check for URL params before loading
             const hasUrlParams = parseUrlAndSearch();
@@ -2145,10 +2193,11 @@
             if (view === 'map') {
                 initFullMap();
                 // Need to invalidate size after container becomes visible
+                // Using 250ms delay for modal transitions
                 setTimeout(() => {
                     fullMap.invalidateSize();
                     updateMapMarkers();
-                }, 100);
+                }, 250);
             }
         }
         
@@ -2431,8 +2480,10 @@
         let dashboardChart = null;
         
         async function openNationalDashboard(affAbbr) {
+            currentDashboardAffiliation = affAbbr;
             document.getElementById('nationalDashboardModal').classList.remove('hidden');
             document.getElementById('nationalDashboardModal').classList.add('flex');
+            document.body.classList.add('modal-open');
             document.getElementById('dashboardTitle').textContent = affAbbr;
             document.getElementById('dashboardLoading').classList.remove('hidden');
             document.getElementById('dashboardContent').classList.add('hidden');
@@ -2454,7 +2505,8 @@
         function closeNationalDashboard() {
             document.getElementById('nationalDashboardModal').classList.add('hidden');
             document.getElementById('nationalDashboardModal').classList.remove('flex');
-            
+            document.body.classList.remove('modal-open');
+
             // Destroy chart
             if (dashboardChart) {
                 dashboardChart.destroy();
@@ -2528,8 +2580,8 @@
                 `).join('')
                 : '<div class="text-warmgray-400 text-sm">No local data available</div>';
             
-            // Geographic distribution
-            const geo = data.geo_distribution || [];
+            // Geographic distribution - use by_state (filtered to current affiliation)
+            const geo = data.by_state || [];
             const totalMembers = geo.reduce((sum, g) => sum + (g.total_members || 0), 0);
             document.getElementById('dashGeoDistribution').innerHTML = geo.length > 0
                 ? geo.slice(0, 15).map(g => {
@@ -2663,6 +2715,9 @@
             });
         }
         
+        // Track current affiliation for linking
+        let currentDashboardAffiliation = null;
+
         function selectLocalFromDashboard(fNum) {
             closeNationalDashboard();
             setSearchMode('unions');
@@ -2670,12 +2725,28 @@
             document.getElementById('mainSearch').value = fNum;
             executeSearch();
         }
-        
+
         function selectEmployerFromDashboard(employerId) {
             closeNationalDashboard();
             setSearchMode('employers');
-            // Need to load this employer - for now just alert
-            alert(`Switching to employer ${employerId}`);
+            // Navigate to employer detail via selectItem
+            selectItem(employerId);
+        }
+
+        function searchLocalsForCurrentAffiliation() {
+            if (!currentDashboardAffiliation) return;
+            searchLocalsForAffiliation(currentDashboardAffiliation);
+        }
+
+        function searchLocalsForAffiliation(affAbbr) {
+            closeNationalDashboard();
+            setSearchMode('unions');
+            // Clear main search, set affiliation filter via selectedIndustry
+            document.getElementById('mainSearch').value = '';
+            // Set the industry filter to be a union affiliation
+            selectedIndustry = { type: 'union', abbr: affAbbr, name: affAbbr };
+            renderIndustryTag();
+            executeSearch();
         }
         
         // ==========================================
@@ -2912,7 +2983,7 @@
                     data.metros.forEach(metro => {
                         const option = document.createElement('option');
                         option.value = metro.cbsa_code;
-                        option.textContent = `${metro.principal_city} (${formatNumber(metro.employer_count)})`;
+                        option.textContent = `${metro.cbsa_title} (${formatNumber(metro.employer_count)})`;
                         metroSelect.appendChild(option);
                     });
                 }
@@ -3434,35 +3505,28 @@
             
             // Geography
             if (state) params.append('state', state);
-            if (metro) params.append('cbsa', metro);
+            if (metro) params.append('metro', metro);
             if (city) params.append('city', city);
             
-            // Sector filter - map to API param
+            // Sector filter - supported for both modes (PUBLIC_SECTOR queries ps_employers)
             if (sector) {
-                if (currentMode === 'employers') {
-                    params.append('union_sector', sector);
-                } else {
-                    params.append('sector', sector);
-                }
+                params.append('sector', sector);
             }
             
             // Handle industry filter based on selection type
             if (selectedIndustry) {
                 if (selectedIndustry.type === 'naics') {
-                    params.append('naics_2digit', selectedIndustry.code.substring(0, 2));
-                    if (selectedIndustry.code.length > 2) {
-                        params.append('naics_prefix', selectedIndustry.code);
-                    }
+                    params.append('naics', selectedIndustry.code.substring(0, 2));
                 } else if (selectedIndustry.type === 'union') {
-                    params.append('affiliation', selectedIndustry.abbr);
+                    params.append('aff_abbr', selectedIndustry.abbr);
                 } else if (selectedIndustry.type === 'occupation') {
-                    params.append('naics_2digit', selectedIndustry.naics);
+                    params.append('naics', selectedIndustry.naics);
                 }
             }
             
             // Pagination
             params.append('limit', '15');
-            params.append('offset', String((currentPage - 1) * 50));
+            params.append('offset', String((currentPage - 1) * 15));
             
             const endpoint = currentMode === 'employers' ? 'employers/search' : 'unions/search';
             
@@ -4193,20 +4257,26 @@
             document.getElementById('detailBadges').innerHTML = badgesHtml;
             
             // Key metrics - Employer view
+            const unionName = item.latest_union_name || item.union_display_name || 'Unknown';
+            const unionFnum = item.latest_union_fnum;
+            const affAbbr = item.aff_abbr;
             document.getElementById('detailMetrics').innerHTML = `
                 <div class="bg-warmgray-100 rounded-lg p-4">
                     <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Union</div>
-                    <div class="font-semibold text-warmgray-900">${escapeHtml(item.latest_union_name || item.union_display_name || 'Unknown')}</div>
-                    <div class="text-sm text-warmgray-500">${item.aff_abbr ? `${escapeHtml(item.aff_abbr)} affiliate` : ''}</div>
+                    <div class="font-semibold text-warmgray-900 ${unionFnum ? 'entity-link' : ''}"
+                         ${unionFnum ? `onclick="loadUnionDetail('${escapeHtml(unionFnum)}')"` : ''}>${escapeHtml(unionName)}</div>
+                    <div class="text-sm text-warmgray-500">
+                        ${affAbbr ? `<span class="entity-link" onclick="openNationalDashboard('${escapeHtml(affAbbr)}')">${escapeHtml(affAbbr)} affiliate</span>` : ''}
+                    </div>
                 </div>
                 <div class="bg-warmgray-100 rounded-lg p-4">
                     <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Workers</div>
                     <div class="text-3xl font-bold text-accent-red">${formatNumber(item.latest_unit_size || 0)}</div>
                 </div>
                 <div class="bg-warmgray-100 rounded-lg p-4">
-                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Industry</div>
-                    <div class="font-semibold text-warmgray-900">${escapeHtml(item.naics_sector_name || 'Unknown')}</div>
-                    <div class="text-sm text-warmgray-500">${item.naics ? `NAICS ${escapeHtml(item.naics)}` : ''}</div>
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">${item.source_type === 'PUBLIC' ? 'Type' : 'Industry'}</div>
+                    <div class="font-semibold text-warmgray-900">${item.source_type === 'PUBLIC' ? escapeHtml(item.employer_type || 'Public Sector') : escapeHtml(item.naics_sector_name || 'Unknown')}</div>
+                    <div class="text-sm text-warmgray-500">${item.source_type === 'PUBLIC' ? escapeHtml(item.employer_subtype || '') : (item.naics ? `NAICS ${escapeHtml(item.naics)}` : '')}</div>
                 </div>
             `;
             
@@ -4273,13 +4343,27 @@
             
             // Update map
             updateDetailMap(item);
-            
+
             // Load OSHA, NLRB, and corporate family data asynchronously
             loadEmployerOsha(item.employer_id);
             loadEmployerNlrb(item.employer_id);
             loadCorporateFamily(item.employer_id);
         }
-        
+
+        // Navigate to union detail from employer view
+        async function loadUnionDetail(fNum) {
+            setSearchMode('unions');
+            document.getElementById('mainSearch').value = fNum;
+            await executeSearch();
+            // Try to select the union from results
+            if (currentResults.length > 0) {
+                const union = currentResults.find(u => u.f_num === fNum);
+                if (union) {
+                    selectItem(union.f_num);
+                }
+            }
+        }
+
         async function loadEmployerOsha(employerId) {
             const contentEl = document.getElementById('oshaContent');
             const loadingEl = document.getElementById('oshaLoadingBadge');
@@ -4741,7 +4825,7 @@
                             <div class="flex justify-between items-center p-2 bg-warmgray-50 rounded hover:bg-warmgray-100 cursor-pointer"
                                  onclick="switchToEmployerAndSelect(${emp.employer_id})">
                                 <div>
-                                    <div class="font-medium text-sm text-warmgray-900">${escapeHtml(emp.employer_name)}</div>
+                                    <div class="font-medium text-sm text-warmgray-900 entity-link">${escapeHtml(emp.employer_name)}</div>
                                     <div class="text-xs text-warmgray-500">${escapeHtml(emp.city || '')}, ${emp.state || ''}</div>
                                 </div>
                                 <div class="text-right">
@@ -4914,11 +4998,11 @@
             });
         }
         
-        function switchToEmployerAndSelect(employerId) {
-            // Switch to employer mode and search for this employer
+        async function switchToEmployerAndSelect(employerId) {
+            // Switch to employer mode and select the employer
             setSearchMode('employers');
-            // TODO: Implement direct selection after mode switch
-            alert(`Switching to employer ${employerId} - full implementation coming soon`);
+            // Use selectItem to navigate to the employer detail
+            selectItem(employerId);
         }
         
         async function selectUnionByFnum(fNum) {
@@ -4958,7 +5042,8 @@
             }
             
             // Invalidate map size (fixes rendering issues)
-            setTimeout(() => detailMap.invalidateSize(), 100);
+            // Using 250ms delay for modal transitions
+            setTimeout(() => detailMap.invalidateSize(), 250);
         }
         
         // Helper functions
@@ -5398,6 +5483,7 @@
         async function openAnalyticsDashboard() {
             document.getElementById('analyticsDashboardModal').classList.remove('hidden');
             document.getElementById('analyticsDashboardModal').classList.add('flex');
+            document.body.classList.add('modal-open');
             document.getElementById('dashboardLoading').classList.remove('hidden');
             document.getElementById('dashboardContent').classList.add('hidden');
 
@@ -5457,7 +5543,8 @@
         function closeAnalyticsDashboard() {
             document.getElementById('analyticsDashboardModal').classList.add('hidden');
             document.getElementById('analyticsDashboardModal').classList.remove('flex');
-            
+            document.body.classList.remove('modal-open');
+
             // Destroy charts to prevent memory leaks
             Object.values(dashboardCharts).forEach(chart => {
                 if (chart) chart.destroy();
@@ -5752,7 +5839,8 @@
         async function openOrganizingScorecard() {
             document.getElementById('scorecardModal').classList.remove('hidden');
             document.getElementById('scorecardModal').classList.add('flex');
-            
+            document.body.classList.add('modal-open');
+
             // Populate state dropdown with same states as main filter
             const stateSelect = document.getElementById('scorecardState');
             if (stateSelect.options.length <= 1) {
@@ -5767,6 +5855,7 @@
         function closeOrganizingScorecard() {
             document.getElementById('scorecardModal').classList.add('hidden');
             document.getElementById('scorecardModal').classList.remove('flex');
+            document.body.classList.remove('modal-open');
         }
 
         function loadAFSCME_NY_Preset() {
@@ -5874,14 +5963,16 @@
         
         function renderMiniScoreBar(breakdown) {
             if (!breakdown) return '';
-            const total = 100;
+            // New 8-factor scoring system (0-100 points total)
             const segments = [
-                { value: breakdown.safety || 0, max: 25, color: 'bg-red-500', label: 'Safety' },
-                { value: breakdown.industry || 0, max: 15, color: 'bg-blue-500', label: 'Industry' },
-                { value: breakdown.geographic || 0, max: 15, color: 'bg-purple-500', label: 'Geo' },
-                { value: breakdown.size || 0, max: 15, color: 'bg-yellow-500', label: 'Size' },
-                { value: breakdown.momentum || 0, max: 15, color: 'bg-green-500', label: 'NLRB' },
-                { value: breakdown.contracts || 0, max: 15, color: 'bg-orange-500', label: 'Contracts' }
+                { value: breakdown.company_unions || 0, max: 20, color: 'bg-indigo-500', label: 'Union Shops' },
+                { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry' },
+                { value: breakdown.state_density || 0, max: 10, color: 'bg-purple-500', label: 'State' },
+                { value: breakdown.size || 0, max: 10, color: 'bg-yellow-500', label: 'Size' },
+                { value: breakdown.osha || 0, max: 10, color: 'bg-red-500', label: 'OSHA' },
+                { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB' },
+                { value: breakdown.contracts || 0, max: 10, color: 'bg-orange-500', label: 'Contracts' },
+                { value: breakdown.projections || 0, max: 10, color: 'bg-teal-500', label: 'Growth' }
             ];
 
             return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
@@ -5943,12 +6034,14 @@
                     </div>
 
                     <div class="space-y-3">
-                        ${renderScoreRow('Safety Violations', breakdown.safety, 25, 'bg-red-500', 'OSHA violations count and severity')}
-                        ${renderScoreRow('Industry Density', breakdown.industry, 15, 'bg-blue-500', 'Union presence in this NAICS sector')}
-                        ${renderScoreRow('Geographic Presence', breakdown.geographic, 15, 'bg-purple-500', 'Union activity in this state')}
-                        ${renderScoreRow('Establishment Size', breakdown.size, 15, 'bg-yellow-500', 'Optimal size for organizing impact')}
-                        ${renderScoreRow('NLRB Momentum', breakdown.momentum, 15, 'bg-green-500', 'Recent organizing activity nearby')}
-                        ${renderScoreRow('Govt Contracts', breakdown.contracts, 15, 'bg-orange-500', 'NY State & NYC contract funding')}
+                        ${renderScoreRow('Company Union Shops', breakdown.company_unions, 20, 'bg-indigo-500', 'Related company locations with union presence')}
+                        ${renderScoreRow('Industry Density', breakdown.industry_density, 10, 'bg-blue-500', 'Union membership rate in NAICS sector')}
+                        ${renderScoreRow('State Density', breakdown.state_density, 10, 'bg-purple-500', 'State union membership vs national average')}
+                        ${renderScoreRow('Establishment Size', breakdown.size, 10, 'bg-yellow-500', 'Sweet spot 100-500 employees')}
+                        ${renderScoreRow('OSHA Violations', breakdown.osha, 10, 'bg-red-500', 'Workplace safety violations on record')}
+                        ${renderScoreRow('NLRB History', breakdown.nlrb, 10, 'bg-green-500', 'Past election activity for this employer')}
+                        ${renderScoreRow('Govt Contracts', breakdown.contracts, 10, 'bg-orange-500', 'NY State & NYC contract funding')}
+                        ${renderScoreRow('Industry Growth', breakdown.projections, 10, 'bg-teal-500', 'BLS industry employment projections')}
                     </div>
                 </div>
 
@@ -6483,6 +6576,7 @@
             console.log('Opening Unified Employers modal...');
             document.getElementById('unifiedEmployersModal').classList.remove('hidden');
             document.getElementById('unifiedEmployersModal').classList.add('flex');
+            document.body.classList.add('modal-open');
 
             // Populate state dropdown
             const stateSelect = document.getElementById('unifiedState');
@@ -6502,6 +6596,7 @@
         function closeUnifiedEmployersModal() {
             document.getElementById('unifiedEmployersModal').classList.add('hidden');
             document.getElementById('unifiedEmployersModal').classList.remove('flex');
+            document.body.classList.remove('modal-open');
         }
 
         async function loadUnifiedEmployers() {
@@ -6670,6 +6765,7 @@
             console.log('Opening Elections modal...');
             document.getElementById('electionsModal').classList.remove('hidden');
             document.getElementById('electionsModal').classList.add('flex');
+            document.body.classList.add('modal-open');
 
             const stateSelect = document.getElementById('electionsState');
             if (stateSelect.options.length <= 1) {
@@ -6687,6 +6783,7 @@
         function closeElectionsModal() {
             document.getElementById('electionsModal').classList.add('hidden');
             document.getElementById('electionsModal').classList.remove('flex');
+            document.body.classList.remove('modal-open');
         }
 
         async function loadElections() {
@@ -6722,7 +6819,13 @@
                 const data = await response.json();
                 console.log('Data received:', data.total, 'elections');
                 electionsResults = data.elections || [];
-                renderElectionsResults(data);
+
+                // Filter out law firms if checkbox is checked
+                const excludeLawFirms = document.getElementById('electionsExcludeLawFirms').checked;
+                if (excludeLawFirms) {
+                    electionsResults = electionsResults.filter(e => !e.is_law_firm);
+                }
+                renderElectionsResults({ ...data, elections: electionsResults, total: electionsResults.length });
             } catch (e) {
                 console.error('Elections failed:', e);
                 document.getElementById('electionsResultsInfo').textContent = 'Error: ' + e.message;
@@ -6752,13 +6855,16 @@
                     : isLost
                         ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">LOST</span>'
                         : '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-700">PENDING</span>';
+                const lawFirmBadge = item.is_law_firm
+                    ? '<span class="badge badge-law-firm ml-1" title="Employer name pattern suggests a law firm - verify employer">Verify</span>'
+                    : '';
 
                 return `
                     <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedElectionItem?.case_number === item.case_number ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
                          onclick="selectElectionItem('${item.case_number}')">
                         <div class="flex justify-between items-start mb-1">
                             <div class="text-xs text-warmgray-400">${item.case_number || 'N/A'}</div>
-                            ${resultBadge}
+                            <div class="flex items-center gap-1">${resultBadge}${lawFirmBadge}</div>
                         </div>
                         <div class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.employer_name || item.employer || 'Unknown')}</div>
                         <div class="text-sm text-warmgray-500 truncate">
@@ -6858,6 +6964,7 @@
             console.log('Opening Public Sector modal...');
             document.getElementById('publicSectorModal').classList.remove('hidden');
             document.getElementById('publicSectorModal').classList.add('flex');
+            document.body.classList.add('modal-open');
             initPublicSectorDropdowns();
 
             // Auto-load results on open
@@ -6871,6 +6978,7 @@
         function closePublicSectorModal() {
             document.getElementById('publicSectorModal').classList.add('hidden');
             document.getElementById('publicSectorModal').classList.remove('flex');
+            document.body.classList.remove('modal-open');
         }
 
         async function initPublicSectorDropdowns() {
@@ -7126,12 +7234,14 @@
         function openTrendsModal() {
             document.getElementById('trendsModal').classList.remove('hidden');
             document.getElementById('trendsModal').classList.add('flex');
+            document.body.classList.add('modal-open');
             loadTrendsData();
         }
 
         function closeTrendsModal() {
             document.getElementById('trendsModal').classList.add('hidden');
             document.getElementById('trendsModal').classList.remove('flex');
+            document.body.classList.remove('modal-open');
         }
 
         async function loadTrendsData() {
