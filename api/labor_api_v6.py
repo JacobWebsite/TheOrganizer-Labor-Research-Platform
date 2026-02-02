@@ -135,6 +135,39 @@ def get_metros():
             return {"metros": cur.fetchall()}
 
 
+@app.get("/api/lookups/cities")
+def get_cities_lookup(
+    state: Optional[str] = None,
+    cbsa: Optional[str] = None,
+    limit: int = Query(200, le=500)
+):
+    """Get cities for a state or metro, ordered by employer count"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["city IS NOT NULL AND TRIM(city) != ''"]
+            params = []
+
+            if state:
+                conditions.append("state = %s")
+                params.append(state.upper())
+            if cbsa:
+                conditions.append("cbsa_code = %s")
+                params.append(cbsa)
+
+            where_clause = " AND ".join(conditions)
+            params.append(limit)
+
+            cur.execute(f"""
+                SELECT UPPER(city) as city, COUNT(*) as employer_count
+                FROM f7_employers_deduped
+                WHERE {where_clause}
+                GROUP BY UPPER(city)
+                ORDER BY COUNT(*) DESC, UPPER(city)
+                LIMIT %s
+            """, params)
+            return {"cities": cur.fetchall()}
+
+
 @app.get("/api/metros/{cbsa_code}/stats")
 def get_metro_stats(cbsa_code: str):
     """Get detailed stats for a specific metro area"""
@@ -738,17 +771,168 @@ def get_employer_detail(employer_id: str):
             }
 
 
+@app.get("/api/employers/{employer_id}/similar")
+def get_similar_employers(
+    employer_id: str,
+    limit: int = Query(10, le=50)
+):
+    """Get employers similar to this one (same NAICS, state, or union)"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get the employer's info first
+            cur.execute("""
+                SELECT employer_name, state, naics, latest_union_fnum, cbsa_code
+                FROM f7_employers_deduped WHERE employer_id = %s
+            """, [employer_id])
+            emp = cur.fetchone()
+            if not emp:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            # Find similar employers
+            cur.execute("""
+                SELECT e.employer_id, e.employer_name, e.city, e.state, e.naics,
+                       e.latest_unit_size, e.latest_unit_size as employee_count,
+                       e.latest_union_name, um.aff_abbr,
+                       CASE
+                           WHEN e.naics = %s AND e.state = %s THEN 3
+                           WHEN e.naics = %s THEN 2
+                           WHEN e.state = %s THEN 1
+                           ELSE 0
+                       END as similarity_score
+                FROM f7_employers_deduped e
+                LEFT JOIN unions_master um ON e.latest_union_fnum::text = um.f_num
+                WHERE e.employer_id != %s
+                  AND (e.naics = %s OR e.state = %s OR e.latest_union_fnum = %s)
+                ORDER BY similarity_score DESC, e.latest_unit_size DESC NULLS LAST
+                LIMIT %s
+            """, [emp['naics'], emp['state'], emp['naics'], emp['state'],
+                  employer_id, emp['naics'], emp['state'], emp['latest_union_fnum'], limit])
+
+            return {"similar_employers": cur.fetchall()}
+
+
+@app.get("/api/employers/{employer_id}/osha")
+def get_employer_osha(employer_id: str):
+    """Get OSHA violations and safety data for an employer"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Check employer exists
+            cur.execute("SELECT employer_name FROM f7_employers_deduped WHERE employer_id = %s", [employer_id])
+            emp = cur.fetchone()
+            if not emp:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            # Get OSHA matches via osha_f7_matches with violation summaries
+            cur.execute("""
+                SELECT o.establishment_id, o.estab_name, o.site_address, o.site_city,
+                       o.site_state, o.site_zip, o.naics_code, o.sic_code,
+                       o.employee_count, o.total_inspections, o.last_inspection_date,
+                       m.match_method, m.match_confidence,
+                       COALESCE(vs.willful_count, 0) as willful_count,
+                       COALESCE(vs.repeat_count, 0) as repeat_count,
+                       COALESCE(vs.serious_count, 0) as serious_count,
+                       COALESCE(vs.other_count, 0) as other_count,
+                       COALESCE(vs.total_violations, 0) as total_violations,
+                       COALESCE(vs.total_penalties, 0) as total_penalties
+                FROM osha_f7_matches m
+                JOIN osha_establishments o ON m.establishment_id = o.establishment_id
+                LEFT JOIN (
+                    SELECT establishment_id,
+                           SUM(CASE WHEN violation_type = 'W' THEN violation_count ELSE 0 END) as willful_count,
+                           SUM(CASE WHEN violation_type = 'R' THEN violation_count ELSE 0 END) as repeat_count,
+                           SUM(CASE WHEN violation_type = 'S' THEN violation_count ELSE 0 END) as serious_count,
+                           SUM(CASE WHEN violation_type = 'O' THEN violation_count ELSE 0 END) as other_count,
+                           SUM(violation_count) as total_violations,
+                           SUM(total_penalties) as total_penalties
+                    FROM osha_violation_summary
+                    GROUP BY establishment_id
+                ) vs ON o.establishment_id = vs.establishment_id
+                WHERE m.f7_employer_id = %s
+                ORDER BY vs.total_penalties DESC NULLS LAST
+            """, [employer_id])
+            establishments = cur.fetchall()
+
+            # Calculate summary stats
+            summary = {
+                "total_establishments": len(establishments),
+                "total_inspections": sum(e['total_inspections'] or 0 for e in establishments),
+                "total_violations": sum(e['total_violations'] or 0 for e in establishments),
+                "total_penalties": sum(float(e['total_penalties'] or 0) for e in establishments),
+                "willful_violations": sum(e['willful_count'] or 0 for e in establishments),
+                "serious_violations": sum(e['serious_count'] or 0 for e in establishments)
+            }
+
+            return {
+                "employer_name": emp['employer_name'],
+                "osha_summary": summary,
+                "establishments": establishments
+            }
+
+
+@app.get("/api/employers/{employer_id}/nlrb")
+def get_employer_nlrb(employer_id: str):
+    """Get NLRB elections and ULP cases for an employer"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Check employer exists
+            cur.execute("SELECT employer_name FROM f7_employers_deduped WHERE employer_id = %s", [employer_id])
+            emp = cur.fetchone()
+            if not emp:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            # NLRB elections
+            cur.execute("""
+                SELECT e.case_number, e.election_date, e.election_type, e.union_won,
+                       e.eligible_voters, e.vote_margin, t.labor_org_name as union_name, um.aff_abbr
+                FROM nlrb_elections e
+                JOIN nlrb_participants p ON e.case_number = p.case_number
+                    AND p.participant_type = 'Employer'
+                LEFT JOIN nlrb_tallies t ON e.case_number = t.case_number AND t.tally_type = 'For'
+                LEFT JOIN unions_master um ON t.matched_olms_fnum = um.f_num
+                WHERE p.matched_employer_id = %s
+                ORDER BY e.election_date DESC
+            """, [employer_id])
+            elections = cur.fetchall()
+
+            # ULP cases
+            cur.execute("""
+                SELECT c.case_number, c.case_type, c.earliest_date, c.latest_date,
+                       ct.description as case_type_desc
+                FROM nlrb_cases c
+                JOIN nlrb_case_types ct ON c.case_type = ct.case_type
+                JOIN nlrb_participants p ON c.case_number = p.case_number
+                    AND p.participant_type = 'Charged Party'
+                WHERE p.matched_employer_id = %s AND ct.case_category = 'unfair_labor_practice'
+                ORDER BY c.earliest_date DESC LIMIT 50
+            """, [employer_id])
+            ulp_cases = cur.fetchall()
+
+            return {
+                "employer_name": emp['employer_name'],
+                "elections": elections,
+                "elections_summary": {
+                    "total": len(elections),
+                    "union_wins": sum(1 for e in elections if e['union_won']),
+                    "union_losses": sum(1 for e in elections if e['union_won'] is False),
+                    "win_rate": round(100.0 * sum(1 for e in elections if e['union_won']) / max(len(elections), 1), 1)
+                },
+                "ulp_cases": ulp_cases,
+                "ulp_summary": {
+                    "total": len(ulp_cases)
+                }
+            }
+
+
 # ============================================================================
 # HISTORICAL TRENDS
 # ============================================================================
 
 @app.get("/api/trends/national")
 def get_national_trends():
-    """Get national union membership trends by year (2010-2024)"""
+    """Get national union membership trends by year (2010-2024) with deduplicated estimates"""
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Use raw lm_data aggregated by year
-            # Note: These are raw totals; reconciled totals would need additional logic
+            # Get raw trends by year
             cur.execute("""
                 SELECT yr_covered as year,
                        COUNT(DISTINCT f_num) as union_count,
@@ -759,11 +943,35 @@ def get_national_trends():
                 GROUP BY yr_covered
                 ORDER BY yr_covered
             """)
-            trends = cur.fetchall()
-            
+            raw_trends = cur.fetchall()
+
+            # Get current deduplicated total and ratio from view
+            cur.execute("""
+                SELECT
+                    SUM(CASE WHEN count_members THEN members ELSE 0 END) as deduplicated_total,
+                    SUM(members) as raw_total
+                FROM v_union_members_deduplicated
+            """)
+            dedup_stats = cur.fetchone()
+
+            # Calculate deduplication ratio (typically ~0.20-0.21)
+            dedup_ratio = 0.20  # fallback
+            if dedup_stats and dedup_stats['raw_total'] and dedup_stats['raw_total'] > 0:
+                dedup_ratio = dedup_stats['deduplicated_total'] / dedup_stats['raw_total']
+
+            # Apply ratio to get estimated deduplicated membership by year
+            trends = []
+            for row in raw_trends:
+                trend = dict(row)
+                # Estimate deduplicated members using the ratio
+                trend['total_members_dedup'] = int(row['total_members_raw'] * dedup_ratio)
+                trends.append(trend)
+
             return {
-                "description": "National union membership trends (raw OLMS data)",
-                "note": "Raw totals include hierarchy double-counting. BLS benchmark is ~14-15M",
+                "description": "National union membership trends",
+                "note": "total_members_dedup is estimated using current deduplication ratio. BLS benchmark is ~14-15M",
+                "dedup_ratio": round(dedup_ratio, 4),
+                "current_dedup_total": dedup_stats['deduplicated_total'] if dedup_stats else None,
                 "trends": trends
             }
 
@@ -1114,6 +1322,97 @@ def get_union_cities(
             return {"state": state.upper(), "cities": cur.fetchall()}
 
 
+@app.get("/api/unions/national")
+def get_national_unions(
+    limit: int = Query(50, le=200)
+):
+    """Get national/international unions aggregated by affiliation"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT aff_abbr,
+                       MAX(union_name) as example_name,
+                       COUNT(*) as local_count,
+                       SUM(members) as total_members,
+                       SUM(f7_employer_count) as employer_count,
+                       SUM(f7_total_workers) as covered_workers,
+                       COUNT(DISTINCT state) as state_count
+                FROM unions_master
+                WHERE aff_abbr IS NOT NULL AND aff_abbr != ''
+                GROUP BY aff_abbr
+                HAVING SUM(members) > 0
+                ORDER BY SUM(members) DESC NULLS LAST
+                LIMIT %s
+            """, [limit])
+            return {"national_unions": cur.fetchall()}
+
+
+@app.get("/api/unions/national/{aff_abbr}")
+def get_national_union_detail(aff_abbr: str):
+    """Get detailed info for a national union affiliation"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Summary stats
+            cur.execute("""
+                SELECT aff_abbr,
+                       COUNT(*) as local_count,
+                       SUM(members) as total_members,
+                       SUM(f7_employer_count) as employer_count,
+                       SUM(f7_total_workers) as covered_workers,
+                       COUNT(DISTINCT state) as state_count
+                FROM unions_master
+                WHERE aff_abbr = %s
+                GROUP BY aff_abbr
+            """, [aff_abbr.upper()])
+            summary = cur.fetchone()
+
+            if not summary:
+                raise HTTPException(status_code=404, detail="Affiliation not found")
+
+            # Top locals by membership
+            cur.execute("""
+                SELECT f_num, union_name, local_number, city, state, members,
+                       f7_employer_count, f7_total_workers
+                FROM unions_master
+                WHERE aff_abbr = %s
+                ORDER BY members DESC NULLS LAST
+                LIMIT 20
+            """, [aff_abbr.upper()])
+            top_locals = cur.fetchall()
+
+            # State breakdown
+            cur.execute("""
+                SELECT state, COUNT(*) as local_count, SUM(members) as total_members
+                FROM unions_master
+                WHERE aff_abbr = %s AND state IS NOT NULL
+                GROUP BY state
+                ORDER BY SUM(members) DESC NULLS LAST
+            """, [aff_abbr.upper()])
+            by_state = cur.fetchall()
+
+            # Recent NLRB activity
+            cur.execute("""
+                SELECT e.case_number, e.election_date, e.union_won, e.eligible_voters,
+                       p.participant_name as employer_name, p.state
+                FROM nlrb_tallies t
+                JOIN nlrb_elections e ON t.case_number = e.case_number
+                JOIN unions_master um ON t.matched_olms_fnum = um.f_num
+                LEFT JOIN nlrb_participants p ON e.case_number = p.case_number
+                    AND p.participant_type = 'Employer'
+                WHERE um.aff_abbr = %s
+                ORDER BY e.election_date DESC
+                LIMIT 20
+            """, [aff_abbr.upper()])
+            recent_elections = cur.fetchall()
+
+            return {
+                "summary": summary,
+                "top_locals": top_locals,
+                "by_state": by_state,
+                "recent_elections": recent_elections
+            }
+
+
 @app.get("/api/unions/{f_num}")
 def get_union_detail(f_num: str):
     """Get full union details including NLRB history"""
@@ -1157,6 +1456,41 @@ def get_union_detail(f_num: str):
                     "losses": sum(1 for e in elections if e['union_won'] is False),
                     "win_rate": round(100.0 * sum(1 for e in elections if e['union_won']) / max(len(elections), 1), 1)
                 }
+            }
+
+
+@app.get("/api/unions/{f_num}/employers")
+def get_union_employers(
+    f_num: str,
+    limit: int = Query(50, le=200)
+):
+    """Get all employers for a specific union"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Check union exists
+            cur.execute("SELECT union_name, aff_abbr FROM unions_master WHERE f_num = %s", [f_num])
+            union = cur.fetchone()
+            if not union:
+                raise HTTPException(status_code=404, detail="Union not found")
+
+            # Get employers
+            cur.execute("""
+                SELECT e.employer_id, e.employer_name, e.city, e.state, e.naics,
+                       e.latest_unit_size, e.latest_notice_date,
+                       c.cbsa_title as metro_name
+                FROM f7_employers_deduped e
+                LEFT JOIN cbsa_definitions c ON e.cbsa_code = c.cbsa_code
+                WHERE e.latest_union_fnum = %s
+                ORDER BY e.latest_unit_size DESC NULLS LAST
+                LIMIT %s
+            """, [f_num, limit])
+            employers = cur.fetchall()
+
+            return {
+                "union_name": union['union_name'],
+                "aff_abbr": union['aff_abbr'],
+                "total_employers": len(employers),
+                "employers": employers
             }
 
 
@@ -1651,6 +1985,79 @@ def get_platform_summary():
             }
 
 
+@app.get("/api/stats/breakdown")
+def get_stats_breakdown(
+    state: str = None,
+    naics_code: str = None,
+    cbsa_code: str = None,
+    name: str = None
+):
+    """Get breakdown statistics for the filter panel"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Build WHERE clause
+            conditions = ["exclude_from_counts = FALSE"]
+            params = []
+
+            if state:
+                conditions.append("state = %s")
+                params.append(state)
+            if naics_code:
+                conditions.append("naics LIKE %s")
+                params.append(f"{naics_code}%")
+            if cbsa_code:
+                conditions.append("cbsa_code = %s")
+                params.append(cbsa_code)
+            if name:
+                conditions.append("employer_name ILIKE %s")
+                params.append(f"%{name}%")
+
+            where_clause = " AND ".join(conditions)
+
+            # Totals
+            cur.execute(f"""
+                SELECT COUNT(*) as total_employers,
+                       COALESCE(SUM(latest_unit_size), 0) as total_workers,
+                       COUNT(DISTINCT latest_union_fnum) as total_locals
+                FROM f7_employers_deduped
+                WHERE {where_clause}
+            """, params)
+            totals = cur.fetchone()
+
+            # By Industry (top 5 NAICS 2-digit)
+            cur.execute(f"""
+                SELECT LEFT(naics, 2) as naics_code,
+                       LEFT(naics, 2) as industry_name,
+                       COUNT(*) as employer_count, COALESCE(SUM(latest_unit_size), 0) as worker_count
+                FROM f7_employers_deduped f
+                WHERE {where_clause} AND naics IS NOT NULL AND LENGTH(naics) >= 2
+                GROUP BY LEFT(naics, 2)
+                ORDER BY worker_count DESC NULLS LAST
+                LIMIT 5
+            """, params)
+            by_industry = cur.fetchall()
+
+            # By Metro (top 5)
+            cur.execute(f"""
+                SELECT f.cbsa_code, COALESCE(c.cbsa_title, f.cbsa_code) as metro_name,
+                       COUNT(*) as employer_count, COALESCE(SUM(latest_unit_size), 0) as worker_count
+                FROM f7_employers_deduped f
+                LEFT JOIN cbsa_definitions c ON f.cbsa_code = c.cbsa_code
+                WHERE {where_clause} AND f.cbsa_code IS NOT NULL
+                GROUP BY f.cbsa_code, c.cbsa_title
+                ORDER BY worker_count DESC NULLS LAST
+                LIMIT 5
+            """, params)
+            by_metro = cur.fetchall()
+
+            return {
+                "totals": totals,
+                "by_sector": [],
+                "by_industry": by_industry,
+                "by_metro": by_metro
+            }
+
+
 # ============================================================================
 # VOLUNTARY RECOGNITION (VR) ENDPOINTS
 # ============================================================================
@@ -2134,6 +2541,123 @@ def get_osha_organizing_targets(
             return {"targets": results, "total": total, "limit": limit, "offset": offset}
 
 
+@app.get("/api/organizing/scorecard")
+def get_organizing_scorecard(
+    state: Optional[str] = None,
+    naics_2digit: Optional[str] = None,
+    min_employees: int = Query(default=25),
+    max_employees: int = Query(default=5000),
+    min_score: int = Query(default=0),
+    has_contracts: Optional[str] = None,
+    limit: int = Query(default=100, le=500),
+    offset: int = 0
+):
+    """Get scored organizing targets based on OSHA violations and other factors"""
+    conditions = ["employee_count >= %s", "employee_count <= %s"]
+    params = [min_employees, max_employees]
+
+    if state:
+        conditions.append("site_state = %s")
+        params.append(state.upper())
+    if naics_2digit:
+        conditions.append("naics_code LIKE %s")
+        params.append(f"{naics_2digit}%")
+
+    where_clause = " AND ".join(conditions)
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get scored results - score based on violations, penalties, employee count
+            cur.execute(f"""
+                WITH scored AS (
+                    SELECT *,
+                        -- Calculate organizing score (0-100)
+                        LEAST(100, (
+                            -- Violation severity (0-25 points)
+                            LEAST(25, (willful_count * 10 + repeat_count * 5 + serious_count * 2)) +
+                            -- Penalty amount (0-25 points)
+                            LEAST(25, COALESCE(total_penalties, 0) / 20000) +
+                            -- Establishment size sweet spot (0-15 points)
+                            CASE
+                                WHEN employee_count BETWEEN 100 AND 500 THEN 15
+                                WHEN employee_count BETWEEN 50 AND 1000 THEN 10
+                                ELSE 5
+                            END +
+                            -- Recency (0-15 points)
+                            CASE
+                                WHEN last_inspection_date > CURRENT_DATE - INTERVAL '2 years' THEN 15
+                                WHEN last_inspection_date > CURRENT_DATE - INTERVAL '5 years' THEN 10
+                                ELSE 5
+                            END +
+                            -- Risk level bonus (0-20 points)
+                            CASE risk_level
+                                WHEN 'CRITICAL' THEN 20
+                                WHEN 'HIGH' THEN 15
+                                WHEN 'MODERATE' THEN 10
+                                ELSE 0
+                            END
+                        ))::int as organizing_score
+                    FROM v_osha_organizing_targets
+                    WHERE {where_clause}
+                )
+                SELECT * FROM scored
+                WHERE organizing_score >= %s
+                ORDER BY organizing_score DESC, total_penalties DESC NULLS LAST
+                LIMIT %s OFFSET %s
+            """, params + [min_score, limit, offset])
+            results = cur.fetchall()
+
+            cur.execute(f"""
+                SELECT COUNT(*) as cnt FROM v_osha_organizing_targets
+                WHERE {where_clause}
+            """, params)
+            total = cur.fetchone()['cnt']
+
+            return {
+                "results": results,
+                "total": total,
+                "scored_count": total,
+                "limit": limit,
+                "offset": offset
+            }
+
+
+@app.get("/api/organizing/scorecard/{estab_id}")
+def get_scorecard_detail(estab_id: str):
+    """Get detailed scorecard for a specific establishment"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT *,
+                    LEAST(100, (
+                        LEAST(25, (willful_count * 10 + repeat_count * 5 + serious_count * 2)) +
+                        LEAST(25, COALESCE(total_penalties, 0) / 20000) +
+                        CASE
+                            WHEN employee_count BETWEEN 100 AND 500 THEN 15
+                            WHEN employee_count BETWEEN 50 AND 1000 THEN 10
+                            ELSE 5
+                        END +
+                        CASE
+                            WHEN last_inspection_date > CURRENT_DATE - INTERVAL '2 years' THEN 15
+                            WHEN last_inspection_date > CURRENT_DATE - INTERVAL '5 years' THEN 10
+                            ELSE 5
+                        END +
+                        CASE risk_level
+                            WHEN 'CRITICAL' THEN 20
+                            WHEN 'HIGH' THEN 15
+                            WHEN 'MODERATE' THEN 10
+                            ELSE 0
+                        END
+                    ))::int as organizing_score
+                FROM v_osha_organizing_targets
+                WHERE establishment_id = %s
+            """, [estab_id])
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Establishment not found")
+            return result
+
+
 @app.get("/api/osha/employer-safety/{f7_employer_id}")
 def get_employer_safety_profile(f7_employer_id: str):
     """Get OSHA safety profile for an F-7 employer"""
@@ -2334,6 +2858,83 @@ def get_employer_agreement_info(employer_id: str):
                 "employer": employer,
                 "group_members": group_members,
                 "group_size": len(group_members)
+            }
+
+
+# ============================================================================
+# CORPORATE FAMILY / RELATED EMPLOYERS
+# ============================================================================
+
+@app.get("/api/corporate/family/{employer_id}")
+def get_corporate_family(employer_id: str):
+    """Get related employers (corporate family) - based on name similarity and multi-employer groups"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get employer info
+            cur.execute("""
+                SELECT employer_id, employer_name, employer_name_aggressive, state, naics,
+                       multi_employer_group_id, latest_union_name, latest_unit_size
+                FROM f7_employers_deduped WHERE employer_id = %s
+            """, [employer_id])
+            employer = cur.fetchone()
+
+            if not employer:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            family_members = []
+
+            # First, check for multi-employer group members
+            if employer.get('multi_employer_group_id'):
+                cur.execute("""
+                    SELECT employer_id, employer_name, city, state, naics,
+                           latest_unit_size, latest_union_name, 'MULTI_EMPLOYER_GROUP' as relationship
+                    FROM f7_employers_deduped
+                    WHERE multi_employer_group_id = %s AND employer_id != %s
+                    ORDER BY latest_unit_size DESC
+                    LIMIT 20
+                """, [employer['multi_employer_group_id'], employer_id])
+                family_members.extend(cur.fetchall())
+
+            # Then find similar names using normalized name
+            if employer.get('employer_name_aggressive'):
+                group_id = employer.get('multi_employer_group_id')
+                if group_id:
+                    # Exclude employers already in the same multi-employer group
+                    cur.execute("""
+                        SELECT employer_id, employer_name, city, state, naics,
+                               latest_unit_size, latest_union_name,
+                               'NAME_SIMILARITY' as relationship,
+                               similarity(employer_name_aggressive, %s) as name_similarity
+                        FROM f7_employers_deduped
+                        WHERE employer_id != %s
+                          AND (multi_employer_group_id IS NULL OR multi_employer_group_id != %s)
+                          AND similarity(employer_name_aggressive, %s) > 0.5
+                        ORDER BY similarity(employer_name_aggressive, %s) DESC
+                        LIMIT 15
+                    """, [employer['employer_name_aggressive'], employer_id,
+                          group_id, employer['employer_name_aggressive'],
+                          employer['employer_name_aggressive']])
+                else:
+                    # No group to exclude
+                    cur.execute("""
+                        SELECT employer_id, employer_name, city, state, naics,
+                               latest_unit_size, latest_union_name,
+                               'NAME_SIMILARITY' as relationship,
+                               similarity(employer_name_aggressive, %s) as name_similarity
+                        FROM f7_employers_deduped
+                        WHERE employer_id != %s
+                          AND similarity(employer_name_aggressive, %s) > 0.5
+                        ORDER BY similarity(employer_name_aggressive, %s) DESC
+                        LIMIT 15
+                    """, [employer['employer_name_aggressive'], employer_id,
+                          employer['employer_name_aggressive'],
+                          employer['employer_name_aggressive']])
+                family_members.extend(cur.fetchall())
+
+            return {
+                "employer": employer,
+                "family_members": family_members,
+                "total_family": len(family_members)
             }
 
 
@@ -2706,7 +3307,7 @@ def get_unified_employer(unified_id: int):
             cur.execute("""
                 SELECT m.establishment_id, m.match_method, m.match_confidence,
                        o.estab_name, o.site_city, o.site_state, o.site_zip,
-                       o.naics_code, o.owner_type
+                       o.naics_code, o.employee_count, o.total_inspections
                 FROM osha_unified_matches m
                 JOIN osha_establishments o ON o.establishment_id = m.establishment_id
                 WHERE m.unified_employer_id = %s

@@ -250,15 +250,52 @@
                     </svg>
                     Organizing Targets
                 </button>
-                <button onclick="openNationalUnionsBrowser()" 
+                <button onclick="openNationalUnionsBrowser()"
                     class="text-sm text-accent-red hover:text-accent-redDark font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                     </svg>
                     Browse National Unions
                 </button>
+                <span class="text-warmgray-300">|</span>
+                <button onclick="openElectionsModal()"
+                    class="text-sm text-blue-700 hover:text-blue-800 font-medium flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                    Elections
+                </button>
+                <button onclick="openUnifiedEmployersModal()"
+                    class="text-sm text-purple-700 hover:text-purple-800 font-medium flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    All Employers
+                </button>
+                <button onclick="openTrendsModal()"
+                    class="text-sm text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                    </svg>
+                    Trends
+                </button>
+                <button onclick="openPublicSectorModal()"
+                    class="text-sm text-orange-700 hover:text-orange-800 font-medium flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+                    </svg>
+                    Public Sector
+                </button>
+                <span class="text-warmgray-300">|</span>
+                <button onclick="runDebugCheck()"
+                    class="text-sm text-red-600 hover:text-red-700 font-medium">
+                    Debug
+                </button>
             </div>
         </div>
+
+        <!-- Debug Output -->
+        <div id="debugOutput" class="hidden bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4 text-sm font-mono"></div>
 
         <!-- ============================================ -->
         <!-- SEARCH & FILTERS -->
@@ -1393,6 +1430,558 @@
             </div>
         </div>
     </div>
+
+    <!-- ============================================ -->
+    <!-- UNIFIED EMPLOYERS MODAL -->
+    <!-- ============================================ -->
+    <div id="unifiedEmployersModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col m-4">
+            <!-- Modal header -->
+            <div class="px-6 py-4 border-b border-warmgray-200 flex justify-between items-center flex-shrink-0 bg-gradient-to-r from-purple-50 to-white">
+                <div>
+                    <h2 class="headline text-xl font-bold text-warmgray-900 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        All Employers
+                    </h2>
+                    <p class="text-sm text-warmgray-500">Unified employer database from all sources</p>
+                </div>
+                <button onclick="closeUnifiedEmployersModal()" class="text-warmgray-400 hover:text-warmgray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Filters -->
+            <div class="px-6 py-4 border-b border-warmgray-200 bg-warmgray-50">
+                <div class="flex gap-4 items-end flex-wrap">
+                    <div class="flex-1 min-w-48">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Name Search</label>
+                        <input type="text" id="unifiedNameSearch" placeholder="Search by employer name..."
+                            class="w-full px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
+                        <select id="unifiedState" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Source</label>
+                        <select id="unifiedSource" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All Sources</option>
+                            <option value="F7">F-7 (Private Sector CBAs)</option>
+                            <option value="NLRB">NLRB (Election Participants)</option>
+                            <option value="VR">VR (Voluntary Recognition)</option>
+                            <option value="PUBLIC">Public Sector</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Has Union</label>
+                        <select id="unifiedHasUnion" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">Any</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Has OSHA</label>
+                        <select id="unifiedHasOsha" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">Any</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <button onclick="loadUnifiedEmployers()"
+                        class="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors">
+                        Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="unifiedLoading" class="hidden p-12 text-center">
+                <div class="inline-block w-8 h-8 border-4 border-warmgray-300 border-t-purple-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-warmgray-600">Loading employers...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="unifiedContent" class="flex-1 overflow-hidden flex">
+                <!-- Results list -->
+                <div class="w-1/2 border-r border-warmgray-200 overflow-y-auto">
+                    <div id="unifiedResultsInfo" class="px-4 py-2 bg-warmgray-50 text-sm text-warmgray-500 border-b border-warmgray-200">
+                        Click "Search" to find employers
+                    </div>
+                    <div id="unifiedResults" class="divide-y divide-warmgray-100">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Detail panel -->
+                <div class="w-1/2 overflow-y-auto">
+                    <div id="unifiedDetailEmpty" class="p-8 text-center text-warmgray-400">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-warmgray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        <p>Select an employer to view details</p>
+                    </div>
+                    <div id="unifiedDetail" class="hidden p-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="px-6 py-3 border-t border-warmgray-200 bg-warmgray-50 text-xs text-warmgray-500">
+                <div class="flex items-center gap-4 flex-wrap">
+                    <span class="font-semibold text-warmgray-700">Sources:</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 mr-1">F7</span> Private sector CBAs</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700 mr-1">NLRB</span> Election participants</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 mr-1">VR</span> Voluntary recognition</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 mr-1">PUBLIC</span> Public sector</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- NLRB ELECTIONS MODAL -->
+    <!-- ============================================ -->
+    <div id="electionsModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col m-4">
+            <!-- Modal header -->
+            <div class="px-6 py-4 border-b border-warmgray-200 flex justify-between items-center flex-shrink-0 bg-gradient-to-r from-blue-50 to-white">
+                <div>
+                    <h2 class="headline text-xl font-bold text-warmgray-900 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                        NLRB Elections
+                    </h2>
+                    <p class="text-sm text-warmgray-500">Union representation elections from NLRB</p>
+                </div>
+                <button onclick="closeElectionsModal()" class="text-warmgray-400 hover:text-warmgray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Filters -->
+            <div class="px-6 py-4 border-b border-warmgray-200 bg-warmgray-50">
+                <div class="flex gap-4 items-end flex-wrap">
+                    <div class="flex-1 min-w-48">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Employer Name</label>
+                        <input type="text" id="electionsEmployerSearch" placeholder="Search by employer name..."
+                            class="w-full px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
+                        <select id="electionsState" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Year</label>
+                        <select id="electionsYear" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All Years</option>
+                            <option value="2025">2025</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Result</label>
+                        <select id="electionsResult" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All Results</option>
+                            <option value="won">Union Won</option>
+                            <option value="lost">Union Lost</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Min Voters</label>
+                        <input type="number" id="electionsMinVoters" value="" min="1" placeholder="Any"
+                            class="w-20 px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                    </div>
+                    <button onclick="loadElections()"
+                        class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                        Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="electionsLoading" class="hidden p-12 text-center">
+                <div class="inline-block w-8 h-8 border-4 border-warmgray-300 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-warmgray-600">Loading elections...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="electionsContent" class="flex-1 overflow-hidden flex">
+                <!-- Results list -->
+                <div class="w-1/2 border-r border-warmgray-200 overflow-y-auto">
+                    <div id="electionsResultsInfo" class="px-4 py-2 bg-warmgray-50 text-sm text-warmgray-500 border-b border-warmgray-200">
+                        Click "Search" to find elections
+                    </div>
+                    <div id="electionsResults" class="divide-y divide-warmgray-100">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Detail panel -->
+                <div class="w-1/2 overflow-y-auto">
+                    <div id="electionsDetailEmpty" class="p-8 text-center text-warmgray-400">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-warmgray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                        <p>Select an election to view details</p>
+                    </div>
+                    <div id="electionsDetail" class="hidden p-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="px-6 py-3 border-t border-warmgray-200 bg-warmgray-50 text-xs text-warmgray-500">
+                <div class="flex items-center gap-4 flex-wrap">
+                    <span class="font-semibold text-warmgray-700">Results:</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 mr-1">WON</span> Union certified</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700 mr-1">LOST</span> Union not certified</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-700 mr-1">PENDING</span> In progress</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- PUBLIC SECTOR MODAL -->
+    <!-- ============================================ -->
+    <div id="publicSectorModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col m-4">
+            <!-- Modal header -->
+            <div class="px-6 py-4 border-b border-warmgray-200 flex justify-between items-center flex-shrink-0 bg-gradient-to-r from-orange-50 to-white">
+                <div>
+                    <h2 class="headline text-xl font-bold text-warmgray-900 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+                        </svg>
+                        Public Sector
+                    </h2>
+                    <p class="text-sm text-warmgray-500">Public sector unions and employers</p>
+                </div>
+                <button onclick="closePublicSectorModal()" class="text-warmgray-400 hover:text-warmgray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Sub-view toggle -->
+            <div class="px-6 py-3 border-b border-warmgray-200 bg-warmgray-50">
+                <div class="inline-flex gap-1 p-1 bg-warmgray-200 rounded-full">
+                    <button id="psLocalsTab" onclick="setPublicSectorView('locals')"
+                        class="px-4 py-1.5 text-sm font-semibold rounded-full transition-all bg-warmgray-900 text-white">
+                        Union Locals
+                    </button>
+                    <button id="psEmployersTab" onclick="setPublicSectorView('employers')"
+                        class="px-4 py-1.5 text-sm font-semibold rounded-full transition-all text-warmgray-600 hover:text-warmgray-800">
+                        Employers
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters for Locals -->
+            <div id="psLocalsFilters" class="px-6 py-4 border-b border-warmgray-200 bg-white">
+                <div class="flex gap-4 items-end flex-wrap">
+                    <div class="flex-1 min-w-48">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Name Search</label>
+                        <input type="text" id="psLocalsNameSearch" placeholder="Search union locals..."
+                            class="w-full px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
+                        <select id="psLocalsState" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Parent Union</label>
+                        <select id="psLocalsParent" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All Unions</option>
+                        </select>
+                    </div>
+                    <button onclick="loadPublicSectorLocals()"
+                        class="px-6 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors">
+                        Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters for Employers (hidden by default) -->
+            <div id="psEmployersFilters" class="px-6 py-4 border-b border-warmgray-200 bg-white hidden">
+                <div class="flex gap-4 items-end flex-wrap">
+                    <div class="flex-1 min-w-48">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Name Search</label>
+                        <input type="text" id="psEmployersNameSearch" placeholder="Search employers..."
+                            class="w-full px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
+                        <select id="psEmployersState" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Employer Type</label>
+                        <select id="psEmployersType" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+                    <button onclick="loadPublicSectorEmployers()"
+                        class="px-6 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors">
+                        Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="publicSectorLoading" class="hidden p-12 text-center">
+                <div class="inline-block w-8 h-8 border-4 border-warmgray-300 border-t-orange-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-warmgray-600">Loading...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="publicSectorContent" class="flex-1 overflow-hidden flex">
+                <!-- Results list -->
+                <div class="w-1/2 border-r border-warmgray-200 overflow-y-auto">
+                    <div id="publicSectorResultsInfo" class="px-4 py-2 bg-warmgray-50 text-sm text-warmgray-500 border-b border-warmgray-200">
+                        Click "Search" to browse public sector data
+                    </div>
+                    <div id="publicSectorResults" class="divide-y divide-warmgray-100">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Detail panel -->
+                <div class="w-1/2 overflow-y-auto">
+                    <div id="publicSectorDetailEmpty" class="p-8 text-center text-warmgray-400">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-warmgray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+                        </svg>
+                        <p>Select an item to view details</p>
+                    </div>
+                    <div id="publicSectorDetail" class="hidden p-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="px-6 py-3 border-t border-warmgray-200 bg-warmgray-50 text-xs text-warmgray-500">
+                <div class="flex items-center gap-4 flex-wrap">
+                    <span class="font-semibold text-warmgray-700">Employer Types:</span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 mr-1">FEDERAL</span></span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-700 mr-1">STATE</span></span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700 mr-1">COUNTY</span></span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 mr-1">CITY</span></span>
+                    <span><span class="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-700 mr-1">SCHOOL</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TRENDS DASHBOARD MODAL -->
+    <!-- ============================================ -->
+    <div id="trendsModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 overflow-y-auto">
+        <div class="bg-cream rounded-xl shadow-2xl w-full max-w-7xl min-h-[85vh] m-4">
+            <!-- Modal header -->
+            <div class="sticky top-0 z-10 bg-gradient-to-r from-emerald-700 to-emerald-600 text-white rounded-t-xl px-6 py-4 flex justify-between items-center">
+                <div>
+                    <h2 class="headline text-xl font-bold flex items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                        </svg>
+                        Trends & Analytics
+                    </h2>
+                    <p class="text-emerald-200 text-sm">Historical membership and election trends (2010-2024)</p>
+                </div>
+                <button onclick="closeTrendsModal()" class="text-emerald-200 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Sub-tabs -->
+            <div class="bg-white border-b border-warmgray-200 px-6 py-3">
+                <div class="flex gap-2">
+                    <button id="trendsTabOverview" onclick="setTrendsTab('overview')"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-100 text-emerald-700">
+                        Overview
+                    </button>
+                    <button id="trendsTabMembership" onclick="setTrendsTab('membership')"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
+                        Membership Trends
+                    </button>
+                    <button id="trendsTabElections" onclick="setTrendsTab('elections')"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
+                        Election Trends
+                    </button>
+                    <button id="trendsTabByState" onclick="setTrendsTab('byState')"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
+                        By State
+                    </button>
+                    <button id="trendsTabByAffiliation" onclick="setTrendsTab('byAffiliation')"
+                        class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
+                        By Affiliation
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="trendsLoading" class="p-12 text-center">
+                <div class="inline-block w-10 h-10 border-4 border-warmgray-300 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-warmgray-600">Loading trends data...</p>
+            </div>
+
+            <!-- Content panels -->
+            <div id="trendsContent" class="hidden p-6">
+                <!-- Overview Panel -->
+                <div id="trendsPanelOverview">
+                    <div class="grid grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <div class="text-xs font-semibold text-warmgray-500 uppercase">Total Members (2024)</div>
+                            <div id="trendsMembers2024" class="text-2xl font-bold text-warmgray-900 mt-1">—</div>
+                            <div id="trendsMembersChange" class="text-sm text-warmgray-500 mt-1"></div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <div class="text-xs font-semibold text-warmgray-500 uppercase">Avg Annual Change</div>
+                            <div id="trendsAvgChange" class="text-2xl font-bold text-warmgray-900 mt-1">—</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <div class="text-xs font-semibold text-warmgray-500 uppercase">Election Win Rate</div>
+                            <div id="trendsWinRate" class="text-2xl font-bold text-emerald-600 mt-1">—</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <div class="text-xs font-semibold text-warmgray-500 uppercase">Elections (2024)</div>
+                            <div id="trendsElections2024" class="text-2xl font-bold text-warmgray-900 mt-1">—</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <h3 class="text-sm font-semibold text-warmgray-700 uppercase mb-4">Membership Over Time</h3>
+                            <div class="h-64">
+                                <canvas id="trendsOverviewChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <h3 class="text-sm font-semibold text-warmgray-700 uppercase mb-4">Election Outcomes</h3>
+                            <div class="h-64">
+                                <canvas id="trendsElectionsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Membership Panel -->
+                <div id="trendsPanelMembership" class="hidden">
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200 mb-6">
+                        <h3 class="text-sm font-semibold text-warmgray-700 uppercase mb-4">National Membership (2010-2024)</h3>
+                        <div class="h-80">
+                            <canvas id="trendsMembershipChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-3">Top Growing Affiliations</h4>
+                            <div id="trendsTopGrowing" class="space-y-2 text-sm"></div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-3">Declining Affiliations</h4>
+                            <div id="trendsDeclining" class="space-y-2 text-sm"></div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-3">Sector Breakdown</h4>
+                            <div id="trendsSectors" class="space-y-2 text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Elections Panel -->
+                <div id="trendsPanelElections" class="hidden">
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200 mb-6">
+                        <h3 class="text-sm font-semibold text-warmgray-700 uppercase mb-4">Election Outcomes by Year</h3>
+                        <div class="h-80">
+                            <canvas id="trendsElectionsByYearChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-3">Win Rate by Year</h4>
+                            <div id="trendsWinRateByYear" class="space-y-2 text-sm max-h-48 overflow-y-auto"></div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                            <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-3">Elections by State (Top 10)</h4>
+                            <div id="trendsElectionsByState" class="space-y-2 text-sm max-h-48 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- By State Panel -->
+                <div id="trendsPanelByState" class="hidden">
+                    <div class="mb-4 flex gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Select State</label>
+                            <select id="trendsStateSelect" onchange="loadStateTrends()"
+                                class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                                <option value="">Choose a state...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200 mb-6">
+                        <h3 class="text-sm font-semibold text-warmgray-700 uppercase mb-4">State Membership Trend</h3>
+                        <div class="h-80">
+                            <canvas id="trendsStateChart"></canvas>
+                        </div>
+                    </div>
+                    <div id="trendsStateInfo" class="grid grid-cols-3 gap-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- By Affiliation Panel -->
+                <div id="trendsPanelByAffiliation" class="hidden">
+                    <div class="mb-4 flex gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Select Affiliation</label>
+                            <select id="trendsAffiliationSelect" onchange="loadAffiliationTrends()"
+                                class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                                <option value="">Choose an affiliation...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200 mb-6">
+                        <h3 class="text-sm font-semibold text-warmgray-700 uppercase mb-4">Affiliation Membership Trend</h3>
+                        <div class="h-80">
+                            <canvas id="trendsAffiliationChart"></canvas>
+                        </div>
+                    </div>
+                    <div id="trendsAffiliationInfo" class="grid grid-cols-3 gap-4">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ==========================================
         // STATE
@@ -1438,8 +2027,72 @@
             if (hasUrlParams) {
                 await applyPendingUrlParams();
             }
+
+            // Debug: Check if modal functions are defined
+            console.log('=== MODAL FUNCTIONS CHECK ===');
+            console.log('openUnifiedEmployersModal:', typeof openUnifiedEmployersModal);
+            console.log('openElectionsModal:', typeof openElectionsModal);
+            console.log('openPublicSectorModal:', typeof openPublicSectorModal);
+            console.log('openTrendsModal:', typeof openTrendsModal);
+            console.log('API_BASE:', API_BASE);
         });
-        
+
+        async function runDebugCheck() {
+            const output = document.getElementById('debugOutput');
+            output.classList.remove('hidden');
+
+            let html = '<h3 class="font-bold mb-2">Debug Check</h3>';
+
+            // Check functions
+            html += '<div class="mb-2"><strong>Modal Functions:</strong></div>';
+            html += `<div>openUnifiedEmployersModal: ${typeof openUnifiedEmployersModal}</div>`;
+            html += `<div>openElectionsModal: ${typeof openElectionsModal}</div>`;
+            html += `<div>openPublicSectorModal: ${typeof openPublicSectorModal}</div>`;
+            html += `<div>openTrendsModal: ${typeof openTrendsModal}</div>`;
+
+            // Check API_BASE
+            html += `<div class="mt-2"><strong>API_BASE:</strong> ${API_BASE}</div>`;
+
+            // Check main state filter
+            const stateFilter = document.getElementById('stateFilter');
+            html += `<div><strong>State Filter Options:</strong> ${stateFilter ? stateFilter.options.length : 'NOT FOUND'}</div>`;
+
+            // Test API
+            html += '<div class="mt-2"><strong>API Tests:</strong></div>';
+            try {
+                const r1 = await fetch(`${API_BASE}/health`);
+                const d1 = await r1.json();
+                html += `<div style="color:green">✓ Health: ${d1.status}</div>`;
+            } catch(e) {
+                html += `<div style="color:red">✗ Health: ${e.message}</div>`;
+            }
+
+            try {
+                const r2 = await fetch(`${API_BASE}/employers/unified/search?limit=2`);
+                const d2 = await r2.json();
+                html += `<div style="color:green">✓ Unified: ${d2.total} total</div>`;
+            } catch(e) {
+                html += `<div style="color:red">✗ Unified: ${e.message}</div>`;
+            }
+
+            try {
+                const r3 = await fetch(`${API_BASE}/nlrb/elections/search?limit=2`);
+                const d3 = await r3.json();
+                html += `<div style="color:green">✓ Elections: ${d3.total} total</div>`;
+            } catch(e) {
+                html += `<div style="color:red">✗ Elections: ${e.message}</div>`;
+            }
+
+            // Check modal elements
+            html += '<div class="mt-2"><strong>Modal Elements:</strong></div>';
+            html += `<div>unifiedEmployersModal: ${document.getElementById('unifiedEmployersModal') ? 'EXISTS' : 'MISSING'}</div>`;
+            html += `<div>electionsModal: ${document.getElementById('electionsModal') ? 'EXISTS' : 'MISSING'}</div>`;
+            html += `<div>publicSectorModal: ${document.getElementById('publicSectorModal') ? 'EXISTS' : 'MISSING'}</div>`;
+            html += `<div>trendsModal: ${document.getElementById('trendsModal') ? 'EXISTS' : 'MISSING'}</div>`;
+
+            output.innerHTML = html;
+        }
+
         function initMap() {
             detailMap = L.map('detailMap').setView([39.8283, -98.5795], 4);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1678,15 +2331,12 @@
         
         async function loadHeaderStats() {
             try {
-                const response = await fetch(`${API_BASE}/stats/overview`);
-                const stats = await response.json();
-                
-                document.getElementById('headerWorkers').textContent = formatNumber(stats.workers || 0);
-                document.getElementById('headerEmployers').textContent = formatNumber(stats.employers || 0);
-                document.getElementById('headerUnions').textContent = formatNumber(stats.locals || 0);
-                
-                // Also load initial stats breakdown (unfiltered)
-                loadStatsBreakdown(new URLSearchParams());
+                const response = await fetch(`${API_BASE}/summary`);
+                const data = await response.json();
+
+                document.getElementById('headerWorkers').textContent = formatNumber(data.employers?.covered_workers || 0);
+                document.getElementById('headerEmployers').textContent = formatNumber(data.employers?.total_employers || 0);
+                document.getElementById('headerUnions').textContent = formatNumber(data.unions?.total_unions || 0);
             } catch (e) {
                 console.error('Failed to load header stats:', e);
             }
@@ -2811,7 +3461,7 @@
             }
             
             // Pagination
-            params.append('limit', '50');
+            params.append('limit', '15');
             params.append('offset', String((currentPage - 1) * 50));
             
             const endpoint = currentMode === 'employers' ? 'employers/search' : 'unions/search';
@@ -2823,9 +3473,17 @@
                     throw new Error(`HTTP ${response.status}`);
                 }
                 
-                const data = await response.json();
-                
-                // Calculate aggregate stats from results if not provided
+                const rawData = await response.json();
+
+                // Transform API response to expected format
+                // API returns {total, employers} or {total, unions}
+                // Frontend expects {total_count, results}
+                const data = {
+                    total_count: rawData.total || 0,
+                    results: currentMode === 'employers' ? (rawData.employers || []) : (rawData.unions || [])
+                };
+
+                // Calculate aggregate stats from results
                 if (currentMode === 'employers') {
                     data.total_workers = data.results.reduce((sum, r) => sum + (r.latest_unit_size || 0), 0);
                     data.total_locals = new Set(data.results.map(r => r.latest_union_fnum).filter(Boolean)).size;
@@ -2833,7 +3491,7 @@
                     data.total_members = data.results.reduce((sum, r) => sum + (r.members || 0), 0);
                     data.total_employers = data.results.reduce((sum, r) => sum + (r.f7_employer_count || 0), 0);
                 }
-                
+
                 displayResults(data);
                 updateUrl();
                 
@@ -4742,17 +5400,51 @@
             document.getElementById('analyticsDashboardModal').classList.add('flex');
             document.getElementById('dashboardLoading').classList.remove('hidden');
             document.getElementById('dashboardContent').classList.add('hidden');
-            
+
             try {
-                // Load all dashboard data in parallel
-                const [summary, trends, nlrbRecent, growth, geographic] = await Promise.all([
-                    fetch(`${API_BASE}/dashboard/summary`).then(r => r.json()),
-                    fetch(`${API_BASE}/dashboard/trends`).then(r => r.json()),
-                    fetch(`${API_BASE}/dashboard/nlrb-recent`).then(r => r.json()),
-                    fetch(`${API_BASE}/dashboard/growth`).then(r => r.json()),
-                    fetch(`${API_BASE}/dashboard/geographic`).then(r => r.json())
+                // Load data using existing endpoints
+                const [summaryData, nationalTrends, electionTrends, recentElections] = await Promise.all([
+                    fetch(`${API_BASE}/summary`).then(r => r.json()),
+                    fetch(`${API_BASE}/trends/national?start_year=2010&end_year=2024`).then(r => r.json()),
+                    fetch(`${API_BASE}/trends/elections`).then(r => r.json()),
+                    fetch(`${API_BASE}/nlrb/elections/search?limit=10`).then(r => r.json())
                 ]);
-                
+
+                // Transform data to expected format
+                const summary = {
+                    total_unions: summaryData.unions?.total_unions || 0,
+                    total_members: summaryData.unions?.total_members || 0,
+                    total_employers: summaryData.employers?.total_employers || 0,
+                    covered_workers: summaryData.employers?.covered_workers || 0,
+                    osha_establishments: 0,
+                    nlrb_cases_1yr: summaryData.nlrb?.elections?.total_elections || 0,
+                    nlrb_wins_1yr: summaryData.nlrb?.elections?.union_wins || 0,
+                    nlrb_losses_1yr: (summaryData.nlrb?.elections?.total_elections || 0) - (summaryData.nlrb?.elections?.union_wins || 0),
+                    top_affiliations: [],
+                    top_industries: []
+                };
+
+                const trends = {
+                    membership_by_year: (nationalTrends.trends || []).map(t => ({
+                        year: t.year,
+                        total_members: t.total_members_raw || t.total_members
+                    })),
+                    nlrb_by_year: (electionTrends.election_trends || []).map(e => ({
+                        year: e.year,
+                        wins: e.union_wins,
+                        losses: e.union_losses
+                    })),
+                    f7_filings_by_year: [],
+                    osha_by_year: []
+                };
+
+                const nlrbRecent = {
+                    recent_elections: (recentElections.elections || []).slice(0, 10)
+                };
+
+                const growth = {};
+                const geographic = { unions_by_state: [] };
+
                 renderDashboard(summary, trends, nlrbRecent, growth, geographic);
             } catch (e) {
                 console.error('Dashboard load failed:', e);
@@ -5583,8 +6275,8 @@
                 query: document.getElementById('mainSearch').value,
                 industry: document.getElementById('industrySearch').value,
                 state: document.getElementById('stateFilter').value,
-                cbsa: document.getElementById('cbsaFilter')?.value || '',
-                county: document.getElementById('countyFilter')?.value || '',
+                metro: document.getElementById('metroFilter')?.value || '',
+                city: document.getElementById('cityFilter')?.value || '',
                 sector: document.getElementById('sectorFilter')?.value || '',
                 createdAt: new Date().toISOString()
             };
@@ -5643,11 +6335,9 @@
             // Load state and dependent filters
             if (search.state) {
                 document.getElementById('stateFilter').value = search.state;
-                loadCBSAs(search.state).then(() => {
-                    if (search.cbsa) document.getElementById('cbsaFilter').value = search.cbsa;
-                });
-                loadCounties(search.state).then(() => {
-                    if (search.county) document.getElementById('countyFilter').value = search.county;
+                onStateChange().then(() => {
+                    if (search.metro) document.getElementById('metroFilter').value = search.metro;
+                    if (search.city) document.getElementById('cityFilter').value = search.city;
                 });
             }
             
@@ -5691,11 +6381,11 @@
             const state = document.getElementById('stateFilter').value;
             if (state) params.set('state', state);
             
-            const cbsa = document.getElementById('cbsaFilter').value;
-            if (cbsa) params.set('cbsa', cbsa);
-            
-            const county = document.getElementById('countyFilter').value;
-            if (county) params.set('county', county);
+            const metro = document.getElementById('metroFilter')?.value;
+            if (metro) params.set('cbsa', metro);
+
+            const city = document.getElementById('cityFilter')?.value;
+            if (city) params.set('city', city);
             
             // Sector filter (for unions)
             const sector = document.getElementById('sectorFilter')?.value;
@@ -5732,12 +6422,12 @@
             // State - need to wait for states to load
             const state = params.get('state');
             const cbsa = params.get('cbsa');
-            const county = params.get('county');
+            const city = params.get('city');
             const sector = params.get('sector');
             const aff = params.get('aff');
-            
+
             // Store for later application after data loads
-            window.pendingUrlParams = { state, cbsa, county, sector, aff };
+            window.pendingUrlParams = { state, cbsa, city, sector, aff };
             
             return true;
         }
@@ -5748,12 +6438,11 @@
             
             if (p.state) {
                 document.getElementById('stateFilter').value = p.state;
-                await loadCBSAs(p.state);
-                await loadCounties(p.state);
+                await onStateChange();  // This loads metros and cities for the state
             }
-            
-            if (p.cbsa) document.getElementById('cbsaFilter').value = p.cbsa;
-            if (p.county) document.getElementById('countyFilter').value = p.county;
+
+            if (p.cbsa) document.getElementById('metroFilter').value = p.cbsa;
+            if (p.city) document.getElementById('cityFilter').value = p.city;
             if (p.sector && document.getElementById('sectorFilter')) {
                 document.getElementById('sectorFilter').value = p.sector;
             }
@@ -5782,6 +6471,1083 @@
         function formatNumber(num) {
             if (num === null || num === undefined) return '0';
             return num.toLocaleString();
+        }
+
+        // ==========================================
+        // UNIFIED EMPLOYERS MODAL
+        // ==========================================
+        let unifiedEmployersResults = [];
+        let selectedUnifiedItem = null;
+
+        function openUnifiedEmployersModal() {
+            console.log('Opening Unified Employers modal...');
+            document.getElementById('unifiedEmployersModal').classList.remove('hidden');
+            document.getElementById('unifiedEmployersModal').classList.add('flex');
+
+            // Populate state dropdown
+            const stateSelect = document.getElementById('unifiedState');
+            if (stateSelect.options.length <= 1) {
+                const mainStateSelect = document.getElementById('stateFilter');
+                console.log('Main state options:', mainStateSelect.options.length);
+                for (let i = 1; i < mainStateSelect.options.length; i++) {
+                    const opt = mainStateSelect.options[i];
+                    stateSelect.add(new Option(opt.text, opt.value));
+                }
+            }
+
+            // Auto-load results on open
+            loadUnifiedEmployers();
+        }
+
+        function closeUnifiedEmployersModal() {
+            document.getElementById('unifiedEmployersModal').classList.add('hidden');
+            document.getElementById('unifiedEmployersModal').classList.remove('flex');
+        }
+
+        async function loadUnifiedEmployers() {
+            console.log('loadUnifiedEmployers called');
+            const name = document.getElementById('unifiedNameSearch').value;
+            const state = document.getElementById('unifiedState').value;
+            const source = document.getElementById('unifiedSource').value;
+            const hasUnion = document.getElementById('unifiedHasUnion').value;
+            const hasOsha = document.getElementById('unifiedHasOsha').value;
+
+            document.getElementById('unifiedLoading').classList.remove('hidden');
+            document.getElementById('unifiedContent').classList.add('hidden');
+
+            const params = new URLSearchParams({ limit: 100 });
+            if (name) params.append('name', name);
+            if (state) params.append('state', state);
+            if (source) params.append('source_type', source);
+            if (hasUnion) params.append('has_union', hasUnion);
+            if (hasOsha) params.append('has_osha', hasOsha);
+
+            const url = `${API_BASE}/employers/unified/search?${params}`;
+            console.log('Fetching:', url);
+
+            try {
+                const response = await fetch(url);
+                console.log('Response status:', response.status);
+                if (!response.ok) throw new Error('API error: ' + response.status);
+
+                const data = await response.json();
+                console.log('Data received:', data.total, 'employers');
+                unifiedEmployersResults = data.employers || [];
+                renderUnifiedResults(data);
+            } catch (e) {
+                console.error('Unified employers failed:', e);
+                document.getElementById('unifiedResultsInfo').textContent = 'Error: ' + e.message;
+            } finally {
+                document.getElementById('unifiedLoading').classList.add('hidden');
+                document.getElementById('unifiedContent').classList.remove('hidden');
+            }
+        }
+
+        function renderUnifiedResults(data) {
+            const infoEl = document.getElementById('unifiedResultsInfo');
+            const resultsEl = document.getElementById('unifiedResults');
+            const employers = data.employers || [];
+
+            infoEl.textContent = `${formatNumber(data.total || employers.length)} employers found`;
+
+            if (employers.length === 0) {
+                resultsEl.innerHTML = '<div class="p-8 text-center text-warmgray-400">No results found. Try adjusting filters.</div>';
+                return;
+            }
+
+            resultsEl.innerHTML = employers.map(item => `
+                <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedUnifiedItem?.unified_id === item.unified_id ? 'bg-purple-50 border-l-4 border-purple-500' : ''}"
+                     onclick="selectUnifiedItem('${item.unified_id}')">
+                    <div class="flex justify-between items-start mb-1">
+                        <div class="font-semibold text-warmgray-900 truncate flex-1">${escapeHtml(item.employer_name || 'Unknown')}</div>
+                        ${getSourceBadge(item.source_type)}
+                    </div>
+                    <div class="text-sm text-warmgray-500">
+                        ${escapeHtml(item.city || '')}, ${item.state || ''}
+                    </div>
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        ${item.osha_match_count ? `<span class="text-xs px-2 py-0.5 rounded bg-red-50 text-red-600">${item.osha_match_count} OSHA matches</span>` : ''}
+                        ${item.union_name ? `<span class="text-xs px-2 py-0.5 rounded bg-green-50 text-green-600">${escapeHtml(item.union_name)}</span>` : ''}
+                        ${item.employee_count ? `<span class="text-xs text-warmgray-400">${formatNumber(item.employee_count)} employees</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getSourceBadge(source) {
+            const colors = {
+                'F7': 'bg-blue-100 text-blue-700',
+                'NLRB': 'bg-purple-100 text-purple-700',
+                'VR': 'bg-green-100 text-green-700',
+                'PUBLIC': 'bg-orange-100 text-orange-700'
+            };
+            return `<span class="px-2 py-0.5 rounded text-xs font-semibold ${colors[source] || 'bg-gray-100 text-gray-700'}">${source}</span>`;
+        }
+
+        async function selectUnifiedItem(unifiedId) {
+            selectedUnifiedItem = unifiedEmployersResults.find(r => r.unified_id == unifiedId);
+            renderUnifiedResults({ employers: unifiedEmployersResults, total: unifiedEmployersResults.length });
+
+            document.getElementById('unifiedDetailEmpty').classList.add('hidden');
+            document.getElementById('unifiedDetail').classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_BASE}/employers/unified/${unifiedId}`);
+                if (!response.ok) throw new Error('API error');
+
+                const detail = await response.json();
+                renderUnifiedDetail(detail);
+            } catch (e) {
+                console.error('Unified detail failed:', e);
+                renderUnifiedDetail(selectedUnifiedItem);
+            }
+        }
+
+        function renderUnifiedDetail(detail) {
+            const el = document.getElementById('unifiedDetail');
+            const oshaMatches = detail.osha_matches || [];
+
+            el.innerHTML = `
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(detail.employer_name || 'Unknown')}</h3>
+                    <p class="text-warmgray-500">${escapeHtml(detail.city || '')}, ${detail.state || ''}</p>
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        ${getSourceBadge(detail.source_type)}
+                        ${detail.employee_count ? `<span class="badge badge-industry">${formatNumber(detail.employee_count)} employees</span>` : ''}
+                        ${detail.union_name ? `<span class="badge badge-public">${escapeHtml(detail.union_name)}</span>` : ''}
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-warmgray-50 rounded-lg p-4">
+                        <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-2">Source Information</h4>
+                        <div class="text-sm space-y-1">
+                            <div><span class="text-warmgray-500">Source:</span> ${detail.source_type || 'N/A'}</div>
+                            <div><span class="text-warmgray-500">Source ID:</span> ${detail.source_id || 'N/A'}</div>
+                            ${detail.naics_code ? `<div><span class="text-warmgray-500">NAICS:</span> ${detail.naics_code}</div>` : ''}
+                        </div>
+                    </div>
+
+                    ${oshaMatches.length > 0 ? `
+                        <div class="bg-red-50 rounded-lg p-4">
+                            <h4 class="text-xs font-semibold text-red-700 uppercase mb-2">OSHA Matches (${oshaMatches.length})</h4>
+                            <div class="space-y-2 max-h-48 overflow-y-auto">
+                                ${oshaMatches.slice(0, 10).map(m => `
+                                    <div class="text-sm border-l-2 border-red-300 pl-2">
+                                        <div class="font-medium text-warmgray-700">${escapeHtml(m.estab_name || m.establishment_name || 'Establishment')}</div>
+                                        <div class="text-xs text-warmgray-500">
+                                            ${escapeHtml(m.site_city || m.city || '')}, ${m.site_state || m.state || ''} ·
+                                            ${m.total_violations || 0} violations ·
+                                            $${formatNumber(m.total_penalties || 0)} penalties
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                ${oshaMatches.length > 10 ? `<div class="text-xs text-warmgray-400">... and ${oshaMatches.length - 10} more</div>` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${detail.union_fnum ? `
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h4 class="text-xs font-semibold text-green-700 uppercase mb-2">Union Connection</h4>
+                            <div class="text-sm">
+                                <div>${escapeHtml(detail.union_name || 'Unknown Union')}</div>
+                                <div class="text-xs text-warmgray-500">F-Num: ${detail.union_fnum}</div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // NLRB ELECTIONS MODAL
+        // ==========================================
+        let electionsResults = [];
+        let selectedElectionItem = null;
+
+        function openElectionsModal() {
+            console.log('Opening Elections modal...');
+            document.getElementById('electionsModal').classList.remove('hidden');
+            document.getElementById('electionsModal').classList.add('flex');
+
+            const stateSelect = document.getElementById('electionsState');
+            if (stateSelect.options.length <= 1) {
+                const mainStateSelect = document.getElementById('stateFilter');
+                for (let i = 1; i < mainStateSelect.options.length; i++) {
+                    const opt = mainStateSelect.options[i];
+                    stateSelect.add(new Option(opt.text, opt.value));
+                }
+            }
+
+            // Auto-load results on open
+            loadElections();
+        }
+
+        function closeElectionsModal() {
+            document.getElementById('electionsModal').classList.add('hidden');
+            document.getElementById('electionsModal').classList.remove('flex');
+        }
+
+        async function loadElections() {
+            console.log('loadElections called');
+            const employer = document.getElementById('electionsEmployerSearch').value;
+            const state = document.getElementById('electionsState').value;
+            const year = document.getElementById('electionsYear').value;
+            const result = document.getElementById('electionsResult').value;
+            const minVoters = document.getElementById('electionsMinVoters').value;
+
+            document.getElementById('electionsLoading').classList.remove('hidden');
+            document.getElementById('electionsContent').classList.add('hidden');
+
+            const params = new URLSearchParams({ limit: 100 });
+            if (employer) params.append('employer_name', employer);
+            if (state) params.append('state', state);
+            if (year) {
+                params.append('year_from', year);
+                params.append('year_to', year);
+            }
+            if (result === 'won') params.append('union_won', 'true');
+            if (result === 'lost') params.append('union_won', 'false');
+            if (minVoters) params.append('min_voters', minVoters);
+
+            const url = `${API_BASE}/nlrb/elections/search?${params}`;
+            console.log('Fetching:', url);
+
+            try {
+                const response = await fetch(url);
+                console.log('Response status:', response.status);
+                if (!response.ok) throw new Error('API error: ' + response.status);
+
+                const data = await response.json();
+                console.log('Data received:', data.total, 'elections');
+                electionsResults = data.elections || [];
+                renderElectionsResults(data);
+            } catch (e) {
+                console.error('Elections failed:', e);
+                document.getElementById('electionsResultsInfo').textContent = 'Error: ' + e.message;
+            } finally {
+                document.getElementById('electionsLoading').classList.add('hidden');
+                document.getElementById('electionsContent').classList.remove('hidden');
+            }
+        }
+
+        function renderElectionsResults(data) {
+            const infoEl = document.getElementById('electionsResultsInfo');
+            const resultsEl = document.getElementById('electionsResults');
+
+            const results = data.results || data.elections || [];
+            infoEl.textContent = `${formatNumber(data.total || results.length)} elections found`;
+
+            if (results.length === 0) {
+                resultsEl.innerHTML = '<div class="p-8 text-center text-warmgray-400">No elections found. Try adjusting filters.</div>';
+                return;
+            }
+
+            resultsEl.innerHTML = results.map(item => {
+                const isWon = item.union_won || item.result === 'won' || item.votes_for > item.votes_against;
+                const isLost = item.result === 'lost' || (!item.union_won && item.votes_against > item.votes_for);
+                const resultBadge = isWon
+                    ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">WON</span>'
+                    : isLost
+                        ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">LOST</span>'
+                        : '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-700">PENDING</span>';
+
+                return `
+                    <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedElectionItem?.case_number === item.case_number ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
+                         onclick="selectElectionItem('${item.case_number}')">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="text-xs text-warmgray-400">${item.case_number || 'N/A'}</div>
+                            ${resultBadge}
+                        </div>
+                        <div class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.employer_name || item.employer || 'Unknown')}</div>
+                        <div class="text-sm text-warmgray-500 truncate">
+                            ${escapeHtml(item.union_name || item.labor_org || 'Unknown Union')}
+                        </div>
+                        <div class="text-sm text-warmgray-500">
+                            ${escapeHtml(item.employer_city || item.city || '')}, ${item.employer_state || item.state || ''}
+                        </div>
+                        <div class="flex justify-between text-xs text-warmgray-400 mt-2">
+                            <span>${item.eligible_voters || 0} eligible</span>
+                            <span class="text-green-600">${item.vote_margin > 0 ? '+' + item.vote_margin : ''}</span>
+                            <span>${item.election_date || ''}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectElectionItem(caseNumber) {
+            selectedElectionItem = electionsResults.find(r => r.case_number === caseNumber);
+            renderElectionsResults({ elections: electionsResults, total: electionsResults.length });
+
+            document.getElementById('electionsDetailEmpty').classList.add('hidden');
+            document.getElementById('electionsDetail').classList.remove('hidden');
+            renderElectionDetail(selectedElectionItem);
+        }
+
+        function renderElectionDetail(item) {
+            if (!item) return;
+            const el = document.getElementById('electionsDetail');
+            const isWon = item.union_won === true;
+            const isLost = item.union_won === false;
+            const isPending = item.union_won === null;
+
+            el.innerHTML = `
+                <div class="mb-6">
+                    <div class="text-xs text-warmgray-400 mb-1">${item.case_number || 'N/A'}</div>
+                    <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(item.employer_name || 'Unknown')}</h3>
+                    <p class="text-warmgray-500">${escapeHtml(item.employer_city || '')}, ${item.employer_state || ''}</p>
+                    <div class="mt-2">
+                        <span class="badge ${isWon ? 'bg-green-100 text-green-700' : isPending ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}">
+                            ${isWon ? 'UNION WON' : isPending ? 'PENDING' : 'UNION LOST'}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="bg-warmgray-50 rounded-lg p-4 mb-4">
+                    <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-3">Election Results</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-warmgray-500">Eligible Voters:</span>
+                            <span class="font-semibold">${item.eligible_voters || 0}</span>
+                        </div>
+                        <div>
+                            <span class="text-warmgray-500">Vote Margin:</span>
+                            <span class="font-semibold ${item.vote_margin > 0 ? 'text-green-600' : item.vote_margin < 0 ? 'text-red-600' : ''}">${item.vote_margin > 0 ? '+' : ''}${item.vote_margin || 0}</span>
+                        </div>
+                        <div>
+                            <span class="text-warmgray-500">Election Type:</span>
+                            <span class="font-semibold">${item.election_type || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="text-warmgray-500">Election Date:</span>
+                            <span class="font-semibold">${item.election_date || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h4 class="text-xs font-semibold text-blue-700 uppercase mb-2">Union</h4>
+                        <div class="text-sm font-medium">${escapeHtml(item.union_name || item.labor_org || 'Unknown')}</div>
+                        ${item.aff_abbr ? `<div class="text-xs text-warmgray-500">${item.aff_abbr}</div>` : ''}
+                    </div>
+
+                    <div class="bg-warmgray-50 rounded-lg p-4">
+                        <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-2">Case Details</h4>
+                        <div class="text-sm space-y-1">
+                            <div><span class="text-warmgray-500">Filed:</span> ${item.date_filed || 'N/A'}</div>
+                            <div><span class="text-warmgray-500">Closed:</span> ${item.date_closed || item.tally_date || 'N/A'}</div>
+                            <div><span class="text-warmgray-500">Unit Type:</span> ${item.unit_type || 'N/A'}</div>
+                            ${item.naics_code ? `<div><span class="text-warmgray-500">NAICS:</span> ${item.naics_code}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // PUBLIC SECTOR MODAL
+        // ==========================================
+        let publicSectorResults = [];
+        let selectedPublicSectorItem = null;
+        let publicSectorView = 'locals';
+
+        function openPublicSectorModal() {
+            console.log('Opening Public Sector modal...');
+            document.getElementById('publicSectorModal').classList.remove('hidden');
+            document.getElementById('publicSectorModal').classList.add('flex');
+            initPublicSectorDropdowns();
+
+            // Auto-load results on open
+            if (publicSectorView === 'locals') {
+                loadPublicSectorLocals();
+            } else {
+                loadPublicSectorEmployers();
+            }
+        }
+
+        function closePublicSectorModal() {
+            document.getElementById('publicSectorModal').classList.add('hidden');
+            document.getElementById('publicSectorModal').classList.remove('flex');
+        }
+
+        async function initPublicSectorDropdowns() {
+            // Populate state dropdowns
+            const mainStateSelect = document.getElementById('stateFilter');
+            ['psLocalsState', 'psEmployersState'].forEach(id => {
+                const select = document.getElementById(id);
+                if (select.options.length <= 1) {
+                    for (let i = 1; i < mainStateSelect.options.length; i++) {
+                        const opt = mainStateSelect.options[i];
+                        select.add(new Option(opt.text, opt.value));
+                    }
+                }
+            });
+
+            // Load parent unions
+            const parentSelect = document.getElementById('psLocalsParent');
+            if (parentSelect.options.length <= 1) {
+                try {
+                    const response = await fetch(`${API_BASE}/public-sector/parent-unions`);
+                    const data = await response.json();
+                    (data.parent_unions || []).forEach(u => {
+                        parentSelect.add(new Option(u.full_name || u.abbrev, u.abbrev));
+                    });
+                } catch (e) { console.error('Failed to load parent unions:', e); }
+            }
+
+            // Load employer types
+            const typeSelect = document.getElementById('psEmployersType');
+            if (typeSelect.options.length <= 1) {
+                try {
+                    const response = await fetch(`${API_BASE}/public-sector/employer-types`);
+                    const data = await response.json();
+                    (data.employer_types || []).forEach(t => {
+                        const label = (t.employer_type || '').replace(/_/g, ' ');
+                        typeSelect.add(new Option(`${label} (${t.count})`, t.employer_type));
+                    });
+                } catch (e) { console.error('Failed to load employer types:', e); }
+            }
+        }
+
+        function setPublicSectorView(view) {
+            publicSectorView = view;
+
+            document.getElementById('psLocalsTab').className = view === 'locals'
+                ? 'px-4 py-1.5 text-sm font-semibold rounded-full transition-all bg-warmgray-900 text-white'
+                : 'px-4 py-1.5 text-sm font-semibold rounded-full transition-all text-warmgray-600 hover:text-warmgray-800';
+            document.getElementById('psEmployersTab').className = view === 'employers'
+                ? 'px-4 py-1.5 text-sm font-semibold rounded-full transition-all bg-warmgray-900 text-white'
+                : 'px-4 py-1.5 text-sm font-semibold rounded-full transition-all text-warmgray-600 hover:text-warmgray-800';
+
+            document.getElementById('psLocalsFilters').classList.toggle('hidden', view !== 'locals');
+            document.getElementById('psEmployersFilters').classList.toggle('hidden', view !== 'employers');
+
+            // Clear results
+            publicSectorResults = [];
+            document.getElementById('publicSectorResultsInfo').textContent = 'Click "Search" to browse public sector data';
+            document.getElementById('publicSectorResults').innerHTML = '';
+            document.getElementById('publicSectorDetailEmpty').classList.remove('hidden');
+            document.getElementById('publicSectorDetail').classList.add('hidden');
+        }
+
+        async function loadPublicSectorLocals() {
+            console.log('loadPublicSectorLocals called');
+            const name = document.getElementById('psLocalsNameSearch').value;
+            const state = document.getElementById('psLocalsState').value;
+            const parent = document.getElementById('psLocalsParent').value;
+
+            document.getElementById('publicSectorLoading').classList.remove('hidden');
+            document.getElementById('publicSectorContent').classList.add('hidden');
+
+            const params = new URLSearchParams({ limit: 100 });
+            if (name) params.append('name', name);
+            if (state) params.append('state', state);
+            if (parent) params.append('parent_union', parent);
+
+            const url = `${API_BASE}/public-sector/locals?${params}`;
+            console.log('Fetching:', url);
+
+            try {
+                const response = await fetch(url);
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Data received:', data.total, 'locals');
+                publicSectorResults = data.locals || [];
+                renderPublicSectorResults();
+            } catch (e) {
+                console.error('Public sector locals failed:', e);
+                document.getElementById('publicSectorResultsInfo').textContent = 'Error: ' + e.message;
+            } finally {
+                document.getElementById('publicSectorLoading').classList.add('hidden');
+                document.getElementById('publicSectorContent').classList.remove('hidden');
+            }
+        }
+
+        async function loadPublicSectorEmployers() {
+            const name = document.getElementById('psEmployersNameSearch').value;
+            const state = document.getElementById('psEmployersState').value;
+            const type = document.getElementById('psEmployersType').value;
+
+            document.getElementById('publicSectorLoading').classList.remove('hidden');
+            document.getElementById('publicSectorContent').classList.add('hidden');
+
+            const params = new URLSearchParams({ limit: 100 });
+            if (name) params.append('name', name);
+            if (state) params.append('state', state);
+            if (type) params.append('employer_type', type);
+
+            try {
+                const response = await fetch(`${API_BASE}/public-sector/employers?${params}`);
+                const data = await response.json();
+                publicSectorResults = data.employers || data.results || [];
+                renderPublicSectorResults();
+            } catch (e) {
+                console.error('Public sector employers failed:', e);
+                document.getElementById('publicSectorResultsInfo').textContent = 'Error loading results.';
+            } finally {
+                document.getElementById('publicSectorLoading').classList.add('hidden');
+                document.getElementById('publicSectorContent').classList.remove('hidden');
+            }
+        }
+
+        function renderPublicSectorResults() {
+            const infoEl = document.getElementById('publicSectorResultsInfo');
+            const resultsEl = document.getElementById('publicSectorResults');
+
+            infoEl.textContent = `${formatNumber(publicSectorResults.length)} ${publicSectorView} found`;
+
+            if (publicSectorResults.length === 0) {
+                resultsEl.innerHTML = '<div class="p-8 text-center text-warmgray-400">No results found.</div>';
+                return;
+            }
+
+            if (publicSectorView === 'locals') {
+                resultsEl.innerHTML = publicSectorResults.map(item => `
+                    <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedPublicSectorItem?.id === item.id ? 'bg-orange-50 border-l-4 border-orange-500' : ''}"
+                         onclick="selectPublicSectorItem('${item.id}', 'local')">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="font-semibold text-warmgray-900 truncate flex-1">${escapeHtml(item.local_name || 'Unknown')}</div>
+                            ${item.parent_abbrev ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">${item.parent_abbrev}</span>` : ''}
+                        </div>
+                        ${item.local_designation ? `<div class="text-xs text-warmgray-400">${item.local_designation}</div>` : ''}
+                        <div class="text-sm text-warmgray-500">${escapeHtml(item.city || '')}, ${item.state || ''}</div>
+                        ${item.members ? `<div class="text-xs text-warmgray-400 mt-1">${formatNumber(item.members)} members</div>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                resultsEl.innerHTML = publicSectorResults.map(item => `
+                    <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedPublicSectorItem?.id === item.id ? 'bg-orange-50 border-l-4 border-orange-500' : ''}"
+                         onclick="selectPublicSectorItem('${item.id}', 'employer')">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="font-semibold text-warmgray-900 truncate flex-1">${escapeHtml(item.employer_name || 'Unknown')}</div>
+                            ${getEmployerTypeBadge(item.employer_type)}
+                        </div>
+                        <div class="text-sm text-warmgray-500">${item.state || ''} ${item.county ? `· ${item.county} County` : ''}</div>
+                        ${item.total_employees ? `<div class="text-xs text-warmgray-400 mt-1">${formatNumber(item.total_employees)} employees</div>` : ''}
+                    </div>
+                `).join('');
+            }
+        }
+
+        function getEmployerTypeBadge(type) {
+            const colors = {
+                'FEDERAL': 'bg-blue-100 text-blue-700',
+                'STATE': 'bg-purple-100 text-purple-700',
+                'STATE_AGENCY': 'bg-purple-100 text-purple-700',
+                'COUNTY': 'bg-orange-100 text-orange-700',
+                'CITY': 'bg-green-100 text-green-700',
+                'SCHOOL_DISTRICT': 'bg-yellow-100 text-yellow-700',
+                'UNIVERSITY': 'bg-indigo-100 text-indigo-700',
+                'TRANSIT_AUTHORITY': 'bg-cyan-100 text-cyan-700',
+                'UTILITY': 'bg-teal-100 text-teal-700',
+                'SPECIAL_DISTRICT': 'bg-pink-100 text-pink-700'
+            };
+            const label = (type || '').replace(/_/g, ' ');
+            return `<span class="px-2 py-0.5 rounded text-xs font-semibold ${colors[type] || 'bg-gray-100 text-gray-700'}">${label}</span>`;
+        }
+
+        function selectPublicSectorItem(id, type) {
+            selectedPublicSectorItem = publicSectorResults.find(r => r.id == id);
+            renderPublicSectorResults();
+
+            document.getElementById('publicSectorDetailEmpty').classList.add('hidden');
+            document.getElementById('publicSectorDetail').classList.remove('hidden');
+            renderPublicSectorDetail(selectedPublicSectorItem, type);
+        }
+
+        function renderPublicSectorDetail(item, type) {
+            if (!item) return;
+            const el = document.getElementById('publicSectorDetail');
+
+            if (type === 'local') {
+                el.innerHTML = `
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(item.local_name || 'Unknown')}</h3>
+                        ${item.local_designation ? `<p class="text-warmgray-500">${item.local_designation}</p>` : ''}
+                        <p class="text-warmgray-500">${escapeHtml(item.city || '')}, ${item.state || ''}</p>
+                        <div class="flex gap-2 mt-2 flex-wrap">
+                            ${item.parent_abbrev ? `<span class="badge bg-orange-100 text-orange-700">${item.parent_abbrev}</span>` : ''}
+                            ${item.parent_name ? `<span class="text-xs text-warmgray-500">${item.parent_name}</span>` : ''}
+                        </div>
+                        ${item.members ? `<div class="text-sm text-warmgray-600 mt-2">${formatNumber(item.members)} members</div>` : ''}
+                    </div>
+
+                    <div class="space-y-4">
+                        ${item.contact_info ? `
+                            <div class="bg-warmgray-50 rounded-lg p-4">
+                                <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-2">Contact</h4>
+                                <div class="text-sm">${escapeHtml(item.contact_info)}</div>
+                            </div>
+                        ` : ''}
+                        ${item.website ? `
+                            <div class="bg-blue-50 rounded-lg p-4">
+                                <h4 class="text-xs font-semibold text-blue-700 uppercase mb-2">Website</h4>
+                                <a href="${item.website}" target="_blank" class="text-sm text-blue-600 hover:underline">${item.website}</a>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                el.innerHTML = `
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(item.employer_name || 'Unknown')}</h3>
+                        <p class="text-warmgray-500">${item.city ? item.city + ', ' : ''}${item.state || ''}</p>
+                        <div class="flex gap-2 mt-2 flex-wrap">
+                            ${getEmployerTypeBadge(item.employer_type)}
+                            ${item.total_employees ? `<span class="badge badge-industry">${formatNumber(item.total_employees)} employees</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="bg-warmgray-50 rounded-lg p-4">
+                            <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-2">Details</h4>
+                            <div class="text-sm space-y-1">
+                                <div><span class="text-warmgray-500">Type:</span> ${(item.employer_type || 'N/A').replace(/_/g, ' ')}</div>
+                                <div><span class="text-warmgray-500">State:</span> ${item.state || 'N/A'}</div>
+                                ${item.county ? `<div><span class="text-warmgray-500">County:</span> ${item.county}</div>` : ''}
+                                ${item.naics_code ? `<div><span class="text-warmgray-500">NAICS:</span> ${item.naics_code}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ==========================================
+        // TRENDS MODAL
+        // ==========================================
+        let trendsData = {};
+        let trendsCharts = {};
+        let currentTrendsTab = 'overview';
+
+        function openTrendsModal() {
+            document.getElementById('trendsModal').classList.remove('hidden');
+            document.getElementById('trendsModal').classList.add('flex');
+            loadTrendsData();
+        }
+
+        function closeTrendsModal() {
+            document.getElementById('trendsModal').classList.add('hidden');
+            document.getElementById('trendsModal').classList.remove('flex');
+        }
+
+        async function loadTrendsData() {
+            document.getElementById('trendsLoading').classList.remove('hidden');
+            document.getElementById('trendsContent').classList.add('hidden');
+
+            try {
+                const [national, elections, affiliations, states, sectors] = await Promise.all([
+                    fetch(`${API_BASE}/trends/national?start_year=2010&end_year=2024`).then(r => r.json()),
+                    fetch(`${API_BASE}/trends/elections`).then(r => r.json()),
+                    fetch(`${API_BASE}/trends/affiliations/summary`).then(r => r.json()),
+                    fetch(`${API_BASE}/trends/states/summary`).then(r => r.json()),
+                    fetch(`${API_BASE}/trends/sectors`).then(r => r.json())
+                ]);
+
+                trendsData = { national, elections, affiliations, states, sectors };
+                renderTrendsOverview();
+
+                // Populate dropdowns
+                populateTrendsDropdowns();
+
+            } catch (e) {
+                console.error('Trends data failed:', e);
+            } finally {
+                document.getElementById('trendsLoading').classList.add('hidden');
+                document.getElementById('trendsContent').classList.remove('hidden');
+            }
+        }
+
+        function populateTrendsDropdowns() {
+            // State dropdown
+            const stateSelect = document.getElementById('trendsStateSelect');
+            if (stateSelect.options.length <= 1) {
+                const mainStateSelect = document.getElementById('stateFilter');
+                for (let i = 1; i < mainStateSelect.options.length; i++) {
+                    const opt = mainStateSelect.options[i];
+                    stateSelect.add(new Option(opt.text, opt.value));
+                }
+            }
+
+            // Affiliation dropdown
+            const affSelect = document.getElementById('trendsAffiliationSelect');
+            if (affSelect.options.length <= 1 && trendsData.affiliations?.affiliations) {
+                trendsData.affiliations.affiliations.slice(0, 30).forEach(a => {
+                    affSelect.add(new Option(a.aff_abbr || a.abbreviation, a.aff_abbr || a.abbreviation));
+                });
+            }
+        }
+
+        function setTrendsTab(tab) {
+            currentTrendsTab = tab;
+
+            ['overview', 'membership', 'elections', 'byState', 'byAffiliation'].forEach(t => {
+                const btn = document.getElementById(`trendsTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+                const panel = document.getElementById(`trendsPanel${t.charAt(0).toUpperCase() + t.slice(1)}`);
+
+                if (t === tab) {
+                    btn.className = 'px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-100 text-emerald-700';
+                    panel.classList.remove('hidden');
+                } else {
+                    btn.className = 'px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100';
+                    panel.classList.add('hidden');
+                }
+            });
+
+            // Render the selected tab
+            switch (tab) {
+                case 'overview': renderTrendsOverview(); break;
+                case 'membership': renderTrendsMembership(); break;
+                case 'elections': renderTrendsElections(); break;
+            }
+        }
+
+        function renderTrendsOverview() {
+            const data = trendsData.national?.trends || [];
+            const elections = trendsData.elections?.election_trends || [];
+
+            // Find latest year data
+            const latest = data[data.length - 1];
+            const first = data[0];
+
+            if (latest) {
+                // Use deduplicated data if available, otherwise fall back to raw
+                const latestMembers = latest.total_members_dedup || latest.total_members_raw || 0;
+                const firstMembers = first?.total_members_dedup || first?.total_members_raw || 0;
+                document.getElementById('trendsMembers2024').textContent = formatNumber(latestMembers);
+                if (first && latestMembers && firstMembers) {
+                    const change = ((latestMembers - firstMembers) / firstMembers * 100).toFixed(1);
+                    document.getElementById('trendsMembersChange').textContent = `${change > 0 ? '+' : ''}${change}% since ${first.year}`;
+                }
+            }
+
+            // Calculate averages using deduplicated data
+            if (data.length > 1) {
+                let totalChange = 0;
+                for (let i = 1; i < data.length; i++) {
+                    const curr = data[i].total_members_dedup || data[i].total_members_raw;
+                    const prev = data[i-1].total_members_dedup || data[i-1].total_members_raw;
+                    if (curr && prev) {
+                        totalChange += (curr - prev) / prev * 100;
+                    }
+                }
+                document.getElementById('trendsAvgChange').textContent = `${(totalChange / (data.length - 1)).toFixed(2)}%`;
+            }
+
+            // Elections stats
+            if (elections.length > 0) {
+                const latestElection = elections[elections.length - 1];
+                const totalWins = elections.reduce((sum, y) => sum + (y.union_wins || 0), 0);
+                const totalElections = elections.reduce((sum, y) => sum + (y.total_elections || 0), 0);
+                document.getElementById('trendsWinRate').textContent = totalElections > 0
+                    ? `${Math.round(totalWins / totalElections * 100)}%` : '—';
+                document.getElementById('trendsElections2024').textContent = formatNumber(latestElection?.total_elections || 0);
+            }
+
+            // Overview charts
+            renderOverviewCharts();
+        }
+
+        function renderOverviewCharts() {
+            const data = trendsData.national?.trends || [];
+            const elections = trendsData.elections?.election_trends || [];
+
+            // Membership chart
+            const ctx1 = document.getElementById('trendsOverviewChart');
+            if (ctx1 && data.length > 0) {
+                if (trendsCharts.overview) trendsCharts.overview.destroy();
+                trendsCharts.overview = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => d.year),
+                        datasets: [{
+                            label: 'Total Members (Deduplicated)',
+                            data: data.map(d => d.total_members_dedup || d.total_members_raw),
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: false, ticks: { callback: v => (v/1000000).toFixed(1) + 'M' } }
+                        }
+                    }
+                });
+            }
+
+            // Elections chart
+            const ctx2 = document.getElementById('trendsElectionsChart');
+            if (ctx2 && elections.length > 0) {
+                if (trendsCharts.electionsOverview) trendsCharts.electionsOverview.destroy();
+                trendsCharts.electionsOverview = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: elections.map(d => d.year),
+                        datasets: [
+                            {
+                                label: 'Won',
+                                data: elections.map(d => d.union_wins || 0),
+                                backgroundColor: '#22c55e'
+                            },
+                            {
+                                label: 'Lost',
+                                data: elections.map(d => d.union_losses || 0),
+                                backgroundColor: '#ef4444'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { x: { stacked: true }, y: { stacked: true } }
+                    }
+                });
+            }
+        }
+
+        function renderTrendsMembership() {
+            const data = trendsData.national?.trends || [];
+            const affiliations = trendsData.affiliations?.affiliations || [];
+            const sectors = trendsData.sectors?.sectors || [];
+
+            // Main membership chart
+            const ctx = document.getElementById('trendsMembershipChart');
+            if (ctx && data.length > 0) {
+                if (trendsCharts.membership) trendsCharts.membership.destroy();
+                trendsCharts.membership = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => d.year),
+                        datasets: [{
+                            label: 'Total Members (Deduplicated)',
+                            data: data.map(d => d.total_members_dedup || d.total_members_raw),
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: false, ticks: { callback: v => (v/1000000).toFixed(1) + 'M' } }
+                        }
+                    }
+                });
+            }
+
+            // Top growing/declining (sort by pct_change)
+            const sortedAffs = [...affiliations].sort((a, b) => (b.pct_change || 0) - (a.pct_change || 0));
+            const growing = sortedAffs.filter(a => (a.pct_change || 0) > 0).slice(0, 5);
+            const declining = sortedAffs.filter(a => (a.pct_change || 0) < 0).slice(-5).reverse();
+
+            document.getElementById('trendsTopGrowing').innerHTML = growing.map(a => `
+                <div class="flex justify-between">
+                    <span>${a.aff_abbr}</span>
+                    <span class="text-green-600">+${(a.pct_change || 0).toFixed(1)}%</span>
+                </div>
+            `).join('') || '<div class="text-warmgray-400">No data</div>';
+
+            document.getElementById('trendsDeclining').innerHTML = declining.map(a => `
+                <div class="flex justify-between">
+                    <span>${a.aff_abbr}</span>
+                    <span class="text-red-600">${(a.pct_change || 0).toFixed(1)}%</span>
+                </div>
+            `).join('') || '<div class="text-warmgray-400">No data</div>';
+
+            // Sectors
+            document.getElementById('trendsSectors').innerHTML = sectors.slice(0, 5).map(s => `
+                <div class="flex justify-between">
+                    <span>${s.sector || s.name}</span>
+                    <span class="font-semibold">${formatNumber(s.members || s.total_members || 0)}</span>
+                </div>
+            `).join('') || '<div class="text-warmgray-400">No data</div>';
+        }
+
+        function renderTrendsElections() {
+            const elections = trendsData.elections?.election_trends || [];
+            const byState = trendsData.elections?.by_state || [];
+
+            // Elections by year chart
+            const ctx = document.getElementById('trendsElectionsByYearChart');
+            if (ctx && elections.length > 0) {
+                if (trendsCharts.electionsByYear) trendsCharts.electionsByYear.destroy();
+                trendsCharts.electionsByYear = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: elections.map(d => d.year),
+                        datasets: [
+                            {
+                                label: 'Won',
+                                data: elections.map(d => d.union_wins || 0),
+                                backgroundColor: '#22c55e'
+                            },
+                            {
+                                label: 'Lost',
+                                data: elections.map(d => d.union_losses || 0),
+                                backgroundColor: '#ef4444'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            // Win rate by year
+            document.getElementById('trendsWinRateByYear').innerHTML = elections.slice().reverse().map(y => {
+                const rate = y.win_rate || 0;
+                return `
+                    <div class="flex justify-between">
+                        <span>${y.year}</span>
+                        <span class="font-semibold ${rate >= 50 ? 'text-green-600' : 'text-red-600'}">${rate.toFixed(1)}%</span>
+                    </div>
+                `;
+            }).join('') || '<div class="text-warmgray-400">No data</div>';
+
+            // By state - Note: API may not return by_state, show message if empty
+            document.getElementById('trendsElectionsByState').innerHTML = byState.length > 0
+                ? byState.slice(0, 10).map(s => `
+                    <div class="flex justify-between">
+                        <span>${s.state}</span>
+                        <span class="font-semibold">${formatNumber(s.total_elections || s.total || 0)}</span>
+                    </div>
+                `).join('')
+                : '<div class="text-warmgray-400">State breakdown not available</div>';
+        }
+
+        async function loadStateTrends() {
+            const state = document.getElementById('trendsStateSelect').value;
+            if (!state) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/trends/by-state/${state}`);
+                const data = await response.json();
+
+                const trends = data.trends || [];
+                const ctx = document.getElementById('trendsStateChart');
+
+                if (ctx && trends.length > 0) {
+                    if (trendsCharts.state) trendsCharts.state.destroy();
+                    trendsCharts.state = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: trends.map(d => d.year),
+                            datasets: [{
+                                label: `${state} Members`,
+                                data: trends.map(d => d.total_members || d.members),
+                                borderColor: '#059669',
+                                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: false } }
+                        }
+                    });
+                }
+
+                // State info cards
+                const latest = trends[trends.length - 1];
+                const first = trends[0];
+                document.getElementById('trendsStateInfo').innerHTML = `
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase">Latest Members</div>
+                        <div class="text-2xl font-bold text-warmgray-900 mt-1">${formatNumber(latest?.total_members || latest?.members || 0)}</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase">Change</div>
+                        <div class="text-2xl font-bold ${first && latest && latest.total_members > first.total_members ? 'text-green-600' : 'text-red-600'} mt-1">
+                            ${first && latest ? ((latest.total_members - first.total_members) / first.total_members * 100).toFixed(1) : 0}%
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase">Years of Data</div>
+                        <div class="text-2xl font-bold text-warmgray-900 mt-1">${trends.length}</div>
+                    </div>
+                `;
+            } catch (e) {
+                console.error('State trends failed:', e);
+            }
+        }
+
+        async function loadAffiliationTrends() {
+            const aff = document.getElementById('trendsAffiliationSelect').value;
+            if (!aff) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/trends/by-affiliation/${encodeURIComponent(aff)}`);
+                const data = await response.json();
+
+                const trends = data.trends || [];
+                const ctx = document.getElementById('trendsAffiliationChart');
+
+                if (ctx && trends.length > 0) {
+                    if (trendsCharts.affiliation) trendsCharts.affiliation.destroy();
+                    trendsCharts.affiliation = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: trends.map(d => d.year),
+                            datasets: [{
+                                label: `${aff} Members`,
+                                data: trends.map(d => d.total_members || d.members),
+                                borderColor: '#8b5cf6',
+                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: false } }
+                        }
+                    });
+                }
+
+                // Affiliation info cards
+                const latest = trends[trends.length - 1];
+                const first = trends[0];
+                document.getElementById('trendsAffiliationInfo').innerHTML = `
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase">Latest Members</div>
+                        <div class="text-2xl font-bold text-warmgray-900 mt-1">${formatNumber(latest?.total_members || latest?.members || 0)}</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase">Change</div>
+                        <div class="text-2xl font-bold ${first && latest && latest.total_members > first.total_members ? 'text-green-600' : 'text-red-600'} mt-1">
+                            ${first && latest ? ((latest.total_members - first.total_members) / first.total_members * 100).toFixed(1) : 0}%
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase">Years of Data</div>
+                        <div class="text-2xl font-bold text-warmgray-900 mt-1">${trends.length}</div>
+                    </div>
+                `;
+            } catch (e) {
+                console.error('Affiliation trends failed:', e);
+            }
         }
     </script>
 </body>
