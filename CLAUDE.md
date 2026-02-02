@@ -101,30 +101,68 @@ conn = psycopg2.connect(
 ### Core
 - `GET /api/health` - Health check
 - `GET /api/summary` - Platform summary with coverage %
+- `GET /api/stats/breakdown` - Detailed statistics breakdown
+
+### Lookups (Dropdowns)
+- `GET /api/lookups/sectors` - Union sectors (Private, Federal, Public, RLA)
+- `GET /api/lookups/affiliations` - National union affiliations
+- `GET /api/lookups/states` - States with employer counts
+- `GET /api/lookups/naics-sectors` - NAICS sector codes
+- `GET /api/lookups/metros` - Metro areas
+- `GET /api/lookups/cities` - Cities for filters
 
 ### Employers
 - `GET /api/employers/search` - Search by name, state, NAICS, city
-- `GET /api/employers/{id}` - Employer detail with OSHA data
+- `GET /api/employers/fuzzy-search` - Fuzzy name matching search
+- `GET /api/employers/normalized-search` - Normalized name search
+- `GET /api/employers/{employer_id}` - Employer detail
+- `GET /api/employers/{employer_id}/similar` - Similar employers
+- `GET /api/employers/{employer_id}/osha` - OSHA data for employer
+- `GET /api/employers/{employer_id}/nlrb` - NLRB elections for employer
 - `GET /api/employers/cities` - City list for dropdown
-- `GET /api/employers/by-naics/{code}` - By industry code
-- `GET /api/employers/by-naics-detailed/{naics}` - Detailed NAICS search
+- `GET /api/employers/by-naics-detailed/{naics_code}` - Detailed NAICS search
 
 ### Unions
 - `GET /api/unions/search` - Search unions
-- `GET /api/unions/{f_num}` - Union detail
-- `GET /api/unions/locals/{aff}` - Locals by affiliation
+- `GET /api/unions/{f_num}` - Union detail with top employers
+- `GET /api/unions/{f_num}/employers` - All employers for union
+- `GET /api/unions/locals/{affiliation}` - Locals by affiliation
+- `GET /api/unions/national` - List national/international unions
+- `GET /api/unions/national/{aff_abbr}` - National union detail
+- `GET /api/unions/types` - Union designation types
+- `GET /api/unions/cities` - Cities with union presence
 
 ### NLRB
-- `GET /api/nlrb/elections/search` - Election search
-- `GET /api/nlrb/ulp/search` - ULP search
-- `GET /api/nlrb/participants/search` - Participant search
-- `GET /api/elections/recent` - Recent elections
-- `GET /api/elections/by-employer/{name}` - By employer
+- `GET /api/nlrb/summary` - NLRB statistics summary
+- `GET /api/nlrb/elections/search` - Election search (use for recent elections)
+- `GET /api/nlrb/elections/map` - Elections with coordinates for mapping
+- `GET /api/nlrb/elections/by-year` - Elections grouped by year
+- `GET /api/nlrb/elections/by-state` - Elections grouped by state
+- `GET /api/nlrb/elections/by-affiliation` - Elections grouped by union affiliation
+- `GET /api/nlrb/election/{case_number}` - Single election detail
+- `GET /api/nlrb/ulp/search` - ULP case search
+- `GET /api/nlrb/ulp/by-section` - ULP cases by NLRA section
 
 ### OSHA
 - `GET /api/osha/summary` - OSHA summary statistics
 - `GET /api/osha/establishments/search` - Establishment search
+- `GET /api/osha/establishments/{establishment_id}` - Establishment detail
+- `GET /api/osha/by-state` - OSHA stats by state
 - `GET /api/osha/high-severity` - High severity violations
+- `GET /api/osha/organizing-targets` - High-violation organizing targets
+- `GET /api/osha/employer-safety/{f7_employer_id}` - Safety record for F-7 employer
+- `GET /api/osha/unified-matches` - OSHA matches from unified employers
+
+### Voluntary Recognition
+- `GET /api/vr/stats/summary` - VR statistics summary
+- `GET /api/vr/stats/by-year` - VR cases by year
+- `GET /api/vr/stats/by-state` - VR cases by state
+- `GET /api/vr/stats/by-affiliation` - VR cases by union
+- `GET /api/vr/search` - Search VR cases
+- `GET /api/vr/map` - VR cases with coordinates
+- `GET /api/vr/new-employers` - Employers new from VR (not in F-7)
+- `GET /api/vr/pipeline` - VR pipeline analysis
+- `GET /api/vr/{case_number}` - Single VR case detail
 
 ### Public Sector
 - `GET /api/public-sector/stats` - Summary statistics
@@ -134,14 +172,12 @@ conn = psycopg2.connect(
 - `GET /api/public-sector/employer-types` - Employer type list
 - `GET /api/public-sector/benchmarks` - EPI benchmarks
 
-### Organizing Targets
-- `GET /api/targets/search` - Search 990-based targets
-- `GET /api/targets/stats` - Target statistics
-- `GET /api/targets/{id}` - Target detail with contracts
-- `GET /api/targets/{id}/contracts` - All contracts for target
-- `GET /api/targets/for-union/{f_num}` - Recommended for union
+### Organizing
+- `GET /api/organizing/summary` - Organizing activity summary
+- `GET /api/organizing/by-state` - Organizing stats by state
 - `GET /api/organizing/scorecard` - 6-factor OSHA scorecard search
-- `GET /api/organizing/scorecard/{estab_id}` - Scorecard detail
+- `GET /api/organizing/scorecard/{estab_id}` - Scorecard detail for establishment
+- `GET /api/osha/organizing-targets` - OSHA-based organizing targets (high violations)
 
 ### Unified Employers (NEW)
 - `GET /api/employers/unified/stats` - Stats by source type (F7, NLRB, VR, PUBLIC)
@@ -151,17 +187,39 @@ conn = psycopg2.connect(
 - `GET /api/osha/unified-matches` - Search OSHA matches from unified employers
 
 ### Geographic
-- `GET /api/metros` - List metro areas
-- `GET /api/metros/{cbsa}/stats` - Metro stats with density
+- `GET /api/lookups/metros` - List metro areas with density
+- `GET /api/metros/{cbsa_code}/stats` - Metro stats with density
+- `GET /api/lookups/states` - States with employer counts
+- `GET /api/lookups/cities` - Cities for dropdown filters
 
 ### Trends
 - `GET /api/trends/national` - National membership 2010-2024
 - `GET /api/trends/by-state/{state}` - State trends
-- `GET /api/trends/by-affiliation/{aff}` - Affiliation trends
-- `GET /api/trends/elections-by-year` - Election win rates
+- `GET /api/trends/states/summary` - All states summary
+- `GET /api/trends/by-affiliation/{aff_abbr}` - Affiliation trends
+- `GET /api/trends/affiliations/summary` - All affiliations summary
+- `GET /api/trends/elections` - Election win rates by year
+- `GET /api/trends/elections/by-affiliation/{aff_abbr}` - Election trends by union
+- `GET /api/trends/sectors` - Sector trends
 
 ### Multi-Employer
 - `GET /api/multi-employer/stats` - Deduplication statistics
+- `GET /api/multi-employer/groups` - Multi-employer agreement groups
+- `GET /api/employer/{employer_id}/agreement` - Agreement details for employer
+- `GET /api/corporate/family/{employer_id}` - Corporate family relationships
+
+### Projections (BLS)
+- `GET /api/projections/summary` - BLS projections summary
+- `GET /api/projections/industry/{naics_code}` - Industry projections
+- `GET /api/projections/occupations/{naics_code}` - Occupation projections
+- `GET /api/projections/naics/{naics_2digit}` - 2-digit NAICS projections
+- `GET /api/projections/top` - Top growing industries
+- `GET /api/employer/{employer_id}/projections` - Projections for employer
+- `GET /api/density/naics/{naics_2digit}` - Union density by NAICS
+- `GET /api/density/all` - All density data
+
+### NAICS
+- `GET /api/naics/stats` - NAICS statistics
 
 ---
 
