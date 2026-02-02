@@ -2061,21 +2061,21 @@ def get_stats_breakdown(
     """Get breakdown statistics for the filter panel"""
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Build WHERE clause
-            conditions = ["exclude_from_counts = FALSE"]
+            # Build WHERE clause (use f. prefix for joined queries)
+            conditions = ["f.exclude_from_counts = FALSE"]
             params = []
 
             if state:
-                conditions.append("state = %s")
+                conditions.append("f.state = %s")
                 params.append(state)
             if naics_code:
-                conditions.append("naics LIKE %s")
+                conditions.append("f.naics LIKE %s")
                 params.append(f"{naics_code}%")
             if cbsa_code:
-                conditions.append("cbsa_code = %s")
+                conditions.append("f.cbsa_code = %s")
                 params.append(cbsa_code)
             if name:
-                conditions.append("employer_name ILIKE %s")
+                conditions.append("f.employer_name ILIKE %s")
                 params.append(f"%{name}%")
 
             where_clause = " AND ".join(conditions)
@@ -2083,9 +2083,9 @@ def get_stats_breakdown(
             # Totals
             cur.execute(f"""
                 SELECT COUNT(*) as total_employers,
-                       COALESCE(SUM(latest_unit_size), 0) as total_workers,
-                       COUNT(DISTINCT latest_union_fnum) as total_locals
-                FROM f7_employers_deduped
+                       COALESCE(SUM(f.latest_unit_size), 0) as total_workers,
+                       COUNT(DISTINCT f.latest_union_fnum) as total_locals
+                FROM f7_employers_deduped f
                 WHERE {where_clause}
             """, params)
             totals = cur.fetchone()
