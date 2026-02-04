@@ -94,6 +94,29 @@ conn = psycopg2.connect(
 | `zip_geography` | 39,366 | ZIP to City/County/CBSA mapping |
 | `cbsa_reference` | 937 | Metro area definitions |
 
+### NYC Employer Violations Tables
+Source: [NYC Comptroller Employer Violations Dashboard](https://comptroller.nyc.gov/services/for-the-public/employer-violations-dashboard/)
+
+| Table | Records | Description |
+|-------|---------|-------------|
+| `nyc_wage_theft_nys` | 3,281 | NYS DOL wage theft cases |
+| `nyc_wage_theft_usdol` | 431 | Federal DOL wage theft ($12.2M back wages) |
+| `nyc_wage_theft_litigation` | 54 | Court settlements ($457M total) |
+| `nyc_ulp_closed` | 260 | Closed NLRB ULP cases with violation counts |
+| `nyc_ulp_open` | 660 | Open NLRB ULP cases |
+| `nyc_local_labor_laws` | 568 | PSSL, Fair Workweek violations ($52M recovered) |
+| `nyc_discrimination` | 111 | Discrimination/harassment settlements |
+| `nyc_prevailing_wage` | 46 | Public works underpayment cases |
+| `nyc_debarment_list` | 210 | NYS debarred employers |
+| `nyc_osha_violations` | 3,454 | NYC-specific OSHA violations ($12.9M penalties) |
+| `v_nyc_employer_violations_summary` | - | Aggregated view of repeat offenders |
+
+**Key Fields by Table:**
+- `nyc_wage_theft_nys`: employer_name, wages_owed, num_claimants, city
+- `nyc_wage_theft_usdol`: trade_name, naics_code, backwages_amount, employees_violated
+- `nyc_ulp_*`: employer, case_number, violations_8a1/8a3/8a5, union_filing
+- `nyc_local_labor_laws`: employer_name, pssl_flag, fww_flag, total_recovered, covered_workers
+
 ---
 
 ## API Endpoints (localhost:8001)
