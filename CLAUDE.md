@@ -345,3 +345,32 @@ py -m uvicorn api.labor_api_v6:app --reload --port 8001
 
 Open `files/organizer_v5.html` in browser.
 API docs: http://localhost:8001/docs
+
+---
+
+## Session Log
+
+### 2025-02-03
+**Tasks:** AFSCME NY locals reconciliation and duplicate verification
+**Files Modified:**
+- `CLAUDE.md` - Added session log
+- `scripts/analyze_afscme_ny.py` - Created AFSCME NY analysis script
+- `scripts/verify_dc37_duplicates.py` - Created DC37 duplicate verification script
+
+**Key Findings:**
+- **AFSCME NY deduplicated total: 339,990 members**
+  - CSEA (Local 1000): 201,013
+  - DC37 (Local 37): 121,845
+  - Other NY locals (74): 17,132
+- **Duplicates identified and excluded:**
+  - CSEA Regions 1-6: 189,770 (already in Local 1000)
+  - DC37 Locals (14): 16,587 (already in Local 37)
+- **Designation codes:** DC = District Council (aggregates), LU = Local Union, R = Region
+- **Data source:** LM-2 filings (DOL), not Form 990 (IRS) - unions file LM-2
+
+**Key Decisions:**
+- DC (District Council) designations report aggregate membership including their locals
+- When locals also file LM reports, members are double-counted if added naively
+- CSEA 990 data doesn't exist - unions file LM-2 with DOL instead
+
+**Status:** Completed
