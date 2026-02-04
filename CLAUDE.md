@@ -112,9 +112,9 @@ conn = psycopg2.connect(
 - `GET /api/lookups/cities` - Cities for filters
 
 ### Employers
-- `GET /api/employers/search` - Search by name, state, NAICS, city
-- `GET /api/employers/fuzzy-search` - Fuzzy name matching search
-- `GET /api/employers/normalized-search` - Normalized name search
+- `GET /api/employers/search` - Search by name, state, NAICS, city (returns naics_detailed, naics_source)
+- `GET /api/employers/fuzzy-search` - Fuzzy name matching search (returns naics_detailed)
+- `GET /api/employers/normalized-search` - Normalized name search (returns naics_detailed)
 - `GET /api/employers/{employer_id}` - Employer detail
 - `GET /api/employers/{employer_id}/similar` - Similar employers
 - `GET /api/employers/{employer_id}/osha` - OSHA data for employer
@@ -213,6 +213,10 @@ conn = psycopg2.connect(
 - `GET /api/projections/industry/{naics_code}` - Industry projections
 - `GET /api/projections/occupations/{naics_code}` - Occupation projections
 - `GET /api/projections/naics/{naics_2digit}` - 2-digit NAICS projections
+- `GET /api/projections/industries/{sector}` - All sub-industries in a sector
+- `GET /api/projections/matrix/{code}` - Detailed industry by BLS matrix code
+- `GET /api/projections/matrix/{code}/occupations` - Occupation breakdown for industry
+- `GET /api/projections/search` - Search/filter industry projections
 - `GET /api/projections/top` - Top growing industries
 - `GET /api/employer/{employer_id}/projections` - Projections for employer
 - `GET /api/density/naics/{naics_2digit}` - Union density by NAICS
@@ -277,6 +281,13 @@ conn = psycopg2.connect(
 - 50 of 51 states within ±15%
 - NEA/AFT state affiliate research
 - Form 990 revenue validation
+
+### 7. Industry Outlook (Employer Detail)
+- Shows BLS 2024-2034 employment projections in employer detail view
+- Uses detailed NAICS (6-digit from OSHA) when available via `/api/projections/matrix/{code}`
+- Falls back to sector-level projections when detailed unavailable
+- Expandable occupation breakdown showing top jobs with growth rates
+- Fields: `naics_detailed`, `naics_source`, `naics_confidence` on employer search results
 
 ---
 
