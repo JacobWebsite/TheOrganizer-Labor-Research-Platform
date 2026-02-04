@@ -415,6 +415,258 @@ def get_occupation_projections_v2(naics_code: str, limit: int = Query(15, le=50)
             }
 
 
+@app.get("/api/projections/industries/{sector}")
+def get_sector_sub_industries(sector: str, growth_category: str = None):
+    """Get all sub-industries for a 2-digit NAICS sector with projections.
+
+    Returns detailed breakdown of all industries within a sector (e.g., sector=23 returns
+    238110 Poured Concrete, 238210 Electrical Contractors, etc.)
+
+    Optional filter by growth_category: fast_growing, growing, stable, declining, fast_declining
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get sector name
+            cur.execute("""
+                SELECT sector_name FROM naics_sectors WHERE naics_2digit = %s
+            """, [sector])
+            sector_info = cur.fetchone()
+
+            # Get all sub-industries for this sector
+            query = """
+                SELECT matrix_code, industry_title, industry_type,
+                       employment_2024, employment_2034, employment_change,
+                       employment_change_pct, growth_category, display_level
+                FROM bls_industry_projections
+                WHERE matrix_code LIKE %s
+            """
+            params = [f"{sector}%"]
+
+            if growth_category:
+                query += " AND growth_category = %s"
+                params.append(growth_category)
+
+            query += " ORDER BY matrix_code"
+
+            cur.execute(query, params)
+            industries = cur.fetchall()
+
+            if not industries:
+                raise HTTPException(status_code=404, detail=f"No industries found for sector {sector}")
+
+            # Calculate sector summary
+            total_2024 = sum(i['employment_2024'] or 0 for i in industries if i['matrix_code'].endswith('0000'))
+            total_2034 = sum(i['employment_2034'] or 0 for i in industries if i['matrix_code'].endswith('0000'))
+
+            return {
+                "sector": sector,
+                "sector_name": sector_info['sector_name'] if sector_info else None,
+                "industry_count": len(industries),
+                "summary": {
+                    "total_employment_2024": total_2024,
+                    "total_employment_2034": total_2034,
+                    "total_change": total_2034 - total_2024 if total_2024 and total_2034 else None
+                },
+                "industries": industries
+            }
+
+
+@app.get("/api/projections/matrix/{matrix_code}")
+def get_industry_by_matrix_code(matrix_code: str):
+    """Get projection for a specific BLS industry matrix code (e.g., 238110, 621610).
+
+    Use this for detailed sub-industry lookups. Matrix codes correspond to NAICS codes
+    at various levels of detail (4-digit, 5-digit, 6-digit).
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT matrix_code, industry_title, industry_type,
+                       employment_2024, employment_2034, employment_change,
+                       employment_change_pct, employment_cagr,
+                       output_2024, output_2034, output_cagr,
+                       growth_category, display_level
+                FROM bls_industry_projections
+                WHERE matrix_code = %s
+            """, [matrix_code])
+            projection = cur.fetchone()
+
+            if not projection:
+                raise HTTPException(status_code=404, detail=f"No projection found for matrix code {matrix_code}")
+
+            # Determine NAICS sector
+            naics_2digit = matrix_code[:2]
+            cur.execute("""
+                SELECT sector_name FROM naics_sectors WHERE naics_2digit = %s
+            """, [naics_2digit])
+            sector_info = cur.fetchone()
+
+            # Get occupation count for this industry
+            cur.execute("""
+                SELECT COUNT(*) as occ_count,
+                       COUNT(*) FILTER (WHERE occupation_type = 'Line Item') as detailed_count
+                FROM bls_industry_occupation_matrix
+                WHERE industry_code = %s
+            """, [matrix_code])
+            occ_counts = cur.fetchone()
+
+            return {
+                "matrix_code": matrix_code,
+                "naics_sector": naics_2digit,
+                "sector_name": sector_info['sector_name'] if sector_info else None,
+                "projection": projection,
+                "occupation_data_available": occ_counts['occ_count'] > 0,
+                "occupation_count": occ_counts['occ_count'],
+                "detailed_occupation_count": occ_counts['detailed_count']
+            }
+
+
+@app.get("/api/projections/matrix/{matrix_code}/occupations")
+def get_occupations_by_matrix_code(
+    matrix_code: str,
+    occupation_type: str = Query(None, description="Filter by type: 'Line Item' for detailed, 'Summary' for groups"),
+    min_employment: float = Query(None, description="Minimum 2024 employment (in thousands)"),
+    sort_by: str = Query("employment", description="Sort by: employment, growth, change"),
+    limit: int = Query(50, le=200)
+):
+    """Get occupation breakdown for a specific industry matrix code.
+
+    Returns all occupations employed in the industry with 2024/2034 projections.
+    Use occupation_type='Line Item' for specific job titles, 'Summary' for occupation groups.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get industry name
+            cur.execute("""
+                SELECT industry_title FROM bls_industry_projections WHERE matrix_code = %s
+            """, [matrix_code])
+            industry = cur.fetchone()
+
+            # Build query
+            query = """
+                SELECT occupation_code, occupation_title, occupation_type,
+                       emp_2024, emp_2024_pct_industry, emp_2024_pct_occupation,
+                       emp_2034, emp_2034_pct_industry, emp_2034_pct_occupation,
+                       emp_change, emp_change_pct, display_level
+                FROM bls_industry_occupation_matrix
+                WHERE industry_code = %s
+            """
+            params = [matrix_code]
+
+            if occupation_type:
+                query += " AND occupation_type = %s"
+                params.append(occupation_type)
+
+            if min_employment is not None:
+                query += " AND emp_2024 >= %s"
+                params.append(min_employment)
+
+            # Sort options
+            if sort_by == "growth":
+                query += " ORDER BY emp_change_pct DESC NULLS LAST"
+            elif sort_by == "change":
+                query += " ORDER BY emp_change DESC NULLS LAST"
+            else:
+                query += " ORDER BY emp_2024 DESC NULLS LAST"
+
+            query += " LIMIT %s"
+            params.append(limit)
+
+            cur.execute(query, params)
+            occupations = cur.fetchall()
+
+            if not occupations:
+                raise HTTPException(status_code=404, detail=f"No occupation data found for matrix code {matrix_code}")
+
+            # Get summary stats
+            cur.execute("""
+                SELECT
+                    SUM(emp_2024) FILTER (WHERE occupation_code = '00-0000') as total_2024,
+                    SUM(emp_2034) FILTER (WHERE occupation_code = '00-0000') as total_2034,
+                    COUNT(*) FILTER (WHERE occupation_type = 'Line Item') as detailed_count,
+                    COUNT(*) FILTER (WHERE emp_change_pct > 0) as growing_count,
+                    COUNT(*) FILTER (WHERE emp_change_pct < 0) as declining_count
+                FROM bls_industry_occupation_matrix
+                WHERE industry_code = %s
+            """, [matrix_code])
+            stats = cur.fetchone()
+
+            return {
+                "matrix_code": matrix_code,
+                "industry_title": industry['industry_title'] if industry else None,
+                "summary": {
+                    "total_employment_2024": stats['total_2024'],
+                    "total_employment_2034": stats['total_2034'],
+                    "detailed_occupations": stats['detailed_count'],
+                    "growing_occupations": stats['growing_count'],
+                    "declining_occupations": stats['declining_count']
+                },
+                "occupations": occupations
+            }
+
+
+@app.get("/api/projections/search")
+def search_industry_projections(
+    q: str = Query(None, description="Search industry titles"),
+    growth_category: str = Query(None, description="Filter: fast_growing, growing, stable, declining, fast_declining"),
+    min_employment: float = Query(None, description="Minimum 2024 employment (thousands)"),
+    min_growth: float = Query(None, description="Minimum growth percentage"),
+    max_growth: float = Query(None, description="Maximum growth percentage"),
+    limit: int = Query(50, le=200)
+):
+    """Search and filter industry projections across all sectors."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            query = """
+                SELECT p.matrix_code, p.industry_title, p.industry_type,
+                       p.employment_2024, p.employment_2034, p.employment_change,
+                       p.employment_change_pct, p.growth_category,
+                       ns.naics_2digit, ns.sector_name
+                FROM bls_industry_projections p
+                LEFT JOIN naics_sectors ns ON LEFT(p.matrix_code, 2) = ns.naics_2digit
+                WHERE 1=1
+            """
+            params = []
+
+            if q:
+                query += " AND p.industry_title ILIKE %s"
+                params.append(f"%{q}%")
+
+            if growth_category:
+                query += " AND p.growth_category = %s"
+                params.append(growth_category)
+
+            if min_employment is not None:
+                query += " AND p.employment_2024 >= %s"
+                params.append(min_employment)
+
+            if min_growth is not None:
+                query += " AND p.employment_change_pct >= %s"
+                params.append(min_growth)
+
+            if max_growth is not None:
+                query += " AND p.employment_change_pct <= %s"
+                params.append(max_growth)
+
+            query += " ORDER BY p.employment_2024 DESC NULLS LAST LIMIT %s"
+            params.append(limit)
+
+            cur.execute(query, params)
+            results = cur.fetchall()
+
+            return {
+                "query": q,
+                "filters": {
+                    "growth_category": growth_category,
+                    "min_employment": min_employment,
+                    "min_growth": min_growth,
+                    "max_growth": max_growth
+                },
+                "count": len(results),
+                "industries": results
+            }
+
+
 @app.get("/api/employer/{employer_id}/projections")
 def get_employer_projections(employer_id: str):
     """Get industry outlook and top occupations for an employer based on their NAICS"""
@@ -658,6 +910,7 @@ def search_employers(
             params.extend([limit, offset])
             cur.execute(f"""
                 SELECT e.employer_id, e.employer_name, e.city, e.state, e.naics,
+                    e.naics_detailed, e.naics_source, e.naics_confidence,
                     e.latest_unit_size, e.latest_union_fnum, e.latest_union_name,
                     e.latitude, e.longitude, um.aff_abbr,
                     e.cbsa_code, c.cbsa_title as metro_name
@@ -701,7 +954,8 @@ def fuzzy_search_employers(
             
             cur.execute(f"""
                 SELECT e.employer_id, e.employer_name, similarity(e.employer_name, %s) as match_score,
-                       e.city, e.state, e.naics, e.latest_unit_size, e.latitude, e.longitude,
+                       e.city, e.state, e.naics, e.naics_detailed, e.naics_source,
+                       e.latest_unit_size, e.latitude, e.longitude,
                        um.aff_abbr
                 FROM f7_employers_deduped e
                 LEFT JOIN unions_master um ON e.latest_union_fnum::text = um.f_num
@@ -709,7 +963,7 @@ def fuzzy_search_employers(
                 ORDER BY similarity(e.employer_name, %s) DESC, e.latest_unit_size DESC NULLS LAST
                 LIMIT %s OFFSET %s
             """, select_params)
-            
+
             return {"search_term": name, "threshold": threshold, "total": total, "employers": cur.fetchall()}
 
 
@@ -757,14 +1011,15 @@ def normalized_search_employers(
             cur.execute(f"""
                 WITH normalized AS (
                     SELECT *, regexp_replace(
-                        regexp_replace(lower(employer_name), 
+                        regexp_replace(lower(employer_name),
                             '\\m(inc|llc|corp|corporation|company|co|ltd|limited|the)\\M', '', 'gi'),
                         '[^a-z0-9\\s]', '', 'gi') as normalized_name
                     FROM f7_employers_deduped
                 )
                 SELECT employer_id, employer_name, normalized_name,
                        similarity(normalized_name, %s) as match_score,
-                       city, state, naics, latest_unit_size, latest_union_fnum, latitude, longitude,
+                       city, state, naics, naics_detailed, naics_source,
+                       latest_unit_size, latest_union_fnum, latitude, longitude,
                        um.aff_abbr
                 FROM normalized n
                 LEFT JOIN unions_master um ON n.latest_union_fnum::text = um.f_num
@@ -772,8 +1027,8 @@ def normalized_search_employers(
                 ORDER BY similarity(n.normalized_name, %s) DESC, n.latest_unit_size DESC NULLS LAST
                 LIMIT %s OFFSET %s
             """, select_params)
-            
-            return {"search_term": name, "normalized_search": normalized_search, 
+
+            return {"search_term": name, "normalized_search": normalized_search,
                     "threshold": threshold, "total": total, "employers": cur.fetchall()}
 
 

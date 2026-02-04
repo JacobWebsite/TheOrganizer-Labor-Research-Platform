@@ -4317,20 +4317,23 @@
             
             // BLS Projections - show loading then fetch data
             const naics2 = item.naics ? item.naics.substring(0, 2) : null;
+            const naicsDetailed = item.naics_detailed || (item.naics && item.naics.length >= 4 ? item.naics : null);
             document.getElementById('detailProjections').innerHTML = `
                 <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Industry Outlook</div>
                 <div class="bg-warmgray-100 rounded-lg p-4 text-sm">
-                    <div class="text-warmgray-600">
+                    <div id="projectionsHeader" class="text-warmgray-600">
                         <span>${escapeHtml(item.naics_sector_name || 'Industry')}</span>
                         ${item.naics ? `<span class="text-warmgray-400">(NAICS ${item.naics.substring(0,2)})</span>` : ''}
                     </div>
                     <div id="projectionsData" class="mt-2 text-warmgray-400">Loading projections...</div>
+                    <div id="occupationsToggle" class="hidden mt-3"></div>
+                    <div id="occupationsData" class="hidden mt-3"></div>
                 </div>
             `;
 
             // Fetch and display BLS projections
-            if (naics2) {
-                loadIndustryProjections(naics2);
+            if (naics2 || naicsDetailed) {
+                loadIndustryProjections(naics2, naicsDetailed);
             } else {
                 document.getElementById('projectionsData').innerHTML = '<span class="text-warmgray-400">No industry data available</span>';
             }
@@ -4385,42 +4388,223 @@
             }
         }
 
-        async function loadIndustryProjections(naics2digit) {
+        // Store current matrix code for occupation loading
+        let currentProjectionMatrixCode = null;
+
+        async function loadIndustryProjections(naics2digit, naicsDetailed) {
             const el = document.getElementById('projectionsData');
+            const headerEl = document.getElementById('projectionsHeader');
+            const toggleEl = document.getElementById('occupationsToggle');
+            const occupationsEl = document.getElementById('occupationsData');
+
+            currentProjectionMatrixCode = null;
+            toggleEl.classList.add('hidden');
+            occupationsEl.classList.add('hidden');
+
             try {
-                const response = await fetch(`${API_BASE}/projections/naics/${naics2digit}`);
-                if (!response.ok) throw new Error('Failed to load');
+                // Try detailed NAICS first if available
+                let data = null;
+                let isDetailedProjection = false;
 
-                const data = await response.json();
-                const summary = data.summary || {};
-                const changePct = summary.avg_change_pct || 0;
-                const category = summary.growth_category || 'unknown';
-
-                // Determine color based on growth category
-                let colorClass = 'text-warmgray-600';
-                let icon = '';
-                if (category === 'fast_growing' || category === 'growing') {
-                    colorClass = 'text-green-600';
-                    icon = '↑';
-                } else if (category === 'declining' || category === 'fast_declining') {
-                    colorClass = 'text-red-600';
-                    icon = '↓';
-                } else {
-                    icon = '→';
+                if (naicsDetailed && naicsDetailed.length >= 4) {
+                    try {
+                        const detailedResponse = await fetch(`${API_BASE}/projections/matrix/${naicsDetailed}`);
+                        if (detailedResponse.ok) {
+                            data = await detailedResponse.json();
+                            isDetailedProjection = true;
+                            currentProjectionMatrixCode = naicsDetailed;
+                        }
+                    } catch (e) {
+                        console.log('Detailed projection not found, falling back to sector');
+                    }
                 }
 
-                el.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="text-lg font-bold ${colorClass}">${icon} ${changePct > 0 ? '+' : ''}${changePct.toFixed(1)}%</span>
-                        <span class="text-warmgray-500">projected growth (2024-2034)</span>
-                    </div>
-                    <div class="text-xs text-warmgray-400 mt-1">
-                        ${formatNumber(summary.total_2024 || 0)}K → ${formatNumber(summary.total_2034 || 0)}K jobs nationwide
-                    </div>
-                `;
+                // Fall back to sector-level if detailed not available
+                if (!data && naics2digit) {
+                    const response = await fetch(`${API_BASE}/projections/naics/${naics2digit}`);
+                    if (!response.ok) throw new Error('Failed to load');
+                    data = await response.json();
+                }
+
+                if (!data) throw new Error('No projection data');
+
+                if (isDetailedProjection) {
+                    // Detailed industry projection - data is nested in projection object
+                    const proj = data.projection || data;
+                    const changePct = proj.employment_change_pct || 0;
+                    const category = proj.growth_category || 'unknown';
+                    const emp2024 = proj.employment_2024 || 0;
+                    const emp2034 = proj.employment_2034 || 0;
+                    const industryTitle = proj.industry_title || data.industry_title || 'Industry';
+
+                    // Update header with specific industry name
+                    headerEl.innerHTML = `
+                        <span class="font-medium">${escapeHtml(industryTitle)}</span>
+                        <span class="text-warmgray-400">(${data.matrix_code})</span>
+                    `;
+
+                    // Determine color based on growth category
+                    let colorClass = 'text-warmgray-600';
+                    let icon = '';
+                    if (category === 'fast_growing' || category === 'growing') {
+                        colorClass = 'text-green-600';
+                        icon = '↑';
+                    } else if (category === 'declining' || category === 'fast_declining') {
+                        colorClass = 'text-red-600';
+                        icon = '↓';
+                    } else {
+                        icon = '→';
+                    }
+
+                    el.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg font-bold ${colorClass}">${icon} ${changePct > 0 ? '+' : ''}${changePct.toFixed(1)}%</span>
+                            <span class="text-warmgray-500">projected growth (2024-2034)</span>
+                        </div>
+                        <div class="text-xs text-warmgray-400 mt-1">
+                            ${formatNumber(emp2024)}K → ${formatNumber(emp2034)}K jobs nationwide
+                        </div>
+                    `;
+
+                    // Show occupation toggle if we have a matrix code
+                    if (currentProjectionMatrixCode && data.occupation_count > 0) {
+                        toggleEl.classList.remove('hidden');
+                        toggleEl.innerHTML = `
+                            <button onclick="toggleOccupations()" class="flex items-center gap-1 text-xs text-accent-blue hover:text-accent-blue/80 transition-colors">
+                                <span id="occupationsToggleIcon">▼</span>
+                                <span id="occupationsToggleText">Show Top Occupations</span>
+                                <span class="text-warmgray-400">(${data.occupation_count} jobs)</span>
+                            </button>
+                        `;
+                    }
+                } else {
+                    // Sector-level projection (fallback)
+                    const summary = data.summary || {};
+                    const changePct = summary.avg_change_pct || 0;
+                    const category = summary.growth_category || 'unknown';
+
+                    // Determine color based on growth category
+                    let colorClass = 'text-warmgray-600';
+                    let icon = '';
+                    if (category === 'fast_growing' || category === 'growing') {
+                        colorClass = 'text-green-600';
+                        icon = '↑';
+                    } else if (category === 'declining' || category === 'fast_declining') {
+                        colorClass = 'text-red-600';
+                        icon = '↓';
+                    } else {
+                        icon = '→';
+                    }
+
+                    el.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg font-bold ${colorClass}">${icon} ${changePct > 0 ? '+' : ''}${changePct.toFixed(1)}%</span>
+                            <span class="text-warmgray-500">projected growth (2024-2034)</span>
+                        </div>
+                        <div class="text-xs text-warmgray-400 mt-1">
+                            ${formatNumber(summary.total_2024 || 0)}K → ${formatNumber(summary.total_2034 || 0)}K jobs nationwide
+                        </div>
+                        <div class="text-xs text-warmgray-400 mt-1 italic">
+                            Sector-level estimate (detailed NAICS unavailable)
+                        </div>
+                    `;
+                }
             } catch (e) {
                 console.log('Projections load failed:', e);
                 el.innerHTML = '<span class="text-warmgray-400">Projections unavailable</span>';
+            }
+        }
+
+        async function toggleOccupations() {
+            const occupationsEl = document.getElementById('occupationsData');
+            const toggleIcon = document.getElementById('occupationsToggleIcon');
+            const toggleText = document.getElementById('occupationsToggleText');
+
+            if (occupationsEl.classList.contains('hidden')) {
+                // Show occupations
+                occupationsEl.classList.remove('hidden');
+                toggleIcon.textContent = '▲';
+                toggleText.textContent = 'Hide Occupations';
+
+                // Load if not already loaded
+                if (occupationsEl.innerHTML === '' || occupationsEl.innerHTML.includes('Loading')) {
+                    await loadOccupationBreakdown(currentProjectionMatrixCode);
+                }
+            } else {
+                // Hide occupations
+                occupationsEl.classList.add('hidden');
+                toggleIcon.textContent = '▼';
+                toggleText.textContent = 'Show Top Occupations';
+            }
+        }
+
+        async function loadOccupationBreakdown(matrixCode) {
+            const el = document.getElementById('occupationsData');
+            el.innerHTML = '<div class="text-warmgray-400 text-xs">Loading occupations...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/projections/matrix/${matrixCode}/occupations?occupation_type=Line+Item&limit=8&sort_by=employment`);
+                if (!response.ok) throw new Error('Failed to load');
+
+                const data = await response.json();
+                const occupations = data.occupations || [];
+
+                if (occupations.length === 0) {
+                    el.innerHTML = '<div class="text-warmgray-400 text-xs">No occupation data available</div>';
+                    return;
+                }
+
+                let html = `
+                    <div class="border-t border-warmgray-200 pt-3">
+                        <div class="text-xs font-semibold text-warmgray-500 mb-2">Top Occupations in This Industry</div>
+                        <div class="space-y-1">
+                `;
+
+                for (const occ of occupations) {
+                    const changePct = occ.emp_change_pct || 0;
+                    let growthColor = 'text-warmgray-500';
+                    let growthIcon = '→';
+
+                    if (changePct >= 5) {
+                        growthColor = 'text-green-600';
+                        growthIcon = '↑';
+                    } else if (changePct >= 0) {
+                        growthColor = 'text-green-500';
+                        growthIcon = '↗';
+                    } else if (changePct >= -5) {
+                        growthColor = 'text-orange-500';
+                        growthIcon = '↘';
+                    } else {
+                        growthColor = 'text-red-600';
+                        growthIcon = '↓';
+                    }
+
+                    // Truncate long titles
+                    const title = occ.occupation_title.length > 30
+                        ? occ.occupation_title.substring(0, 28) + '...'
+                        : occ.occupation_title;
+
+                    html += `
+                        <div class="flex items-center justify-between text-xs py-1 border-b border-warmgray-100 last:border-0">
+                            <span class="text-warmgray-700 truncate flex-1" title="${escapeHtml(occ.occupation_title)}">${escapeHtml(title)}</span>
+                            <span class="text-warmgray-500 mx-2">${formatNumber(occ.emp_2024 || 0)}K</span>
+                            <span class="font-medium ${growthColor} w-14 text-right">${growthIcon} ${changePct > 0 ? '+' : ''}${changePct.toFixed(1)}%</span>
+                        </div>
+                    `;
+                }
+
+                html += `
+                        </div>
+                        <div class="text-xs text-warmgray-400 mt-2 text-right">
+                            Source: BLS Employment Projections 2024-2034
+                        </div>
+                    </div>
+                `;
+
+                el.innerHTML = html;
+            } catch (e) {
+                console.log('Occupations load failed:', e);
+                el.innerHTML = '<div class="text-warmgray-400 text-xs">Could not load occupation data</div>';
             }
         }
 
