@@ -88,6 +88,75 @@ conn = psycopg2.connect(
 | `employers_990` | 5,942 | IRS 990 nonprofit employers |
 | `organizing_targets` | 5,428 | Prioritized organizing targets |
 
+### Mergent Employer Tables (Sector Scorecards)
+| Table | Records | Description |
+|-------|---------|-------------|
+| `mergent_employers` | 14,240 | Mergent Intellect employer data (11 sectors) |
+| `ny_990_filers` | 37,480 | IRS Form 990 NY nonprofit filers (2022-2024) |
+
+**Sectors in mergent_employers:**
+| Sector | Employers | Unionized | Targets | Employees |
+|--------|-----------|-----------|---------|-----------|
+| CIVIC_ORGANIZATIONS | 3,339 | 31 | 3,308 | 68,864 |
+| BUILDING_SERVICES | 2,692 | 20 | 2,672 | 197,485 |
+| EDUCATION | 2,487 | 62 | 2,425 | 239,212 |
+| SOCIAL_SERVICES | 1,520 | 24 | 1,496 | 65,672 |
+| BROADCASTING | 1,371 | 5 | 1,366 | 82,536 |
+| PUBLISHING | 768 | 5 | 763 | 37,462 |
+| WASTE_MGMT | 717 | 4 | 713 | 13,998 |
+| GOVERNMENT | 525 | 35 | 490 | 48,056 |
+| REPAIR_SERVICES | 394 | 1 | 393 | 11,975 |
+| MUSEUMS | 243 | 25 | 218 | 12,659 |
+| INFORMATION | 184 | 9 | 175 | 7,352 |
+
+**Mergent Employers Columns (Key):**
+- `duns` - D-U-N-S number (unique ID)
+- `ein` - IRS Employer ID (55% coverage)
+- `company_name`, `city`, `state`, `zip`, `county`
+- `employees_site`, `sales_amount`, `naics_primary`
+- `sector_category` - One of 11 sectors above
+- `has_union` - Boolean flag (F-7, NLRB win, or OSHA union status)
+- `organizing_score` - Composite score (0-52 for non-union targets)
+- `score_priority` - Tier: TOP, HIGH, MEDIUM, LOW
+
+**Match Columns:**
+- `ny990_id`, `ny990_employees`, `ny990_revenue`, `ny990_match_method`
+- `matched_f7_employer_id`, `f7_union_name`, `f7_union_fnum`
+- `osha_establishment_id`, `osha_violation_count`, `osha_total_penalties`
+- `nlrb_case_number`, `nlrb_election_date`, `nlrb_union_won`
+- `whd_violation_count`, `whd_backwages`, `whd_employees_violated`
+
+**Score Columns:**
+- `score_geographic` (removed - set to 0), `score_size` (0-5), `score_industry_density` (0-10 BLS)
+- `score_nlrb_momentum` (0-10 by NAICS), `score_osha_violations` (0-4), `score_govt_contracts` (0-15)
+- `score_labor_violations` (0-10 NYC Comptroller), `sibling_union_bonus` (0-8)
+- Max score: 62 pts | Tiers: TOP ≥30, HIGH ≥25, MEDIUM ≥15, LOW <15
+
+**Labor Violation Columns:**
+- `nyc_wage_theft_cases`, `nyc_wage_theft_amount` - NYS/US DOL wage theft
+- `nyc_ulp_cases` - NLRB ULP cases (open + closed)
+- `nyc_local_law_cases`, `nyc_local_law_amount` - PSSL, Fair Workweek violations
+- `nyc_debarred` - Boolean, on NYS debarment list
+
+### Sector Organizing Views
+For each sector (e.g., `education`, `social_services`, `building_services`):
+| View Pattern | Description |
+|--------------|-------------|
+| `v_{sector}_organizing_targets` | Non-union targets ranked by organizing score |
+| `v_{sector}_target_stats` | Summary stats by priority tier |
+| `v_{sector}_unionized` | Already-unionized employers for reference |
+
+**Available Sectors:**
+`civic_organizations`, `building_services`, `education`, `social_services`, `broadcasting`, `publishing`, `waste_mgmt`, `government`, `repair_services`, `museums`, `information`
+
+**Priority Tiers:**
+| Tier | Score Range |
+|------|-------------|
+| TOP | 40+ |
+| HIGH | 30-39 |
+| MEDIUM | 20-29 |
+| LOW | <20 |
+
 ### Geography Tables
 | Table | Records | Description |
 |-------|---------|-------------|
@@ -209,6 +278,25 @@ Source: [NYC Comptroller Employer Violations Dashboard](https://comptroller.nyc.
 - `GET /api/employers/unified/sources` - List source types with counts
 - `GET /api/osha/unified-matches` - Search OSHA matches from unified employers
 
+### Museum Organizing Targets (Legacy)
+- `GET /api/museums/summary` - Sector overview (targets + unionized counts, density %)
+- `GET /api/museums/targets` - Search targets (tier, city, employees, score filters)
+- `GET /api/museums/targets/stats` - Summary by tier (HIGH/MEDIUM/LOW)
+- `GET /api/museums/targets/cities` - Cities with target counts for dropdown
+- `GET /api/museums/targets/{target_id}` - Target detail with nearby unionized museums
+- `GET /api/museums/unionized` - Reference list of unionized museums
+
+### Sector Organizing Targets (Generic - 11 Sectors)
+Supports all sectors: `civic_organizations`, `building_services`, `education`, `social_services`, `broadcasting`, `publishing`, `waste_mgmt`, `government`, `repair_services`, `museums`, `information`
+
+- `GET /api/sectors/list` - List all sectors with target/unionized counts
+- `GET /api/sectors/{sector}/summary` - Sector overview with tier breakdown
+- `GET /api/sectors/{sector}/targets` - Search targets (tier, city, employees, score filters)
+- `GET /api/sectors/{sector}/targets/stats` - Summary by priority tier
+- `GET /api/sectors/{sector}/targets/{target_id}` - Target detail with nearby unionized
+- `GET /api/sectors/{sector}/targets/cities` - Cities with targets for dropdown
+- `GET /api/sectors/{sector}/unionized` - Reference list of unionized employers
+
 ### Geographic
 - `GET /api/lookups/metros` - List metro areas with density
 - `GET /api/metros/{cbsa_code}/stats` - Metro stats with density
@@ -252,7 +340,9 @@ Source: [NYC Comptroller Employer Violations Dashboard](https://comptroller.nyc.
 
 ## Key Features (What Exists - Don't Rebuild)
 
-### 1. Organizing Scorecard (6-factor, 0-100 points)
+### 1. OSHA Organizing Scorecard (6-factor, 0-100 points)
+*For OSHA establishments via `/api/organizing/scorecard` - separate from Mergent sector scorecard*
+
 | Factor | Points | Description |
 |--------|--------|-------------|
 | Safety Violations | 0-25 | OSHA violation count, severity, recency |
@@ -305,7 +395,67 @@ Source: [NYC Comptroller Employer Violations Dashboard](https://comptroller.nyc.
 - NEA/AFT state affiliate research
 - Form 990 revenue validation
 
-### 7. Industry Outlook (Employer Detail)
+### 7. Multi-Sector Organizing Scorecard (Mergent-based)
+Integrated data pipeline: Mergent Intellect → 990 matching → F-7/NLRB/OSHA matching → Contract matching → Scoring
+
+**Data Sources Combined:**
+- Mergent Intellect: 14,240 NY employers across 11 sectors
+- IRS Form 990: ~50% matched - employee counts, revenue validation
+- F-7 Employers: 221 matched (existing union contracts)
+- NLRB Elections: Win/loss data matched
+- OSHA: Violation data matched
+- NY State Contracts: 1,059 matched ($8.8B via normalized name)
+- NYC Contracts: 554 matched ($46B via normalized name)
+
+**Scoring Components (62 pts max for non-union targets):**
+| Factor | Max | Criteria |
+|--------|-----|----------|
+| Size | 5 | 100-500 emp=5, 50-99=4, 25-49=3 |
+| Industry Density | 10 | BLS NAICS density: 15%+=10, 10-15%=8, 5-10%=6, 2-5%=4, <2%=2 |
+| NLRB Momentum | 10 | Wins in same 2-digit NAICS: 10+=10, 5-9=8, 3-4=6, 1-2=4, 0=0 |
+| OSHA Violations | 4 | 5+ AND recent=4, 3+ OR recent=3 |
+| Govt Contracts | 15 | $5M+=15, $1M+=12, $500K+=10, $100K+=7, any=4 |
+| Labor Violations | 10 | NYC Comptroller data (wage theft, ULP, PSSL/FWW, debarment) |
+| Sibling Bonus | 8 | Parent/sibling union in same family |
+
+**Labor Violations Scoring (0-10 pts):**
+- Wage theft $100K+ = 4 pts, $50K+ = 3 pts, $10K+ = 2 pts, any = 1 pt
+- ULP cases: 3+ = 3 pts, 2 = 2 pts, 1 = 1 pt
+- Local labor law violations (PSSL/FWW): 2+ = 2 pts, 1 = 1 pt
+- Debarred employer = 1 pt
+
+**Union Detection (Excludes from targets):**
+- F-7 contract match → Unionized
+- NLRB election win → Unionized
+- OSHA union_status = 'Y' or 'A' → Unionized
+
+**Tier Distribution (14,019 non-union targets):**
+| Tier | Threshold | Count | Avg Score |
+|------|-----------|-------|-----------|
+| TOP | ≥30 | 173 | 31.5 |
+| HIGH | ≥25 | 476 | 26.8 |
+| MEDIUM | ≥15 | 3,755 | 17.9 |
+| LOW | <15 | 9,615 | 10.2 |
+| LOW | <15 | 9,630 | 75 (1%) | $7.5M |
+
+**Top Targets (TOP tier, 30+ pts):**
+1. NY Botanical Garden (39 pts, MUSEUMS, $15M+ contracts)
+2. Niagara University (36 pts, EDUCATION, $5.8M contracts)
+3. Alvin Ailey Dance Foundation (36 pts, EDUCATION, $10.9M contracts)
+4. Project Renewal Inc (44 pts, SOCIAL_SERVICES, $2.4B contracts)
+5. Replications Inc (35 pts, EDUCATION, $18M contracts)
+
+**Score Reason Explanations (UI Feature):**
+Each score component in the detail view shows human-readable reason text explaining why that score was assigned:
+- Size: "200 employees (100-500 sweet spot)"
+- Industry Density: "5-10% union density (moderate)"
+- NLRB Momentum: "5-9 recent wins in industry"
+- OSHA: "12 violations (recent + multiple)"
+- Contracts: "$28,800,000 in contracts (≥$5M)"
+- Labor Violations: "2 wage theft ($45,000), 1 ULP cases"
+- Sibling Bonus: "Parent company has union (strong)"
+
+### 8. Industry Outlook (Employer Detail)
 - Shows BLS 2024-2034 employment projections in employer detail view
 - Uses detailed NAICS (6-digit from OSHA) when available via `/api/projections/matrix/{code}`
 - Falls back to sector-level projections when detailed unavailable
@@ -342,6 +492,16 @@ SELECT state, SUM(members) FROM ps_union_locals GROUP BY state;
 
 -- OSHA organizing targets
 SELECT * FROM v_osha_organizing_targets WHERE score >= 50;
+
+-- Museum organizing targets (non-union, ranked by score)
+SELECT employer_name, city, best_employee_count, total_score, priority_tier
+FROM v_museum_organizing_targets WHERE priority_tier IN ('HIGH', 'MEDIUM');
+
+-- Museum target stats by tier
+SELECT * FROM v_museum_target_stats;
+
+-- Already-unionized museums (reference)
+SELECT employer_name, best_employee_count, union_name FROM v_museum_unionized;
 ```
 
 ---
@@ -383,6 +543,166 @@ API docs: http://localhost:8001/docs
 ---
 
 ## Session Log
+
+### 2026-02-04 (Score Reasons)
+**Tasks:** Add Score Reason Explanations to Organizing Scorecard
+
+**Files Modified:**
+- `files/organizer_v5.html` - Added score reason explanations to sector detail view
+
+**Changes:**
+1. **Modified `renderScoreRow()` function** - Added 6th `reason` parameter, displays italic gray text below progress bar
+2. **Added `getScoreReason()` function** - Generates human-readable explanations for 7 score types:
+   - `size`: Shows employee count and tier description (e.g., "200 employees (100-500 sweet spot)")
+   - `industry_density`: Shows approximate density range from score (e.g., "5-10% union density (moderate)")
+   - `nlrb`: Shows win count range (e.g., "5-9 recent wins in industry")
+   - `osha`: Shows violation count (e.g., "12 violations (recent + multiple)")
+   - `contracts`: Shows total contract value (e.g., "$28,800,000 in contracts (≥$5M)")
+   - `labor`: Lists violation types (e.g., "2 wage theft ($45,000), 1 ULP cases")
+   - `sibling`: Describes sibling union relationship (e.g., "Parent company has union (strong)")
+3. **Updated `renderSectorDetail()` calls** - All 7 score rows now pass reason text
+
+**Example Output:**
+```
+Size Sweet Spot          5/5
+[████████████████████]
+200 employees (100-500 sweet spot)
+```
+
+**Status:** Complete. Backward compatible - OSHA scorecard continues to work without reasons.
+
+### 2026-02-04 (continued)
+**Tasks:** Process Remaining Mergent Employers Through Scorecard Pipeline
+**Files Modified:**
+- `CLAUDE.md` - Updated documentation with 11-sector data
+- `api/labor_api_v6.py` - Added generic sector API endpoints
+- `scripts/load_mergent_employers.py` - Created CSV loader script
+- `scripts/run_mergent_matching.py` - Created matching pipeline script
+- `scripts/create_sector_views.py` - Created sector view generator
+
+**Database Objects Created:**
+- Loaded 13,997 additional employers into `mergent_employers` table
+- Created 33 new views (3 per sector × 11 sectors):
+  - `v_{sector}_organizing_targets` - Non-union targets
+  - `v_{sector}_target_stats` - Summary by tier
+  - `v_{sector}_unionized` - Unionized reference
+
+**Key Results:**
+- **14,240 total employers** in mergent_employers (up from 243)
+- **11 sectors** with organizing targets
+- **221 unionized** employers identified across all sectors
+- **14,019 non-union targets** with organizing scores
+- **28.8% 990 match rate**, 1.5% F-7 match rate, 0.6% OSHA match rate
+
+**Sector Breakdown:**
+| Sector | Total | Targets | Unionized |
+|--------|-------|---------|-----------|
+| CIVIC_ORGANIZATIONS | 3,339 | 3,308 | 31 |
+| BUILDING_SERVICES | 2,692 | 2,672 | 20 |
+| EDUCATION | 2,487 | 2,425 | 62 |
+| SOCIAL_SERVICES | 1,520 | 1,496 | 24 |
+| BROADCASTING | 1,371 | 1,366 | 5 |
+| PUBLISHING | 768 | 763 | 5 |
+| WASTE_MGMT | 717 | 713 | 4 |
+| GOVERNMENT | 525 | 490 | 35 |
+| REPAIR_SERVICES | 394 | 393 | 1 |
+| MUSEUMS | 243 | 218 | 25 |
+| INFORMATION | 184 | 175 | 9 |
+
+**API Endpoints Added:**
+- `GET /api/sectors/list` - All sectors with counts
+- `GET /api/sectors/{sector}/summary` - Sector overview
+- `GET /api/sectors/{sector}/targets` - Search targets
+- `GET /api/sectors/{sector}/targets/stats` - Tier breakdown
+- `GET /api/sectors/{sector}/targets/{id}` - Target detail
+- `GET /api/sectors/{sector}/targets/cities` - City dropdown
+- `GET /api/sectors/{sector}/unionized` - Unionized list
+
+**Status:** Complete. Server restart required to activate new endpoints.
+
+### 2026-02-04
+**Tasks:** Scoring Methodology Overhaul & Contract Matching Fix
+
+**Scoring Changes:**
+1. **Removed Geographic Score** - Was 0-15 based on NYC/upstate location, now set to 0
+2. **Industry Density (0-10)** - Now uses BLS NAICS union density data from `v_naics_union_density`
+   - 15%+ density = 10 pts (Utilities, Transportation)
+   - 10-15% = 8 pts (Education, Construction)
+   - 5-10% = 6 pts (Healthcare, Manufacturing, Information)
+   - 2-5% = 4 pts (Retail, Admin Services)
+   - <2% = 2 pts (Finance, Professional Services)
+3. **NLRB Momentum (0-10)** - Now based on recent union wins in same 2-digit NAICS
+   - 10+ wins = 10 pts, 5-9 wins = 8 pts, 3-4 wins = 6 pts, 1-2 wins = 4 pts
+
+**Tier Thresholds Adjusted:**
+- TOP: ≥30 pts (was ≥40) - 164 targets, 100% have contracts
+- HIGH: ≥25 pts (was ≥30) - 480 targets, 92% have contracts
+- MEDIUM: ≥15 pts (was ≥20) - 3,745 targets
+- LOW: <15 pts - 9,630 targets
+
+**Contract Matching Fixed:**
+- Original matching used EIN (0% coverage in contract tables)
+- Fixed to use normalized name matching (`company_name_normalized` ↔ `vendor_name_normalized`)
+- Results: 1,059 NY State matches ($8.8B), 554 NYC matches ($46B capped)
+- Total: 1,369 employers with $54.9B in government contracts
+
+**Labor Violations Added (NEW):**
+- Added `score_labor_violations` (0-10 pts) using NYC Comptroller data
+- Matched 158 employers to wage theft cases ($8.2M total)
+- Matched 37 employers to ULP cases
+- Matched 18 employers to local labor law violations (PSSL/FWW)
+- Scoring: Wage theft amount (0-4) + ULP cases (0-3) + Local law (0-2) + Debarred (0-1)
+- New max score: 62 pts (was 52)
+
+**Files Modified:**
+- `api/labor_api_v6.py` - Reordered sector endpoints (cities before target_id)
+- `scripts/create_sector_views.py` - Refreshed all 33 sector views
+- `scripts/match_labor_violations.py` - NEW: NYC Comptroller matching script
+- `CLAUDE.md` - Updated scoring documentation
+
+**Database Updates:**
+- `mergent_employers.score_geographic` - Set to 0 for all rows
+- `mergent_employers.score_industry_density` - Recalculated from BLS data
+- `mergent_employers.score_nlrb_momentum` - Recalculated by 2-digit NAICS
+- `mergent_employers.score_labor_violations` - NEW: NYC Comptroller violations
+- `mergent_employers.nyc_wage_theft_*`, `nyc_ulp_*`, `nyc_local_law_*`, `nyc_debarred` - NEW
+- `mergent_employers.organizing_score` - Recalculated totals (now includes labor violations)
+- `mergent_employers.score_priority` - Updated with new tier thresholds
+- All `v_{sector}_*` views recreated
+- Added `employer_name_normalized` to all NYC Comptroller tables
+
+**Frontend Changes (files/organizer_v5.html):**
+- Added Union Preset dropdown (AFSCME NY, SEIU NY, UAW NY, CWA NY)
+- Added Data Source dropdown (OSHA vs 11 Mergent Sectors)
+- Added Tier and City filter dropdowns for sector view
+- Added `renderSectorDetail()` function for sector target details
+- Score breakdown bar updated for new scoring weights
+
+**Status:** Complete. Scoring now uses BLS industry density and NAICS-based NLRB momentum.
+
+### 2025-02-04
+**Tasks:** Museum Sector Organizing Scorecard - Complete Pipeline
+**Files Modified:**
+- `CLAUDE.md` - Added museum scorecard documentation
+- `api/labor_api_v6.py` - Added 6 museum API endpoints
+- `scripts/extract_ny_990.py` - Created NY 990 extraction script
+
+**Database Objects Created:**
+- `ny_990_filers` table - 37,480 NY nonprofit 990 filers
+- `mergent_employers` table - 243 NY museums with scoring columns
+- `v_museum_organizing_targets` view - 218 non-union targets
+- `v_museum_target_stats` view - Summary by tier
+- `v_museum_unionized` view - 25 unionized museums
+
+**Key Results:**
+- **14,240 employers** loaded from Mergent Intellect (11 sectors)
+- **1,369 employers** matched to government contracts ($54.9B total)
+- **221 (1.6%)** identified as unionized (F-7, NLRB wins, OSHA status)
+- **14,019 non-union targets** scored and ranked
+- **164 TOP tier** targets (30+ pts, all with contracts)
+- **Top target:** NY Botanical Garden (39 pts, $15M+ contracts)
+
+**Status:** Multi-sector scorecard complete with BLS density and NAICS-based NLRB scoring.
 
 ### 2025-02-03
 **Tasks:** AFSCME NY locals reconciliation and duplicate verification

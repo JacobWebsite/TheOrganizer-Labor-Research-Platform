@@ -1086,23 +1086,56 @@
                 </button>
             </div>
             
-            <!-- Filters -->
-            <div class="px-6 py-4 border-b border-warmgray-200 bg-warmgray-50">
+            <!-- Filters Row 1: Data Source & Union Preset -->
+            <div class="px-6 py-3 border-b border-warmgray-200 bg-gradient-to-r from-blue-50 to-warmgray-50">
                 <div class="flex gap-4 items-end flex-wrap">
                     <div>
-                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Presets</label>
-                        <button onclick="loadAFSCME_NY_Preset()"
-                            class="px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                            AFSCME NY
-                        </button>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Union Preset</label>
+                        <select id="scorecardUnionPreset" onchange="loadUnionPreset(this.value)"
+                            class="px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white min-w-[200px]">
+                            <option value="">Select a Union...</option>
+                            <option value="AFSCME_NY">AFSCME New York</option>
+                            <option value="SEIU_NY">SEIU New York</option>
+                            <option value="UAW_NY">UAW New York</option>
+                            <option value="CWA_NY">CWA New York</option>
+                        </select>
                     </div>
                     <div>
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Data Source</label>
+                        <select id="scorecardDataSource" onchange="updateScorecardFilters()"
+                            class="px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white min-w-[180px]">
+                            <option value="osha">OSHA Establishments</option>
+                            <optgroup label="Mergent Sectors (NY)">
+                                <option value="sector:education">Education</option>
+                                <option value="sector:social_services">Social Services</option>
+                                <option value="sector:building_services">Building Services</option>
+                                <option value="sector:civic_organizations">Civic Organizations</option>
+                                <option value="sector:broadcasting">Broadcasting</option>
+                                <option value="sector:publishing">Publishing</option>
+                                <option value="sector:government">Government</option>
+                                <option value="sector:museums">Museums</option>
+                                <option value="sector:information">Information</option>
+                                <option value="sector:waste_mgmt">Waste Management</option>
+                                <option value="sector:repair_services">Repair Services</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div id="sectorStatsDisplay" class="hidden text-sm text-warmgray-600 bg-white px-3 py-2 rounded-lg border border-warmgray-200">
+                        <!-- Populated by JS when sector selected -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Row 2: Search Criteria -->
+            <div class="px-6 py-4 border-b border-warmgray-200 bg-warmgray-50">
+                <div class="flex gap-4 items-end flex-wrap">
+                    <div id="scorecardStateContainer">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
                         <select id="scorecardState" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                             <option value="">All States</option>
                         </select>
                     </div>
-                    <div>
+                    <div id="scorecardIndustryContainer">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Industry</label>
                         <select id="scorecardIndustry" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                             <option value="">All Industries</option>
@@ -1126,9 +1159,25 @@
                             <option value="81">Other Services</option>
                         </select>
                     </div>
+                    <div id="scorecardTierContainer" class="hidden">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Priority Tier</label>
+                        <select id="scorecardTier" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
+                            <option value="">All Tiers</option>
+                            <option value="TOP">TOP (40+)</option>
+                            <option value="HIGH">HIGH (30-39)</option>
+                            <option value="MEDIUM">MEDIUM (20-29)</option>
+                            <option value="LOW">LOW (&lt;20)</option>
+                        </select>
+                    </div>
+                    <div id="scorecardCityContainer" class="hidden">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">City</label>
+                        <select id="scorecardCity" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm min-w-[150px]">
+                            <option value="">All Cities</option>
+                        </select>
+                    </div>
                     <div>
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Min Employees</label>
-                        <input type="number" id="scorecardMinEmp" value="50" min="1" max="10000"
+                        <input type="number" id="scorecardMinEmp" value="25" min="1" max="10000"
                             class="w-24 px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                     </div>
                     <div>
@@ -1138,10 +1187,10 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Min Score</label>
-                        <input type="number" id="scorecardMinScore" value="30" min="0" max="100"
+                        <input type="number" id="scorecardMinScore" value="20" min="0" max="100"
                             class="w-20 px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                     </div>
-                    <div>
+                    <div id="scorecardContractsContainer">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Contracts</label>
                         <select id="scorecardContracts" class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                             <option value="">All</option>
@@ -6091,6 +6140,10 @@
         let scorecardResults = [];
         let selectedScorecardItem = null;
         
+        // Current data source mode
+        let scorecardDataSource = 'osha';
+        let currentSectorCities = [];
+
         async function openOrganizingScorecard() {
             document.getElementById('scorecardModal').classList.remove('hidden');
             document.getElementById('scorecardModal').classList.add('flex');
@@ -6105,39 +6158,150 @@
                     stateSelect.add(new Option(opt.text, opt.value));
                 }
             }
+
+            // Initialize filter visibility
+            updateScorecardFilters();
         }
-        
+
         function closeOrganizingScorecard() {
             document.getElementById('scorecardModal').classList.add('hidden');
             document.getElementById('scorecardModal').classList.remove('flex');
             document.body.classList.remove('modal-open');
         }
 
-        function loadAFSCME_NY_Preset() {
-            // Set filters for AFSCME NY case study
-            // Healthcare (62), Education (61), Other Services (81)
-            document.getElementById('scorecardState').value = 'NY';
-            document.getElementById('scorecardIndustry').value = '62';  // Healthcare - largest AFSCME sector
-            document.getElementById('scorecardMinEmp').value = '25';
-            document.getElementById('scorecardMaxEmp').value = '5000';
-            document.getElementById('scorecardMinScore').value = '20';
-            document.getElementById('scorecardContracts').value = '';  // All
+        // Union preset configurations
+        const UNION_PRESETS = {
+            'AFSCME_NY': {
+                name: 'AFSCME New York',
+                sectors: ['social_services', 'education', 'building_services', 'civic_organizations', 'government'],
+                description: 'State/county/municipal employees - Social services, education, building services'
+            },
+            'SEIU_NY': {
+                name: 'SEIU New York',
+                sectors: ['social_services', 'building_services'],
+                description: 'Healthcare workers, building services, public sector'
+            },
+            'UAW_NY': {
+                name: 'UAW New York',
+                sectors: ['education', 'information'],
+                description: 'Higher education, research, tech workers'
+            },
+            'CWA_NY': {
+                name: 'CWA New York',
+                sectors: ['broadcasting', 'information', 'publishing'],
+                description: 'Communications, media, tech workers'
+            }
+        };
 
-            // Load results
+        function loadUnionPreset(presetKey) {
+            if (!presetKey || !UNION_PRESETS[presetKey]) {
+                // Reset to default
+                document.getElementById('scorecardDataSource').value = 'osha';
+                updateScorecardFilters();
+                return;
+            }
+
+            const preset = UNION_PRESETS[presetKey];
+
+            // Set data source to first sector in preset
+            document.getElementById('scorecardDataSource').value = 'sector:' + preset.sectors[0];
+
+            // Update filters
+            updateScorecardFilters();
+
+            // Show info about the preset
+            const statsEl = document.getElementById('sectorStatsDisplay');
+            statsEl.classList.remove('hidden');
+            statsEl.innerHTML = `
+                <div class="font-semibold text-blue-700">${preset.name}</div>
+                <div class="text-xs text-warmgray-500">${preset.description}</div>
+                <div class="text-xs mt-1">Sectors: ${preset.sectors.map(s => s.replace(/_/g, ' ')).join(', ')}</div>
+            `;
+
+            // Load results for first sector
             loadScorecardResults();
         }
-        
+
+        async function updateScorecardFilters() {
+            const dataSource = document.getElementById('scorecardDataSource').value;
+            const isOsha = dataSource === 'osha';
+            const isSector = dataSource.startsWith('sector:');
+
+            scorecardDataSource = dataSource;
+
+            // Toggle filter visibility based on data source
+            document.getElementById('scorecardStateContainer').classList.toggle('hidden', isSector);
+            document.getElementById('scorecardIndustryContainer').classList.toggle('hidden', isSector);
+            document.getElementById('scorecardTierContainer').classList.toggle('hidden', isOsha);
+            document.getElementById('scorecardCityContainer').classList.toggle('hidden', isOsha);
+
+            // Update stats display
+            const statsEl = document.getElementById('sectorStatsDisplay');
+
+            if (isSector) {
+                const sector = dataSource.replace('sector:', '');
+                try {
+                    // Load sector summary
+                    const response = await fetch(`${API_BASE}/sectors/${sector}/summary`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        statsEl.classList.remove('hidden');
+                        statsEl.innerHTML = `
+                            <span class="font-semibold">${data.sector}</span>:
+                            <span class="text-green-600">${data.targets?.target_count || 0} targets</span> ·
+                            <span class="text-blue-600">${data.unionized?.unionized_count || 0} unionized</span> ·
+                            <span>${data.union_density_pct}% density</span>
+                        `;
+                    }
+
+                    // Load cities for dropdown
+                    const citiesResp = await fetch(`${API_BASE}/sectors/${sector}/targets/cities`);
+                    if (citiesResp.ok) {
+                        const citiesData = await citiesResp.json();
+                        const citySelect = document.getElementById('scorecardCity');
+                        citySelect.innerHTML = '<option value="">All Cities</option>';
+                        (citiesData.cities || []).slice(0, 50).forEach(c => {
+                            citySelect.add(new Option(`${c.city} (${c.target_count})`, c.city));
+                        });
+                        currentSectorCities = citiesData.cities || [];
+                    }
+                } catch (e) {
+                    console.error('Failed to load sector info:', e);
+                }
+            } else {
+                statsEl.classList.add('hidden');
+            }
+        }
+
         async function loadScorecardResults() {
-            const state = document.getElementById('scorecardState').value;
-            const industry = document.getElementById('scorecardIndustry').value;
-            const minEmp = document.getElementById('scorecardMinEmp').value || 50;
-            const maxEmp = document.getElementById('scorecardMaxEmp').value || 5000;
-            const minScore = document.getElementById('scorecardMinScore').value || 0;
-            const hasContracts = document.getElementById('scorecardContracts').value;
+            const dataSource = document.getElementById('scorecardDataSource').value;
 
             // Show loading
             document.getElementById('scorecardLoading').classList.remove('hidden');
             document.getElementById('scorecardContent').classList.add('hidden');
+
+            try {
+                if (dataSource.startsWith('sector:')) {
+                    await loadSectorResults(dataSource.replace('sector:', ''));
+                } else {
+                    await loadOshaResults();
+                }
+            } catch (e) {
+                console.error('Scorecard failed:', e);
+                document.getElementById('scorecardResultsInfo').textContent = 'Error loading results. Check that the API is running.';
+            } finally {
+                document.getElementById('scorecardLoading').classList.add('hidden');
+                document.getElementById('scorecardContent').classList.remove('hidden');
+            }
+        }
+
+        async function loadOshaResults() {
+            const state = document.getElementById('scorecardState').value;
+            const industry = document.getElementById('scorecardIndustry').value;
+            const minEmp = document.getElementById('scorecardMinEmp').value || 25;
+            const maxEmp = document.getElementById('scorecardMaxEmp').value || 5000;
+            const minScore = document.getElementById('scorecardMinScore').value || 0;
+            const hasContracts = document.getElementById('scorecardContracts').value;
 
             const params = new URLSearchParams({
                 min_employees: minEmp,
@@ -6149,116 +6313,348 @@
             if (state) params.append('state', state);
             if (industry) params.append('naics_2digit', industry);
             if (hasContracts) params.append('has_contracts', hasContracts);
-            
-            try {
-                const response = await fetch(`${API_BASE}/organizing/scorecard?${params}`);
-                if (!response.ok) throw new Error('API error');
-                
-                const data = await response.json();
-                scorecardResults = data.results || [];
-                
-                renderScorecardResults(data);
-            } catch (e) {
-                console.error('Scorecard failed:', e);
-                document.getElementById('scorecardResultsInfo').textContent = 'Error loading results. Check that the API is running.';
-            } finally {
-                document.getElementById('scorecardLoading').classList.add('hidden');
-                document.getElementById('scorecardContent').classList.remove('hidden');
-            }
+
+            const response = await fetch(`${API_BASE}/organizing/scorecard?${params}`);
+            if (!response.ok) throw new Error('API error');
+
+            const data = await response.json();
+            scorecardResults = data.results || [];
+
+            renderScorecardResults(data, 'osha');
+        }
+
+        async function loadSectorResults(sector) {
+            const tier = document.getElementById('scorecardTier').value;
+            const city = document.getElementById('scorecardCity').value;
+            const minEmp = document.getElementById('scorecardMinEmp').value || 25;
+            const maxEmp = document.getElementById('scorecardMaxEmp').value || 5000;
+            const minScore = document.getElementById('scorecardMinScore').value || 0;
+            const hasContracts = document.getElementById('scorecardContracts').value;
+
+            const params = new URLSearchParams({
+                limit: 100
+            });
+
+            if (tier) params.append('tier', tier);
+            if (city) params.append('city', city);
+            if (minEmp) params.append('min_employees', minEmp);
+            if (maxEmp) params.append('max_employees', maxEmp);
+            if (minScore) params.append('min_score', minScore);
+            if (hasContracts === 'true') params.append('has_govt_contracts', 'true');
+            if (hasContracts === 'false') params.append('has_govt_contracts', 'false');
+
+            const response = await fetch(`${API_BASE}/sectors/${sector}/targets?${params}`);
+            if (!response.ok) throw new Error('API error');
+
+            const data = await response.json();
+            scorecardResults = (data.targets || []).map(t => ({
+                ...t,
+                establishment_id: t.id,
+                estab_name: t.employer_name,
+                site_city: t.city,
+                site_state: t.state,
+                employee_count: t.best_employee_count || t.employee_count,
+                organizing_score: t.total_score,
+                naics_code: t.naics_primary,
+                total_violations: t.osha_violation_count,
+                contract_info: {
+                    contract_count: (t.ny_state_contracts || 0) + (t.nyc_contracts || 0),
+                    total_funding: t.total_contract_value
+                },
+                labor_violations: {
+                    wage_theft_cases: t.nyc_wage_theft_cases || 0,
+                    wage_theft_amount: t.nyc_wage_theft_amount || 0,
+                    ulp_cases: t.nyc_ulp_cases || 0,
+                    local_law_cases: t.nyc_local_law_cases || 0,
+                    local_law_amount: t.nyc_local_law_amount || 0,
+                    debarred: t.nyc_debarred || false
+                },
+                score_breakdown: {
+                    geographic: t.score_geographic,
+                    size: t.score_size,
+                    industry_density: t.score_industry_density,
+                    nlrb: t.score_nlrb_momentum,
+                    osha: t.score_osha_violations,
+                    contracts: t.score_govt_contracts,
+                    labor: t.score_labor_violations || 0,
+                    sibling: t.sibling_union_bonus
+                },
+                _source: 'sector',
+                _sector: sector
+            }));
+
+            renderScorecardResults({
+                results: scorecardResults,
+                scored_count: data.total,
+                sector: data.sector
+            }, 'sector');
         }
         
-        function renderScorecardResults(data) {
+        function renderScorecardResults(data, source = 'osha') {
             const infoEl = document.getElementById('scorecardResultsInfo');
             const resultsEl = document.getElementById('scorecardResults');
-            
-            infoEl.textContent = `${formatNumber(data.scored_count || data.results?.length || 0)} establishments scored (showing top ${data.results?.length || 0})`;
-            
+
+            const sourceLabel = source === 'sector' ? `${data.sector || 'Sector'} targets` : 'establishments';
+            infoEl.textContent = `${formatNumber(data.scored_count || data.results?.length || 0)} ${sourceLabel} scored (showing top ${data.results?.length || 0})`;
+
             if (!data.results || data.results.length === 0) {
                 resultsEl.innerHTML = '<div class="p-8 text-center text-warmgray-400">No results found. Try adjusting filters.</div>';
                 return;
             }
-            
-            resultsEl.innerHTML = data.results.map((item, idx) => `
+
+            resultsEl.innerHTML = data.results.map((item, idx) => {
+                const tierBadge = item.priority_tier ?
+                    `<span class="badge ${getTierBadgeClass(item.priority_tier)}">${item.priority_tier}</span>` : '';
+
+                return `
                 <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedScorecardItem?.establishment_id === item.establishment_id ? 'bg-green-50 border-l-4 border-green-500' : ''}"
-                     onclick="selectScorecardItem('${item.establishment_id}')">
+                     onclick="selectScorecardItem('${item.establishment_id}', '${source}')">
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
                                 <span class="text-xs text-warmgray-400">#${idx + 1}</span>
                                 <div class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.estab_name || 'Unknown')}</div>
-                                ${item.contract_info?.contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Has Contracts</span>' : ''}
+                                ${tierBadge}
+                                ${item.contract_info?.contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Contracts</span>' : ''}
+                                ${item.score_breakdown?.labor > 0 ? '<span class="badge bg-pink-100 text-pink-700">Labor Viol</span>' : ''}
                             </div>
                             <div class="text-sm text-warmgray-500 truncate">
-                                ${escapeHtml(item.site_city || '')}, ${item.site_state || ''} · NAICS ${item.naics_code || 'N/A'}
+                                ${escapeHtml(item.site_city || '')}, ${item.site_state || ''} · ${item.industry || 'NAICS ' + (item.naics_code || 'N/A')}
                             </div>
                         </div>
                         <div class="text-right ml-3">
-                            <div class="text-2xl font-bold ${getScoreColor(item.organizing_score)}">${item.organizing_score}</div>
+                            <div class="text-2xl font-bold ${getScoreColor(item.organizing_score, source)}">${item.organizing_score || 0}</div>
                             <div class="text-xs text-warmgray-400">score</div>
                         </div>
                     </div>
                     <div class="flex gap-1">
-                        ${renderMiniScoreBar(item.score_breakdown)}
+                        ${renderMiniScoreBar(item.score_breakdown, source)}
                     </div>
                     <div class="flex justify-between text-xs text-warmgray-400 mt-2">
                         <span>${formatNumber(item.employee_count || 0)} employees</span>
-                        <span>${item.total_violations || 0} violations</span>
-                        ${item.contract_info?.total_funding > 0 ? `<span class="text-orange-600">$${formatNumber(item.contract_info.total_funding)} funding</span>` : ''}
+                        <span>${item.total_violations || 0} OSHA viol</span>
+                        ${item.contract_info?.total_funding > 0 ? `<span class="text-orange-600">$${formatNumber(Math.round(item.contract_info.total_funding))} funding</span>` : ''}
+                        ${item.labor_violations?.wage_theft_amount > 0 ? `<span class="text-pink-600">$${formatNumber(Math.round(item.labor_violations.wage_theft_amount))} wage theft</span>` : ''}
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
-        
-        function getScoreColor(score) {
+
+        function getTierBadgeClass(tier) {
+            switch (tier) {
+                case 'TOP': return 'bg-red-100 text-red-700';
+                case 'HIGH': return 'bg-orange-100 text-orange-700';
+                case 'MEDIUM': return 'bg-yellow-100 text-yellow-700';
+                case 'LOW': return 'bg-warmgray-100 text-warmgray-600';
+                default: return 'bg-warmgray-100 text-warmgray-600';
+            }
+        }
+
+        function getScoreColor(score, source = 'osha') {
+            // Sector scores max out around 52, OSHA around 100
+            if (source === 'sector') {
+                if (score >= 40) return 'text-green-600';
+                if (score >= 30) return 'text-yellow-600';
+                if (score >= 20) return 'text-orange-500';
+                return 'text-warmgray-400';
+            }
             if (score >= 70) return 'text-green-600';
             if (score >= 50) return 'text-yellow-600';
             if (score >= 30) return 'text-orange-500';
             return 'text-warmgray-400';
         }
-        
-        function renderMiniScoreBar(breakdown) {
-            if (!breakdown) return '';
-            // New 8-factor scoring system (0-100 points total)
-            const segments = [
-                { value: breakdown.company_unions || 0, max: 20, color: 'bg-indigo-500', label: 'Union Shops' },
-                { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry' },
-                { value: breakdown.state_density || 0, max: 10, color: 'bg-purple-500', label: 'State' },
-                { value: breakdown.size || 0, max: 10, color: 'bg-yellow-500', label: 'Size' },
-                { value: breakdown.osha || 0, max: 10, color: 'bg-red-500', label: 'OSHA' },
-                { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB' },
-                { value: breakdown.contracts || 0, max: 10, color: 'bg-orange-500', label: 'Contracts' },
-                { value: breakdown.projections || 0, max: 10, color: 'bg-teal-500', label: 'Growth' }
-            ];
 
-            return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
-                ${segments.map(s => `<div class="${s.color}" style="width: ${s.value}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
-            </div>`;
+        function renderMiniScoreBar(breakdown, source = 'osha') {
+            if (!breakdown) return '';
+
+            let segments;
+            if (source === 'sector') {
+                // Sector scoring (0-62 total)
+                segments = [
+                    { value: breakdown.size || 0, max: 5, color: 'bg-yellow-500', label: 'Size' },
+                    { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry Density' },
+                    { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB Momentum' },
+                    { value: breakdown.osha || 0, max: 4, color: 'bg-red-500', label: 'OSHA' },
+                    { value: breakdown.contracts || 0, max: 15, color: 'bg-orange-500', label: 'Contracts' },
+                    { value: breakdown.labor || 0, max: 10, color: 'bg-pink-500', label: 'Labor Violations' },
+                    { value: breakdown.sibling || 0, max: 8, color: 'bg-indigo-500', label: 'Sibling Union' }
+                ];
+                const total = 62;
+                return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
+                    ${segments.map(s => `<div class="${s.color}" style="width: ${(s.value / total * 100).toFixed(1)}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
+                </div>`;
+            } else {
+                // OSHA scoring (0-100 total)
+                segments = [
+                    { value: breakdown.company_unions || 0, max: 20, color: 'bg-indigo-500', label: 'Union Shops' },
+                    { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry' },
+                    { value: breakdown.state_density || 0, max: 10, color: 'bg-purple-500', label: 'State' },
+                    { value: breakdown.size || 0, max: 10, color: 'bg-yellow-500', label: 'Size' },
+                    { value: breakdown.osha || 0, max: 10, color: 'bg-red-500', label: 'OSHA' },
+                    { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB' },
+                    { value: breakdown.contracts || 0, max: 10, color: 'bg-orange-500', label: 'Contracts' },
+                    { value: breakdown.projections || 0, max: 10, color: 'bg-teal-500', label: 'Growth' }
+                ];
+                return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
+                    ${segments.map(s => `<div class="${s.color}" style="width: ${s.value}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
+                </div>`;
+            }
         }
         
-        async function selectScorecardItem(estabId) {
-            const item = scorecardResults.find(r => r.establishment_id === estabId);
+        async function selectScorecardItem(estabId, source = 'osha') {
+            const item = scorecardResults.find(r => String(r.establishment_id) === String(estabId));
             if (!item) return;
-            
+
             selectedScorecardItem = item;
-            
+
             // Re-render list to show selection
-            renderScorecardResults({ results: scorecardResults, scored_count: scorecardResults.length });
-            
+            const dataSource = document.getElementById('scorecardDataSource').value;
+            const isSector = dataSource.startsWith('sector:');
+            renderScorecardResults({ results: scorecardResults, scored_count: scorecardResults.length, sector: item._sector }, isSector ? 'sector' : 'osha');
+
             // Show detail panel
             document.getElementById('scorecardDetailEmpty').classList.add('hidden');
             document.getElementById('scorecardDetail').classList.remove('hidden');
-            
-            // Load detailed scorecard
-            try {
-                const response = await fetch(`${API_BASE}/organizing/scorecard/${estabId}`);
-                if (!response.ok) throw new Error('API error');
-                
-                const detail = await response.json();
-                renderScorecardDetail(detail);
-            } catch (e) {
-                console.error('Scorecard detail failed:', e);
-                renderScorecardDetail({ establishment: item, organizing_score: item.organizing_score, score_breakdown: item.score_breakdown });
+
+            if (item._source === 'sector') {
+                // Render sector detail directly from item data
+                renderSectorDetail(item);
+            } else {
+                // Load detailed scorecard from OSHA API
+                try {
+                    const response = await fetch(`${API_BASE}/organizing/scorecard/${estabId}`);
+                    if (!response.ok) throw new Error('API error');
+
+                    const detail = await response.json();
+                    renderScorecardDetail(detail);
+                } catch (e) {
+                    console.error('Scorecard detail failed:', e);
+                    renderScorecardDetail({ establishment: item, organizing_score: item.organizing_score, score_breakdown: item.score_breakdown });
+                }
             }
+        }
+
+        function renderSectorDetail(item) {
+            const el = document.getElementById('scorecardDetail');
+            const breakdown = item.score_breakdown || {};
+
+            el.innerHTML = `
+                <!-- Header -->
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(item.estab_name || 'Unknown')}</h3>
+                    <p class="text-warmgray-500">${escapeHtml(item.site_city || '')}, ${item.site_state || ''}</p>
+                    <div class="flex gap-2 mt-2 flex-wrap">
+                        ${item.priority_tier ? `<span class="badge ${getTierBadgeClass(item.priority_tier)}">${item.priority_tier} Priority</span>` : ''}
+                        <span class="badge badge-industry">${item.industry || 'NAICS ' + (item.naics_code || 'N/A')}</span>
+                        <span class="badge badge-private">${formatNumber(item.employee_count || 0)} employees</span>
+                        ${item.contract_info?.contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Has Govt Contracts</span>' : ''}
+                    </div>
+                </div>
+
+                <!-- Score breakdown -->
+                <div class="bg-gradient-to-r from-green-50 to-warmgray-50 rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-sm font-semibold text-warmgray-700">Organizing Score</span>
+                        <span class="text-4xl font-bold ${getScoreColor(item.organizing_score, 'sector')}">${item.organizing_score || 0}</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        ${renderScoreRow('Size Sweet Spot', breakdown.size, 5, 'bg-yellow-500', '100-500 employees = optimal', getScoreReason('size', item))}
+                        ${renderScoreRow('Industry Density', breakdown.industry_density, 10, 'bg-blue-500', 'BLS NAICS unionization rate', getScoreReason('industry_density', item))}
+                        ${renderScoreRow('NLRB Momentum', breakdown.nlrb, 10, 'bg-green-500', 'Recent wins in same industry', getScoreReason('nlrb', item))}
+                        ${renderScoreRow('OSHA Violations', breakdown.osha, 4, 'bg-red-500', 'Safety violations on record', getScoreReason('osha', item))}
+                        ${renderScoreRow('Govt Contracts', breakdown.contracts, 15, 'bg-orange-500', 'NY State + NYC contract value', getScoreReason('contracts', item))}
+                        ${renderScoreRow('Labor Violations', breakdown.labor, 10, 'bg-pink-500', 'Wage theft, ULP, PSSL/FWW', getScoreReason('labor', item))}
+                        ${renderScoreRow('Sibling Union Bonus', breakdown.sibling, 8, 'bg-indigo-500', 'Parent company has union', getScoreReason('sibling', item))}
+                    </div>
+                </div>
+
+                <!-- Contract Details -->
+                ${item.contract_info?.total_funding > 0 ? `
+                <div class="bg-orange-50 rounded-lg p-4 mb-6">
+                    <h4 class="font-semibold text-orange-800 mb-2">Government Contracts</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="text-orange-600 font-semibold">$${formatNumber(Math.round(item.contract_info.total_funding))}</div>
+                            <div class="text-warmgray-500">Total Contract Value</div>
+                        </div>
+                        <div>
+                            <div class="text-orange-600 font-semibold">${item.contract_info.contract_count}</div>
+                            <div class="text-warmgray-500">Contracts</div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- OSHA Details -->
+                ${item.total_violations > 0 ? `
+                <div class="bg-red-50 rounded-lg p-4 mb-6">
+                    <h4 class="font-semibold text-red-800 mb-2">OSHA Violations</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="text-red-600 font-semibold">${item.total_violations}</div>
+                            <div class="text-warmgray-500">Violations</div>
+                        </div>
+                        <div>
+                            <div class="text-red-600 font-semibold">$${formatNumber(Math.round(item.osha_total_penalties || 0))}</div>
+                            <div class="text-warmgray-500">Total Penalties</div>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Labor Violations (NYC Comptroller) -->
+                ${(item.labor_violations?.wage_theft_cases > 0 || item.labor_violations?.ulp_cases > 0 || item.labor_violations?.local_law_cases > 0) ? `
+                <div class="bg-pink-50 rounded-lg p-4 mb-6">
+                    <h4 class="font-semibold text-pink-800 mb-2">Labor Violations (NYC Comptroller)</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        ${item.labor_violations.wage_theft_cases > 0 ? `
+                        <div>
+                            <div class="text-pink-600 font-semibold">${item.labor_violations.wage_theft_cases} cases</div>
+                            <div class="text-warmgray-500">Wage Theft ($${formatNumber(Math.round(item.labor_violations.wage_theft_amount))})</div>
+                        </div>
+                        ` : ''}
+                        ${item.labor_violations.ulp_cases > 0 ? `
+                        <div>
+                            <div class="text-pink-600 font-semibold">${item.labor_violations.ulp_cases} cases</div>
+                            <div class="text-warmgray-500">NLRB ULP Cases</div>
+                        </div>
+                        ` : ''}
+                        ${item.labor_violations.local_law_cases > 0 ? `
+                        <div>
+                            <div class="text-pink-600 font-semibold">${item.labor_violations.local_law_cases} cases</div>
+                            <div class="text-warmgray-500">PSSL/Fair Workweek ($${formatNumber(Math.round(item.labor_violations.local_law_amount))})</div>
+                        </div>
+                        ` : ''}
+                        ${item.labor_violations.debarred ? `
+                        <div>
+                            <div class="text-pink-600 font-semibold">DEBARRED</div>
+                            <div class="text-warmgray-500">NYS Debarment List</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Additional Info -->
+                <div class="border-t border-warmgray-200 pt-4">
+                    <h4 class="font-semibold text-warmgray-700 mb-2">Data Sources</h4>
+                    <div class="text-sm text-warmgray-500 space-y-1">
+                        <div>• Employer data from Mergent Intellect</div>
+                        ${item.ny990_id ? '<div>• IRS Form 990 data matched</div>' : ''}
+                        ${item.matched_f7_employer_id ? '<div>• F-7 union contract matched (UNIONIZED)</div>' : ''}
+                        ${item.nlrb_case_number ? '<div>• NLRB election on record</div>' : ''}
+                        ${item.osha_establishment_id ? '<div>• OSHA establishment matched</div>' : ''}
+                    </div>
+                </div>
+
+                <!-- EIN for verification -->
+                ${item.ein ? `
+                <div class="mt-4 text-xs text-warmgray-400">
+                    EIN: ${item.ein} · DUNS: ${item.duns || 'N/A'}
+                </div>
+                ` : ''}
+            `;
         }
         
         function renderScorecardDetail(detail) {
@@ -6400,7 +6796,7 @@
             `;
         }
         
-        function renderScoreRow(label, score, max, colorClass, description) {
+        function renderScoreRow(label, score, max, colorClass, description, reason) {
             const pct = Math.round((score / max) * 100);
             return `
                 <div>
@@ -6411,8 +6807,97 @@
                     <div class="h-2 bg-warmgray-200 rounded-full overflow-hidden">
                         <div class="${colorClass} h-full rounded-full transition-all" style="width: ${pct}%"></div>
                     </div>
+                    ${reason ? `<div class="text-xs text-warmgray-500 mt-1 italic">${reason}</div>` : ''}
                 </div>
             `;
+        }
+
+        // Generate human-readable reason text for score components
+        function getScoreReason(type, item) {
+            const emp = item.employee_count || item.best_employee_count || 0;
+            const breakdown = item.score_breakdown || {};
+            const contractInfo = item.contract_info || {};
+            const laborViol = item.labor_violations || {};
+
+            switch(type) {
+                case 'size':
+                    if (emp >= 100 && emp <= 500) return `${formatNumber(emp)} employees (100-500 sweet spot)`;
+                    if (emp >= 50 && emp < 100) return `${formatNumber(emp)} employees (50-99 range)`;
+                    if (emp >= 25 && emp < 50) return `${formatNumber(emp)} employees (25-49 range)`;
+                    if (emp > 500) return `${formatNumber(emp)} employees (>500, harder to organize)`;
+                    if (emp > 0) return `${formatNumber(emp)} employees (small operation)`;
+                    return 'No employee data';
+
+                case 'industry_density': {
+                    const score = breakdown.industry_density || 0;
+                    // Reverse-engineer approximate density from score
+                    if (score >= 10) return '15%+ union density (high)';
+                    if (score >= 8) return '10-15% union density (good)';
+                    if (score >= 6) return '5-10% union density (moderate)';
+                    if (score >= 4) return '2-5% union density (low)';
+                    if (score >= 2) return '<2% union density (very low)';
+                    return 'Density data unavailable';
+                }
+
+                case 'nlrb': {
+                    const score = breakdown.nlrb || 0;
+                    // Reverse-engineer win count from score
+                    if (score >= 10) return '10+ recent wins in industry';
+                    if (score >= 8) return '5-9 recent wins in industry';
+                    if (score >= 6) return '3-4 recent wins in industry';
+                    if (score >= 4) return '1-2 recent wins in industry';
+                    return 'No recent wins in industry';
+                }
+
+                case 'osha': {
+                    const violations = item.total_violations || item.osha_violation_count || 0;
+                    const score = breakdown.osha || 0;
+                    if (violations === 0) return 'No OSHA violations';
+                    if (score >= 4) return `${violations} violations (recent + multiple)`;
+                    if (score >= 3) return `${violations} violations (3+ or recent)`;
+                    if (score > 0) return `${violations} violations`;
+                    return 'No violations on record';
+                }
+
+                case 'contracts': {
+                    const total = contractInfo.total_funding || item.total_contract_value || 0;
+                    const count = contractInfo.contract_count || 0;
+                    if (total >= 5000000) return `$${formatNumber(Math.round(total))} in contracts (≥$5M)`;
+                    if (total >= 1000000) return `$${formatNumber(Math.round(total))} in contracts (≥$1M)`;
+                    if (total >= 500000) return `$${formatNumber(Math.round(total))} in contracts (≥$500K)`;
+                    if (total >= 100000) return `$${formatNumber(Math.round(total))} in contracts (≥$100K)`;
+                    if (total > 0) return `$${formatNumber(Math.round(total))} in contracts`;
+                    return 'No government contracts';
+                }
+
+                case 'labor': {
+                    const parts = [];
+                    if (laborViol.wage_theft_cases > 0) {
+                        parts.push(`${laborViol.wage_theft_cases} wage theft ($${formatNumber(Math.round(laborViol.wage_theft_amount || 0))})`);
+                    }
+                    if (laborViol.ulp_cases > 0) {
+                        parts.push(`${laborViol.ulp_cases} ULP cases`);
+                    }
+                    if (laborViol.local_law_cases > 0) {
+                        parts.push(`${laborViol.local_law_cases} PSSL/FWW`);
+                    }
+                    if (laborViol.debarred) {
+                        parts.push('DEBARRED');
+                    }
+                    return parts.length > 0 ? parts.join(', ') : 'No labor violations';
+                }
+
+                case 'sibling': {
+                    const score = breakdown.sibling || 0;
+                    if (score >= 8) return 'Parent company has union (strong)';
+                    if (score >= 4) return 'Sibling company has union';
+                    if (score > 0) return 'Related company has union';
+                    return 'No sibling union detected';
+                }
+
+                default:
+                    return '';
+            }
         }
         
         // ==========================================
