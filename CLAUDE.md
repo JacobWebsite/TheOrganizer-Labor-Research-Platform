@@ -195,6 +195,22 @@ For each sector (e.g., `education`, `social_services`, `building_services`):
 
 **Note:** Education/Health and Public Administration are EXCLUDED from private sector industry weighting because these workers are often public employees already captured in government density estimates.
 
+**Education/Health Exclusion Rationale:**
+A hybrid approach was tested where:
+- 10 industries: Apply BLS rates × state climate multiplier (industry-weighted)
+- Edu/Health: Use state CPS private rate directly (no industry adjustment)
+
+Formula tested: `Hybrid = (10_Industry_Frac × Industry_Expected × Climate_Mult) + (EduHealth_Frac × State_Private_Rate)`
+
+**Hybrid vs Current Results (3,144 counties):**
+| Metric | Current (Excl Edu/Health) | Hybrid | Difference |
+|--------|---------------------------|--------|------------|
+| National Avg | 5.26% | 5.19% | -0.07% |
+| High Edu/Health Counties (>30%) | Lower | +0.5% to +0.8% | Minimal |
+| Low Edu/Health Counties (<15%) | Higher | -1% to -2% | Minimal |
+
+**Decision:** Keep current approach (exclude edu/health entirely). The hybrid adds complexity for negligible improvement (-0.07% difference). Current method is simpler and avoids potential double-counting.
+
 **State Climate Multiplier:**
 - Formula: `Actual_Private_Density / Expected_Private_Density`
 - Expected = sum of (industry_share × BLS_industry_rate) across 10 private industries
@@ -792,6 +808,29 @@ API docs: http://localhost:8001/docs
 **Output File Created:**
 - `data/county_density_analysis.csv` - 3,144 counties × 39 columns
 - Includes: workforce shares, public sector decomposition, old vs new private density, industry composition, state climate
+
+**Hybrid Approach Analysis (same session):**
+Tested alternative methodology: industry-weighted for 10 industries, state CPS rate for edu/health.
+
+**New Files Created:**
+- `scripts/calc_national_density.py` - Population-weighted national density by sector
+- `scripts/compare_edu_inclusion.py` - With vs without edu/health comparison
+- `scripts/hybrid_edu_health.py` - Hybrid approach implementation
+
+**Hybrid Formula:**
+```
+Hybrid = (10_Industry_Frac × Industry_Expected × Climate_Mult) +
+         (EduHealth_Frac × State_Private_Rate)
+```
+
+**Results:**
+| Metric | Current | Hybrid | Difference |
+|--------|---------|--------|------------|
+| National Avg | 5.26% | 5.19% | -0.07% |
+| High Edu/Health (>30%) | Lower | Higher | +0.5% to +0.8% |
+| Low Edu/Health (<15%) | Higher | Lower | -1% to -2% |
+
+**Conclusion:** Hybrid approach provides minimal improvement (-0.07% avg difference). Decision: keep current methodology (exclude edu/health entirely) for simplicity and to avoid double-counting with public sector estimates.
 
 **Status:** Complete. All 51 states and 3,144 counties have industry-adjusted estimates.
 
