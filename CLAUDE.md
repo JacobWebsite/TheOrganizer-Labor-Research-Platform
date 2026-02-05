@@ -162,6 +162,18 @@ For each sector (e.g., `education`, `social_services`, `building_services`):
 |-------|---------|-------------|
 | `zip_geography` | 39,366 | ZIP to City/County/CBSA mapping |
 | `cbsa_reference` | 937 | Metro area definitions |
+| `state_sector_union_density` | 6,191 | Union density by state/sector (1978-2025) |
+| `state_workforce_shares` | 51 | Public/private workforce shares by state |
+| `state_govt_level_density` | 51 | Estimated fed/state/local density by state |
+| `county_workforce_shares` | 3,144 | County workforce composition from ACS 2025 |
+| `county_union_density_estimates` | 3,144 | Estimated density by county |
+
+**State Sector Density:**
+- Source: unionstats.com (Hirsch/Macpherson CPS data)
+- Sectors: `private`, `public`, `total` (combined)
+- Columns: `state`, `state_name`, `sector`, `year`, `density_pct`, `source`
+- 25 states have estimated public density (small CPS sample sizes)
+- View: `v_state_density_latest` - Latest density with `public_is_estimated` flag
 
 ### NYC Employer Violations Tables
 Source: [NYC Comptroller Employer Violations Dashboard](https://comptroller.nyc.gov/services/for-the-public/employer-violations-dashboard/)
@@ -332,6 +344,14 @@ Supports all sectors: `civic_organizations`, `building_services`, `education`, `
 - `GET /api/employer/{employer_id}/projections` - Projections for employer
 - `GET /api/density/naics/{naics_2digit}` - Union density by NAICS
 - `GET /api/density/all` - All density data
+- `GET /api/density/by-state` - Union density by state (private & public sectors)
+- `GET /api/density/by-state/{state}/history` - Historical density for a state
+- `GET /api/density/by-govt-level` - Estimated density by government level (fed/state/local) for all states
+- `GET /api/density/by-govt-level/{state}` - Government-level density detail for a state
+- `GET /api/density/by-county` - Estimated county density (filters: state, min/max density)
+- `GET /api/density/by-county/{fips}` - Single county detail with methodology
+- `GET /api/density/by-state/{state}/counties` - All counties in a state
+- `GET /api/density/county-summary` - National county density statistics
 
 ### NAICS
 - `GET /api/naics/stats` - NAICS statistics
@@ -564,14 +584,21 @@ python -m scripts.matching run mergent_to_f7 --limit 1000 --skip-fuzzy
 python -m scripts.matching test mergent_to_f7 "ACME Hospital" --state NY
 ```
 
-### 4-Tier Matching Pipeline
+### 5-Tier Matching Pipeline
 
 | Tier | Method | Score | Confidence | Speed |
 |------|--------|-------|------------|-------|
 | 1 | EIN exact | 1.0 | HIGH | Fast |
 | 2 | Normalized name + state | 1.0 | HIGH | Fast |
-| 3 | Aggressive name + city | 0.95 | MEDIUM | Medium |
-| 4 | Trigram fuzzy + state | 0.65+ | LOW | Slow |
+| 3 | Address (fuzzy name + street # + city + state) | 0.4+ | HIGH | Medium |
+| 4 | Aggressive name + city | 0.95 | MEDIUM | Medium |
+| 5 | Trigram fuzzy + state | 0.65+ | LOW | Slow |
+
+**Address Matching (Tier 3):**
+- Uses fuzzy name similarity (>=0.4 threshold) combined with exact street number
+- Catches d/b/a names, rebranding, legal entity variations at same location
+- Extracts street number from messy formats like "City, ST ZIP, 123 Main St"
+- Example: "THC CHICAGO AIRPORT MANAGEMENT D/B/A RENAISSANCE C" → "Renaissance Chicago O'Hare Suites Hotel" (same address: 8500 W Bryn Mawr Ave)
 
 ### Available Scenarios
 
@@ -600,6 +627,7 @@ scripts/matching/
   matchers/
     base.py          # MatchResult, BaseMatcher
     exact.py         # EIN, Normalized, Aggressive matchers
+    address.py       # Address matcher (fuzzy name + street number)
     fuzzy.py         # Trigram pg_trgm matcher
 ```
 
@@ -653,14 +681,122 @@ API docs: http://localhost:8001/docs
 
 ## Session Log
 
+### 2026-02-05 (Address Matching Tier)
+**Tasks:** Add address-based matching as Tier 3 in unified matching module
+
+**New Files Created:**
+- `scripts/matching/matchers/address.py` - Address matcher with fuzzy name + exact street number
+
+**Files Modified:**
+- `scripts/matching/config.py` - Added TIER_ADDRESS (3), renumbered AGGRESSIVE to 4, FUZZY to 5
+- `scripts/matching/config.py` - Added `source_address_col` and `target_address_col` to MatchConfig
+- `scripts/matching/config.py` - Updated scenarios with address column mappings
+- `scripts/matching/pipeline.py` - Added AddressMatcher to pipeline, passes address to matchers
+- `scripts/matching/matchers/base.py` - Added `address` parameter to match() signature
+- `scripts/matching/matchers/exact.py` - Added `address` parameter (unused but required)
+- `scripts/matching/matchers/fuzzy.py` - Added `address` parameter (unused but required)
+
+**Key Implementation Details:**
+1. **Street Number Extraction** - Handles messy NLRB format "City, ST ZIP, 123 Main St"
+   - Removes ZIP codes (5/9 digit patterns)
+   - Removes state abbreviations
+   - Removes city prefix before comma
+   - Extracts first remaining number sequence
+
+2. **Address Matching Logic:**
+   - Uses pg_trgm `similarity()` for fuzzy name matching (>=0.4 threshold)
+   - Uses PostgreSQL regex `~ '^123[^0-9]'` for street number matching
+   - Requires state match, optionally matches city
+   - Lower name threshold since address provides additional confidence
+
+3. **PostgreSQL Regex Fix:**
+   - `\b` word boundary doesn't work reliably in PostgreSQL
+   - Changed to `^{num}[^0-9]` pattern (number at start, followed by non-digit)
+
+**Test Results (nlrb_to_f7, 2000 records):**
+| Tier | Matches |
+|------|---------|
+| NORMALIZED | 71 |
+| ADDRESS | 30 |
+| AGGRESSIVE | 6 |
+| **Total** | **107** |
+
+**Example ADDRESS Matches:**
+- "THC CHICAGO AIRPORT MANAGEMENT D/B/A RENAISSANCE C" → "Renaissance Chicago O'Hare Suites Hotel" (8500 W Bryn Mawr Ave, Chicago)
+- "North American Salt Company, a division of Compass" → "Compass Minerals America Inc" (9200 S. Ewing Ave, Chicago)
+- "SG360" → "The Segerdahl Corp d/b/a SG360" (1351 Wheeling Rd, Wheeling IL)
+
+**Address Column Mappings:**
+| Table | Address Column |
+|-------|----------------|
+| nlrb_participants | address |
+| f7_employers_deduped | street |
+| osha_establishments | site_address |
+| mergent_employers | street_address |
+| nlrb_voluntary_recognition | (none) |
+
+**Status:** Complete. 5-tier pipeline operational.
+
+### 2026-02-05 (Public Sector Density Estimation)
+**Tasks:** Estimate missing public sector union density for 25 states with small CPS samples
+
+**New Files Created:**
+- `scripts/estimate_public_density.py` - Load total density, workforce shares, calculate estimates
+
+**Database Objects Created:**
+- `state_workforce_shares` table - 51 state records with public/private workforce shares
+- `state_sector_union_density` - Added 2,352 'total' records and 150 estimated 'public' records
+- `v_state_density_latest` view - Updated with `public_is_estimated` flag
+
+**Algorithm:**
+```
+Public_Density = (Total_Density - Private_Share × Private_Density) / Public_Share
+```
+
+**Results:**
+- All 51 states now have public sector density (was 26/51)
+- 25 states with estimated values (source = 'estimated_from_total')
+- Validation: estimates within ±8.6% of direct measurements (worst case CA)
+- All estimates in reasonable 0-80% range
+
+**API Changes:**
+- `/api/density/by-state` - Added `public_is_estimated`, `total_density_pct`, `total_year` fields
+- `/api/density/by-state/{state}/history` - Added `source` field, now supports sector='total'
+- `/api/density/by-govt-level` - NEW: All states with fed/state/local density estimates
+- `/api/density/by-govt-level/{state}` - NEW: Single state detail with workforce composition
+- `/api/density/by-county` - NEW: County density estimates with filters
+- `/api/density/by-county/{fips}` - NEW: Single county detail
+- `/api/density/by-state/{state}/counties` - NEW: All counties in a state
+- `/api/density/county-summary` - NEW: National county statistics
+
+**County Density Methodology:**
+```
+County_Density = (Private_Share × State_Private_Rate) +
+                 (Fed_Share × State_Fed_Rate) +
+                 (State_Share × State_State_Rate) +
+                 (Local_Share × State_Local_Rate)
+```
+- Uses **state-adjusted** federal/state/local rates (not national baselines)
+- Self-employed workers excluded (0% union rate)
+- 3,144 counties estimated (78 Puerto Rico municipios excluded)
+- Confidence: HIGH if state has direct CPS measurement, MEDIUM if state density was estimated
+
+**Key Results:**
+- National avg county density: 8.1%
+- Range: 0% to 29.2% (Hamilton County, NY highest)
+- Top states by avg county density: NY, HI, CA, WA, NJ
+- Bottom states: SC, NC, SD, AR, UT
+
+**Status:** Complete
+
 ### 2026-02-04 (Unified Matching Module)
-**Tasks:** Create unified employer matching module with 4-tier pipeline and diff reporting
+**Tasks:** Create unified employer matching module with multi-tier pipeline and diff reporting
 
 **New Files Created:**
 - `scripts/matching/__init__.py` - Package exports
 - `scripts/matching/config.py` - MatchConfig dataclass, 9 predefined scenarios
 - `scripts/matching/normalizer.py` - Unified normalization (standard/aggressive/fuzzy)
-- `scripts/matching/pipeline.py` - MatchPipeline 4-tier orchestrator
+- `scripts/matching/pipeline.py` - MatchPipeline orchestrator
 - `scripts/matching/differ.py` - DiffReport for comparing runs
 - `scripts/matching/cli.py` - Command-line interface
 - `scripts/matching/__main__.py` - Module entry point
@@ -672,12 +808,12 @@ API docs: http://localhost:8001/docs
 - `scripts/test_matching.py` - Test script
 
 **Key Features:**
-1. **4-Tier Matching Pipeline**: EIN → Normalized → Aggressive → Fuzzy
+1. **Multi-Tier Matching Pipeline**: EIN → Normalized → Address → Aggressive → Fuzzy (5 tiers after 2026-02-05 update)
 2. **Consistent Normalization**: Wraps existing name_normalizer.py with levels
 3. **9 Predefined Scenarios**: All common matching use cases configured
 4. **Diff Reporting**: Compare match runs to see new/lost/changed matches
 5. **CLI Interface**: `python -m scripts.matching run --list`
-6. **Skip-Fuzzy Option**: `--skip-fuzzy` for faster runs (tier 4 is slow)
+6. **Skip-Fuzzy Option**: `--skip-fuzzy` for faster runs (tier 5 is slow)
 
 **Match Result Schema:**
 ```python
@@ -694,9 +830,10 @@ MatchResult(
 ```
 
 **Performance Notes:**
-- Tier 1-3: ~1000 records in 35 seconds
-- Tier 4 (fuzzy): Very slow per-record, use `--skip-fuzzy` for batch runs
+- Tier 1-4: ~1000 records in 35-60 seconds (address tier adds ~25% overhead)
+- Tier 5 (fuzzy): Very slow per-record, use `--skip-fuzzy` for batch runs
 - Fuzzy matching uses pg_trgm similarity() instead of % operator for psycopg2 compatibility
+- Address matching uses pg_trgm similarity() for name + regex for street number
 
 **Files Deprecated (mark but don't delete):**
 - `scripts/import/fuzzy_employer_matching.py`
