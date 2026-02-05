@@ -152,10 +152,10 @@ For each sector (e.g., `education`, `social_services`, `building_services`):
 **Priority Tiers:**
 | Tier | Score Range |
 |------|-------------|
-| TOP | 40+ |
-| HIGH | 30-39 |
-| MEDIUM | 20-29 |
-| LOW | <20 |
+| TOP | ≥30 |
+| HIGH | 25-29 |
+| MEDIUM | 15-24 |
+| LOW | <15 |
 
 ### Geography Tables
 | Table | Records | Description |
@@ -436,7 +436,6 @@ Integrated data pipeline: Mergent Intellect → 990 matching → F-7/NLRB/OSHA m
 | HIGH | ≥25 | 476 | 26.8 |
 | MEDIUM | ≥15 | 3,755 | 17.9 |
 | LOW | <15 | 9,615 | 10.2 |
-| LOW | <15 | 9,630 | 75 (1%) | $7.5M |
 
 **Top Targets (TOP tier, 30+ pts):**
 1. NY Botanical Garden (39 pts, MUSEUMS, $15M+ contracts)
@@ -530,6 +529,111 @@ SELECT employer_name, best_employee_count, union_name FROM v_museum_unionized;
 
 ---
 
+## Unified Employer Matching Module
+
+The `scripts/matching/` module provides consistent employer-to-employer matching across all scenarios.
+
+### Usage
+
+```python
+from scripts.matching import MatchPipeline
+
+# Single match
+pipeline = MatchPipeline(conn, scenario="mergent_to_f7")
+result = pipeline.match("ACME Hospital Inc", state="NY", city="Buffalo")
+
+# Run scenario
+stats = pipeline.run_scenario(batch_size=1000, limit=10000)
+```
+
+### CLI
+
+```bash
+# List scenarios
+python -m scripts.matching run --list
+
+# Run single scenario
+python -m scripts.matching run mergent_to_f7 --limit 1000 --skip-fuzzy
+
+# Test single match
+python -m scripts.matching test mergent_to_f7 "ACME Hospital" --state NY
+```
+
+### 4-Tier Matching Pipeline
+
+| Tier | Method | Score | Confidence | Speed |
+|------|--------|-------|------------|-------|
+| 1 | EIN exact | 1.0 | HIGH | Fast |
+| 2 | Normalized name + state | 1.0 | HIGH | Fast |
+| 3 | Aggressive name + city | 0.95 | MEDIUM | Medium |
+| 4 | Trigram fuzzy + state | 0.65+ | LOW | Slow |
+
+### Available Scenarios
+
+| Scenario | Source | Target | Use Case |
+|----------|--------|--------|----------|
+| `nlrb_to_f7` | nlrb_participants | f7_employers_deduped | NLRB → F7 |
+| `osha_to_f7` | osha_establishments | f7_employers_deduped | OSHA → F7 |
+| `mergent_to_f7` | mergent_employers | f7_employers_deduped | Sector targets → F7 |
+| `mergent_to_990` | mergent_employers | ny_990_filers | Sector → 990 |
+| `mergent_to_nlrb` | mergent_employers | nlrb_participants | Sector → NLRB |
+| `mergent_to_osha` | mergent_employers | osha_establishments | Sector → OSHA |
+| `violations_to_mergent` | nyc_wage_theft_nys | mergent_employers | Labor violations |
+| `contracts_to_990` | ny_state_contracts | employers_990 | Contracts → 990 |
+| `vr_to_f7` | nlrb_voluntary_recognition | f7_employers_deduped | VR → F7 |
+
+### Module Structure
+
+```
+scripts/matching/
+  __init__.py
+  config.py          # MatchConfig, SCENARIOS, tier thresholds
+  normalizer.py      # Unified normalization (standard/aggressive/fuzzy)
+  pipeline.py        # MatchPipeline orchestrator
+  differ.py          # Diff report generation
+  cli.py             # Command-line interface
+  matchers/
+    base.py          # MatchResult, BaseMatcher
+    exact.py         # EIN, Normalized, Aggressive matchers
+    fuzzy.py         # Trigram pg_trgm matcher
+```
+
+---
+
+## Data Operations
+
+When matching records between tables/datasets, always verify the join key exists in both sources before implementing. Check for null/empty values in join columns first.
+
+**Common gotchas:**
+- Contract tables (`ny_state_contracts`, `nyc_contracts`) have NO EIN values - use `vendor_name_normalized` for matching
+- `mergent_employers.ein` has ~55% coverage - not reliable for joins
+- Always sample 5-10 rows from each table to verify join keys before building matching logic
+- F7 uses `employer_name_aggressive` (not `employer_name_normalized`) for fuzzy matching
+
+---
+
+## Development Workflow
+
+After implementing new features or UI changes, offer to start a test server so the user can verify the changes visually.
+
+```cmd
+py -m http.server 8080 --directory files
+```
+
+Then open: http://localhost:8080/organizer_v5.html
+
+---
+
+## Documentation
+
+When modifying scoring/ranking logic, always update associated documentation to reflect methodology changes. Treat code changes and doc updates as a single unit of work.
+
+**Files to update when scoring changes:**
+- `CLAUDE.md` - Scoring Components table, Session Log
+- `docs/METHODOLOGY_SUMMARY_v8.md` - If methodology fundamentally changes
+
+---
+
 ## Starting the Platform
 
 ```cmd
@@ -543,6 +647,58 @@ API docs: http://localhost:8001/docs
 ---
 
 ## Session Log
+
+### 2026-02-04 (Unified Matching Module)
+**Tasks:** Create unified employer matching module with 4-tier pipeline and diff reporting
+
+**New Files Created:**
+- `scripts/matching/__init__.py` - Package exports
+- `scripts/matching/config.py` - MatchConfig dataclass, 9 predefined scenarios
+- `scripts/matching/normalizer.py` - Unified normalization (standard/aggressive/fuzzy)
+- `scripts/matching/pipeline.py` - MatchPipeline 4-tier orchestrator
+- `scripts/matching/differ.py` - DiffReport for comparing runs
+- `scripts/matching/cli.py` - Command-line interface
+- `scripts/matching/__main__.py` - Module entry point
+- `scripts/matching/matchers/__init__.py` - Matcher exports
+- `scripts/matching/matchers/base.py` - MatchResult, BaseMatcher base classes
+- `scripts/matching/matchers/exact.py` - EINMatcher, NormalizedMatcher, AggressiveMatcher
+- `scripts/matching/matchers/fuzzy.py` - TrigramMatcher using pg_trgm
+- `scripts/run_unified_matching.py` - Standalone CLI runner
+- `scripts/test_matching.py` - Test script
+
+**Key Features:**
+1. **4-Tier Matching Pipeline**: EIN → Normalized → Aggressive → Fuzzy
+2. **Consistent Normalization**: Wraps existing name_normalizer.py with levels
+3. **9 Predefined Scenarios**: All common matching use cases configured
+4. **Diff Reporting**: Compare match runs to see new/lost/changed matches
+5. **CLI Interface**: `python -m scripts.matching run --list`
+6. **Skip-Fuzzy Option**: `--skip-fuzzy` for faster runs (tier 4 is slow)
+
+**Match Result Schema:**
+```python
+MatchResult(
+    source_id, source_name,
+    target_id, target_name,
+    score,        # 0.0-1.0
+    method,       # "EIN", "NORMALIZED", "AGGRESSIVE", "FUZZY"
+    tier,         # 1-4
+    confidence,   # "HIGH", "MEDIUM", "LOW"
+    matched,      # bool
+    metadata      # dict
+)
+```
+
+**Performance Notes:**
+- Tier 1-3: ~1000 records in 35 seconds
+- Tier 4 (fuzzy): Very slow per-record, use `--skip-fuzzy` for batch runs
+- Fuzzy matching uses pg_trgm similarity() instead of % operator for psycopg2 compatibility
+
+**Files Deprecated (mark but don't delete):**
+- `scripts/import/fuzzy_employer_matching.py`
+- `scripts/etl/osha_fuzzy_match.py`
+- `scripts/match_labor_violations.py` (inline normalization)
+
+**Status:** Complete. Module tested and working.
 
 ### 2026-02-04 (Score Reasons)
 **Tasks:** Add Score Reason Explanations to Organizing Scorecard
