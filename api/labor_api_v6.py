@@ -293,6 +293,841 @@ def get_all_density(year: Optional[int] = None):
             return {"density": cur.fetchall()}
 
 
+@app.get("/api/density/by-state")
+def get_density_by_state(state: Optional[str] = None):
+    """Get union density by state (private and public sector)
+
+    Args:
+        state: Optional 2-letter state code. If not provided, returns all states.
+
+    Returns:
+        Latest density values for private and public sectors by state.
+        Includes public_is_estimated flag (true for states where public density
+        was estimated from total and private density due to small CPS samples).
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            if state:
+                cur.execute("""
+                    SELECT state, state_name,
+                           private_density_pct, private_year,
+                           public_density_pct, public_year,
+                           public_is_estimated,
+                           total_density_pct, total_year
+                    FROM v_state_density_latest
+                    WHERE state = %s
+                """, [state.upper()])
+                result = cur.fetchone()
+                if not result:
+                    raise HTTPException(status_code=404, detail=f"State not found: {state}")
+                return {"state": result}
+            else:
+                cur.execute("""
+                    SELECT state, state_name,
+                           private_density_pct, private_year,
+                           public_density_pct, public_year,
+                           public_is_estimated,
+                           total_density_pct, total_year
+                    FROM v_state_density_latest
+                    ORDER BY state
+                """)
+                return {"states": cur.fetchall()}
+
+
+@app.get("/api/density/by-state/{state}/history")
+def get_state_density_history(state: str, sector: Optional[str] = None):
+    """Get historical union density for a state
+
+    Args:
+        state: 2-letter state code
+        sector: Optional filter: 'private', 'public', or 'total'. If not provided, returns all.
+
+    Returns:
+        Historical density values by year for the specified state.
+        Includes source field ('unionstats_csv' or 'estimated_from_total').
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            if sector:
+                if sector.lower() not in ('private', 'public', 'total'):
+                    raise HTTPException(status_code=400, detail="Sector must be 'private', 'public', or 'total'")
+                cur.execute("""
+                    SELECT state, state_name, sector, year, density_pct, source
+                    FROM state_sector_union_density
+                    WHERE state = %s AND sector = %s
+                    ORDER BY year DESC
+                """, [state.upper(), sector.lower()])
+            else:
+                cur.execute("""
+                    SELECT state, state_name, sector, year, density_pct, source
+                    FROM state_sector_union_density
+                    WHERE state = %s
+                    ORDER BY sector, year DESC
+                """, [state.upper()])
+
+            results = cur.fetchall()
+            if not results:
+                raise HTTPException(status_code=404, detail=f"No data found for state: {state}")
+
+            # Get latest values for summary
+            cur.execute("""
+                SELECT state, state_name,
+                       private_density_pct, private_year,
+                       public_density_pct, public_year,
+                       public_is_estimated, total_density_pct, total_year
+                FROM v_state_density_latest
+                WHERE state = %s
+            """, [state.upper()])
+            latest = cur.fetchone()
+
+            return {
+                "state": state.upper(),
+                "latest": latest,
+                "history": results
+            }
+
+
+@app.get("/api/density/by-govt-level")
+def get_density_by_govt_level():
+    """Get estimated union density by government level (federal/state/local) for all states
+
+    Uses uniform multiplier method: each state's density at each government level
+    is estimated as k × national_baseline, where k is calculated from the state's
+    overall public sector density.
+
+    Returns:
+        All states with estimated federal, state, and local government union densities.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    state,
+                    state_name,
+                    public_density_pct,
+                    public_is_estimated,
+                    multiplier,
+                    est_federal_density,
+                    est_state_density,
+                    est_local_density,
+                    fed_share_of_public,
+                    state_share_of_public,
+                    local_share_of_public
+                FROM state_govt_level_density
+                ORDER BY public_density_pct DESC
+            """)
+            results = cur.fetchall()
+
+            # Get summary stats
+            cur.execute("""
+                SELECT
+                    ROUND(AVG(est_federal_density), 1) as avg_federal,
+                    ROUND(AVG(est_state_density), 1) as avg_state,
+                    ROUND(AVG(est_local_density), 1) as avg_local,
+                    ROUND(AVG(multiplier), 2) as avg_multiplier,
+                    COUNT(CASE WHEN multiplier > 1.5 THEN 1 END) as high_union_states,
+                    COUNT(CASE WHEN multiplier <= 0.75 THEN 1 END) as low_union_states
+                FROM state_govt_level_density
+            """)
+            stats = cur.fetchone()
+
+            return {
+                "methodology": {
+                    "description": "Uniform multiplier method using national baselines",
+                    "national_federal_baseline": 25.3,
+                    "national_state_baseline": 27.8,
+                    "national_local_baseline": 38.2,
+                    "formula": "state_density = k × national_baseline"
+                },
+                "summary": {
+                    "avg_federal_density": stats[0],
+                    "avg_state_density": stats[1],
+                    "avg_local_density": stats[2],
+                    "avg_multiplier": stats[3],
+                    "high_union_states": stats[4],
+                    "low_union_states": stats[5]
+                },
+                "states": results
+            }
+
+
+@app.get("/api/density/by-govt-level/{state}")
+def get_state_density_by_govt_level(state: str):
+    """Get estimated union density by government level for a specific state
+
+    Args:
+        state: 2-letter state code
+
+    Returns:
+        State's estimated federal, state, and local government union densities,
+        along with workforce composition and comparison to national baselines.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    g.state,
+                    g.state_name,
+                    g.public_density_pct,
+                    g.public_is_estimated,
+                    g.multiplier,
+                    g.est_federal_density,
+                    g.est_state_density,
+                    g.est_local_density,
+                    g.fed_share_of_public,
+                    g.state_share_of_public,
+                    g.local_share_of_public,
+                    w.federal_gov_share * 100 as federal_workforce_pct,
+                    w.state_gov_share * 100 as state_workforce_pct,
+                    w.local_gov_share * 100 as local_workforce_pct,
+                    w.public_share * 100 as public_workforce_pct,
+                    w.private_share * 100 as private_workforce_pct,
+                    d.private_density_pct,
+                    d.total_density_pct
+                FROM state_govt_level_density g
+                JOIN state_workforce_shares w ON g.state = w.state
+                JOIN v_state_density_latest d ON g.state = d.state
+                WHERE g.state = %s
+            """, [state.upper()])
+
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail=f"State not found: {state}")
+
+            # Calculate contribution breakdown
+            fed_contribution = result[8] * result[5]  # fed_share_of_public * est_fed_density
+            state_contribution = result[9] * result[6]
+            local_contribution = result[10] * result[7]
+
+            return {
+                "state": result[0],
+                "state_name": result[1],
+                "densities": {
+                    "private": result[16],
+                    "public_combined": result[2],
+                    "public_is_estimated": result[3],
+                    "federal_estimated": result[5],
+                    "state_estimated": result[6],
+                    "local_estimated": result[7],
+                    "total": result[17]
+                },
+                "multiplier": {
+                    "value": result[4],
+                    "interpretation": "above national average" if result[4] > 1 else "below national average"
+                },
+                "workforce_composition": {
+                    "federal_pct": result[11],
+                    "state_pct": result[12],
+                    "local_pct": result[13],
+                    "public_total_pct": result[14],
+                    "private_pct": result[15]
+                },
+                "public_sector_composition": {
+                    "federal_share": round(result[8] * 100, 1),
+                    "state_share": round(result[9] * 100, 1),
+                    "local_share": round(result[10] * 100, 1)
+                },
+                "contribution_to_public_density": {
+                    "federal": round(fed_contribution, 1),
+                    "state": round(state_contribution, 1),
+                    "local": round(local_contribution, 1),
+                    "total": round(fed_contribution + state_contribution + local_contribution, 1)
+                },
+                "comparison_to_national": {
+                    "federal": {"state": result[5], "national": 25.3, "premium": round(result[5] - 25.3, 1)},
+                    "state": {"state": result[6], "national": 27.8, "premium": round(result[6] - 27.8, 1)},
+                    "local": {"state": result[7], "national": 38.2, "premium": round(result[7] - 38.2, 1)}
+                }
+            }
+
+
+# ============================================================================
+# COUNTY UNION DENSITY ESTIMATES
+# ============================================================================
+
+@app.get("/api/density/by-county")
+def get_density_by_county(
+    state: Optional[str] = None,
+    min_density: Optional[float] = None,
+    max_density: Optional[float] = None,
+    limit: int = 100,
+    offset: int = 0
+):
+    """Get estimated union density for counties
+
+    Args:
+        state: Optional 2-letter state code filter
+        min_density: Minimum total density filter
+        max_density: Maximum total density filter
+        limit: Max results (default 100, max 500)
+        offset: Pagination offset
+
+    Returns:
+        Counties with estimated density values and confidence levels.
+    """
+    if limit > 500:
+        limit = 500
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = []
+            params = []
+
+            if state:
+                conditions.append("e.state = %s")
+                params.append(state.upper())
+            if min_density is not None:
+                conditions.append("e.estimated_total_density >= %s")
+                params.append(min_density)
+            if max_density is not None:
+                conditions.append("e.estimated_total_density <= %s")
+                params.append(max_density)
+
+            where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+            # Count total
+            cur.execute(f"""
+                SELECT COUNT(*)
+                FROM county_union_density_estimates e
+                {where_clause}
+            """, params)
+            total = cur.fetchone()[0]
+
+            # Get results
+            query_params = params + [limit, offset]
+            cur.execute(f"""
+                SELECT
+                    e.fips,
+                    e.state,
+                    e.county_name,
+                    e.estimated_total_density,
+                    e.estimated_private_density,
+                    e.estimated_public_density,
+                    e.confidence_level,
+                    e.state_multiplier,
+                    w.public_share * 100 as public_workforce_pct,
+                    w.private_share * 100 as private_workforce_pct,
+                    w.self_employed_share * 100 as self_employed_pct
+                FROM county_union_density_estimates e
+                JOIN county_workforce_shares w ON e.fips = w.fips
+                {where_clause}
+                ORDER BY e.estimated_total_density DESC
+                LIMIT %s OFFSET %s
+            """, query_params)
+
+            return {
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "counties": cur.fetchall()
+            }
+
+
+@app.get("/api/density/by-county/{fips}")
+def get_county_density_detail(fips: str):
+    """Get detailed density estimate for a specific county
+
+    Args:
+        fips: 5-digit FIPS code (e.g., '36061' for New York County, NY)
+
+    Returns:
+        Complete density breakdown with methodology explanation.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    e.fips,
+                    e.state,
+                    e.county_name,
+                    e.estimated_total_density,
+                    e.estimated_private_density,
+                    e.estimated_public_density,
+                    e.estimated_federal_density,
+                    e.estimated_state_density,
+                    e.estimated_local_density,
+                    e.private_share,
+                    e.federal_share,
+                    e.state_share,
+                    e.local_share,
+                    e.public_share,
+                    e.state_private_rate,
+                    e.state_federal_rate,
+                    e.state_state_rate,
+                    e.state_local_rate,
+                    e.confidence_level,
+                    e.state_multiplier,
+                    w.self_employed_share
+                FROM county_union_density_estimates e
+                JOIN county_workforce_shares w ON e.fips = w.fips
+                WHERE e.fips = %s
+            """, [fips.zfill(5)])
+
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail=f"County not found: {fips}")
+
+            return {
+                "fips": result[0],
+                "state": result[1],
+                "county_name": result[2],
+                "estimated_densities": {
+                    "total": result[3],
+                    "private": result[4],
+                    "public": result[5],
+                    "federal": result[6],
+                    "state_gov": result[7],
+                    "local": result[8]
+                },
+                "workforce_composition": {
+                    "private_pct": round(float(result[9]) * 100, 1) if result[9] else 0,
+                    "federal_pct": round(float(result[10]) * 100, 1) if result[10] else 0,
+                    "state_pct": round(float(result[11]) * 100, 1) if result[11] else 0,
+                    "local_pct": round(float(result[12]) * 100, 1) if result[12] else 0,
+                    "public_pct": round(float(result[13]) * 100, 1) if result[13] else 0,
+                    "self_employed_pct": round(float(result[20]) * 100, 1) if result[20] else 0
+                },
+                "state_density_rates_used": {
+                    "private": result[14],
+                    "federal": result[15],
+                    "state_gov": result[16],
+                    "local": result[17]
+                },
+                "confidence_level": result[18],
+                "state_union_multiplier": result[19],
+                "methodology": {
+                    "description": "State density rates applied to county workforce composition",
+                    "formula": "Total = (Private% × State_Private_Rate) + (Fed% × State_Fed_Rate) + (State% × State_State_Rate) + (Local% × State_Local_Rate)",
+                    "note": "Self-employed workers (0% union rate) are excluded from calculation"
+                }
+            }
+
+
+@app.get("/api/density/by-state/{state}/counties")
+def get_state_counties_density(state: str):
+    """Get all county density estimates for a state
+
+    Args:
+        state: 2-letter state code
+
+    Returns:
+        All counties in the state with density estimates.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    e.fips,
+                    e.county_name,
+                    e.estimated_total_density,
+                    e.estimated_public_density,
+                    e.confidence_level,
+                    w.public_share * 100 as public_workforce_pct,
+                    w.private_share * 100 as private_workforce_pct
+                FROM county_union_density_estimates e
+                JOIN county_workforce_shares w ON e.fips = w.fips
+                WHERE e.state = %s
+                ORDER BY e.estimated_total_density DESC
+            """, [state.upper()])
+
+            counties = cur.fetchall()
+            if not counties:
+                raise HTTPException(status_code=404, detail=f"No counties found for state: {state}")
+
+            # Get state-level summary
+            cur.execute("""
+                SELECT
+                    COUNT(*) as county_count,
+                    ROUND(AVG(estimated_total_density), 2) as avg_density,
+                    ROUND(MIN(estimated_total_density), 2) as min_density,
+                    ROUND(MAX(estimated_total_density), 2) as max_density
+                FROM county_union_density_estimates
+                WHERE state = %s
+            """, [state.upper()])
+            summary = cur.fetchone()
+
+            # Get state density for comparison
+            cur.execute("""
+                SELECT total_density_pct FROM v_state_density_latest WHERE state = %s
+            """, [state.upper()])
+            state_density = cur.fetchone()
+
+            return {
+                "state": state.upper(),
+                "summary": {
+                    "county_count": summary[0],
+                    "avg_county_density": summary[1],
+                    "min_county_density": summary[2],
+                    "max_county_density": summary[3],
+                    "state_total_density": state_density[0] if state_density else None
+                },
+                "counties": counties
+            }
+
+
+@app.get("/api/density/county-summary")
+def get_county_density_summary():
+    """Get summary statistics for county density estimates
+
+    Returns:
+        National and state-level summaries of county density variation.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # National stats
+            cur.execute("""
+                SELECT
+                    COUNT(*) as total_counties,
+                    ROUND(AVG(estimated_total_density), 2) as avg_density,
+                    ROUND(MIN(estimated_total_density), 2) as min_density,
+                    ROUND(MAX(estimated_total_density), 2) as max_density,
+                    ROUND(STDDEV(estimated_total_density), 2) as stddev_density,
+                    COUNT(CASE WHEN confidence_level = 'HIGH' THEN 1 END) as high_confidence,
+                    COUNT(CASE WHEN confidence_level = 'MEDIUM' THEN 1 END) as medium_confidence
+                FROM county_union_density_estimates
+            """)
+            national = cur.fetchone()
+
+            # Top 10 counties
+            cur.execute("""
+                SELECT fips, state, county_name, estimated_total_density
+                FROM county_union_density_estimates
+                ORDER BY estimated_total_density DESC
+                LIMIT 10
+            """)
+            top_counties = cur.fetchall()
+
+            # Bottom 10 counties (excluding zeros)
+            cur.execute("""
+                SELECT fips, state, county_name, estimated_total_density
+                FROM county_union_density_estimates
+                WHERE estimated_total_density > 0
+                ORDER BY estimated_total_density ASC
+                LIMIT 10
+            """)
+            bottom_counties = cur.fetchall()
+
+            # State summaries
+            cur.execute("""
+                SELECT
+                    state,
+                    COUNT(*) as county_count,
+                    ROUND(AVG(estimated_total_density), 2) as avg_density
+                FROM county_union_density_estimates
+                GROUP BY state
+                ORDER BY avg_density DESC
+            """)
+            by_state = cur.fetchall()
+
+            return {
+                "national_summary": {
+                    "total_counties": national[0],
+                    "avg_density": national[1],
+                    "min_density": national[2],
+                    "max_density": national[3],
+                    "stddev_density": national[4],
+                    "high_confidence_count": national[5],
+                    "medium_confidence_count": national[6]
+                },
+                "top_density_counties": top_counties,
+                "bottom_density_counties": bottom_counties,
+                "by_state": by_state,
+                "methodology_note": "Estimates based on state density rates × county workforce composition. Self-employed workers excluded (0% union rate)."
+            }
+
+
+# ============================================================================
+# INDUSTRY-WEIGHTED DENSITY ANALYSIS
+# ============================================================================
+
+@app.get("/api/density/industry-rates")
+def get_industry_density_rates():
+    """Get BLS industry union density rates (2024)
+
+    Returns:
+        List of 12 industry categories with their union density percentages.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT industry_code, industry_name, union_density_pct, year, source
+                FROM bls_industry_density
+                ORDER BY union_density_pct DESC
+            """)
+            rates = cur.fetchall()
+
+            return {
+                "industry_rates": [
+                    {
+                        "industry_code": r["industry_code"],
+                        "industry_name": r["industry_name"],
+                        "union_density_pct": r["union_density_pct"],
+                        "year": r["year"],
+                        "source": r["source"]
+                    }
+                    for r in rates
+                ],
+                "note": "Rates from BLS Union Membership Table 3 (2024). Used to calculate expected private sector density from industry composition."
+            }
+
+
+@app.get("/api/density/state-industry-comparison")
+def get_state_industry_comparison(
+    sort_by: str = Query("climate_multiplier", description="Sort by: climate_multiplier, expected, actual, difference"),
+    order: str = Query("desc", description="Sort order: asc or desc")
+):
+    """Get state-level expected vs actual private sector density comparison
+
+    Returns:
+        All 51 states with:
+        - Expected density (based on industry composition)
+        - Actual density (from CPS)
+        - Climate multiplier (actual / expected)
+        - Interpretation (STRONG, ABOVE_AVERAGE, BELOW_AVERAGE, WEAK)
+    """
+    valid_sorts = {
+        "climate_multiplier": "climate_multiplier",
+        "expected": "expected_private_density",
+        "actual": "actual_private_density",
+        "difference": "density_difference",
+        "state": "state"
+    }
+    sort_col = valid_sorts.get(sort_by, "climate_multiplier")
+    order_dir = "DESC" if order.lower() == "desc" else "ASC"
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                SELECT state, state_name, expected_private_density, actual_private_density,
+                       density_difference, climate_multiplier, interpretation
+                FROM state_industry_density_comparison
+                ORDER BY {sort_col} {order_dir}
+            """)
+            states = cur.fetchall()
+
+            # Summary stats
+            cur.execute("""
+                SELECT interpretation, COUNT(*), ROUND(AVG(climate_multiplier), 2)
+                FROM state_industry_density_comparison
+                GROUP BY interpretation
+                ORDER BY AVG(climate_multiplier) DESC
+            """)
+            summary = cur.fetchall()
+
+            return {
+                "states": [
+                    {
+                        "state": s["state"],
+                        "state_name": s["state_name"],
+                        "expected_private_density": s["expected_private_density"],
+                        "actual_private_density": s["actual_private_density"],
+                        "density_difference": s["density_difference"],
+                        "climate_multiplier": s["climate_multiplier"],
+                        "interpretation": s["interpretation"]
+                    }
+                    for s in states
+                ],
+                "summary_by_interpretation": [
+                    {
+                        "interpretation": s["interpretation"],
+                        "state_count": s["count"],
+                        "avg_multiplier": s["round"]
+                    }
+                    for s in summary
+                ],
+                "methodology": "Expected density = sum(industry_share × BLS_industry_rate) for 12 industries. Climate multiplier = actual / expected. STRONG > 1.5x, ABOVE_AVERAGE 1.0-1.5x, BELOW_AVERAGE 0.5-1.0x, WEAK < 0.5x."
+            }
+
+
+@app.get("/api/density/state-industry-comparison/{state}")
+def get_state_industry_detail(state: str):
+    """Get detailed industry composition and density comparison for a single state
+
+    Args:
+        state: Two-letter state abbreviation (e.g., NY, CA)
+
+    Returns:
+        Industry breakdown with BLS rates and contribution to expected density.
+    """
+    state = state.upper()
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get state comparison data
+            cur.execute("""
+                SELECT state, state_name, expected_private_density, actual_private_density,
+                       density_difference, climate_multiplier, interpretation,
+                       agriculture_mining_share, construction_share, manufacturing_share,
+                       wholesale_share, retail_share, transportation_utilities_share,
+                       information_share, finance_share, professional_services_share,
+                       education_health_share, leisure_hospitality_share, other_services_share
+                FROM state_industry_density_comparison
+                WHERE state = %s
+            """, (state,))
+            row = cur.fetchone()
+
+            if not row:
+                raise HTTPException(status_code=404, detail=f"State {state} not found")
+
+            # Get BLS rates
+            cur.execute("SELECT industry_code, industry_name, union_density_pct FROM bls_industry_density")
+            bls_rates = {r["industry_code"]: (r["industry_name"], float(r["union_density_pct"])) for r in cur.fetchall()}
+
+            # Map shares to industry codes
+            share_map = {
+                'AGR_MIN': ('agriculture_mining_share', row["agriculture_mining_share"]),
+                'CONST': ('construction_share', row["construction_share"]),
+                'MFG': ('manufacturing_share', row["manufacturing_share"]),
+                'WHOLESALE': ('wholesale_share', row["wholesale_share"]),
+                'RETAIL': ('retail_share', row["retail_share"]),
+                'TRANS_UTIL': ('transportation_utilities_share', row["transportation_utilities_share"]),
+                'INFO': ('information_share', row["information_share"]),
+                'FINANCE': ('finance_share', row["finance_share"]),
+                'PROF_BUS': ('professional_services_share', row["professional_services_share"]),
+                'EDU_HEALTH': ('education_health_share', row["education_health_share"]),
+                'LEISURE': ('leisure_hospitality_share', row["leisure_hospitality_share"]),
+                'OTHER': ('other_services_share', row["other_services_share"])
+            }
+
+            # Calculate contribution from each industry
+            # Renormalize shares to exclude public admin (sum to 1.0)
+            total_private_share = sum(float(s[1] or 0) for s in share_map.values())
+
+            industry_breakdown = []
+            for code, (col_name, share) in share_map.items():
+                share_val = float(share or 0)
+                normalized_share = share_val / total_private_share if total_private_share > 0 else 0
+                bls_name, bls_rate = bls_rates.get(code, ('Unknown', 5.9))
+                contribution = normalized_share * bls_rate
+
+                industry_breakdown.append({
+                    "industry_code": code,
+                    "industry_name": bls_name,
+                    "share_pct": round(share_val * 100, 2),
+                    "normalized_share_pct": round(normalized_share * 100, 2),
+                    "bls_density_pct": bls_rate,
+                    "contribution_pct": round(contribution, 3)
+                })
+
+            # Sort by contribution descending
+            industry_breakdown.sort(key=lambda x: x['contribution_pct'], reverse=True)
+
+            return {
+                "state": row["state"],
+                "state_name": row["state_name"],
+                "expected_private_density": row["expected_private_density"],
+                "actual_private_density": row["actual_private_density"],
+                "density_difference": row["density_difference"],
+                "climate_multiplier": row["climate_multiplier"],
+                "interpretation": row["interpretation"],
+                "industry_breakdown": industry_breakdown,
+                "note": f"{row['state_name']} has {'stronger' if row['climate_multiplier'] > 1 else 'weaker'} union presence than expected from its industry mix alone. Climate multiplier of {row['climate_multiplier']}x indicates {'favorable' if row['climate_multiplier'] > 1 else 'challenging'} organizing environment."
+            }
+
+
+@app.get("/api/density/by-county/{fips}/industry")
+def get_county_industry_detail(fips: str):
+    """Get industry composition and density calculation for a single county
+
+    Args:
+        fips: 5-digit county FIPS code
+
+    Returns:
+        County industry breakdown with contribution to expected private density.
+    """
+    fips = fips.zfill(5)
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get county industry shares
+            cur.execute("""
+                SELECT fips, state, county_name,
+                       agriculture_mining_share, construction_share, manufacturing_share,
+                       wholesale_share, retail_share, transportation_utilities_share,
+                       information_share, finance_share, professional_services_share,
+                       education_health_share, leisure_hospitality_share, other_services_share,
+                       public_admin_share
+                FROM county_industry_shares
+                WHERE fips = %s
+            """, (fips,))
+            county = cur.fetchone()
+
+            if not county:
+                raise HTTPException(status_code=404, detail=f"County FIPS {fips} not found in industry data")
+
+            # Get county density estimates
+            cur.execute("""
+                SELECT industry_expected_private, state_climate_multiplier, industry_adjusted_private,
+                       estimated_total_density
+                FROM county_union_density_estimates
+                WHERE fips = %s
+            """, (fips,))
+            density = cur.fetchone()
+
+            # Get state multiplier
+            cur.execute("""
+                SELECT climate_multiplier, interpretation
+                FROM state_industry_density_comparison
+                WHERE state = %s
+            """, (county["state"],))
+            state_info = cur.fetchone()
+
+            # Get BLS rates
+            cur.execute("SELECT industry_code, industry_name, union_density_pct FROM bls_industry_density")
+            bls_rates = {r["industry_code"]: (r["industry_name"], float(r["union_density_pct"])) for r in cur.fetchall()}
+
+            # Map shares
+            share_map = {
+                'AGR_MIN': ('Agriculture/Mining', county["agriculture_mining_share"]),
+                'CONST': ('Construction', county["construction_share"]),
+                'MFG': ('Manufacturing', county["manufacturing_share"]),
+                'WHOLESALE': ('Wholesale Trade', county["wholesale_share"]),
+                'RETAIL': ('Retail Trade', county["retail_share"]),
+                'TRANS_UTIL': ('Transportation/Utilities', county["transportation_utilities_share"]),
+                'INFO': ('Information', county["information_share"]),
+                'FINANCE': ('Finance/Real Estate', county["finance_share"]),
+                'PROF_BUS': ('Professional Services', county["professional_services_share"]),
+                'EDU_HEALTH': ('Education/Healthcare', county["education_health_share"]),
+                'LEISURE': ('Leisure/Hospitality', county["leisure_hospitality_share"]),
+                'OTHER': ('Other Services', county["other_services_share"])
+            }
+
+            # Renormalize excluding public admin
+            total_private_share = sum(float(s[1] or 0) for s in share_map.values())
+
+            industry_breakdown = []
+            for code, (name, share) in share_map.items():
+                share_val = float(share or 0)
+                normalized_share = share_val / total_private_share if total_private_share > 0 else 0
+                _, bls_rate = bls_rates.get(code, ('', 5.9))
+                contribution = normalized_share * bls_rate
+
+                industry_breakdown.append({
+                    "industry": name,
+                    "share_pct": round(share_val * 100, 2),
+                    "bls_density_pct": bls_rate,
+                    "contribution_pct": round(contribution, 3)
+                })
+
+            industry_breakdown.sort(key=lambda x: x['contribution_pct'], reverse=True)
+
+            state_mult = state_info["climate_multiplier"] if state_info else 1.0
+
+            return {
+                "fips": county["fips"],
+                "state": county["state"],
+                "county_name": county["county_name"],
+                "public_admin_share_pct": round(float(county["public_admin_share"] or 0) * 100, 2),
+                "industry_breakdown": industry_breakdown,
+                "expected_private_density": density["industry_expected_private"] if density else None,
+                "state_climate_multiplier": density["state_climate_multiplier"] if density else state_mult,
+                "adjusted_private_density": density["industry_adjusted_private"] if density else None,
+                "estimated_total_density": density["estimated_total_density"] if density else None,
+                "state_interpretation": state_info["interpretation"] if state_info else None,
+                "methodology": f"Expected density from county industry mix, adjusted by state climate multiplier ({state_mult}x) to account for regional union culture."
+            }
+
+
 # ============================================================================
 # BLS EMPLOYMENT PROJECTIONS (Enhanced with correct schema)
 # ============================================================================
@@ -3895,6 +4730,595 @@ def get_unified_source_types():
                 ORDER BY COUNT(*) DESC
             """)
             return {"source_types": cur.fetchall()}
+
+
+# ============================================================================
+# MUSEUM ORGANIZING TARGETS
+# ============================================================================
+
+@app.get("/api/museums/targets")
+def search_museum_targets(
+    tier: Optional[str] = None,
+    city: Optional[str] = None,
+    min_employees: Optional[int] = None,
+    max_employees: Optional[int] = None,
+    min_score: Optional[int] = None,
+    has_osha_violations: Optional[bool] = None,
+    has_govt_contracts: Optional[bool] = None,
+    search: Optional[str] = None,
+    sort_by: str = Query("total_score", regex="^(total_score|best_employee_count|revenue_millions|employer_name)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """
+    Search museum organizing targets.
+    
+    - tier: TOP, HIGH, MEDIUM, LOW
+    - city: Filter by city name
+    - min_employees/max_employees: Employee count range
+    - min_score: Minimum organizing score
+    - has_osha_violations: Filter for museums with OSHA violations
+    - has_govt_contracts: Filter for museums with government contracts
+    - search: Text search on employer name
+    - sort_by: Field to sort by
+    - sort_order: asc or desc
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+            
+            if tier:
+                conditions.append("priority_tier = %s")
+                params.append(tier.upper())
+            if city:
+                conditions.append("UPPER(city) = %s")
+                params.append(city.upper())
+            if min_employees:
+                conditions.append("best_employee_count >= %s")
+                params.append(min_employees)
+            if max_employees:
+                conditions.append("best_employee_count <= %s")
+                params.append(max_employees)
+            if min_score:
+                conditions.append("total_score >= %s")
+                params.append(min_score)
+            if has_osha_violations is True:
+                conditions.append("osha_violation_count > 0")
+            if has_osha_violations is False:
+                conditions.append("(osha_violation_count = 0 OR osha_violation_count IS NULL)")
+            if has_govt_contracts is True:
+                conditions.append("total_contract_value > 0")
+            if has_govt_contracts is False:
+                conditions.append("(total_contract_value = 0 OR total_contract_value IS NULL)")
+            if search:
+                conditions.append("employer_name ILIKE %s")
+                params.append(f"%{search}%")
+            
+            where_clause = " AND ".join(conditions)
+            
+            # Count total
+            cur.execute(f"""
+                SELECT COUNT(*) FROM v_museum_organizing_targets
+                WHERE {where_clause}
+            """, params)
+            total = cur.fetchone()['count']
+            
+            # Get results
+            order_dir = "DESC" if sort_order == "desc" else "ASC"
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT * FROM v_museum_organizing_targets
+                WHERE {where_clause}
+                ORDER BY {sort_by} {order_dir} NULLS LAST, employer_name
+                LIMIT %s OFFSET %s
+            """, params)
+            
+            return {
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "targets": cur.fetchall()
+            }
+
+
+@app.get("/api/museums/targets/stats")
+def get_museum_target_stats():
+    """Get summary statistics for museum organizing targets by tier"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM v_museum_target_stats")
+            tiers = cur.fetchall()
+            
+            # Also get overall totals
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as total_targets,
+                    SUM(best_employee_count) as total_employees,
+                    ROUND(AVG(total_score), 1) as avg_score,
+                    SUM(revenue_millions) as total_revenue_millions,
+                    COUNT(*) FILTER (WHERE has_osha_data) as with_osha_data,
+                    COUNT(*) FILTER (WHERE has_990_data) as with_990_data,
+                    COUNT(*) FILTER (WHERE osha_violation_count > 0) as with_violations,
+                    COUNT(*) FILTER (WHERE total_contract_value > 0) as with_contracts
+                FROM v_museum_organizing_targets
+            """)
+            totals = cur.fetchone()
+            
+            return {
+                "by_tier": tiers,
+                "totals": totals
+            }
+
+
+@app.get("/api/museums/targets/{target_id}")
+def get_museum_target_detail(target_id: str):
+    """Get detailed information for a specific museum target"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT * FROM v_museum_organizing_targets
+                WHERE id = %s
+            """, [target_id])
+            target = cur.fetchone()
+            
+            if not target:
+                raise HTTPException(status_code=404, detail="Target not found")
+            
+            # Get nearby unionized museums (same city or nearby)
+            cur.execute("""
+                SELECT employer_name, city, best_employee_count, union_name, nlrb_election_date
+                FROM v_museum_unionized
+                WHERE city = %s OR state = %s
+                ORDER BY best_employee_count DESC
+                LIMIT 5
+            """, [target['city'], target['state']])
+            nearby_unionized = cur.fetchall()
+            
+            return {
+                "target": target,
+                "nearby_unionized": nearby_unionized
+            }
+
+
+@app.get("/api/museums/targets/cities")
+def get_museum_target_cities():
+    """Get list of cities with museum targets for dropdown"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT city, COUNT(*) as target_count, SUM(best_employee_count) as total_employees
+                FROM v_museum_organizing_targets
+                GROUP BY city
+                ORDER BY COUNT(*) DESC
+            """)
+            return {"cities": cur.fetchall()}
+
+
+@app.get("/api/museums/unionized")
+def get_unionized_museums(
+    city: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Get list of already-unionized museums for reference"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+            
+            if city:
+                conditions.append("UPPER(city) = %s")
+                params.append(city.upper())
+            if search:
+                conditions.append("employer_name ILIKE %s")
+                params.append(f"%{search}%")
+            
+            where_clause = " AND ".join(conditions)
+            
+            cur.execute(f"""
+                SELECT COUNT(*) FROM v_museum_unionized
+                WHERE {where_clause}
+            """, params)
+            total = cur.fetchone()['count']
+            
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT * FROM v_museum_unionized
+                WHERE {where_clause}
+                ORDER BY best_employee_count DESC
+                LIMIT %s OFFSET %s
+            """, params)
+            
+            return {
+                "total": total,
+                "museums": cur.fetchall()
+            }
+
+
+@app.get("/api/museums/summary")
+def get_museum_sector_summary():
+    """Get overall summary of museum sector (targets + unionized)"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Target stats
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as target_count,
+                    SUM(best_employee_count) as target_employees,
+                    ROUND(SUM(revenue_millions), 1) as target_revenue_millions
+                FROM v_museum_organizing_targets
+            """)
+            targets = cur.fetchone()
+            
+            # Unionized stats
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as unionized_count,
+                    SUM(best_employee_count) as unionized_employees,
+                    ROUND(SUM(revenue_millions), 1) as unionized_revenue_millions
+                FROM v_museum_unionized
+            """)
+            unionized = cur.fetchone()
+            
+            # Score distribution
+            cur.execute("""
+                SELECT 
+                    priority_tier,
+                    COUNT(*) as count,
+                    SUM(best_employee_count) as employees
+                FROM v_museum_organizing_targets
+                GROUP BY priority_tier
+                ORDER BY 
+                    CASE priority_tier 
+                        WHEN 'TOP' THEN 1 
+                        WHEN 'HIGH' THEN 2 
+                        WHEN 'MEDIUM' THEN 3 
+                        ELSE 4 
+                    END
+            """)
+            by_tier = cur.fetchall()
+            
+            return {
+                "sector": "MUSEUMS",
+                "targets": targets,
+                "unionized": unionized,
+                "by_tier": by_tier,
+                "union_density_pct": round(
+                    unionized['unionized_count'] / (targets['target_count'] + unionized['unionized_count']) * 100, 1
+                ) if targets['target_count'] else 0
+            }
+
+
+# ============================================================================
+# GENERIC SECTOR ORGANIZING TARGETS
+# ============================================================================
+
+# Valid sectors with their view names
+SECTOR_VIEWS = {
+    'civic_organizations': 'civic_organizations',
+    'building_services': 'building_services',
+    'education': 'education',
+    'social_services': 'social_services',
+    'broadcasting': 'broadcasting',
+    'publishing': 'publishing',
+    'waste_mgmt': 'waste_mgmt',
+    'government': 'government',
+    'repair_services': 'repair_services',
+    'museums': 'museums',
+    'information': 'information',
+}
+
+
+@app.get("/api/sectors/list")
+def list_sectors():
+    """List all available sectors with target counts"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    sector_category,
+                    COUNT(*) as total_employers,
+                    SUM(CASE WHEN has_union THEN 1 ELSE 0 END) as unionized_count,
+                    SUM(CASE WHEN has_union IS NOT TRUE THEN 1 ELSE 0 END) as target_count,
+                    SUM(COALESCE(employees_site, 0)) as total_employees,
+                    ROUND(100.0 * SUM(CASE WHEN has_union THEN 1 ELSE 0 END) / COUNT(*), 1) as union_density_pct
+                FROM mergent_employers
+                WHERE sector_category IS NOT NULL
+                GROUP BY sector_category
+                ORDER BY COUNT(*) DESC
+            """)
+            return {"sectors": cur.fetchall()}
+
+
+@app.get("/api/sectors/{sector}/summary")
+def get_sector_summary(sector: str):
+    """Get summary statistics for a sector"""
+    sector_key = sector.lower().replace('-', '_')
+    if sector_key not in SECTOR_VIEWS:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector}' not found. Valid: {list(SECTOR_VIEWS.keys())}")
+
+    sector_upper = sector_key.upper()
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Target stats
+            cur.execute("""
+                SELECT
+                    COUNT(*) as target_count,
+                    SUM(COALESCE(employees_site, ny990_employees, 0)) as target_employees,
+                    SUM(COALESCE(ny_state_contract_value, 0) + COALESCE(nyc_contract_value, 0)) as contract_value
+                FROM mergent_employers
+                WHERE sector_category = %s AND has_union IS NOT TRUE
+            """, [sector_upper])
+            targets = cur.fetchone()
+
+            # Unionized stats
+            cur.execute("""
+                SELECT
+                    COUNT(*) as unionized_count,
+                    SUM(COALESCE(employees_site, ny990_employees, 0)) as unionized_employees
+                FROM mergent_employers
+                WHERE sector_category = %s AND has_union = TRUE
+            """, [sector_upper])
+            unionized = cur.fetchone()
+
+            # Score distribution
+            cur.execute("""
+                SELECT
+                    score_priority as priority_tier,
+                    COUNT(*) as count,
+                    SUM(COALESCE(employees_site, ny990_employees, 0)) as employees
+                FROM mergent_employers
+                WHERE sector_category = %s AND has_union IS NOT TRUE
+                GROUP BY score_priority
+                ORDER BY
+                    CASE score_priority
+                        WHEN 'TOP' THEN 1
+                        WHEN 'HIGH' THEN 2
+                        WHEN 'MEDIUM' THEN 3
+                        ELSE 4
+                    END
+            """, [sector_upper])
+            by_tier = cur.fetchall()
+
+            total = (targets['target_count'] or 0) + (unionized['unionized_count'] or 0)
+            density = round(unionized['unionized_count'] / total * 100, 1) if total > 0 else 0
+
+            return {
+                "sector": sector_upper,
+                "targets": targets,
+                "unionized": unionized,
+                "by_tier": by_tier,
+                "union_density_pct": density
+            }
+
+
+@app.get("/api/sectors/{sector}/targets")
+def search_sector_targets(
+    sector: str,
+    tier: Optional[str] = None,
+    city: Optional[str] = None,
+    min_employees: Optional[int] = None,
+    max_employees: Optional[int] = None,
+    min_score: Optional[int] = None,
+    has_osha_violations: Optional[bool] = None,
+    has_govt_contracts: Optional[bool] = None,
+    search: Optional[str] = None,
+    sort_by: str = Query("total_score", regex="^(total_score|employee_count|employer_name|total_contract_value)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Search organizing targets in a specific sector"""
+    sector_key = sector.lower().replace('-', '_')
+    if sector_key not in SECTOR_VIEWS:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector}' not found")
+
+    view_name = f"v_{SECTOR_VIEWS[sector_key]}_organizing_targets"
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+
+            if tier:
+                conditions.append("priority_tier = %s")
+                params.append(tier.upper())
+            if city:
+                conditions.append("UPPER(city) = %s")
+                params.append(city.upper())
+            if min_employees:
+                conditions.append("best_employee_count >= %s")
+                params.append(min_employees)
+            if max_employees:
+                conditions.append("best_employee_count <= %s")
+                params.append(max_employees)
+            if min_score:
+                conditions.append("total_score >= %s")
+                params.append(min_score)
+            if has_osha_violations is True:
+                conditions.append("osha_violation_count > 0")
+            if has_osha_violations is False:
+                conditions.append("(osha_violation_count = 0 OR osha_violation_count IS NULL)")
+            if has_govt_contracts is True:
+                conditions.append("total_contract_value > 0")
+            if has_govt_contracts is False:
+                conditions.append("(total_contract_value = 0 OR total_contract_value IS NULL)")
+            if search:
+                conditions.append("employer_name ILIKE %s")
+                params.append(f"%{search}%")
+
+            where_clause = " AND ".join(conditions)
+
+            # Count total
+            cur.execute(f"""
+                SELECT COUNT(*) FROM {view_name}
+                WHERE {where_clause}
+            """, params)
+            total = cur.fetchone()['count']
+
+            # Get results
+            order_dir = "DESC" if sort_order == "desc" else "ASC"
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT * FROM {view_name}
+                WHERE {where_clause}
+                ORDER BY {sort_by} {order_dir} NULLS LAST, employer_name
+                LIMIT %s OFFSET %s
+            """, params)
+
+            return {
+                "sector": sector_key.upper(),
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "targets": cur.fetchall()
+            }
+
+
+@app.get("/api/sectors/{sector}/targets/stats")
+def get_sector_target_stats(sector: str):
+    """Get summary statistics by tier for a sector"""
+    sector_key = sector.lower().replace('-', '_')
+    if sector_key not in SECTOR_VIEWS:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector}' not found")
+
+    view_name = f"v_{SECTOR_VIEWS[sector_key]}_target_stats"
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT * FROM {view_name}")
+            tiers = cur.fetchall()
+
+            # Get overall totals
+            targets_view = f"v_{SECTOR_VIEWS[sector_key]}_organizing_targets"
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) as total_targets,
+                    SUM(best_employee_count) as total_employees,
+                    ROUND(AVG(total_score), 1) as avg_score,
+                    COUNT(*) FILTER (WHERE osha_violation_count > 0) as with_violations,
+                    COUNT(*) FILTER (WHERE total_contract_value > 0) as with_contracts
+                FROM {targets_view}
+            """)
+            totals = cur.fetchone()
+
+            return {
+                "sector": sector_key.upper(),
+                "by_tier": tiers,
+                "totals": totals
+            }
+
+
+@app.get("/api/sectors/{sector}/targets/cities")
+def get_sector_target_cities(sector: str):
+    """Get list of cities with targets for dropdown"""
+    sector_key = sector.lower().replace('-', '_')
+    if sector_key not in SECTOR_VIEWS:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector}' not found")
+
+    view_name = f"v_{SECTOR_VIEWS[sector_key]}_organizing_targets"
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                SELECT city, COUNT(*) as target_count, SUM(best_employee_count) as total_employees
+                FROM {view_name}
+                WHERE city IS NOT NULL
+                GROUP BY city
+                ORDER BY COUNT(*) DESC
+            """)
+            return {"cities": cur.fetchall()}
+
+
+@app.get("/api/sectors/{sector}/targets/{target_id}")
+def get_sector_target_detail(sector: str, target_id: int):
+    """Get detailed information for a specific target"""
+    sector_key = sector.lower().replace('-', '_')
+    if sector_key not in SECTOR_VIEWS:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector}' not found")
+
+    targets_view = f"v_{SECTOR_VIEWS[sector_key]}_organizing_targets"
+    unionized_view = f"v_{SECTOR_VIEWS[sector_key]}_unionized"
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                SELECT * FROM {targets_view}
+                WHERE id = %s
+            """, [target_id])
+            target = cur.fetchone()
+
+            if not target:
+                raise HTTPException(status_code=404, detail="Target not found")
+
+            # Get nearby unionized in same sector
+            cur.execute(f"""
+                SELECT employer_name, city, employee_count, union_name, nlrb_election_date
+                FROM {unionized_view}
+                WHERE city = %s OR state = %s
+                ORDER BY employee_count DESC NULLS LAST
+                LIMIT 5
+            """, [target['city'], target['state']])
+            nearby_unionized = cur.fetchall()
+
+            return {
+                "target": target,
+                "nearby_unionized": nearby_unionized
+            }
+
+
+@app.get("/api/sectors/{sector}/unionized")
+def get_sector_unionized(
+    sector: str,
+    city: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Get list of unionized employers in sector for reference"""
+    sector_key = sector.lower().replace('-', '_')
+    if sector_key not in SECTOR_VIEWS:
+        raise HTTPException(status_code=404, detail=f"Sector '{sector}' not found")
+
+    view_name = f"v_{SECTOR_VIEWS[sector_key]}_unionized"
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+
+            if city:
+                conditions.append("UPPER(city) = %s")
+                params.append(city.upper())
+            if search:
+                conditions.append("employer_name ILIKE %s")
+                params.append(f"%{search}%")
+
+            where_clause = " AND ".join(conditions)
+
+            cur.execute(f"""
+                SELECT COUNT(*) FROM {view_name}
+                WHERE {where_clause}
+            """, params)
+            total = cur.fetchone()['count']
+
+            params.extend([limit, offset])
+            cur.execute(f"""
+                SELECT * FROM {view_name}
+                WHERE {where_clause}
+                ORDER BY employee_count DESC NULLS LAST
+                LIMIT %s OFFSET %s
+            """, params)
+
+            return {
+                "sector": sector_key.upper(),
+                "total": total,
+                "unionized": cur.fetchall()
+            }
 
 
 if __name__ == "__main__":

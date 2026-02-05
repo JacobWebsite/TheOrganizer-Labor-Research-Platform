@@ -168,6 +168,52 @@ For each sector (e.g., `education`, `social_services`, `building_services`):
 | `county_workforce_shares` | 3,144 | County workforce composition from ACS 2025 |
 | `county_union_density_estimates` | 3,144 | Estimated density by county |
 
+### Industry Density Tables
+| Table | Records | Description |
+|-------|---------|-------------|
+| `bls_industry_density` | 12 | BLS 2024 union density by industry |
+| `state_industry_shares` | 51 | State-level industry composition (ACS 2025) |
+| `county_industry_shares` | 3,144 | County-level industry composition |
+| `state_industry_density_comparison` | 51 | Expected vs actual density with climate multiplier |
+
+**BLS Industry Density Rates (2024) - Used in Private Sector Calculation:**
+| Industry | Density | Included |
+|----------|---------|----------|
+| Transportation/Utilities | 16.2% | Yes |
+| Construction | 10.3% | Yes |
+| Education/Healthcare | 8.1% | **No** (often public sector) |
+| Manufacturing | 7.8% | Yes |
+| Information | 6.6% | Yes |
+| Wholesale Trade | 4.6% | Yes |
+| Agriculture/Mining | 4.0% | Yes |
+| Retail Trade | 4.0% | Yes |
+| Leisure/Hospitality | 3.0% | Yes |
+| Other Services | 2.7% | Yes |
+| Professional Services | 2.0% | Yes |
+| Finance | 1.3% | Yes |
+| Public Administration | N/A | **No** (in govt density) |
+
+**Note:** Education/Health and Public Administration are EXCLUDED from private sector industry weighting because these workers are often public employees already captured in government density estimates.
+
+**State Climate Multiplier:**
+- Formula: `Actual_Private_Density / Expected_Private_Density`
+- Expected = sum of (industry_share × BLS_industry_rate) across 10 private industries
+- Interpretation: STRONG (>1.5x), ABOVE_AVERAGE (1.0-1.5x), BELOW_AVERAGE (0.5-1.0x), WEAK (<0.5x)
+- Top 3: HI (2.51x), NY (2.40x), WA (2.12x)
+- Bottom 3: SD (0.28x), AR (0.33x), SC (0.35x)
+
+**County Private Density Calculation:**
+```
+County_Private = Σ(County_Industry_Share × BLS_Rate) × State_Climate_Multiplier
+```
+- Uses county's industry mix for 10 private industries (excludes edu/health, public admin)
+- Renormalizes shares to sum to 1.0 before weighting
+- Applies state multiplier to account for regional union culture
+- Columns in `county_union_density_estimates`:
+  - `industry_expected_private` - Before multiplier (from 10 industries)
+  - `state_climate_multiplier` - State's union climate factor
+  - `industry_adjusted_private` - Final private sector estimate
+
 **State Sector Density:**
 - Source: unionstats.com (Hirsch/Macpherson CPS data)
 - Sectors: `private`, `public`, `total` (combined)
@@ -350,8 +396,12 @@ Supports all sectors: `civic_organizations`, `building_services`, `education`, `
 - `GET /api/density/by-govt-level/{state}` - Government-level density detail for a state
 - `GET /api/density/by-county` - Estimated county density (filters: state, min/max density)
 - `GET /api/density/by-county/{fips}` - Single county detail with methodology
+- `GET /api/density/by-county/{fips}/industry` - County industry breakdown and density calculation
 - `GET /api/density/by-state/{state}/counties` - All counties in a state
 - `GET /api/density/county-summary` - National county density statistics
+- `GET /api/density/industry-rates` - BLS industry union density rates (12 industries)
+- `GET /api/density/state-industry-comparison` - Expected vs actual density by state with climate multiplier
+- `GET /api/density/state-industry-comparison/{state}` - Single state industry breakdown
 
 ### NAICS
 - `GET /api/naics/stats` - NAICS statistics
@@ -680,6 +730,70 @@ API docs: http://localhost:8001/docs
 ---
 
 ## Session Log
+
+### 2026-02-05 (Industry-Weighted Density Analysis)
+**Tasks:** Calculate expected private sector union density by state based on industry composition, compare to actual CPS density to identify union climate
+
+**New Files Created:**
+- `scripts/load_industry_density.py` - Load BLS rates, state/county industry shares, calculate comparisons
+
+**Database Tables Created:**
+- `bls_industry_density` - 12 BLS 2024 industry union density rates
+- `state_industry_shares` - 51 state industry compositions (ACS 2025)
+- `county_industry_shares` - 3,144 county industry compositions
+- `state_industry_density_comparison` - Expected vs actual density with climate multiplier
+
+**Database Columns Added:**
+- `county_union_density_estimates.industry_expected_private` - Expected from county industry mix
+- `county_union_density_estimates.state_climate_multiplier` - State's union culture factor
+- `county_union_density_estimates.industry_adjusted_private` - Final industry-adjusted private density
+
+**API Endpoints Added:**
+- `GET /api/density/industry-rates` - BLS industry union density rates
+- `GET /api/density/state-industry-comparison` - All states expected vs actual
+- `GET /api/density/state-industry-comparison/{state}` - Single state industry breakdown
+- `GET /api/density/by-county/{fips}/industry` - County industry detail
+
+**Key Results:**
+| Interpretation | States | Avg Multiplier |
+|----------------|--------|----------------|
+| STRONG | 8 | 1.75x |
+| ABOVE_AVERAGE | 13 | 1.23x |
+| BELOW_AVERAGE | 17 | 0.70x |
+| WEAK | 13 | 0.40x |
+
+**Top 5 States by Climate Multiplier:**
+1. HI - Expected 6.0%, Actual 13.2%, Multiplier 2.21x
+2. NY - Expected 6.1%, Actual 12.4%, Multiplier 2.04x
+3. WA - Expected 6.0%, Actual 11.4%, Multiplier 1.90x
+4. NV - Expected 5.8%, Actual 9.6%, Multiplier 1.65x
+5. MI - Expected 6.2%, Actual 9.8%, Multiplier 1.57x
+
+**Bottom 5 States:**
+1. SD - Expected 6.1%, Actual 1.5%, Multiplier 0.24x
+2. AR - Expected 6.4%, Actual 1.9%, Multiplier 0.30x
+3. SC - Expected 6.2%, Actual 1.9%, Multiplier 0.32x
+4. NC - Expected 6.1%, Actual 1.9%, Multiplier 0.32x
+5. UT - Expected 6.1%, Actual 2.2%, Multiplier 0.36x
+
+**County Private Density Updates:**
+- 3,144 counties updated with industry-adjusted private density
+- Range: 1.22% - 14.96%
+- Highest: Lake and Peninsula Borough, AK (15.0%)
+- Formula: County_Expected × State_Multiplier
+
+**Methodology Revision (same session):**
+- EXCLUDED Education/Health (8.1%) and Public Admin from private sector weighting
+- Rationale: These workers are often public employees already in govt density estimates
+- Renormalized across 10 remaining private industries
+- Updated multipliers: HI=2.51x, NY=2.40x, WA=2.12x (higher due to lower expected)
+- New county avg: expected=5.88%, adjusted=5.26%, total=8.32%
+
+**Output File Created:**
+- `data/county_density_analysis.csv` - 3,144 counties × 39 columns
+- Includes: workforce shares, public sector decomposition, old vs new private density, industry composition, state climate
+
+**Status:** Complete. All 51 states and 3,144 counties have industry-adjusted estimates.
 
 ### 2026-02-05 (Address Matching Tier)
 **Tasks:** Add address-based matching as Tier 3 in unified matching module
