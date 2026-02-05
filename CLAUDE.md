@@ -416,7 +416,12 @@ Integrated data pipeline: Mergent Intellect → 990 matching → F-7/NLRB/OSHA m
 | OSHA Violations | 4 | 5+ AND recent=4, 3+ OR recent=3 |
 | Govt Contracts | 15 | $5M+=15, $1M+=12, $500K+=10, $100K+=7, any=4 |
 | Labor Violations | 10 | NYC Comptroller data (wage theft, ULP, PSSL/FWW, debarment) |
-| Sibling Bonus | 8 | Parent/sibling union in same family |
+| Sibling Bonus | 8 | Same org has union elsewhere (see below) |
+
+**Sibling Union Bonus (0-8 pts):**
+Two matching methods:
+1. **Parent company match**: Same `parent_duns` has a unionized location in Mergent data
+2. **Name match at different address**: `company_name_normalized` matches F-7 `employer_name_aggressive` but at a different street/city
 
 **Labor Violations Scoring (0-10 pts):**
 - Wage theft $100K+ = 4 pts, $50K+ = 3 pts, $10K+ = 2 pts, any = 1 pt
@@ -430,12 +435,12 @@ Integrated data pipeline: Mergent Intellect → 990 matching → F-7/NLRB/OSHA m
 - OSHA union_status = 'Y' or 'A' → Unionized
 
 **Tier Distribution (14,019 non-union targets):**
-| Tier | Threshold | Count | Avg Score |
-|------|-----------|-------|-----------|
-| TOP | ≥30 | 173 | 31.5 |
-| HIGH | ≥25 | 476 | 26.8 |
-| MEDIUM | ≥15 | 3,755 | 17.9 |
-| LOW | <15 | 9,615 | 10.2 |
+| Tier | Threshold | Count |
+|------|-----------|-------|
+| TOP | ≥30 | 191 |
+| HIGH | ≥25 | 492 |
+| MEDIUM | ≥15 | 3,771 |
+| LOW | <15 | 9,565 |
 
 **Top Targets (TOP tier, 30+ pts):**
 1. NY Botanical Garden (39 pts, MUSEUMS, $15M+ contracts)
