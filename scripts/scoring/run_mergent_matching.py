@@ -46,7 +46,7 @@ cur.execute("""
         ny990_revenue = n.total_revenue,
         ny990_match_method = 'NAME_CITY'
     FROM ny_990_filers n
-    WHERE m.company_name_normalized = n.name_normalized
+    WHERE m.company_name_normalized = LOWER(n.name_normalized)
       AND UPPER(m.city) = UPPER(n.city)
       AND m.ny990_id IS NULL
       AND n.total_employees IS NOT NULL
@@ -80,7 +80,7 @@ cur.execute("""
         f7_match_method = 'NAME_CITY',
         has_union = TRUE
     FROM f7_employers_deduped f
-    WHERE m.company_name_normalized = UPPER(REGEXP_REPLACE(f.employer_name, '[^A-Za-z0-9 ]', '', 'g'))
+    WHERE m.company_name_normalized = LOWER(REGEXP_REPLACE(f.employer_name, '[^A-Za-z0-9 ]', '', 'g'))
       AND UPPER(m.city) = UPPER(f.city)
       AND m.matched_f7_employer_id IS NULL
 """)
@@ -123,7 +123,7 @@ cur.execute("""
     FROM nlrb_elections e
     JOIN nlrb_participants p ON e.case_number = p.case_number
     WHERE p.participant_type = 'Employer'
-      AND m.company_name_normalized = UPPER(REGEXP_REPLACE(p.participant_name, '[^A-Za-z0-9 ]', '', 'g'))
+      AND m.company_name_normalized = LOWER(REGEXP_REPLACE(p.participant_name, '[^A-Za-z0-9 ]', '', 'g'))
       AND UPPER(m.city) = UPPER(p.city)
       AND m.nlrb_case_number IS NULL
 """)
@@ -141,7 +141,7 @@ print("\n[4/7] Matching to OSHA establishments...")
 cur.execute("""
     WITH osha_agg AS (
         SELECT
-            UPPER(REGEXP_REPLACE(estab_name, '[^A-Za-z0-9 ]', '', 'g')) as name_norm,
+            LOWER(REGEXP_REPLACE(estab_name, '[^A-Za-z0-9 ]', '', 'g')) as name_norm,
             UPPER(site_city) as city_norm,
             MIN(establishment_id) as estab_id,
             COUNT(*) as inspection_count,
@@ -298,7 +298,7 @@ print("\n[6/7] Matching to labor violations...")
 cur.execute("""
     WITH wage_agg AS (
         SELECT
-            UPPER(REGEXP_REPLACE(employer_name, '[^A-Za-z0-9 ]', '', 'g')) as name_norm,
+            LOWER(REGEXP_REPLACE(employer_name, '[^A-Za-z0-9 ]', '', 'g')) as name_norm,
             UPPER(city) as city_norm,
             COUNT(*) as violation_count,
             SUM(wages_owed) as backwages,
@@ -324,7 +324,7 @@ print(f"  - NYS DOL wage theft matches: {nys_dol_matches}")
 cur.execute("""
     WITH wage_agg AS (
         SELECT
-            UPPER(REGEXP_REPLACE(trade_name, '[^A-Za-z0-9 ]', '', 'g')) as name_norm,
+            LOWER(REGEXP_REPLACE(trade_name, '[^A-Za-z0-9 ]', '', 'g')) as name_norm,
             UPPER(city) as city_norm,
             COUNT(*) as violation_count,
             SUM(backwages_amount) as backwages,
@@ -337,7 +337,7 @@ cur.execute("""
     SET whd_violation_count = COALESCE(m.whd_violation_count, 0) + w.violation_count,
         whd_backwages = COALESCE(m.whd_backwages, 0) + w.backwages,
         whd_employees_violated = COALESCE(m.whd_employees_violated, 0) + w.employees_violated,
-        whd_match_method = CASE WHEN m.whd_match_method IS NULL THEN 'US_DOL' ELSE m.whd_match_method || '+US_DOL' END
+        whd_match_method = LEFT(CASE WHEN m.whd_match_method IS NULL THEN 'US_DOL' ELSE m.whd_match_method || '+US_DOL' END, 20)
     FROM wage_agg w
     WHERE m.company_name_normalized = w.name_norm
       AND UPPER(m.city) = w.city_norm

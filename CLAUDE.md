@@ -99,33 +99,33 @@ BLS check is WARNING-level in validation framework, not critical.
 ### Mergent Employer Tables (Sector Scorecards)
 | Table | Records | Description |
 |-------|---------|-------------|
-| `mergent_employers` | 37,679 | Mergent Intellect employer data (21 sectors) |
+| `mergent_employers` | 56,431 | Mergent Intellect employer data (21 sectors) |
 | `ny_990_filers` | 37,480 | IRS Form 990 NY nonprofit filers (2022-2024) |
 
 **Sectors in mergent_employers:**
 | Sector | Employers | Unionized | Targets | Employees |
 |--------|-----------|-----------|---------|-----------|
-| OTHER | 16,840 | 360 | 16,480 | 1,451,088 |
+| OTHER | 29,614 | 461 | 29,153 | 1,775,877 |
+| PROFESSIONAL | 5,674 | 36 | 5,638 | 375,517 |
 | CIVIC_ORGANIZATIONS | 3,339 | 40 | 3,299 | 68,864 |
-| PROFESSIONAL | 2,838 | 28 | 2,810 | 244,586 |
 | BUILDING_SERVICES | 2,692 | 44 | 2,648 | 197,485 |
 | EDUCATION | 2,487 | 78 | 2,409 | 239,212 |
+| HEALTHCARE_AMBULATORY | 2,390 | 41 | 2,349 | 128,632 |
 | SOCIAL_SERVICES | 1,520 | 38 | 1,482 | 65,672 |
 | BROADCASTING | 1,371 | 9 | 1,362 | 82,536 |
-| HEALTHCARE_AMBULATORY | 1,107 | 35 | 1,072 | 102,805 |
-| HEALTHCARE_NURSING | 772 | 27 | 745 | 120,645 |
+| HEALTHCARE_NURSING | 1,065 | 32 | 1,033 | 128,379 |
+| UTILITIES | 869 | 7 | 862 | 21,482 |
 | PUBLISHING | 768 | 13 | 755 | 37,462 |
+| TRANSIT | 735 | 15 | 720 | 54,538 |
 | WASTE_MGMT | 717 | 7 | 710 | 13,998 |
+| FOOD_SERVICE | 553 | 7 | 546 | 32,208 |
+| HOSPITALITY | 536 | 8 | 528 | 36,453 |
 | GOVERNMENT | 525 | 35 | 490 | 48,056 |
-| TRANSIT | 443 | 9 | 434 | 45,992 |
-| UTILITIES | 436 | 6 | 430 | 16,175 |
+| HEALTHCARE_HOSPITALS | 514 | 57 | 457 | 187,352 |
 | REPAIR_SERVICES | 394 | 4 | 390 | 11,975 |
-| HEALTHCARE_HOSPITALS | 374 | 55 | 319 | 178,769 |
-| HOSPITALITY | 265 | 6 | 259 | 23,908 |
 | MUSEUMS | 243 | 25 | 218 | 12,659 |
-| FOOD_SERVICE | 215 | 4 | 211 | 20,311 |
+| ARTS_ENTERTAINMENT | 241 | 19 | 222 | 16,859 |
 | INFORMATION | 184 | 9 | 175 | 7,352 |
-| ARTS_ENTERTAINMENT | 149 | 13 | 136 | 14,339 |
 
 **Mergent Employers Columns (Key):**
 - `duns` - D-U-N-S number (unique ID)
@@ -328,7 +328,7 @@ Full Swagger docs: http://localhost:8001/docs
 4. **Membership Deduplication** - 70.1M raw -> 14.5M deduplicated (matches BLS within 1.5%)
 5. **Historical Trends** - 16 years OLMS LM filings (2010-2024), Chart.js visualizations
 6. **Public Sector Coverage** - 98.3% of EPI benchmark, 50/51 states within +/-15%
-7. **Multi-Sector Organizing Scorecard** - 37,679 Mergent employers, 21 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=15, LOW<15. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
+7. **Multi-Sector Organizing Scorecard** - 56,431 Mergent employers, 21 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=15, LOW<15. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
 8. **Industry Outlook** - BLS 2024-2034 projections in employer detail, 6-digit NAICS from OSHA, occupation breakdowns
 
 ---

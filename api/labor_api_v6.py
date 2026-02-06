@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from typing import Optional, List
+from pydantic import BaseModel
 import re
 
 app = FastAPI(
@@ -2272,6 +2273,331 @@ def normalized_search_employers(
             return {"search_term": name, "normalized_search": normalized_search,
                     "threshold": threshold, "total": total, "employers": cur.fetchall()}
 
+
+# ============================================================================
+# UNIFIED EMPLOYER SEARCH (mv_employer_search + review flags)
+# ============================================================================
+
+class FlagCreate(BaseModel):
+    source_type: str
+    source_id: str
+    flag_type: str
+    notes: Optional[str] = None
+
+
+@app.get("/api/employers/unified-search")
+def unified_employer_search(
+    name: Optional[str] = None,
+    state: Optional[str] = None,
+    city: Optional[str] = None,
+    source_type: Optional[str] = None,
+    has_union: Optional[bool] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Search across all employer sources (F7, NLRB, VR, Manual) with deduplication."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+            order_clause = "unit_size DESC NULLS LAST"
+
+            if name:
+                conditions.append("similarity(search_name, %s) > 0.2")
+                params.append(name.lower())
+                order_clause = "similarity(search_name, %s) DESC, unit_size DESC NULLS LAST"
+            if state:
+                conditions.append("state = %s")
+                params.append(state.upper())
+            if city:
+                conditions.append("UPPER(city) = %s")
+                params.append(city.upper())
+            if source_type:
+                conditions.append("source_type = %s")
+                params.append(source_type.upper())
+            if has_union is not None:
+                conditions.append("has_union = %s")
+                params.append(has_union)
+
+            where_clause = " AND ".join(conditions)
+
+            # Count
+            cur.execute(f"SELECT COUNT(*) FROM mv_employer_search WHERE {where_clause}", params)
+            total = cur.fetchone()['count']
+
+            # Results with flag count
+            order_params = [name.lower()] if name else []
+            cur.execute(f"""
+                SELECT m.canonical_id, m.source_type, m.employer_name, m.city, m.state,
+                       m.zip, m.naics, m.unit_size, m.union_name, m.union_fnum,
+                       m.has_union, m.latitude, m.longitude,
+                       COALESCE(f.flag_count, 0) AS flag_count
+                FROM mv_employer_search m
+                LEFT JOIN (
+                    SELECT source_type || '-' || source_id AS key, COUNT(*) AS flag_count
+                    FROM employer_review_flags GROUP BY source_type, source_id
+                ) f ON f.key = CASE
+                    WHEN m.source_type = 'F7' THEN 'F7-' || m.canonical_id
+                    ELSE m.source_type || '-' || REPLACE(m.canonical_id, m.source_type || '-', '')
+                END
+                WHERE {where_clause}
+                ORDER BY {order_clause}
+                LIMIT %s OFFSET %s
+            """, params + order_params + [limit, offset])
+
+            return {"total": total, "employers": cur.fetchall()}
+
+
+@app.get("/api/employers/unified-detail/{canonical_id:path}")
+def unified_employer_detail(canonical_id: str):
+    """Get employer detail with cross-references from all sources."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            if canonical_id.startswith("NLRB-"):
+                source_type, source_id = "NLRB", canonical_id[5:]
+            elif canonical_id.startswith("VR-"):
+                source_type, source_id = "VR", canonical_id[3:]
+            elif canonical_id.startswith("MANUAL-"):
+                source_type, source_id = "MANUAL", canonical_id[7:]
+            else:
+                source_type, source_id = "F7", canonical_id
+
+            primary = None
+            cross_refs = []
+
+            if source_type == "F7":
+                cur.execute("""
+                    SELECT e.*, um.aff_abbr, um.union_name as union_full_name,
+                           'F7' as source_type
+                    FROM f7_employers_deduped e
+                    LEFT JOIN unions_master um ON e.latest_union_fnum::text = um.f_num
+                    WHERE e.employer_id = %s
+                """, [source_id])
+                primary = cur.fetchone()
+
+                if primary:
+                    cur.execute("""
+                        SELECT 'NLRB' as source_type, p.id::text as source_id,
+                               p.participant_name as employer_name, p.city, p.state,
+                               p.case_number, e.election_date,
+                               e.eligible_voters as unit_size,
+                               CASE WHEN e.union_won THEN 'Won' ELSE 'Lost' END as election_result,
+                               t.labor_org_name as union_name
+                        FROM nlrb_participants p
+                        LEFT JOIN nlrb_elections e ON p.case_number = e.case_number
+                        LEFT JOIN nlrb_tallies t ON e.case_number = t.case_number AND t.tally_type = 'For'
+                        WHERE p.matched_employer_id = %s AND p.participant_type = 'Employer'
+                        ORDER BY e.election_date DESC NULLS LAST
+                        LIMIT 20
+                    """, [source_id])
+                    cross_refs.extend(cur.fetchall())
+
+                    cur.execute("""
+                        SELECT 'VR' as source_type, vr.vr_case_number as source_id,
+                               vr.employer_name, vr.unit_city as city, vr.unit_state as state,
+                               vr.vr_case_number as case_number,
+                               vr.date_voluntary_recognition::text as election_date,
+                               vr.num_employees as unit_size,
+                               'Vol. Recognition' as election_result,
+                               vr.union_name
+                        FROM nlrb_voluntary_recognition vr
+                        WHERE vr.matched_employer_id = %s
+                        ORDER BY vr.date_voluntary_recognition DESC NULLS LAST
+                    """, [source_id])
+                    cross_refs.extend(cur.fetchall())
+
+            elif source_type == "NLRB":
+                cur.execute("""
+                    SELECT p.id, p.participant_name as employer_name, p.city, p.state,
+                           p.address_1 as street, p.zip, p.case_number,
+                           'NLRB' as source_type
+                    FROM nlrb_participants p
+                    WHERE p.id = %s
+                """, [int(source_id)])
+                primary = cur.fetchone()
+
+                if primary:
+                    cur.execute("""
+                        SELECT 'NLRB' as source_type, p.id::text as source_id,
+                               p.participant_name as employer_name, p.city, p.state,
+                               p.case_number, e.election_date,
+                               e.eligible_voters as unit_size,
+                               CASE WHEN e.union_won THEN 'Won' ELSE 'Lost' END as election_result,
+                               t.labor_org_name as union_name
+                        FROM nlrb_participants p
+                        LEFT JOIN nlrb_elections e ON p.case_number = e.case_number
+                        LEFT JOIN nlrb_tallies t ON e.case_number = t.case_number AND t.tally_type = 'For'
+                        WHERE UPPER(p.participant_name) = UPPER(%s)
+                          AND p.participant_type = 'Employer'
+                          AND UPPER(COALESCE(p.state,'')) = UPPER(COALESCE(%s,''))
+                        ORDER BY e.election_date DESC NULLS LAST
+                        LIMIT 20
+                    """, [primary['employer_name'], primary.get('state', '')])
+                    cross_refs = cur.fetchall()
+
+            elif source_type == "VR":
+                cur.execute("""
+                    SELECT vr.*, 'VR' as source_type
+                    FROM nlrb_voluntary_recognition vr
+                    WHERE vr.vr_case_number = %s
+                """, [source_id])
+                primary = cur.fetchone()
+
+            elif source_type == "MANUAL":
+                cur.execute("""
+                    SELECT m.*, 'MANUAL' as source_type
+                    FROM manual_employers m
+                    WHERE m.id = %s
+                """, [int(source_id)])
+                primary = cur.fetchone()
+
+            if not primary:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            cur.execute("""
+                SELECT id, flag_type, notes, created_at
+                FROM employer_review_flags
+                WHERE source_type = %s AND source_id = %s
+                ORDER BY created_at DESC
+            """, [source_type, source_id])
+            flags = cur.fetchall()
+
+            return {
+                "employer": primary,
+                "source_type": source_type,
+                "cross_references": cross_refs,
+                "flags": flags
+            }
+
+
+@app.post("/api/employers/flags")
+def create_flag(flag: FlagCreate):
+    """Create a review flag for an employer."""
+    valid_types = ['ALREADY_UNION', 'DUPLICATE', 'LABOR_ORG_NOT_EMPLOYER',
+                   'DEFUNCT', 'DATA_QUALITY', 'NEEDS_REVIEW', 'VERIFIED_OK']
+    if flag.flag_type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Invalid flag_type. Must be one of: {valid_types}")
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            try:
+                cur.execute("""
+                    INSERT INTO employer_review_flags (source_type, source_id, flag_type, notes)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id, flag_type, notes, created_at
+                """, [flag.source_type, flag.source_id, flag.flag_type, flag.notes])
+                conn.commit()
+                return {"flag": cur.fetchone()}
+            except psycopg2.errors.UniqueViolation:
+                conn.rollback()
+                raise HTTPException(status_code=409, detail="Flag already exists for this employer/type")
+
+
+@app.get("/api/employers/flags/pending")
+def get_pending_flags(
+    flag_type: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0
+):
+    """Get all flagged employers for review queue."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["1=1"]
+            params = []
+            if flag_type:
+                conditions.append("f.flag_type = %s")
+                params.append(flag_type)
+
+            where_clause = " AND ".join(conditions)
+            params.extend([limit, offset])
+
+            cur.execute(f"""
+                SELECT f.id, f.source_type, f.source_id, f.flag_type, f.notes, f.created_at,
+                       m.employer_name, m.city, m.state
+                FROM employer_review_flags f
+                LEFT JOIN mv_employer_search m ON m.canonical_id = CASE
+                    WHEN f.source_type = 'F7' THEN f.source_id
+                    ELSE f.source_type || '-' || f.source_id
+                END
+                WHERE {where_clause}
+                ORDER BY f.created_at DESC
+                LIMIT %s OFFSET %s
+            """, params)
+            flags = cur.fetchall()
+
+            cur.execute(f"""
+                SELECT COUNT(*) FROM employer_review_flags f WHERE {where_clause}
+            """, params[:-2] if params[:-2] else [])
+            total = cur.fetchone()['count']
+
+            return {"total": total, "flags": flags}
+
+
+@app.post("/api/employers/refresh-search")
+def refresh_unified_search():
+    """Refresh the materialized view for unified employer search."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("REFRESH MATERIALIZED VIEW mv_employer_search")
+            conn.commit()
+            cur.execute("SELECT COUNT(*) FROM mv_employer_search")
+            total = cur.fetchone()['count']
+            return {"refreshed": True, "total_records": total}
+
+
+@app.delete("/api/employers/flags/{flag_id}")
+def delete_flag(flag_id: int):
+    """Remove a review flag."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM employer_review_flags WHERE id = %s RETURNING id", [flag_id])
+            deleted = cur.fetchone()
+            conn.commit()
+            if not deleted:
+                raise HTTPException(status_code=404, detail="Flag not found")
+            return {"deleted": True}
+
+
+@app.get("/api/employers/flags/by-employer/{canonical_id:path}")
+def get_employer_flags(canonical_id: str):
+    """Get all review flags for an employer by canonical_id."""
+    if canonical_id.startswith("NLRB-"):
+        source_type, source_id = "NLRB", canonical_id[5:]
+    elif canonical_id.startswith("VR-"):
+        source_type, source_id = "VR", canonical_id[3:]
+    elif canonical_id.startswith("MANUAL-"):
+        source_type, source_id = "MANUAL", canonical_id[7:]
+    else:
+        source_type, source_id = "F7", canonical_id
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, flag_type, notes, created_at
+                FROM employer_review_flags
+                WHERE source_type = %s AND source_id = %s
+                ORDER BY created_at DESC
+            """, [source_type, source_id])
+            return {"flags": cur.fetchall()}
+
+
+@app.get("/api/employers/flags/by-source")
+def get_flags_by_source(source_type: str, source_id: str):
+    """Get review flags by source_type and source_id directly (for scorecard items)."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, flag_type, notes, created_at
+                FROM employer_review_flags
+                WHERE source_type = %s AND source_id = %s
+                ORDER BY created_at DESC
+            """, [source_type, source_id])
+            return {"flags": cur.fetchall()}
+
+
+# ============================================================================
+# EMPLOYER DETAIL & RELATED (F7-specific)
+# ============================================================================
 
 @app.get("/api/employers/{employer_id}")
 def get_employer_detail(employer_id: str):
@@ -5415,6 +5741,16 @@ SECTOR_VIEWS = {
     'repair_services': 'repair_services',
     'museums': 'museums',
     'information': 'information',
+    'other': 'other',
+    'professional': 'professional',
+    'healthcare_ambulatory': 'healthcare_ambulatory',
+    'healthcare_nursing': 'healthcare_nursing',
+    'healthcare_hospitals': 'healthcare_hospitals',
+    'transit': 'transit',
+    'utilities': 'utilities',
+    'hospitality': 'hospitality',
+    'food_service': 'food_service',
+    'arts_entertainment': 'arts_entertainment',
 }
 
 

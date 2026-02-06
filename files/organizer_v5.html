@@ -391,10 +391,23 @@
                     
                     <div class="w-px h-10 bg-warmgray-200 mx-2"></div>
                     
+                    <!-- Source filter -->
+                    <div class="w-40">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Source</label>
+                        <select id="sourceFilter"
+                            class="w-full px-3 py-2 border border-warmgray-300 rounded-md text-sm bg-white">
+                            <option value="">All Sources</option>
+                            <option value="F7">F7 (Contract)</option>
+                            <option value="NLRB">NLRB (Election)</option>
+                            <option value="VR">VR (Vol. Recog.)</option>
+                            <option value="MANUAL">Manual (Research)</option>
+                        </select>
+                    </div>
+
                     <!-- Sector filter -->
                     <div class="w-40">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Sector</label>
-                        <select id="sectorFilter" 
+                        <select id="sectorFilter"
                             class="w-full px-3 py-2 border border-warmgray-300 rounded-md text-sm bg-white">
                             <option value="">All Sectors</option>
                             <option value="PRIVATE">Private</option>
@@ -640,6 +653,33 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Review Flags (employer only, unified search) -->
+                    <div id="detailFlagSection" class="p-5 border-b border-warmgray-200 hidden">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Review Flags</div>
+                        <div id="existingFlags" class="mb-3"></div>
+                        <div class="flex gap-2 items-end">
+                            <div class="flex-1">
+                                <select id="flagTypeSelect" class="w-full px-2 py-1.5 border border-warmgray-300 rounded text-sm">
+                                    <option value="">Flag as...</option>
+                                    <option value="ALREADY_UNION">Already Union</option>
+                                    <option value="DUPLICATE">Duplicate</option>
+                                    <option value="LABOR_ORG_NOT_EMPLOYER">Labor Org Not Employer</option>
+                                    <option value="DEFUNCT">Defunct</option>
+                                    <option value="DATA_QUALITY">Data Quality</option>
+                                    <option value="NEEDS_REVIEW">Needs Review</option>
+                                    <option value="VERIFIED_OK">Verified OK</option>
+                                </select>
+                            </div>
+                            <div class="flex-1">
+                                <input type="text" id="flagNotesInput" placeholder="Notes (optional)"
+                                    class="w-full px-2 py-1.5 border border-warmgray-300 rounded text-sm">
+                            </div>
+                            <button onclick="submitFlag()" class="px-3 py-1.5 bg-warmgray-900 text-white text-sm rounded hover:bg-warmgray-800">
+                                Add
+                            </button>
+                        </div>
+                    </div>
                     
                     <!-- Key metrics (dynamic content) -->
                     <div class="p-5 border-b border-warmgray-200">
@@ -702,7 +742,13 @@
                             </div>
                         </div>
                     </div>
-                    
+
+                    <!-- Source Records (employer only, unified search) -->
+                    <div id="detailSourceSection" class="p-5 border-b border-warmgray-200 hidden">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Source Records</div>
+                        <div id="sourceRecordsContent"></div>
+                    </div>
+
                     <!-- Employers Covered (union only) -->
                     <div id="detailEmployersSection" class="p-5 border-b border-warmgray-200 hidden">
                         <!-- Populated by JS -->
@@ -1110,13 +1156,23 @@
                                 <option value="sector:social_services">Social Services</option>
                                 <option value="sector:building_services">Building Services</option>
                                 <option value="sector:civic_organizations">Civic Organizations</option>
+                                <option value="sector:healthcare_ambulatory">Healthcare - Ambulatory</option>
+                                <option value="sector:healthcare_hospitals">Healthcare - Hospitals</option>
+                                <option value="sector:healthcare_nursing">Healthcare - Nursing</option>
                                 <option value="sector:broadcasting">Broadcasting</option>
                                 <option value="sector:publishing">Publishing</option>
+                                <option value="sector:professional">Professional Services</option>
                                 <option value="sector:government">Government</option>
                                 <option value="sector:museums">Museums</option>
                                 <option value="sector:information">Information</option>
                                 <option value="sector:waste_mgmt">Waste Management</option>
                                 <option value="sector:repair_services">Repair Services</option>
+                                <option value="sector:transit">Transit</option>
+                                <option value="sector:utilities">Utilities</option>
+                                <option value="sector:hospitality">Hospitality</option>
+                                <option value="sector:food_service">Food Service</option>
+                                <option value="sector:arts_entertainment">Arts & Entertainment</option>
+                                <option value="sector:other">Other Industries</option>
                             </optgroup>
                         </select>
                     </div>
@@ -3551,28 +3607,34 @@
         async function executeSearch() {
             // Show loading state
             showLoading(true);
-            
+
             const params = new URLSearchParams();
-            
+
             const mainSearch = document.getElementById('mainSearch').value.trim();
             const state = document.getElementById('stateFilter').value;
             const metro = document.getElementById('metroFilter').value;
             const city = document.getElementById('cityFilter').value;
             const sector = document.getElementById('sectorFilter').value;
-            
+            const sourceFilter = document.getElementById('sourceFilter') ? document.getElementById('sourceFilter').value : '';
+
             // Name search
             if (mainSearch) params.append('name', mainSearch);
-            
+
             // Geography
             if (state) params.append('state', state);
             if (metro) params.append('metro', metro);
             if (city) params.append('city', city);
-            
+
             // Sector filter - supported for both modes (PUBLIC_SECTOR queries ps_employers)
             if (sector) {
                 params.append('sector', sector);
             }
-            
+
+            // Source filter (employer mode only, unified search)
+            if (sourceFilter && currentMode === 'employers') {
+                params.append('source_type', sourceFilter);
+            }
+
             // Handle industry filter based on selection type
             if (selectedIndustry) {
                 if (selectedIndustry.type === 'naics') {
@@ -3583,25 +3645,24 @@
                     params.append('naics', selectedIndustry.naics);
                 }
             }
-            
+
             // Pagination
             params.append('limit', '15');
             params.append('offset', String((currentPage - 1) * 15));
-            
-            const endpoint = currentMode === 'employers' ? 'employers/search' : 'unions/search';
-            
+
+            // Use unified search for employers, standard for unions
+            const endpoint = currentMode === 'employers' ? 'employers/unified-search' : 'unions/search';
+
             try {
                 const response = await fetch(`${API_BASE}/${endpoint}?${params}`);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
-                
+
                 const rawData = await response.json();
 
                 // Transform API response to expected format
-                // API returns {total, employers} or {total, unions}
-                // Frontend expects {total_count, results}
                 const data = {
                     total_count: rawData.total || 0,
                     results: currentMode === 'employers' ? (rawData.employers || []) : (rawData.unions || [])
@@ -3609,8 +3670,8 @@
 
                 // Calculate aggregate stats from results
                 if (currentMode === 'employers') {
-                    data.total_workers = data.results.reduce((sum, r) => sum + (r.latest_unit_size || 0), 0);
-                    data.total_locals = new Set(data.results.map(r => r.latest_union_fnum).filter(Boolean)).size;
+                    data.total_workers = data.results.reduce((sum, r) => sum + (r.unit_size || r.latest_unit_size || 0), 0);
+                    data.total_locals = new Set(data.results.map(r => r.union_fnum || r.latest_union_fnum).filter(Boolean)).size;
                 } else {
                     data.total_members = data.results.reduce((sum, r) => sum + (r.members || 0), 0);
                     data.total_employers = data.results.reduce((sum, r) => sum + (r.f7_employer_count || 0), 0);
@@ -3618,7 +3679,7 @@
 
                 displayResults(data);
                 updateUrl();
-                
+
                 // Load stats breakdown for employer searches
                 if (currentMode === 'employers') {
                     loadStatsBreakdown(params);
@@ -3916,24 +3977,33 @@
             const listContainer = document.getElementById('listItems');
             
             if (currentMode === 'employers') {
-                listContainer.innerHTML = currentResults.map((item, index) => `
-                    <div class="list-item p-4 cursor-pointer border-b border-warmgray-100 ${index === 0 ? 'selected' : ''}" 
-                         onclick="selectItem('${item.employer_id}')" 
-                         data-id="${item.employer_id}">
+                listContainer.innerHTML = currentResults.map((item, index) => {
+                    const itemId = item.canonical_id || item.employer_id;
+                    const workers = item.unit_size || item.latest_unit_size || 0;
+                    const unionInfo = item.union_name || item.latest_union_name || item.aff_abbr || '';
+                    const srcBadge = getSourceBadge(item.source_type);
+                    const flagIcon = item.flag_count > 0 ? '<span class="ml-1 text-orange-500" title="Has review flags">&#9873;</span>' : '';
+                    return `
+                    <div class="list-item p-4 cursor-pointer border-b border-warmgray-100 ${index === 0 ? 'selected' : ''}"
+                         onclick="selectItem('${escapeHtml(itemId)}')"
+                         data-id="${escapeHtml(itemId)}">
                         <div class="flex justify-between items-start">
                             <div class="flex-1 min-w-0">
-                                <div class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.employer_name || 'Unknown')}</div>
+                                <div class="flex items-center gap-1.5">
+                                    ${srcBadge}${flagIcon}
+                                    <span class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.employer_name || 'Unknown')}</span>
+                                </div>
                                 <div class="text-sm text-warmgray-500 mt-1 truncate">
-                                    ${escapeHtml(item.latest_union_name || item.aff_abbr || 'Unknown union')} · ${escapeHtml(item.city || '')}, ${escapeHtml(item.state || '')}
+                                    ${unionInfo ? escapeHtml(unionInfo) + ' · ' : ''}${escapeHtml(item.city || '')}, ${escapeHtml(item.state || '')}
                                 </div>
                             </div>
                             <div class="text-right ml-3">
-                                <div class="text-lg font-bold text-accent-red">${formatNumber(item.latest_unit_size || 0)}</div>
+                                <div class="text-lg font-bold text-accent-red">${workers > 0 ? formatNumber(workers) : '--'}</div>
                                 <div class="text-xs text-warmgray-400">workers</div>
                             </div>
                         </div>
-                    </div>
-                `).join('');
+                    </div>`;
+                }).join('');
             } else {
                 listContainer.innerHTML = currentResults.map((item, index) => `
                     <div class="list-item p-4 cursor-pointer border-b border-warmgray-100 ${index === 0 ? 'selected' : ''}" 
@@ -3969,8 +4039,8 @@
             
             // Auto-select first item
             if (currentResults.length > 0) {
-                const firstId = currentMode === 'employers' 
-                    ? currentResults[0].employer_id 
+                const firstId = currentMode === 'employers'
+                    ? (currentResults[0].canonical_id || currentResults[0].employer_id)
                     : currentResults[0].f_num;
                 selectItem(firstId);
             }
@@ -4281,22 +4351,24 @@
         function selectItem(id) {
             const idStr = String(id);
             const item = currentResults.find(r => {
-                const itemId = currentMode === 'employers' ? String(r.employer_id) : String(r.f_num);
+                const itemId = currentMode === 'employers'
+                    ? String(r.canonical_id || r.employer_id)
+                    : String(r.f_num);
                 return itemId === idStr;
             });
             if (!item) return;
-            
+
             selectedItem = item;
-            
+
             // Update list selection
             document.querySelectorAll('.list-item').forEach(el => {
                 el.classList.toggle('selected', el.dataset.id === idStr);
             });
-            
+
             // Show detail content
             document.getElementById('detailEmpty').classList.add('hidden');
             document.getElementById('detailContent').classList.remove('hidden');
-            
+
             if (currentMode === 'employers') {
                 renderEmployerDetail(item);
             } else {
@@ -4305,64 +4377,88 @@
         }
         
         function renderEmployerDetail(item) {
+            // Adapt field names for unified vs legacy data
+            const empName = item.employer_name || 'Unknown';
+            const unionName = item.union_name || item.latest_union_name || item.union_display_name || '';
+            const unionFnum = item.union_fnum || item.latest_union_fnum;
+            const affAbbr = item.aff_abbr || '';
+            const workers = item.unit_size || item.latest_unit_size || 0;
+            const canonicalId = item.canonical_id || item.employer_id;
+            const srcType = item.source_type || 'F7';
+
             // Populate detail fields for employer
-            document.getElementById('detailName').textContent = item.employer_name || 'Unknown';
+            document.getElementById('detailName').textContent = empName;
             document.getElementById('detailLocation').textContent = `${item.city || 'Unknown'}, ${item.state || ''} ${item.zip || ''}`.trim();
-            
-            // Badges - use union_sector from API
+
+            // Badges - source type + sector
             const sectorClass = getSectorBadgeClass(item.union_sector);
             const badgesHtml = `
-                <span class="badge ${sectorClass}">${formatSectorName(item.union_sector)}</span>
+                ${getSourceBadge(srcType)}
+                ${item.union_sector ? `<span class="badge ${sectorClass}">${formatSectorName(item.union_sector)}</span>` : ''}
                 ${item.naics_sector_name ? `<span class="badge badge-industry">${escapeHtml(item.naics_sector_name)}</span>` : ''}
+                ${item.has_union ? '<span class="inline-block px-1.5 py-0.5 text-xs font-semibold bg-green-100 text-green-700 rounded">Union</span>' : ''}
             `;
             document.getElementById('detailBadges').innerHTML = badgesHtml;
-            
+
             // Key metrics - Employer view
-            const unionName = item.latest_union_name || item.union_display_name || 'Unknown';
-            const unionFnum = item.latest_union_fnum;
-            const affAbbr = item.aff_abbr;
             document.getElementById('detailMetrics').innerHTML = `
                 <div class="bg-warmgray-100 rounded-lg p-4">
                     <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Union</div>
                     <div class="font-semibold text-warmgray-900 ${unionFnum ? 'entity-link' : ''}"
-                         ${unionFnum ? `onclick="loadUnionDetail('${escapeHtml(unionFnum)}')"` : ''}>${escapeHtml(unionName)}</div>
+                         ${unionFnum ? `onclick="loadUnionDetail('${escapeHtml(String(unionFnum))}')"` : ''}>${escapeHtml(unionName || 'Unknown')}</div>
                     <div class="text-sm text-warmgray-500">
                         ${affAbbr ? `<span class="entity-link" onclick="openNationalDashboard('${escapeHtml(affAbbr)}')">${escapeHtml(affAbbr)} affiliate</span>` : ''}
                     </div>
                 </div>
                 <div class="bg-warmgray-100 rounded-lg p-4">
                     <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Workers</div>
-                    <div class="text-3xl font-bold text-accent-red">${formatNumber(item.latest_unit_size || 0)}</div>
+                    <div class="text-3xl font-bold text-accent-red">${workers > 0 ? formatNumber(workers) : '--'}</div>
                 </div>
                 <div class="bg-warmgray-100 rounded-lg p-4">
-                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">${item.source_type === 'PUBLIC' ? 'Type' : 'Industry'}</div>
-                    <div class="font-semibold text-warmgray-900">${item.source_type === 'PUBLIC' ? escapeHtml(item.employer_type || 'Public Sector') : escapeHtml(item.naics_sector_name || 'Unknown')}</div>
-                    <div class="text-sm text-warmgray-500">${item.source_type === 'PUBLIC' ? escapeHtml(item.employer_subtype || '') : (item.naics ? `NAICS ${escapeHtml(item.naics)}` : '')}</div>
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Source</div>
+                    <div class="font-semibold text-warmgray-900">${getSourceLabel(srcType)}</div>
+                    <div class="text-sm text-warmgray-500">${item.naics ? `NAICS ${escapeHtml(item.naics)}` : ''}</div>
                 </div>
             `;
-            
-            // Filing history
-            document.getElementById('detailFilingSection').innerHTML = `
-                <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Filing Details</div>
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-warmgray-500">Latest F-7 Filing</span>
-                        <span class="font-medium">${item.latest_notice_date || '—'}</span>
+
+            // Filing history - show only for F7
+            if (srcType === 'F7') {
+                document.getElementById('detailFilingSection').innerHTML = `
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Filing Details</div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-warmgray-500">Latest F-7 Filing</span>
+                            <span class="font-medium">${item.latest_notice_date || '---'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-warmgray-500">Union File #</span>
+                            <span class="font-medium font-mono text-xs">${unionFnum || '---'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-warmgray-500">Healthcare Related</span>
+                            <span class="font-medium">${item.healthcare_related ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-warmgray-500">Status</span>
+                            <span class="font-medium ${item.potentially_defunct ? 'text-orange-600' : 'text-green-600'}">${item.potentially_defunct ? 'Potentially Defunct' : 'Active'}</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-warmgray-500">Union File #</span>
-                        <span class="font-medium font-mono text-xs">${item.latest_union_fnum || '—'}</span>
+                `;
+            } else {
+                document.getElementById('detailFilingSection').innerHTML = `
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Record Details</div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-warmgray-500">Source</span>
+                            <span class="font-medium">${getSourceLabel(srcType)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-warmgray-500">ID</span>
+                            <span class="font-medium font-mono text-xs">${escapeHtml(canonicalId)}</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="text-warmgray-500">Healthcare Related</span>
-                        <span class="font-medium">${item.healthcare_related ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-warmgray-500">Status</span>
-                        <span class="font-medium ${item.potentially_defunct ? 'text-orange-600' : 'text-green-600'}">${item.potentially_defunct ? 'Potentially Defunct' : 'Active'}</span>
-                    </div>
-                </div>
-            `;
+                `;
+            }
             
             // BLS Projections - show loading then fetch data
             const naics2 = item.naics ? item.naics.substring(0, 2) : null;
@@ -4394,16 +4490,20 @@
             document.getElementById('detailNlrbSection').classList.remove('hidden');
             document.getElementById('detailEmployersSection').classList.add('hidden');
             document.getElementById('detailFinancialsSection').classList.add('hidden');
-            
+
+            // Source records and flag sections - always show
+            document.getElementById('detailSourceSection').classList.remove('hidden');
+            document.getElementById('detailFlagSection').classList.remove('hidden');
+
             // Find Similar button
-            const inComparison = isInComparison(item.employer_id);
+            const inComparison = isInComparison(item.employer_id || item.canonical_id);
             document.getElementById('detailActionSection').innerHTML = `
                 <div class="flex gap-2 mb-2">
-                    <button onclick="openFindSimilar(selectedItem)" 
+                    <button onclick="openFindSimilar(selectedItem)"
                         class="flex-1 py-3 bg-warmgray-900 text-white font-semibold rounded-lg hover:bg-warmgray-800 transition-colors">
-                        Find Similar Employers →
+                        Find Similar Employers ->
                     </button>
-                    <button onclick="addToComparison(selectedItem)" 
+                    <button onclick="addToComparison(selectedItem)"
                         class="px-4 py-3 border-2 ${inComparison ? 'border-accent-red bg-accent-red/10 text-accent-red' : 'border-warmgray-300 text-warmgray-600 hover:border-warmgray-400'} font-semibold rounded-lg transition-colors"
                         title="${inComparison ? 'Already in comparison' : 'Add to comparison'}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4413,14 +4513,257 @@
                 </div>
                 <p class="text-xs text-warmgray-400 text-center">Discover non-union employers in the same industry and geography</p>
             `;
-            
+
             // Update map
             updateDetailMap(item);
 
-            // Load OSHA, NLRB, and corporate family data asynchronously
-            loadEmployerOsha(item.employer_id);
-            loadEmployerNlrb(item.employer_id);
-            loadCorporateFamily(item.employer_id);
+            // Load OSHA, NLRB, and corporate family data for F7 employers
+            if (srcType === 'F7') {
+                loadEmployerOsha(canonicalId);
+                loadEmployerNlrb(canonicalId);
+                loadCorporateFamily(canonicalId);
+            } else {
+                document.getElementById('oshaContent').innerHTML = '<div class="text-sm text-warmgray-400">OSHA data only available for F7 employers</div>';
+                document.getElementById('nlrbContent').innerHTML = '<div class="text-sm text-warmgray-400">NLRB data loaded via cross-references below</div>';
+                document.getElementById('corporateContent').innerHTML = '<div class="text-sm text-warmgray-400">Corporate family data only available for F7 employers</div>';
+            }
+
+            // Load unified detail (cross-references + flags)
+            loadUnifiedDetail(canonicalId);
+        }
+
+        // ==========================================
+        // UNIFIED SEARCH HELPERS
+        // ==========================================
+        function getSourceBadge(sourceType) {
+            const badges = {
+                'F7': '<span class="inline-block px-1.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded">F7</span>',
+                'NLRB': '<span class="inline-block px-1.5 py-0.5 text-xs font-semibold bg-green-100 text-green-700 rounded">NLRB</span>',
+                'VR': '<span class="inline-block px-1.5 py-0.5 text-xs font-semibold bg-orange-100 text-orange-700 rounded">VR</span>',
+                'MANUAL': '<span class="inline-block px-1.5 py-0.5 text-xs font-semibold bg-purple-100 text-purple-700 rounded">Manual</span>',
+                'PUBLIC': '<span class="inline-block px-1.5 py-0.5 text-xs font-semibold bg-teal-100 text-teal-700 rounded">Public</span>'
+            };
+            return badges[sourceType] || '';
+        }
+
+        function getSourceLabel(sourceType) {
+            const labels = {
+                'F7': 'F-7 Contract Filing',
+                'NLRB': 'NLRB Election Record',
+                'VR': 'Voluntary Recognition',
+                'MANUAL': 'Research Discovery',
+                'PUBLIC': 'Public Sector'
+            };
+            return labels[sourceType] || sourceType;
+        }
+
+        async function loadUnifiedDetail(canonicalId) {
+            const srcContent = document.getElementById('sourceRecordsContent');
+            const flagsContent = document.getElementById('existingFlags');
+            srcContent.innerHTML = '<div class="text-sm text-warmgray-400">Loading cross-references...</div>';
+            flagsContent.innerHTML = '';
+
+            try {
+                const resp = await fetch(`${API_BASE}/employers/unified-detail/${encodeURIComponent(canonicalId)}`);
+                if (!resp.ok) {
+                    srcContent.innerHTML = '<div class="text-sm text-warmgray-400">No cross-reference data available</div>';
+                    return;
+                }
+                const data = await resp.json();
+
+                // Render cross-references
+                const xrefs = data.cross_references || [];
+                if (xrefs.length === 0) {
+                    srcContent.innerHTML = '<div class="text-sm text-warmgray-400">No additional source records found</div>';
+                } else {
+                    srcContent.innerHTML = `
+                        <div class="space-y-2">
+                            ${xrefs.map(ref => `
+                                <div class="bg-warmgray-50 rounded p-3 text-sm">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        ${getSourceBadge(ref.source_type)}
+                                        <span class="font-medium">${escapeHtml(ref.employer_name || '')}</span>
+                                        ${ref.election_result ? `<span class="text-xs px-1.5 py-0.5 rounded ${ref.election_result === 'Won' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${ref.election_result}</span>` : ''}
+                                    </div>
+                                    <div class="text-warmgray-500 text-xs flex gap-3">
+                                        ${ref.case_number ? `<span>Case: ${escapeHtml(ref.case_number)}</span>` : ''}
+                                        ${ref.election_date ? `<span>Date: ${escapeHtml(ref.election_date)}</span>` : ''}
+                                        ${ref.unit_size ? `<span>Workers: ${formatNumber(ref.unit_size)}</span>` : ''}
+                                        ${ref.union_name ? `<span>Union: ${escapeHtml(ref.union_name)}</span>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                // Render flags
+                renderFlags(data.flags || []);
+            } catch (e) {
+                console.error('Failed to load unified detail:', e);
+                srcContent.innerHTML = '<div class="text-sm text-warmgray-400">Failed to load cross-references</div>';
+            }
+        }
+
+        function renderFlags(flags) {
+            const container = document.getElementById('existingFlags');
+            if (!flags || flags.length === 0) {
+                container.innerHTML = '<div class="text-sm text-warmgray-400 mb-2">No flags</div>';
+                return;
+            }
+            container.innerHTML = flags.map(f => `
+                <div class="flex items-center justify-between bg-warmgray-50 rounded px-3 py-2 mb-1 text-sm">
+                    <div>
+                        <span class="font-medium text-warmgray-700">${escapeHtml(f.flag_type.replace(/_/g, ' '))}</span>
+                        ${f.notes ? `<span class="text-warmgray-500 ml-2">${escapeHtml(f.notes)}</span>` : ''}
+                    </div>
+                    <button onclick="deleteFlag(${f.id})" class="text-warmgray-400 hover:text-red-600 text-lg leading-none" title="Remove flag">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        async function submitFlag() {
+            if (!selectedItem) return;
+            const flagType = document.getElementById('flagTypeSelect').value;
+            if (!flagType) return;
+            const notes = document.getElementById('flagNotesInput').value.trim();
+            const canonicalId = selectedItem.canonical_id || selectedItem.employer_id;
+            const srcType = selectedItem.source_type || 'F7';
+
+            // Extract source_id from canonical_id
+            let sourceId = canonicalId;
+            if (canonicalId.startsWith('NLRB-')) sourceId = canonicalId.substring(5);
+            else if (canonicalId.startsWith('VR-')) sourceId = canonicalId.substring(3);
+            else if (canonicalId.startsWith('MANUAL-')) sourceId = canonicalId.substring(7);
+
+            try {
+                const resp = await fetch(`${API_BASE}/employers/flags`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({source_type: srcType, source_id: sourceId, flag_type: flagType, notes: notes || null})
+                });
+                if (resp.ok) {
+                    document.getElementById('flagTypeSelect').value = '';
+                    document.getElementById('flagNotesInput').value = '';
+                    // Reload flags
+                    loadUnifiedDetail(canonicalId);
+                } else {
+                    const err = await resp.json();
+                    alert(err.detail || 'Failed to add flag');
+                }
+            } catch (e) {
+                console.error('Flag creation failed:', e);
+            }
+        }
+
+        async function deleteFlag(flagId) {
+            try {
+                const resp = await fetch(`${API_BASE}/employers/flags/${flagId}`, {method: 'DELETE'});
+                if (resp.ok && selectedItem) {
+                    const canonicalId = selectedItem.canonical_id || selectedItem.employer_id;
+                    loadUnifiedDetail(canonicalId);
+                }
+            } catch (e) {
+                console.error('Flag deletion failed:', e);
+            }
+        }
+
+        // ---- Scorecard Flag Functions ----
+        let currentScorecardFlagSource = null; // {source_type, source_id}
+
+        function getScorecardFlagHTML() {
+            return `
+                <div class="border-t border-warmgray-200 pt-4 mt-6">
+                    <h4 class="text-sm font-semibold text-warmgray-700 uppercase tracking-wide mb-3">Review Flags</h4>
+                    <div id="scorecardExistingFlags" class="mb-3"></div>
+                    <div class="flex gap-2 items-end">
+                        <select id="scorecardFlagTypeSelect" class="text-sm border border-warmgray-300 rounded px-2 py-1.5 flex-1">
+                            <option value="">Flag for review...</option>
+                            <option value="ALREADY_UNION">Already Union</option>
+                            <option value="DUPLICATE">Duplicate</option>
+                            <option value="LABOR_ORG_NOT_EMPLOYER">Labor Org Not Employer</option>
+                            <option value="DEFUNCT">Defunct</option>
+                            <option value="DATA_QUALITY">Data Quality</option>
+                            <option value="NEEDS_REVIEW">Needs Review</option>
+                            <option value="VERIFIED_OK">Verified OK</option>
+                        </select>
+                        <input id="scorecardFlagNotesInput" type="text" placeholder="Notes (optional)" class="text-sm border border-warmgray-300 rounded px-2 py-1.5 flex-1">
+                        <button onclick="submitScorecardFlag()" class="px-3 py-1.5 bg-warmgray-700 text-white text-sm rounded hover:bg-warmgray-800">Flag</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderScorecardFlags(flags) {
+            const container = document.getElementById('scorecardExistingFlags');
+            if (!container) return;
+            if (!flags || flags.length === 0) {
+                container.innerHTML = '<div class="text-sm text-warmgray-400 mb-2">No flags</div>';
+                return;
+            }
+            container.innerHTML = flags.map(f => `
+                <div class="flex items-center justify-between bg-warmgray-50 rounded px-3 py-2 mb-1 text-sm">
+                    <div>
+                        <span class="font-medium text-warmgray-700">${escapeHtml(f.flag_type.replace(/_/g, ' '))}</span>
+                        ${f.notes ? `<span class="text-warmgray-500 ml-2">${escapeHtml(f.notes)}</span>` : ''}
+                    </div>
+                    <button onclick="deleteScorecardFlag(${f.id})" class="text-warmgray-400 hover:text-red-600 text-lg leading-none" title="Remove flag">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        async function loadScorecardFlags(sourceType, sourceId) {
+            currentScorecardFlagSource = {source_type: sourceType, source_id: String(sourceId)};
+            try {
+                const resp = await fetch(`${API_BASE}/employers/flags/by-source?source_type=${encodeURIComponent(sourceType)}&source_id=${encodeURIComponent(sourceId)}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    renderScorecardFlags(data.flags || []);
+                }
+            } catch (e) {
+                console.error('Failed to load scorecard flags:', e);
+            }
+        }
+
+        async function submitScorecardFlag() {
+            if (!currentScorecardFlagSource) return;
+            const flagType = document.getElementById('scorecardFlagTypeSelect').value;
+            if (!flagType) return;
+            const notes = document.getElementById('scorecardFlagNotesInput').value.trim();
+
+            try {
+                const resp = await fetch(`${API_BASE}/employers/flags`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        source_type: currentScorecardFlagSource.source_type,
+                        source_id: currentScorecardFlagSource.source_id,
+                        flag_type: flagType,
+                        notes: notes || null
+                    })
+                });
+                if (resp.ok) {
+                    document.getElementById('scorecardFlagTypeSelect').value = '';
+                    document.getElementById('scorecardFlagNotesInput').value = '';
+                    loadScorecardFlags(currentScorecardFlagSource.source_type, currentScorecardFlagSource.source_id);
+                } else {
+                    const err = await resp.json();
+                    alert(err.detail || 'Failed to add flag');
+                }
+            } catch (e) {
+                console.error('Scorecard flag creation failed:', e);
+            }
+        }
+
+        async function deleteScorecardFlag(flagId) {
+            try {
+                const resp = await fetch(`${API_BASE}/employers/flags/${flagId}`, {method: 'DELETE'});
+                if (resp.ok && currentScorecardFlagSource) {
+                    loadScorecardFlags(currentScorecardFlagSource.source_type, currentScorecardFlagSource.source_id);
+                }
+            } catch (e) {
+                console.error('Scorecard flag deletion failed:', e);
+            }
         }
 
         // Navigate to union detail from employer view
@@ -4966,6 +5309,8 @@
             document.getElementById('detailOshaSection').classList.add('hidden');
             document.getElementById('detailNlrbSection').classList.add('hidden');
             document.getElementById('detailNewsSection').classList.add('hidden');
+            document.getElementById('detailSourceSection').classList.add('hidden');
+            document.getElementById('detailFlagSection').classList.add('hidden');
             document.getElementById('detailEmployersSection').classList.remove('hidden');
             document.getElementById('detailFinancialsSection').classList.remove('hidden');
             document.getElementById('detailTrendsSection').classList.remove('hidden');
@@ -6178,7 +6523,7 @@
             },
             'SEIU_NY': {
                 name: 'SEIU New York',
-                sectors: ['social_services', 'building_services'],
+                sectors: ['social_services', 'building_services', 'healthcare_ambulatory', 'healthcare_hospitals', 'healthcare_nursing'],
                 description: 'Healthcare workers, building services, public sector'
             },
             'UAW_NY': {
@@ -6551,6 +6896,8 @@
                     </div>
                 </div>
 
+                ${getScorecardFlagHTML()}
+
                 <!-- Score breakdown -->
                 <div class="bg-gradient-to-r from-green-50 to-warmgray-50 rounded-lg p-4 mb-6">
                     <div class="flex items-center justify-between mb-4">
@@ -6655,8 +7002,14 @@
                 </div>
                 ` : ''}
             `;
+
+            // Load flags for this sector target (use MERGENT source type with duns as ID)
+            const sectorSourceId = item.duns || item.establishment_id || item.id;
+            if (sectorSourceId) {
+                loadScorecardFlags('MERGENT', sectorSourceId);
+            }
         }
-        
+
         function renderScorecardDetail(detail) {
             const el = document.getElementById('scorecardDetail');
             const estab = detail.establishment || {};
@@ -6676,6 +7029,8 @@
                         ${contracts.contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Has Govt Contracts</span>' : ''}
                     </div>
                 </div>
+
+                ${getScorecardFlagHTML()}
 
                 <!-- Score breakdown -->
                 <div class="bg-gradient-to-r from-green-50 to-warmgray-50 rounded-lg p-4 mb-6">
@@ -6784,8 +7139,8 @@
                                 <div class="text-sm border-l-2 border-green-300 pl-2">
                                     <div class="font-medium text-warmgray-700">${escapeHtml(e.employer_name)}</div>
                                     <div class="text-xs text-warmgray-500">
-                                        ${escapeHtml(e.city || '')}, ${e.state || ''} · 
-                                        ${formatNumber(e.latest_unit_size || 0)} workers · 
+                                        ${escapeHtml(e.city || '')}, ${e.state || ''} ·
+                                        ${formatNumber(e.latest_unit_size || 0)} workers ·
                                         <span class="text-green-600">${escapeHtml(e.aff_abbr || e.union_name || 'Union')}</span>
                                     </div>
                                 </div>
@@ -6794,8 +7149,14 @@
                     </div>
                 ` : ''}
             `;
+
+            // Load flags for this OSHA establishment
+            const oshaSourceId = estab.establishment_id || estab.id;
+            if (oshaSourceId) {
+                loadScorecardFlags('OSHA', oshaSourceId);
+            }
         }
-        
+
         function renderScoreRow(label, score, max, colorClass, description, reason) {
             const pct = Math.round((score / max) * 100);
             return `

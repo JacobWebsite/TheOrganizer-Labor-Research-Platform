@@ -153,8 +153,7 @@ cur.execute("""
         nyc_wage_theft_cases = COALESCE(m.nyc_wage_theft_cases, 0) + w.case_count,
         nyc_wage_theft_amount = COALESCE(m.nyc_wage_theft_amount, 0) + w.total_wages
     FROM wage_theft w
-    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Z0-9 ]', '', 'g')) = w.norm_name
-       OR UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Z0-9 ]', '', 'g')) LIKE w.norm_name || '%'
+    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Za-z0-9 ]', '', 'g')) = w.norm_name
 """)
 print(f"  NYS DOL wage theft: {cur.rowcount} matches")
 conn.commit()
@@ -175,7 +174,7 @@ cur.execute("""
         nyc_wage_theft_cases = COALESCE(m.nyc_wage_theft_cases, 0) + w.case_count,
         nyc_wage_theft_amount = COALESCE(m.nyc_wage_theft_amount, 0) + w.total_wages
     FROM wage_theft w
-    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Z0-9 ]', '', 'g')) = w.norm_name
+    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Za-z0-9 ]', '', 'g')) = w.norm_name
 """)
 print(f"  US DOL wage theft: {cur.rowcount} matches")
 conn.commit()
@@ -199,7 +198,7 @@ cur.execute("""
     UPDATE mergent_employers m
     SET nyc_ulp_cases = u.total_cases
     FROM ulp_agg u
-    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Z0-9 ]', '', 'g')) = u.norm_name
+    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Za-z0-9 ]', '', 'g')) = u.norm_name
 """)
 print(f"  ULP cases: {cur.rowcount} matches")
 conn.commit()
@@ -220,7 +219,7 @@ cur.execute("""
         nyc_local_law_cases = l.case_count,
         nyc_local_law_amount = l.total_amount
     FROM local_laws l
-    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Z0-9 ]', '', 'g')) = l.norm_name
+    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Za-z0-9 ]', '', 'g')) = l.norm_name
 """)
 print(f"  Local labor laws: {cur.rowcount} matches")
 conn.commit()
@@ -230,7 +229,7 @@ cur.execute("""
     UPDATE mergent_employers m
     SET nyc_debarred = TRUE
     FROM nyc_debarment_list d
-    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Z0-9 ]', '', 'g')) = d.employer_name_normalized
+    WHERE UPPER(REGEXP_REPLACE(m.company_name_normalized, '[^A-Za-z0-9 ]', '', 'g')) = d.employer_name_normalized
       AND d.employer_name_normalized IS NOT NULL AND d.employer_name_normalized != ''
 """)
 print(f"  Debarred employers: {cur.rowcount} matches")
