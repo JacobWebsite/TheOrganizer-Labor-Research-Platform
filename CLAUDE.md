@@ -783,6 +783,73 @@ API docs: http://localhost:8001/docs
 
 ## Session Log
 
+### 2026-02-06 (F7 Data Quality Cleanup)
+**Tasks:** Audit and clean up f7_employers_deduped (63,118 records) and mergent_employers (14,240 records)
+
+**Phase 1 Audits (4 parallel scripts):**
+- **Name Quality:** 29 empty `employer_name_aggressive` (all abbreviation-only names like "H & M", "O & G"), 428 short names (<=3 chars, legit acronyms like ABM, 3M, UPS), 211 case mismatch JOIN losses (Mergent UPPERCASE vs F7 lowercase)
+- **Duplicates:** 420 duplicate groups (234 true dups, 142 multi-location, 44 generic names). CSV exported to `data/f7_duplicate_groups.csv`
+- **Coverage Gaps:** 257 missing street (0.4%), 16,361 missing geocodes (25.9%), 9,192 no NAICS (14.6%), 4,590 NAICS enrichable from OSHA, 211 addresses recoverable from lm_data, 16,104 geocodable (have address but no lat/lon)
+- **Metadata:** 25 unionized museum records with stale `score_priority`, 0 score formula mismatches, 0 tier assignment mismatches
+
+**Phase 2 Fixes Applied:**
+| Fix | Records | Impact |
+|-----|---------|--------|
+| Lowercase mergent `company_name_normalized` | 14,238 | Unlocked 211 case-sensitive JOIN matches |
+| NULL `score_priority` for unionized records | 25 | Museums sector cleaned |
+| Clear placeholder `data_quality_flag` | 1 | Cleaned up |
+| Flag empty aggressive names | 29 | `EMPTY_AGGRESSIVE_NAME` flag |
+| Flag short aggressive names | 428 | `SHORT_NAME` flag |
+| NormalizedMatcher case-insensitive fix | - | Added `LOWER()` for robust matching |
+
+**Matching Module Fixes (scripts/matching/):**
+- `config.py`: Fixed column names for `mergent_to_990` (business_name), `violations_to_mergent` (employer_name_normalized), `contracts_to_990` (id/name)
+- `matchers/exact.py`: NormalizedMatcher now uses `LOWER()` on target column and lowercases input, preventing case mismatch failures
+
+**New Files Created:**
+- `scripts/cleanup/__init__.py`
+- `scripts/cleanup/audit_name_quality.py` - Phase 1 name audit
+- `scripts/cleanup/audit_f7_duplicates.py` - Phase 1 duplicate detection
+- `scripts/cleanup/audit_coverage_gaps.py` - Phase 1 coverage gaps
+- `scripts/cleanup/audit_metadata.py` - Phase 1 metadata audit
+- `scripts/cleanup/fix_metadata.py` - Phase 2 score/priority fix
+- `scripts/cleanup/fix_name_quality.py` - Phase 2 case + name fix
+
+**Future Enrichment Opportunities (Report Only):**
+- 4,590 NAICS codes recoverable from OSHA matches
+- 211 addresses recoverable from lm_data
+- 16,104 geocodable records (have address but no lat/lon)
+- 234 true duplicate groups need human review
+
+**Status:** Complete. All verifications passed. Sector views refreshed.
+
+### 2026-02-06 (Full Matching Run - All 9 Scenarios)
+**Tasks:** Run all unified matching scenarios at full scale
+
+**Results:**
+| Scenario | Source | Matched | Rate | Tiers |
+|----------|--------|---------|------|-------|
+| nlrb_to_f7 | 114,980 | 16,949 | 14.7% | NORM: 12,617, ADDR: 4,141, AGG: 191 |
+| osha_to_f7 | 1,007,217 | 32,994 | 3.3% | NORM: 25,725, ADDR: 6,792, AGG: 477 |
+| mergent_to_f7 | 14,240 | ~850 | ~6% | Mixed |
+| mergent_to_990 | 14,240 | 4,336 | 30.4% | EIN: 3,824, NORM: 512 |
+| mergent_to_nlrb | 14,240 | 304 | 2.1% | NORM: 274, AGG: 30 |
+| mergent_to_osha | 14,240 | ~600 | ~4% | Mixed |
+| vr_to_f7 | small | - | - | Fast |
+| violations_to_mergent | small | - | - | Fast |
+| contracts_to_990 | small | - | - | Fast |
+
+**Performance Notes:**
+- MatchPipeline per-record SQL too slow for large scenarios (inline REGEXP_REPLACE on 37K+ targets per record)
+- Bulk-load + in-memory hash join approach: OSHA 1M records in 72 seconds (~14K rec/s)
+- Address matching (Tier 3) contributed 24% of NLRB matches and 21% of OSHA matches
+
+**New Files Created:**
+- `scripts/run_batch_m2990_fast.py` - Bulk matcher for mergent_to_990 + mergent_to_nlrb
+- `scripts/run_batch_large_fast.py` - Bulk matcher for nlrb_to_f7 + osha_to_f7
+
+**Status:** Complete. All 9 scenarios run successfully.
+
 ### 2026-02-05 (NY Sub-County Density Recalibration)
 **Tasks:** Recalibrate NY county/ZIP/tract density estimates to match CPS statewide targets
 
