@@ -14,15 +14,21 @@ conn = psycopg2.connect(
 )
 ```
 
+### Core Principle: Data Quality Over External Benchmarks
+**Always prefer accurate, deduplicated data over hitting BLS/EPI coverage targets.**
+Never inflate counts or skip exclusions to stay within benchmark ranges.
+BLS check is WARNING-level in validation framework, not critical.
+
 ### Current Platform Status
 
 | Metric | Value | Benchmark | Coverage |
 |--------|-------|-----------|----------|
 | Total Members | 14.5M | 14.3M (BLS) | 101.4% |
-| Private Sector | 6.65M | 7.2M | 92% |
+| Private Sector | 6.16M | 7.2M | 85.5% |
 | Federal Sector | 1.28M | 1.1M | 116% |
 | State/Local Public | 6.9M | 7.0M (EPI) | 98.3% |
 | States Reconciled | 50/51 | - | 98% |
+| F7 Employers | 62,163 | - | 51,278 counted |
 
 ---
 
@@ -32,12 +38,14 @@ conn = psycopg2.connect(
 | Table | Records | Description |
 |-------|---------|-------------|
 | `unions_master` | 26,665 | OLMS union filings (has local_number field) |
-| `f7_employers_deduped` | 63,118 | Private sector employers |
+| `f7_employers_deduped` | 62,163 | Private sector employers |
 | `nlrb_elections` | 33,096 | NLRB election records |
 | `nlrb_participants` | 30,399 | Union petitioners (95.7% matched to OLMS) |
 | `lm_data` | 2.6M+ | Historical filings (2010-2024) |
 | `epi_state_benchmarks` | 51 | State union benchmarks |
 | `manual_employers` | 509 | State/public sector + research discoveries |
+| `employer_review_flags` | - | Manual review flags (ALREADY_UNION, DUPLICATE, etc.) |
+| `mv_employer_search` | 120,169 | Materialized view: unified F7+NLRB+VR+Manual search |
 
 ### Public Sector Tables
 | Table | Records | Description |
@@ -283,6 +291,8 @@ Full Swagger docs: http://localhost:8001/docs
 **Lookups:** `/api/lookups/{sectors,affiliations,states,naics-sectors,metros,cities}`
 **Employers:** `/api/employers/search` (name/state/NAICS/city), `fuzzy-search`, `normalized-search`, `/{id}`, `/{id}/osha`, `/{id}/nlrb`, `/cities`, `/by-naics-detailed/{code}`
 **Unified Employers:** `/api/employers/unified/{stats,search,sources}`, `/{id}`
+**Unified Search:** `/api/employers/unified-search` (name/state/city/source_type/has_union), `/unified-detail/{canonical_id}`
+**Review Flags:** `/api/employers/flags` (POST), `/flags/pending`, `/flags/{id}` (DELETE), `/flags/by-employer/{canonical_id}`
 **Unions:** `/api/unions/search`, `/{f_num}`, `/{f_num}/employers`, `/locals/{aff}`, `/national`, `/national/{aff_abbr}`
 **NLRB:** `/api/nlrb/summary`, `/elections/search`, `/elections/map`, `/elections/by-{year,state,affiliation}`, `/election/{case}`, `/ulp/search`, `/ulp/by-section`
 **OSHA:** `/api/osha/summary`, `/establishments/search`, `/establishments/{id}`, `/by-state`, `/high-severity`, `/organizing-targets`, `/employer-safety/{id}`, `/unified-matches`
