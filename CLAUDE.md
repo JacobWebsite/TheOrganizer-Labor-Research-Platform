@@ -24,11 +24,11 @@ BLS check is WARNING-level in validation framework, not critical.
 | Metric | Value | Benchmark | Coverage |
 |--------|-------|-----------|----------|
 | Total Members | 14.5M | 14.3M (BLS) | 101.4% |
-| Private Sector | 6.16M | 7.2M | 85.5% |
+| Private Sector | 6.61M | 7.2M | 91.8% |
 | Federal Sector | 1.28M | 1.1M | 116% |
 | State/Local Public | 6.9M | 7.0M (EPI) | 98.3% |
 | States Reconciled | 50/51 | - | 98% |
-| F7 Employers | 62,163 | - | 51,278 counted |
+| F7 Employers | 62,163 | - | 51,337 counted |
 
 ---
 
@@ -99,30 +99,40 @@ BLS check is WARNING-level in validation framework, not critical.
 ### Mergent Employer Tables (Sector Scorecards)
 | Table | Records | Description |
 |-------|---------|-------------|
-| `mergent_employers` | 14,240 | Mergent Intellect employer data (11 sectors) |
+| `mergent_employers` | 37,679 | Mergent Intellect employer data (21 sectors) |
 | `ny_990_filers` | 37,480 | IRS Form 990 NY nonprofit filers (2022-2024) |
 
 **Sectors in mergent_employers:**
 | Sector | Employers | Unionized | Targets | Employees |
 |--------|-----------|-----------|---------|-----------|
-| CIVIC_ORGANIZATIONS | 3,339 | 36 | 3,303 | 68,864 |
-| BUILDING_SERVICES | 2,692 | 38 | 2,654 | 197,485 |
-| EDUCATION | 2,487 | 75 | 2,412 | 239,212 |
-| SOCIAL_SERVICES | 1,520 | 37 | 1,483 | 65,672 |
-| BROADCASTING | 1,371 | 8 | 1,363 | 82,536 |
-| PUBLISHING | 768 | 10 | 758 | 37,462 |
-| WASTE_MGMT | 717 | 5 | 712 | 13,998 |
+| OTHER | 16,840 | 360 | 16,480 | 1,451,088 |
+| CIVIC_ORGANIZATIONS | 3,339 | 40 | 3,299 | 68,864 |
+| PROFESSIONAL | 2,838 | 28 | 2,810 | 244,586 |
+| BUILDING_SERVICES | 2,692 | 44 | 2,648 | 197,485 |
+| EDUCATION | 2,487 | 78 | 2,409 | 239,212 |
+| SOCIAL_SERVICES | 1,520 | 38 | 1,482 | 65,672 |
+| BROADCASTING | 1,371 | 9 | 1,362 | 82,536 |
+| HEALTHCARE_AMBULATORY | 1,107 | 35 | 1,072 | 102,805 |
+| HEALTHCARE_NURSING | 772 | 27 | 745 | 120,645 |
+| PUBLISHING | 768 | 13 | 755 | 37,462 |
+| WASTE_MGMT | 717 | 7 | 710 | 13,998 |
 | GOVERNMENT | 525 | 35 | 490 | 48,056 |
+| TRANSIT | 443 | 9 | 434 | 45,992 |
+| UTILITIES | 436 | 6 | 430 | 16,175 |
 | REPAIR_SERVICES | 394 | 4 | 390 | 11,975 |
+| HEALTHCARE_HOSPITALS | 374 | 55 | 319 | 178,769 |
+| HOSPITALITY | 265 | 6 | 259 | 23,908 |
 | MUSEUMS | 243 | 25 | 218 | 12,659 |
+| FOOD_SERVICE | 215 | 4 | 211 | 20,311 |
 | INFORMATION | 184 | 9 | 175 | 7,352 |
+| ARTS_ENTERTAINMENT | 149 | 13 | 136 | 14,339 |
 
 **Mergent Employers Columns (Key):**
 - `duns` - D-U-N-S number (unique ID)
 - `ein` - IRS Employer ID (55% coverage)
 - `company_name`, `city`, `state`, `zip`, `county`
 - `employees_site`, `sales_amount`, `naics_primary`
-- `sector_category` - One of 11 sectors above
+- `sector_category` - One of 21 sectors above
 - `has_union` - Boolean flag (F-7, NLRB win, or OSHA union status)
 - `organizing_score` - Composite score (0-62 for non-union targets)
 - `score_priority` - Tier: TOP, HIGH, MEDIUM, LOW
@@ -155,7 +165,7 @@ For each sector (e.g., `education`, `social_services`, `building_services`):
 | `v_{sector}_unionized` | Already-unionized employers for reference |
 
 **Available Sectors:**
-`civic_organizations`, `building_services`, `education`, `social_services`, `broadcasting`, `publishing`, `waste_mgmt`, `government`, `repair_services`, `museums`, `information`
+`other`, `civic_organizations`, `professional`, `building_services`, `education`, `social_services`, `broadcasting`, `healthcare_ambulatory`, `healthcare_nursing`, `publishing`, `waste_mgmt`, `government`, `transit`, `utilities`, `repair_services`, `healthcare_hospitals`, `hospitality`, `museums`, `food_service`, `information`, `arts_entertainment`
 
 **Priority Tiers:**
 | Tier | Score Range |
@@ -299,7 +309,7 @@ Full Swagger docs: http://localhost:8001/docs
 **VR:** `/api/vr/stats/{summary,by-year,by-state,by-affiliation}`, `/search`, `/map`, `/new-employers`, `/pipeline`, `/{case}`
 **Public Sector:** `/api/public-sector/{stats,parent-unions,locals,employers,employer-types,benchmarks}`
 **Organizing:** `/api/organizing/{summary,by-state}`, `/scorecard`, `/scorecard/{estab_id}`
-**Sectors (11):** `/api/sectors/list`, `/{sector}/{summary,targets,targets/stats,targets/{id},targets/cities,unionized}`
+**Sectors (21):** `/api/sectors/list`, `/{sector}/{summary,targets,targets/stats,targets/{id},targets/cities,unionized}`
 **Museums (Legacy):** `/api/museums/{summary,targets,targets/stats,targets/cities,targets/{id},unionized}`
 **Trends:** `/api/trends/{national,sectors,elections}`, `/by-state/{state}`, `/by-affiliation/{aff}`
 **Multi-Employer:** `/api/multi-employer/{stats,groups}`, `/employer/{id}/agreement`, `/corporate/family/{id}`
@@ -318,7 +328,7 @@ Full Swagger docs: http://localhost:8001/docs
 4. **Membership Deduplication** - 70.1M raw -> 14.5M deduplicated (matches BLS within 1.5%)
 5. **Historical Trends** - 16 years OLMS LM filings (2010-2024), Chart.js visualizations
 6. **Public Sector Coverage** - 98.3% of EPI benchmark, 50/51 states within +/-15%
-7. **Multi-Sector Organizing Scorecard** - 14,240 Mergent employers, 11 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=15, LOW<15. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
+7. **Multi-Sector Organizing Scorecard** - 37,679 Mergent employers, 21 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=15, LOW<15. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
 8. **Industry Outlook** - BLS 2024-2034 projections in employer detail, 6-digit NAICS from OSHA, occupation breakdowns
 
 ---
