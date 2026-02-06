@@ -1129,6 +1129,412 @@ def get_county_industry_detail(fips: str):
 
 
 # ============================================================================
+# NY SUB-COUNTY DENSITY ESTIMATES (County, ZIP, Census Tract)
+# ============================================================================
+
+@app.get("/api/density/ny/counties")
+def get_ny_county_density(
+    min_density: Optional[float] = None,
+    max_density: Optional[float] = None,
+    sort_by: str = Query("total_density", regex="^(total_density|private_density|public_density|name)$")
+):
+    """Get union density estimates for all 62 NY counties
+
+    Args:
+        min_density: Minimum total density filter
+        max_density: Maximum total density filter
+        sort_by: Sort field (total_density, private_density, public_density, name)
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = []
+            params = []
+
+            if min_density is not None:
+                conditions.append("estimated_total_density >= %s")
+                params.append(min_density)
+            if max_density is not None:
+                conditions.append("estimated_total_density <= %s")
+                params.append(max_density)
+
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+            sort_map = {
+                "total_density": "estimated_total_density DESC",
+                "private_density": "estimated_private_density DESC",
+                "public_density": "estimated_public_density DESC",
+                "name": "county_name ASC"
+            }
+            order_by = sort_map.get(sort_by, "estimated_total_density DESC")
+
+            cur.execute(f"""
+                SELECT county_fips, county_name,
+                       estimated_total_density, estimated_private_density, estimated_public_density,
+                       estimated_federal_density, estimated_state_density, estimated_local_density,
+                       private_class_total, govt_class_total,
+                       education_health_share, public_admin_share,
+                       private_in_public_industries
+                FROM ny_county_density_estimates
+                {where_clause}
+                ORDER BY {order_by}
+            """, params)
+
+            counties = cur.fetchall()
+
+            # Summary stats
+            cur.execute("""
+                SELECT COUNT(*) as count,
+                       AVG(estimated_total_density) as avg_total,
+                       MIN(estimated_total_density) as min_total,
+                       MAX(estimated_total_density) as max_total,
+                       AVG(estimated_private_density) as avg_private,
+                       AVG(estimated_public_density) as avg_public
+                FROM ny_county_density_estimates
+            """)
+            stats = cur.fetchone()
+
+            return {
+                "counties": counties,
+                "count": len(counties),
+                "summary": {
+                    "total_counties": stats["count"],
+                    "avg_total_density": round(float(stats["avg_total"]), 2),
+                    "min_total_density": round(float(stats["min_total"]), 2),
+                    "max_total_density": round(float(stats["max_total"]), 2),
+                    "avg_private_density": round(float(stats["avg_private"]), 2),
+                    "avg_public_density": round(float(stats["avg_public"]), 2)
+                },
+                "methodology": "Industry-weighted density (10 BLS industries), auto-calibrated multiplier (2.26x) targeting CPS statewide 12.4%"
+            }
+
+
+@app.get("/api/density/ny/county/{fips}")
+def get_ny_county_density_detail(fips: str):
+    """Get detailed density breakdown for a single NY county
+
+    Args:
+        fips: 5-digit county FIPS code
+    """
+    fips = fips.zfill(5)
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT *
+                FROM ny_county_density_estimates
+                WHERE county_fips = %s
+            """, (fips,))
+            county = cur.fetchone()
+
+            if not county:
+                raise HTTPException(status_code=404, detail=f"County FIPS {fips} not found")
+
+            # Get tract count for this county
+            cur.execute("""
+                SELECT COUNT(*) as tract_count,
+                       AVG(estimated_total_density) as avg_tract_density,
+                       MIN(estimated_total_density) as min_tract_density,
+                       MAX(estimated_total_density) as max_tract_density
+                FROM ny_tract_density_estimates
+                WHERE county_fips = %s
+            """, (fips,))
+            tract_stats = cur.fetchone()
+
+            return {
+                "county": dict(county),
+                "tract_statistics": {
+                    "tract_count": tract_stats["tract_count"],
+                    "avg_tract_density": round(float(tract_stats["avg_tract_density"] or 0), 2),
+                    "min_tract_density": round(float(tract_stats["min_tract_density"] or 0), 2),
+                    "max_tract_density": round(float(tract_stats["max_tract_density"] or 0), 2)
+                },
+                "methodology": {
+                    "private_sector": "Industry-weighted BLS rates for 10 private industries (excludes edu/health and public admin to avoid double-counting with public sector)",
+                    "public_sector": "Decomposed by government level using NY-specific rates (Fed: 42.2%, State: 46.3%, Local: 63.7%)",
+                    "climate_multiplier": 2.26,
+                    "calibration": "Auto-calibrated to match CPS statewide private density of 12.4%",
+                    "note": "NY climate multiplier indicates significantly stronger union presence than expected from industry mix alone"
+                }
+            }
+
+
+@app.get("/api/density/ny/zips")
+def get_ny_zip_density(
+    min_density: Optional[float] = None,
+    max_density: Optional[float] = None,
+    limit: int = Query(100, le=2000),
+    offset: int = 0
+):
+    """Get union density estimates for NY ZIP codes
+
+    Args:
+        min_density: Minimum total density filter
+        max_density: Maximum total density filter
+        limit: Max results (default 100, max 2000)
+        offset: Pagination offset
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["estimated_total_density > 0"]  # Exclude zero-density ZIPs by default
+            params = []
+
+            if min_density is not None:
+                conditions.append("estimated_total_density >= %s")
+                params.append(min_density)
+            if max_density is not None:
+                conditions.append("estimated_total_density <= %s")
+                params.append(max_density)
+
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+            cur.execute(f"""
+                SELECT zip_code, zip_name,
+                       estimated_total_density, estimated_private_density, estimated_public_density,
+                       estimated_federal_density, estimated_state_density, estimated_local_density,
+                       private_class_total, govt_class_total
+                FROM ny_zip_density_estimates
+                {where_clause}
+                ORDER BY estimated_total_density DESC
+                LIMIT %s OFFSET %s
+            """, params + [limit, offset])
+
+            zips = cur.fetchall()
+
+            # Total count
+            cur.execute(f"""
+                SELECT COUNT(*) FROM ny_zip_density_estimates {where_clause}
+            """, params)
+            total = cur.fetchone()["count"]
+
+            return {
+                "zips": zips,
+                "count": len(zips),
+                "total": total,
+                "offset": offset,
+                "limit": limit
+            }
+
+
+@app.get("/api/density/ny/zip/{zip_code}")
+def get_ny_zip_density_detail(zip_code: str):
+    """Get detailed density breakdown for a single NY ZIP code
+
+    Args:
+        zip_code: 5-digit ZIP code
+    """
+    zip_code = zip_code.zfill(5)
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT *
+                FROM ny_zip_density_estimates
+                WHERE zip_code = %s
+            """, (zip_code,))
+            zip_data = cur.fetchone()
+
+            if not zip_data:
+                raise HTTPException(status_code=404, detail=f"ZIP code {zip_code} not found")
+
+            return {
+                "zip": dict(zip_data),
+                "methodology": "Industry-weighted density with class-of-worker adjustment"
+            }
+
+
+@app.get("/api/density/ny/tracts")
+def get_ny_tract_density(
+    county_fips: Optional[str] = None,
+    min_density: Optional[float] = None,
+    max_density: Optional[float] = None,
+    limit: int = Query(100, le=5500),
+    offset: int = 0
+):
+    """Get union density estimates for NY census tracts
+
+    Args:
+        county_fips: Filter by county FIPS (5-digit)
+        min_density: Minimum total density filter
+        max_density: Maximum total density filter
+        limit: Max results (default 100, max 5500)
+        offset: Pagination offset
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["estimated_total_density > 0"]
+            params = []
+
+            if county_fips:
+                conditions.append("county_fips = %s")
+                params.append(county_fips.zfill(5))
+            if min_density is not None:
+                conditions.append("estimated_total_density >= %s")
+                params.append(min_density)
+            if max_density is not None:
+                conditions.append("estimated_total_density <= %s")
+                params.append(max_density)
+
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+            cur.execute(f"""
+                SELECT tract_fips, county_fips, tract_name,
+                       estimated_total_density, estimated_private_density, estimated_public_density,
+                       estimated_federal_density, estimated_state_density, estimated_local_density,
+                       private_class_total, govt_class_total
+                FROM ny_tract_density_estimates
+                {where_clause}
+                ORDER BY estimated_total_density DESC
+                LIMIT %s OFFSET %s
+            """, params + [limit, offset])
+
+            tracts = cur.fetchall()
+
+            # Total count
+            cur.execute(f"""
+                SELECT COUNT(*) FROM ny_tract_density_estimates {where_clause}
+            """, params)
+            total = cur.fetchone()["count"]
+
+            return {
+                "tracts": tracts,
+                "count": len(tracts),
+                "total": total,
+                "offset": offset,
+                "limit": limit
+            }
+
+
+@app.get("/api/density/ny/tract/{tract_fips}")
+def get_ny_tract_density_detail(tract_fips: str):
+    """Get detailed density breakdown for a single NY census tract
+
+    Args:
+        tract_fips: 11-digit tract FIPS code
+    """
+    tract_fips = tract_fips.zfill(11)
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT *
+                FROM ny_tract_density_estimates
+                WHERE tract_fips = %s
+            """, (tract_fips,))
+            tract = cur.fetchone()
+
+            if not tract:
+                raise HTTPException(status_code=404, detail=f"Tract FIPS {tract_fips} not found")
+
+            # Get county info for context
+            cur.execute("""
+                SELECT county_name, estimated_total_density as county_density
+                FROM ny_county_density_estimates
+                WHERE county_fips = %s
+            """, (tract_fips[:5],))
+            county = cur.fetchone()
+
+            return {
+                "tract": dict(tract),
+                "county_context": {
+                    "county_name": county["county_name"] if county else None,
+                    "county_density": float(county["county_density"]) if county else None
+                },
+                "methodology": "Industry-weighted density with class-of-worker adjustment"
+            }
+
+
+@app.get("/api/density/ny/summary")
+def get_ny_density_summary():
+    """Get summary statistics for NY density estimates at all geographic levels"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # County stats
+            cur.execute("""
+                SELECT 'county' as level,
+                       COUNT(*) as count,
+                       AVG(estimated_total_density) as avg_total,
+                       MIN(estimated_total_density) as min_total,
+                       MAX(estimated_total_density) as max_total,
+                       AVG(estimated_private_density) as avg_private,
+                       AVG(estimated_public_density) as avg_public
+                FROM ny_county_density_estimates
+            """)
+            county_stats = cur.fetchone()
+
+            # ZIP stats
+            cur.execute("""
+                SELECT 'zip' as level,
+                       COUNT(*) as count,
+                       COUNT(*) FILTER (WHERE estimated_total_density > 0) as nonzero_count,
+                       AVG(estimated_total_density) FILTER (WHERE estimated_total_density > 0) as avg_total,
+                       MIN(estimated_total_density) FILTER (WHERE estimated_total_density > 0) as min_total,
+                       MAX(estimated_total_density) as max_total
+                FROM ny_zip_density_estimates
+            """)
+            zip_stats = cur.fetchone()
+
+            # Tract stats
+            cur.execute("""
+                SELECT 'tract' as level,
+                       COUNT(*) as count,
+                       COUNT(*) FILTER (WHERE estimated_total_density > 0) as nonzero_count,
+                       AVG(estimated_total_density) FILTER (WHERE estimated_total_density > 0) as avg_total,
+                       MIN(estimated_total_density) FILTER (WHERE estimated_total_density > 0) as min_total,
+                       MAX(estimated_total_density) as max_total
+                FROM ny_tract_density_estimates
+            """)
+            tract_stats = cur.fetchone()
+
+            # Top counties
+            cur.execute("""
+                SELECT county_name, estimated_total_density
+                FROM ny_county_density_estimates
+                ORDER BY estimated_total_density DESC
+                LIMIT 5
+            """)
+            top_counties = cur.fetchall()
+
+            return {
+                "county": {
+                    "count": county_stats["count"],
+                    "avg_total_density": round(float(county_stats["avg_total"]), 2),
+                    "min_total_density": round(float(county_stats["min_total"]), 2),
+                    "max_total_density": round(float(county_stats["max_total"]), 2),
+                    "avg_private_density": round(float(county_stats["avg_private"]), 2),
+                    "avg_public_density": round(float(county_stats["avg_public"]), 2)
+                },
+                "zip": {
+                    "total_count": zip_stats["count"],
+                    "nonzero_count": zip_stats["nonzero_count"],
+                    "avg_total_density": round(float(zip_stats["avg_total"] or 0), 2),
+                    "min_total_density": round(float(zip_stats["min_total"] or 0), 2),
+                    "max_total_density": round(float(zip_stats["max_total"] or 0), 2)
+                },
+                "tract": {
+                    "total_count": tract_stats["count"],
+                    "nonzero_count": tract_stats["nonzero_count"],
+                    "avg_total_density": round(float(tract_stats["avg_total"] or 0), 2),
+                    "min_total_density": round(float(tract_stats["min_total"] or 0), 2),
+                    "max_total_density": round(float(tract_stats["max_total"] or 0), 2)
+                },
+                "top_counties": [
+                    {"name": c["county_name"], "density": float(c["estimated_total_density"])}
+                    for c in top_counties
+                ],
+                "methodology": {
+                    "description": "Industry-weighted private sector density (10 BLS industries, excludes edu/health), auto-calibrated to CPS statewide 12.4%",
+                    "climate_multiplier": 2.26,
+                    "public_sector_rates": {
+                        "federal": 42.2,
+                        "state": 46.3,
+                        "local": 63.7
+                    },
+                    "source": "ACS 2025 industry and class of worker estimates"
+                }
+            }
+
+
+# ============================================================================
 # BLS EMPLOYMENT PROJECTIONS (Enhanced with correct schema)
 # ============================================================================
 
