@@ -37,7 +37,7 @@ conn = psycopg2.connect(
 | `nlrb_participants` | 30,399 | Union petitioners (95.7% matched to OLMS) |
 | `lm_data` | 2.6M+ | Historical filings (2010-2024) |
 | `epi_state_benchmarks` | 51 | State union benchmarks |
-| `manual_employers` | 431 | State-level public sector |
+| `manual_employers` | 509 | State/public sector + research discoveries |
 
 ### Public Sector Tables
 | Table | Records | Description |
@@ -783,6 +783,116 @@ API docs: http://localhost:8001/docs
 
 ## Session Log
 
+### 2026-02-06 (Union Discovery Pipeline)
+**Tasks:** Discover organizing events missing from database, cross-check against existing tables, insert genuinely new records
+
+**Pipeline:** 3-script approach: catalog -> crosscheck -> insert
+
+**Script 1: `scripts/catalog_research_events.py`**
+- Hard-coded 99 qualifying organizing events from 5 research agents:
+  - NY Discovery & Gap Analysis (26 events)
+  - Construction/Mfg/Retail NAICS 23,31,44 (16 events)
+  - Transport/Tech/Professional NAICS 48,51,54 (13 events)
+  - Education/Healthcare NAICS 61,62 (22 events)
+  - Arts/Hospitality NAICS 71,72 (14 events) + Additional (8 events)
+- Excluded: worker centers, contract renegotiations, failed elections (Mercedes-Benz), withdrawn petitions (SHoP Architects)
+- Output: `data/organizing_events_catalog.csv`
+
+**Script 2: `scripts/crosscheck_events.py`**
+- Cross-checked 99 events against 5 database tables:
+  - `manual_employers` (432 records) - normalized name + state
+  - `f7_employers_deduped` (63K) - aggressive name + state, partial prefix
+  - `nlrb_elections` + `nlrb_participants` (33K) - employer participant name + state
+  - `nlrb_voluntary_recognition` - normalized name + state
+  - `mergent_employers` (14K) - normalized name + state
+
+**Cross-check Results:**
+| Status | Count | Workers | Description |
+|--------|-------|---------|-------------|
+| NEW | 77 | 174,357 | Not found anywhere -> insert |
+| IN_F7 | 16 | 17,110 | Already has union contract |
+| IN_NLRB | 4 | 13,280 | Election in NLRB data |
+| IN_VR | 1 | 25 | In voluntary recognition |
+| ALREADY_MANUAL | 1 | 4,000 | Already in manual_employers |
+
+**Script 3: `scripts/insert_new_events.py`**
+- Inserted 77 NEW records into `manual_employers` (432 -> 509)
+- 84% union-linked (65/77 matched to unions_master via aff_abbr + state)
+- Union linkage strategy: exact local -> largest local in state -> largest national
+
+**Key New Records:**
+| Category | Records | Workers | Notable |
+|----------|---------|---------|---------|
+| NY PERB farm certs (UFW) | 7 | 360 | 100% gap - state jurisdiction only |
+| Video game unions (CWA) | 9 | 2,006 | Microsoft/ABK neutrality wave |
+| Grad student unions (UAW) | 12 | 42,600 | Stanford, Yale, Northwestern, etc. |
+| Museum AFSCME wave | 1 | 300 | LACMA (others already in F7) |
+| Cannabis (RWDSU Local 338) | 1 | 600 | NY LPA framework |
+| Healthcare nurses | 0 | - | Corewell, Sharp already in F7/NLRB |
+| Retail (REI, Apple, H&M) | 7 | 1,320 | RWDSU, IAM, CWA |
+| Amazon/Starbucks | 3 | 22,084 | JFK8->IBT, aggregate stores |
+| Home health HHWA (1199SEIU) | 1 | 6,700 | Controversial rapid recognition |
+
+**Affiliation Distribution (inserted):**
+| Affiliation | Records | Workers |
+|-------------|---------|---------|
+| UAW | 22 | 75,050 |
+| CWA | 15 | 4,528 |
+| UNAFF | 12 | 7,490 |
+| RWDSU | 6 | 2,100 |
+| SEIU | 5 | 60,200 |
+| IBT | 4 | 8,209 |
+| WU | 3 | 14,300 |
+| Other | 10 | 2,480 |
+
+**Affiliation Code Notes:**
+- UNITE HERE stored as `UNITHE` in unions_master (128 records), NOT `UNITEHERE`
+- SAG-AFTRA stored as `SAGAFTRA` (26) and `AFTRA` (29)
+- UFW not in unions_master - farm workers used `UNAFF` code
+- WGA East used `UNAFF` code (not in unions_master as separate aff_abbr)
+
+**Files Created:**
+- `scripts/catalog_research_events.py` - Catalog 99 events to CSV
+- `scripts/crosscheck_events.py` - Cross-check against 5 DB tables
+- `scripts/insert_new_events.py` - Insert NEW records with union linkage
+- `data/organizing_events_catalog.csv` - 99 events
+- `data/crosscheck_report.csv` - 99 events with match status
+
+**Status:** Complete. Sector views refreshed.
+
+### 2026-02-06 (NAICS Enrichment from OSHA Matches)
+**Tasks:** Fill missing NAICS codes in f7_employers_deduped using OSHA match data
+
+**Problem:** 9,192 F7 employers had `naics_source = 'NONE'`. Of those, 1,239 had OSHA matches with valid NAICS codes that could be transferred.
+
+**Approach:**
+1. Query F7 employers with `naics_source='NONE'` joined to `osha_f7_matches` -> `osha_establishments`
+2. For multi-match conflicts (341 cases), pick NAICS from highest-confidence OSHA match
+3. Store 2-digit sector in `naics`, full code in `naics_detailed`, source as `'OSHA'`, actual match confidence score in `naics_confidence`
+
+**Results:**
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| OSHA-sourced NAICS | 20,090 | 21,329 | +1,239 |
+| No NAICS (NONE) | 9,192 | 7,953 | -1,239 |
+| F7_ORIGINAL | 33,836 | 33,836 | 0 |
+
+**Top Enriched Sectors:**
+| NAICS Sector | Count |
+|-------------|-------|
+| 23 (Construction) | 290 |
+| 92 (Government) | 155 |
+| 56 (Admin Services) | 126 |
+| 81 (Other Services) | 78 |
+| 33 (Manufacturing) | 74 |
+
+**Gotcha:** `naics_confidence` column is NUMERIC (decimal 0-1), not text. Initial attempt to store 'HIGH'/'MEDIUM' failed.
+
+**New Files Created:**
+- `scripts/cleanup/enrich_naics_from_osha.py` - NAICS enrichment script
+
+**Status:** Complete. 0 remaining enrichable records.
+
 ### 2026-02-06 (F7 Data Quality Cleanup)
 **Tasks:** Audit and clean up f7_employers_deduped (63,118 records) and mergent_employers (14,240 records)
 
@@ -815,8 +925,8 @@ API docs: http://localhost:8001/docs
 - `scripts/cleanup/fix_metadata.py` - Phase 2 score/priority fix
 - `scripts/cleanup/fix_name_quality.py` - Phase 2 case + name fix
 
-**Future Enrichment Opportunities (Report Only):**
-- 4,590 NAICS codes recoverable from OSHA matches
+**Remaining Enrichment Opportunities:**
+- ~~4,590 NAICS codes recoverable from OSHA matches~~ DONE (1,239 enriched, see session below)
 - 211 addresses recoverable from lm_data
 - 16,104 geocodable records (have address but no lat/lon)
 - 234 true duplicate groups need human review
