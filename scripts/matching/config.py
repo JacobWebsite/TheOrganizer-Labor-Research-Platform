@@ -161,12 +161,12 @@ SCENARIOS: Dict[str, MatchConfig] = {
         source_city_col="city",
         source_ein_col="ein",
         target_id_col="id",
-        target_name_col="organization_name",
+        target_name_col="business_name",
         target_state_col="state",
         target_city_col="city",
         target_ein_col="ein",
         source_normalized_col="company_name_normalized",
-        output_cols=["company_name", "organization_name", "total_employees", "total_revenue"],
+        output_cols=["company_name", "business_name", "total_employees", "total_revenue"],
     ),
 
     # Mergent Employers → NLRB Participants
@@ -224,7 +224,7 @@ SCENARIOS: Dict[str, MatchConfig] = {
         target_state_col="state",
         target_city_col="city",
         target_ein_col="ein",
-        source_normalized_col="employer_name_aggressive",  # VR uses aggressive col
+        source_normalized_col="employer_name_normalized",
         target_normalized_col="company_name_normalized",
         target_filter="state = 'NY'",
         require_state_match=False,  # All violations are NY
@@ -241,14 +241,14 @@ SCENARIOS: Dict[str, MatchConfig] = {
         source_state_col=None,
         source_city_col=None,
         source_ein_col=None,  # Contracts don't have EIN
-        target_id_col="employer_id",
-        target_name_col="employer_name",
+        target_id_col="id",
+        target_name_col="name",
         target_state_col="state",
         target_city_col="city",
         target_ein_col="ein",
         source_normalized_col="vendor_name_normalized",
         require_state_match=False,
-        output_cols=["vendor_name", "employer_name", "contract_amount"],
+        output_cols=["vendor_name", "name", "contract_amount"],
     ),
 
     # Voluntary Recognition → F7 Employers

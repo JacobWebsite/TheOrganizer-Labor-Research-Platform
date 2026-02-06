@@ -97,15 +97,15 @@ conn = psycopg2.connect(
 **Sectors in mergent_employers:**
 | Sector | Employers | Unionized | Targets | Employees |
 |--------|-----------|-----------|---------|-----------|
-| CIVIC_ORGANIZATIONS | 3,339 | 31 | 3,308 | 68,864 |
-| BUILDING_SERVICES | 2,692 | 20 | 2,672 | 197,485 |
-| EDUCATION | 2,487 | 62 | 2,425 | 239,212 |
-| SOCIAL_SERVICES | 1,520 | 24 | 1,496 | 65,672 |
-| BROADCASTING | 1,371 | 5 | 1,366 | 82,536 |
-| PUBLISHING | 768 | 5 | 763 | 37,462 |
-| WASTE_MGMT | 717 | 4 | 713 | 13,998 |
+| CIVIC_ORGANIZATIONS | 3,339 | 36 | 3,303 | 68,864 |
+| BUILDING_SERVICES | 2,692 | 38 | 2,654 | 197,485 |
+| EDUCATION | 2,487 | 75 | 2,412 | 239,212 |
+| SOCIAL_SERVICES | 1,520 | 37 | 1,483 | 65,672 |
+| BROADCASTING | 1,371 | 8 | 1,363 | 82,536 |
+| PUBLISHING | 768 | 10 | 758 | 37,462 |
+| WASTE_MGMT | 717 | 5 | 712 | 13,998 |
 | GOVERNMENT | 525 | 35 | 490 | 48,056 |
-| REPAIR_SERVICES | 394 | 1 | 393 | 11,975 |
+| REPAIR_SERVICES | 394 | 4 | 390 | 11,975 |
 | MUSEUMS | 243 | 25 | 218 | 12,659 |
 | INFORMATION | 184 | 9 | 175 | 7,352 |
 
@@ -116,7 +116,7 @@ conn = psycopg2.connect(
 - `employees_site`, `sales_amount`, `naics_primary`
 - `sector_category` - One of 11 sectors above
 - `has_union` - Boolean flag (F-7, NLRB win, or OSHA union status)
-- `organizing_score` - Composite score (0-52 for non-union targets)
+- `organizing_score` - Composite score (0-62 for non-union targets)
 - `score_priority` - Tier: TOP, HIGH, MEDIUM, LOW
 
 **Match Columns:**
@@ -167,6 +167,35 @@ For each sector (e.g., `education`, `social_services`, `building_services`):
 | `state_govt_level_density` | 51 | Estimated fed/state/local density by state |
 | `county_workforce_shares` | 3,144 | County workforce composition from ACS 2025 |
 | `county_union_density_estimates` | 3,144 | Estimated density by county |
+
+### NY Sub-County Density Tables
+| Table | Records | Description |
+|-------|---------|-------------|
+| `ny_county_density_estimates` | 62 | NY county density (industry-weighted, auto-calibrated) |
+| `ny_zip_density_estimates` | 1,826 | NY ZIP code density estimates |
+| `ny_tract_density_estimates` | 5,411 | NY census tract density estimates |
+
+**NY Density Methodology:**
+- 10 private industries: Industry-weighted BLS rates × auto-calibrated multiplier (2.26x)
+- Excludes edu/health and public admin from private calculation (avoids double-counting)
+- Multiplier auto-derived: `12.4% (CPS target) / avg_county_expected` = 2.26x
+- Public sector: Decomposed by govt level (Fed: 42.2%, State: 46.3%, Local: 63.7%)
+
+**Key Columns:**
+- `private_class_total` - For-profit + nonprofit share (0-1)
+- `govt_class_total` - Federal + state + local share (0-1)
+- `private_in_public_industries` - Always 0 (removed from methodology)
+- `estimated_private_density` - Industry-weighted with auto-calibrated multiplier
+- `estimated_public_density` - Govt-level decomposed
+- `estimated_total_density` - Combined weighted density
+
+**NY County Density Range:**
+| Metric | Value |
+|--------|-------|
+| Min Total | 12.2% (Manhattan) |
+| Max Total | 26.5% (Hamilton) |
+| Avg Total | 20.2% |
+| Avg Private | 12.4% (matches CPS) |
 
 ### Industry Density Tables
 | Table | Records | Description |
@@ -418,6 +447,13 @@ Supports all sectors: `civic_organizations`, `building_services`, `education`, `
 - `GET /api/density/industry-rates` - BLS industry union density rates (12 industries)
 - `GET /api/density/state-industry-comparison` - Expected vs actual density by state with climate multiplier
 - `GET /api/density/state-industry-comparison/{state}` - Single state industry breakdown
+- `GET /api/density/ny/summary` - NY density summary at all geographic levels
+- `GET /api/density/ny/counties` - All 62 NY county density estimates
+- `GET /api/density/ny/county/{fips}` - Single NY county detail with tract stats
+- `GET /api/density/ny/zips` - NY ZIP code density (1,826 ZIPs)
+- `GET /api/density/ny/zip/{zip_code}` - Single NY ZIP detail
+- `GET /api/density/ny/tracts` - NY census tract density (5,411 tracts)
+- `GET /api/density/ny/tract/{tract_fips}` - Single NY tract detail
 
 ### NAICS
 - `GET /api/naics/stats` - NAICS statistics
@@ -520,13 +556,13 @@ Two matching methods:
 - NLRB election win → Unionized
 - OSHA union_status = 'Y' or 'A' → Unionized
 
-**Tier Distribution (14,019 non-union targets):**
+**Tier Distribution (13,958 non-union targets):**
 | Tier | Threshold | Count |
 |------|-----------|-------|
-| TOP | ≥30 | 191 |
-| HIGH | ≥25 | 492 |
-| MEDIUM | ≥15 | 3,771 |
-| LOW | <15 | 9,565 |
+| TOP | ≥30 | 167 |
+| HIGH | ≥25 | 475 |
+| MEDIUM | ≥15 | 3,735 |
+| LOW | <15 | 9,581 |
 
 **Top Targets (TOP tier, 30+ pts):**
 1. NY Botanical Garden (39 pts, MUSEUMS, $15M+ contracts)
@@ -746,6 +782,138 @@ API docs: http://localhost:8001/docs
 ---
 
 ## Session Log
+
+### 2026-02-05 (NY Sub-County Density Recalibration)
+**Tasks:** Recalibrate NY county/ZIP/tract density estimates to match CPS statewide targets
+
+**Problem:** County avg private density was ~13.7% (should match CPS statewide: 12.4%). The `private_in_public_industries` adjustment inflated estimates by blending edu/health workers (8.1% BLS rate) into the private calculation, then multiplying by 2.40x.
+
+**Solution:** Simplified to match national county model:
+1. Removed `private_in_public_industries` adjustment entirely
+2. Use only 10 BLS private industry rates (exclude edu/health and public admin)
+3. Auto-calibrate multiplier: `12.4% / avg_expected` = 2.2618x (was hardcoded 2.40x)
+
+**Files Modified:**
+- `scripts/load_ny_density.py` - Removed EDU_HEALTH_RATE, added auto-calibration, simplified formula
+- `api/labor_api_v6.py` - Updated 3 methodology strings with new multiplier (2.26x)
+- `CLAUDE.md` - Updated methodology docs, county ranges, NYC borough table
+
+**Results (Before -> After):**
+| Metric | Before | After |
+|--------|--------|-------|
+| Climate multiplier | 2.40x (hardcoded) | 2.26x (auto-calibrated) |
+| County avg private | 13.7% | 12.4% (matches CPS) |
+| County avg total | 21.2% | 20.2% |
+| Manhattan total | 14.1% | 12.2% |
+| Hamilton total | 26.9% | 26.5% |
+
+**Status:** Complete. All 62 counties, 1,826 ZIPs, 5,411 tracts recalculated.
+
+### 2026-02-05 (Sibling Union Bonus Fix)
+**Tasks:** Fix sibling union bonus misclassifications across all sectors
+
+**Problem:** The sibling bonus matching (Method 2: name match at different address) had two bugs:
+1. Same-address matches where formatting differences (e.g., "1 WHITEHALL ST FL 9" vs "1 Whitehall Street") made identical locations appear different
+2. Cross-state false positives where a name matched an F-7 employer in a different state (different org)
+
+**New Files Created:**
+- `scripts/fix_sibling_bonus.py` - Scans all sectors, fixes same-address and cross-state issues
+
+**Files Deleted:**
+- `scripts/check_sibling_matches.py` - Investigation script (no longer needed)
+- `scripts/check_sibling_matches2.py` - Investigation script (no longer needed)
+- `scripts/check_liberty.py` - Investigation script (no longer needed)
+
+**Fix Results:**
+| Fix Type | Count | Action |
+|----------|-------|--------|
+| Same-address (all sectors) | 61 | Moved to has_union=TRUE with f7_match_method='SIBLING_FIX' |
+| Cross-state false positives | 40 | Removed sibling bonus (set to 0) |
+| Legitimate siblings (kept) | 102 | No change |
+
+**Sector Impact (Before -> After):**
+| Sector | Unionized | Targets | Sibling Bonus |
+|--------|-----------|---------|---------------|
+| BUILDING_SERVICES | 20->38 | 2,672->2,654 | 41->10 |
+| EDUCATION | 62->75 | 2,425->2,412 | 70->54 |
+| SOCIAL_SERVICES | 24->37 | 1,496->1,483 | 21->6 |
+| CIVIC_ORGANIZATIONS | 31->36 | 3,308->3,303 | 20->8 |
+| BROADCASTING | 5->8 | 1,366->1,363 | 8->3 |
+| PUBLISHING | 5->10 | 763->758 | 14->5 |
+| REPAIR_SERVICES | 1->4 | 393->390 | 12->5 |
+| WASTE_MGMT | 4->5 | 713->712 | 15->9 |
+
+**Tier Distribution (After Fix):**
+| Tier | Before | After |
+|------|--------|-------|
+| TOP | 191 | 167 |
+| HIGH | 492 | 475 |
+| MEDIUM | 3,771 | 3,735 |
+| LOW | 9,565 | 9,581 |
+| Total | 14,019 | 13,958 |
+
+**Spot Checks:**
+- Liberty Resources (Syracuse, NY): bonus=0 (was cross-state match to PA org)
+- City Harvest: bonus=8 (correct - HQ vs warehouse at different address)
+- Hope House (Albany): bonus=8 (correct - different Albany addresses)
+- Make the Road NY (Corona): bonus=8 (correct - different Roosevelt Ave locations)
+
+**Status:** Complete. Views refreshed.
+
+### 2026-02-05 (NY Sub-County Density Estimates)
+**Tasks:** Implement NY union density estimates at county, ZIP, and census tract levels with class-of-worker adjustment
+
+**New Files Created:**
+- `scripts/load_ny_density.py` - Load NY workforce data and calculate density estimates
+- `data/ny_county_workforce.xlsx` - Source data (62 counties)
+- `data/ny_zip_workforce.xlsx` - Source data (1,826 ZIPs)
+- `data/ny_tract_workforce.xlsx` - Source data (5,411 tracts)
+- `data/ny_county_density.csv` - Output (62 counties)
+- `data/ny_zip_density.csv` - Output (1,826 ZIPs)
+- `data/ny_tract_density.csv` - Output (5,411 tracts)
+
+**Database Tables Created:**
+- `ny_county_density_estimates` - 62 NY counties
+- `ny_zip_density_estimates` - 1,826 NY ZIP codes
+- `ny_tract_density_estimates` - 5,411 NY census tracts
+
+**API Endpoints Added:**
+- `GET /api/density/ny/summary` - Summary at all levels
+- `GET /api/density/ny/counties` - All 62 county estimates
+- `GET /api/density/ny/county/{fips}` - Single county detail
+- `GET /api/density/ny/zips` - ZIP estimates with pagination
+- `GET /api/density/ny/zip/{zip_code}` - Single ZIP detail
+- `GET /api/density/ny/tracts` - Tract estimates with pagination
+- `GET /api/density/ny/tract/{tract_fips}` - Single tract detail
+
+**Methodology:**
+Same as national county model - 10 BLS private industries, excludes edu/health and public admin.
+Auto-calibrated multiplier derived from CPS statewide private density target (12.4%).
+
+**Key Results (Recalibrated 2026-02-05):**
+| Level | Records | Avg Total | Avg Private | Min Total | Max Total |
+|-------|---------|-----------|-------------|-----------|-----------|
+| County | 62 | 20.2% | 12.4% | 12.2% | 26.5% |
+| ZIP | 1,826 | 18.7% | 11.5% | 0% | 63.7% |
+| Tract | 5,411 | 18.6% | 11.7% | 0% | 48.2% |
+
+**NYC Borough Comparison (Recalibrated):**
+| Borough | Total Density | Private Density | Public Density |
+|---------|---------------|-----------------|----------------|
+| Staten Island | 22.4% | 12.7% | 13.1% |
+| Bronx | 19.4% | 13.1% | 9.0% |
+| Queens | 18.0% | 12.6% | 8.0% |
+| Brooklyn | 17.1% | 11.2% | 8.1% |
+| Manhattan | 12.2% | 8.3% | 5.3% |
+
+**Top Counties by Total Density:**
+1. Hamilton (26.5%) - Rural, high govt employment
+2. Lewis (23.4%) - High public sector share
+3. Schoharie (22.9%) - Rural govt employment
+4. St. Lawrence (22.9%) - University town
+5. Franklin (22.4%) - Rural govt employment
+
+**Status:** Complete. Recalibrated 2026-02-05 (removed class-of-worker adjustment, auto-calibrated multiplier).
 
 ### 2026-02-05 (Industry-Weighted Density Analysis)
 **Tasks:** Calculate expected private sector union density by state based on industry composition, compare to actual CPS density to identify union climate

@@ -161,7 +161,7 @@ class NormalizedMatcher(BaseMatcher):
 
         # Build query
         if cfg.target_normalized_col:
-            name_condition = f"{cfg.target_normalized_col} = %s"
+            name_condition = f"LOWER({cfg.target_normalized_col}) = %s"
         else:
             # Use inline normalization
             name_condition = f"""
@@ -177,7 +177,7 @@ class NormalizedMatcher(BaseMatcher):
             FROM {cfg.target_table}
             WHERE {name_condition}
         """
-        params = [normalized]
+        params = [normalized.lower()]
 
         # Add state filter
         if cfg.require_state_match and state and cfg.target_state_col:
@@ -236,7 +236,7 @@ class NormalizedMatcher(BaseMatcher):
         # Query in batches
         for (normalized, state), sources in normalized_to_sources.items():
             if cfg.target_normalized_col:
-                name_condition = f"{cfg.target_normalized_col} = %s"
+                name_condition = f"LOWER({cfg.target_normalized_col}) = %s"
             else:
                 name_condition = f"""
                     LOWER(TRIM(REGEXP_REPLACE(
@@ -251,7 +251,7 @@ class NormalizedMatcher(BaseMatcher):
                 FROM {cfg.target_table}
                 WHERE {name_condition}
             """
-            params = [normalized]
+            params = [normalized.lower()]
 
             if state and cfg.target_state_col:
                 query += f" AND UPPER({cfg.target_state_col}) = UPPER(%s)"
