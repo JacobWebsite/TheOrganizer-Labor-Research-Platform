@@ -100,7 +100,8 @@ BLS check is WARNING-level in validation framework, not critical.
 | Table | Records | Description |
 |-------|---------|-------------|
 | `mergent_employers` | 56,431 | Mergent Intellect employer data (21 sectors) |
-| `ny_990_filers` | 37,480 | IRS Form 990 NY nonprofit filers (2022-2024) |
+| `national_990_filers` | 586,767 | IRS Form 990 national filers (2022-2024), deduped by EIN |
+| `ny_990_filers` | 47,614 | IRS Form 990 NY nonprofit filers (2022-2024) |
 
 **Sectors in mergent_employers:**
 | Sector | Employers | Unionized | Targets | Employees |
