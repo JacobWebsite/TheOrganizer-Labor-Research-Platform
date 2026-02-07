@@ -63,6 +63,16 @@ BLS check is WARNING-level in validation framework, not critical.
 | `osha_f7_matches` | 79,981 | Linkages to F-7 employers (44.6% match rate) |
 | `v_osha_organizing_targets` | - | Organizing target view |
 
+### WHD Tables (Wage & Hour Division - National)
+| Table | Records | Description |
+|-------|---------|-------------|
+| `whd_cases` | 363,365 | National WHISARD wage violation cases (2005-2025) |
+| `mv_whd_employer_agg` | 330,419 | Aggregated WHD by employer (name+city+state) |
+
+**Key columns:** `case_id`, `trade_name`, `legal_name`, `name_normalized`, `city`, `state`, `naics_code`, `total_violations`, `civil_penalties`, `backwages_amount`, `employees_violated`, `flsa_repeat_violator`, `flsa_child_labor_violations`, `findings_start_date`, `findings_end_date`
+
+**Match coverage:** F7: 2,990 (4.8%), Mergent: 1,170 (2.1%). Total backwages: $4.7B, penalties: $361M
+
 ### Unified Employer Tables (NEW)
 | Table | Records | Description |
 |-------|---------|-------------|
@@ -307,6 +317,7 @@ Full Swagger docs: http://localhost:8001/docs
 **Unions:** `/api/unions/search`, `/{f_num}`, `/{f_num}/employers`, `/locals/{aff}`, `/national`, `/national/{aff_abbr}`
 **NLRB:** `/api/nlrb/summary`, `/elections/search`, `/elections/map`, `/elections/by-{year,state,affiliation}`, `/election/{case}`, `/ulp/search`, `/ulp/by-section`
 **OSHA:** `/api/osha/summary`, `/establishments/search`, `/establishments/{id}`, `/by-state`, `/high-severity`, `/organizing-targets`, `/employer-safety/{id}`, `/unified-matches`
+**WHD:** `/api/whd/summary`, `/search`, `/by-state/{state}`, `/employer/{employer_id}`, `/top-violators`
 **VR:** `/api/vr/stats/{summary,by-year,by-state,by-affiliation}`, `/search`, `/map`, `/new-employers`, `/pipeline`, `/{case}`
 **Public Sector:** `/api/public-sector/{stats,parent-unions,locals,employers,employer-types,benchmarks}`
 **Organizing:** `/api/organizing/{summary,by-state}`, `/scorecard`, `/scorecard/{estab_id}`
