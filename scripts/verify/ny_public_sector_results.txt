@@ -1,0 +1,810 @@
+================================================================================
+NY PUBLIC SECTOR DATABASE VERIFICATION
+================================================================================
+
+================================================================================
+1. PS_UNION_LOCALS - NY entries
+================================================================================
+Total NY locals in ps_union_locals: 173
+  ID=1199 | Civil Service Employees Association (CSEA) Local 1000 | parent=1 | None, NY | members=250000 | type=K12
+  ID=1283 | District Council 37 AFSCME | parent=1 | None, NY | members=150000 | type=K12
+  ID=644 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=8 | type=None
+  ID=665 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | New York, NY | members=496 | type=None
+  ID=578 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=57 | type=None
+  ID=660 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Howes Caves, NY | members=28 | type=None
+  ID=617 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Saint Albans, NY | members=891 | type=None
+  ID=633 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Potsdam, NY | members=62 | type=None
+  ID=643 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Pine Bush, NY | members=182 | type=None
+  ID=1104 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Rego Park, NY | members=449 | type=None
+  ID=1101 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=564 | type=None
+  ID=1100 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=323 | type=None
+  ID=1099 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=121845 | type=None
+  ID=1097 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | BROOKLYN, NY | members=152 | type=None
+  ID=1096 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=617 | type=None
+  ID=1095 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=223 | type=None
+  ID=146 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=769 | type=None
+  ID=147 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=3300 | type=None
+  ID=148 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=332 | type=None
+  ID=149 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=2313 | type=None
+  ID=1006 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=18 | type=None
+  ID=984 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | HEMPSTEAD, NY | members=90 | type=None
+  ID=207 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=1204 | type=None
+  ID=225 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Eden, NY | members=42 | type=None
+  ID=233 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Orchard Park, NY | members=90 | type=None
+  ID=238 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | AUBURN, NY | members=364 | type=None
+  ID=965 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | LISBON, NY | members=175 | type=None
+  ID=242 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Rochester, NY | members=7581 | type=None
+  ID=959 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | MOUNT VERNON, NY | members=7 | type=None
+  ID=922 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | ALBANY, NY | members=21 | type=None
+  ID=264 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | ALBANY, NY | members=201013 | type=None
+  ID=265 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=1104 | type=None
+  ID=274 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | NEW YORK, NY | members=5041 | type=None
+  ID=921 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | ALBANY, NY | members=30 | type=None
+  ID=896 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=121 | type=None
+  ID=289 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Oswego, NY | members=71 | type=None
+  ID=290 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Dalton, NY | members=53 | type=None
+  ID=291 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Massena, NY | members=48 | type=None
+  ID=292 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | ANDOVER, NY | members=54 | type=None
+  ID=293 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=39 | type=None
+  ID=294 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albanu, NY | members=51 | type=None
+  ID=295 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | DUNKIRK, NY | members=66 | type=None
+  ID=296 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Winthrop, NY | members=71 | type=None
+  ID=875 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Rochester, NY | members=10 | type=None
+  ID=862 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=61 | type=None
+  ID=857 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=24 | type=None
+  ID=830 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | SYRACUSE, NY | members=210 | type=None
+  ID=315 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Schenectady, NY | members=31485 | type=None
+  ID=316 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Liverpool, NY | members=36822 | type=None
+  ID=317 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | East Amherst, NY | members=37091 | type=None
+  ID=318 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | MOUNTAIN DALE, NY | members=29903 | type=None
+  ID=327 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | BUFFALO, NY | members=38 | type=None
+  ID=328 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=4 | type=None
+  ID=330 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=13 | type=None
+  ID=331 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | ALBANY, NY | members=1 | type=None
+  ID=332 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Albany, NY | members=9 | type=None
+  ID=342 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Hannacroix, NY | members=848 | type=None
+  ID=345 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Hamburg, NY | members=459 | type=None
+  ID=352 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Akron, NY | members=54 | type=None
+  ID=817 | STATE COUNTY AND MUNI EMPLS AFL-CIO | parent=1 | Irving, NY | members=88 | type=None
+  ... and 113 more
+
+================================================================================
+2. PS_EMPLOYERS - NY entries
+================================================================================
+Total NY employers in ps_employers: 591
+  ID=170 | All City of New York Inc. | type=CITY | Brooklyn, None | employees=0
+  ID=444 | Association of Contracting Plumbers of City of NY  | type=CITY | New York, None | employees=1000
+  ID=445 | Association of Contracting Plumbers of the City of New York, Inc. | type=CITY | New York, None | employees=1000
+  ID=1063 | City of Albany Landfill | type=CITY | Albany, None | employees=10
+  ID=1189 | City of Buffalo | type=CITY | Buffalo, None | employees=26
+  ID=1190 | City of Buffalo, (Pipe Caulkers)  | type=CITY | Buffalo, None | employees=30
+  ID=1321 | City of Cortland | type=CITY | Cortland, None | employees=20
+  ID=1773 | City of Niagara Falls | type=CITY | Niagara Falls, None | employees=20
+  ID=1792 | City of North Tonawanda  | type=CITY | North Tonawanda , None | employees=20
+  ID=1827 | City of Oswego | type=CITY | Oswego, None | employees=200
+  ID=1957 | City of Rochester | type=CITY | Rochester, None | employees=20
+  ID=1996 | City of Schenectady | type=CITY | Schenectady, None | employees=20
+  ID=2371 | Columbia University In the City of New York  | type=CITY | New York, None | employees=1600
+  ID=5093 | Municipal Housing Authority of the City of Utica | type=CITY | Utica, None | employees=8
+  ID=5099 | MUSEUM OF THE CITY OF NEW YORK, INC. | type=CITY | New York, None | employees=7
+  ID=6734 | The Harmonie Club of the City of New York | type=CITY | New York, None | employees=81
+  ID=7226 | Trustees of Columbia University in the City of New York | type=CITY | New York, None | employees=200
+  ID=7227 | Trustees of Columbia University in the City of NY | type=CITY | New York, None | employees=3500
+  ID=103 | Adirondack Tri-County Nursing and Rehabilitation Center Inc. | type=COUNTY | North Creek, None | employees=85
+  ID=171 | All County Glass | type=COUNTY | Ronkonkoma, None | employees=2
+  ID=172 | All County Glass & Metal LLC. | type=COUNTY | New Rochelle, None | employees=4
+  ID=173 | All County Glass & Mirror Corporation | type=COUNTY | New Rochelle, None | employees=2
+  ID=174 | All County Mobile Concrete, Inc. | type=COUNTY | Mount Vernon, None | employees=3
+  ID=186 | Allegheny County Airport Authority | type=COUNTY | New York, None | employees=0
+  ID=257 | American Federation of State County and Municipal Employees DC 37 (AFSCME) | type=COUNTY | New York, None | employees=200
+  ID=394 | ARC-Dutchess County | type=COUNTY | Syracuse, None | employees=285
+  ID=395 | ARC - Dutchess County | type=COUNTY | Poughkeepsie, None | employees=330
+  ID=547 | Bergen County Provisions | type=COUNTY | Hartsdale, None | employees=0
+  ID=572 | Bi-County Construction Corp. | type=COUNTY | Medford, None | employees=1
+  ID=573 | Bi-County/Robinson's/Lifestar | type=COUNTY | Holtsville, None | employees=78
+  ID=615 | Bob's Discounty Furniture LLC | type=COUNTY | Poughkeepsie, None | employees=16
+  ID=754 | Builders Ind. Employers Assn of Niagara County, NY | type=COUNTY | Niagara Fallss, None | employees=400
+  ID=757 | Building Industry Employers Assn of Niagara County New York Inc. The | type=COUNTY | Niagara Falls, None | employees=250
+  ID=2386 | Commons at County House Road The | type=COUNTY | Auburn, None | employees=350
+  ID=2394 | Community Action Organization of Erie County | type=COUNTY | Buffalo, None | employees=450
+  ID=2395 | Community Action Organization of Erie County, Inc. (CAO) | type=COUNTY | Buffalo, None | employees=245
+  ID=2455 | Const Cos -  Westchester County NY | type=COUNTY | Tarrytown, None | employees=901
+  ID=2457 | Const. Industries Westchester County - LIUNA Local 60 | type=COUNTY | Tarrytown, None | employees=877
+  ID=2460 | Construction Companies of Westchester County of NY | type=COUNTY | Tarrytown, None | employees=1056
+  ID=2514 | County Agencey c/o J&J Creamery | type=COUNTY | Brooklyn , None | employees=31
+  ID=2515 | County Agency - J&J Creamer | type=COUNTY | Brooklyn, None | employees=17
+  ID=2516 | County Agency /Esplande | type=COUNTY | Brooklyn , None | employees=50
+  ID=2517 | County Agency J & J Creamery | type=COUNTY | Brooklyn, None | employees=23
+  ID=2539 | County Line Stone Co., Inc | type=COUNTY | Akron, None | employees=20
+  ID=2660 | Cross County Shopping Center | type=COUNTY | Yonkers, None | employees=0
+  ID=2804 | Delaware County Electric Cooperative | type=COUNTY | Delhi, None | employees=20
+  ID=3277 | Erie County Democratic Committee | type=COUNTY | Buffalo, None | employees=20
+  ID=3278 | Erie County Home | type=COUNTY | Alden, None | employees=58
+  ID=3279 | Erie County Home/Compass Grp | type=COUNTY | Alden, None | employees=42
+  ID=3280 | Erie County Sheriff's | type=COUNTY | Buffalo, None | employees=500
+  ID=4004 | Heavy & Highway Agreement S Tier & Broome County | type=COUNTY | Cortland, None | employees=8
+  ID=4005 | Heavy and Highway Agt.  - Onondaga County | type=COUNTY | Cortland, None | employees=10
+  ID=4135 | Indep Heavy & Highway and Utility Tunnel Agt. Erie County & Others  - IUOE Local 17 | type=COUNTY | Lakeview, None | employees=1000
+  ID=4138 | Independent Residential Contractors Erie County & Others (IUOE Local 17) | type=COUNTY | West Seneca, None | employees=30
+  ID=4159 | Inter-County Bakers Inc. | type=COUNTY | North Lindenhurst, None | employees=50
+  ID=4160 | Inter-County Bakers, Inc | type=COUNTY | Deer Park, None | employees=200
+  ID=4161 | Inter-County Motor Coach | type=COUNTY | Babylon, None | employees=60
+  ID=4163 | Inter County Bakers Inc. | type=COUNTY | N. Lindenhurst, None | employees=47
+  ID=4164 | Inter County Motor Coach | type=COUNTY | Babylon, None | employees=60
+  ID=4166 | INTERCOUNTY APPLIANCE CORP. | type=COUNTY | COMMACK, None | employees=35
+  ... and 531 more
+
+================================================================================
+3. PS_PARENT_UNIONS - All entries
+================================================================================
+Total parent unions: 24
+  ID=1 | AFSCME | American Federation of State, County and Municipal Employees | fed=AFL-CIO | focus=PUBLIC
+  ID=2 | NEA | National Education Association | fed=Independent | focus=PUBLIC
+  ID=3 | AFT | American Federation of Teachers | fed=AFL-CIO | focus=PUBLIC
+  ID=4 | SEIU | Service Employees International Union | fed=SEIU | focus=MIXED
+  ID=5 | IAFF | International Association of Fire Fighters | fed=AFL-CIO | focus=PUBLIC
+  ID=6 | FOP | Fraternal Order of Police | fed=Independent | focus=PUBLIC
+  ID=7 | IUPA | International Union of Police Associations | fed=AFL-CIO | focus=PUBLIC
+  ID=8 | PBA | Police Benevolent Association | fed=Independent | focus=PUBLIC
+  ID=9 | ATU | Amalgamated Transit Union | fed=AFL-CIO | focus=MIXED
+  ID=10 | TWU | Transport Workers Union | fed=AFL-CIO | focus=MIXED
+  ID=11 | CWA | Communications Workers of America | fed=AFL-CIO | focus=MIXED
+  ID=12 | OPEIU | Office and Professional Employees International Union | fed=AFL-CIO | focus=MIXED
+  ID=13 | UFCW | United Food and Commercial Workers | fed=UFCW | focus=MIXED
+  ID=14 | AAUP | American Association of University Professors | fed=AFL-CIO | focus=PUBLIC
+  ID=15 | UE | United Electrical Workers | fed=Independent | focus=MIXED
+  ID=16 | NAGE | National Association of Government Employees | fed=SEIU | focus=PUBLIC
+  ID=17 | NTEU | National Treasury Employees Union | fed=Independent | focus=PUBLIC
+  ID=18 | AFGE | American Federation of Government Employees | fed=AFL-CIO | focus=PUBLIC
+  ID=19 | NFFE | National Federation of Federal Employees | fed=IAM | focus=PUBLIC
+  ID=20 | LIUNA | Laborers International Union of North America | fed=AFL-CIO | focus=MIXED
+  ID=21 | IBEW | International Brotherhood of Electrical Workers | fed=AFL-CIO | focus=MIXED
+  ID=22 | IUOE | International Union of Operating Engineers | fed=AFL-CIO | focus=MIXED
+  ID=23 | IBT | International Brotherhood of Teamsters | fed=Independent | focus=MIXED
+  ID=24 | IND | Independent/Unaffiliated | fed=Independent | focus=MIXED
+
+================================================================================
+4. MANUAL_EMPLOYERS - NY entries
+================================================================================
+Total NY manual employers: 46
+  New York State United Teachers (NYSUT) | None | union=None | aff=AFT/NEA | emp=467000 | sector=PUBLIC
+  Civil Service Employees Association (CSEA) Local 1000 | None | union=None | aff=AFSCME | emp=250000 | sector=PUBLIC
+  District Council 37 AFSCME | None | union=None | aff=AFSCME | emp=150000 | sector=PUBLIC
+  Public Employees Federation (PEF) | None | union=None | aff=AFT/SEIU | emp=55000 | sector=PUBLIC
+  Transport Workers Union Local 100 | None | union=None | aff=TWU | emp=42000 | sector=PUBLIC
+  Federal Government New York - AFGE District 2 | New York City | union=AFGE District 2 | aff=AFGE | emp=28000 | sector=PUBLIC
+  Police Benevolent Association of NYC | None | union=None | aff=Independent | emp=24000 | sector=PUBLIC
+  NY State Correctional Officers and Police Benevolent Association (NYSCOPBA) | None | union=None | aff=Independent | emp=20000 | sector=PUBLIC
+  Detectives Endowment Association (DEA) NYPD | None | union=None | aff=Independent | emp=19000 | sector=PUBLIC
+  Sergeants Benevolent Association (SBA) NYPD | None | union=None | aff=Independent | emp=13000 | sector=PUBLIC
+  Federal Government New York - Other Federal Unions | New York City | union=Various Federal Unions | aff=NFFE/NTEU/NALC | emp=12000 | sector=PUBLIC
+  Uniformed Firefighters Association (UFA) Local 94 | None | union=None | aff=IAFF | emp=9000 | sector=PUBLIC
+  CWA Local 1180 | None | union=None | aff=CWA | emp=9000 | sector=PUBLIC
+  Correction Officers Benevolent Association (COBA) NYC | None | union=None | aff=Independent | emp=9000 | sector=PUBLIC
+  Amazon (JFK8 Warehouse) | Staten Island | union=Amazon Labor Union / IBT | aff=IBT | emp=8000 | sector=PRIVATE
+  Home Health Aides (HHWA - aggregate NY) | New York | union=1199SEIU | aff=SEIU | emp=6700 | sector=PRIVATE
+  NY State Troopers PBA | None | union=None | aff=Independent | emp=5000 | sector=PUBLIC
+  New York University (Researchers United) | New York | union=UAW | aff=UAW | emp=4000 | sector=PRIVATE
+  Lieutenants Benevolent Association (LBA) NYPD | None | union=None | aff=Independent | emp=3500 | sector=PUBLIC
+  Uniformed Fire Officers Association (UFOA) | None | union=None | aff=IAFF | emp=3500 | sector=PUBLIC
+  Cornell University Graduate Workers | Ithaca | union=UAW / UE | aff=UAW | emp=2400 | sector=PRIVATE
+  NY State Court Officers Association | None | union=None | aff=Independent | emp=1500 | sector=PUBLIC
+  PBA of New York State (APSU) | None | union=None | aff=Independent | emp=1200 | sector=PUBLIC
+  Fordham University Graduate Workers | Bronx | union=CWA | aff=CWA | emp=1200 | sector=PRIVATE
+  Captains Endowment Association (CEA) NYPD | None | union=None | aff=Independent | emp=900 | sector=PUBLIC
+  Mount Sinai Graduate School | New York | union=UAW Local 2110 | aff=UAW | emp=800 | sector=PRIVATE
+  Metropolitan Museum of Art | New York | union=UAW Local 2110 | aff=UAW | emp=700 | sector=PRIVATE
+  Cannabis Industry Workers (NY - aggregate) | New York | union=RWDSU/UFCW Local 338 | aff=RWDSU | emp=600 | sector=PRIVATE
+  New York Times (Tech Guild) | New York | union=NewsGuild-CWA Local 31003 | aff=CWA | emp=600 | sector=PRIVATE
+  New York City Council | New York | union=CWA Local 1180 | aff=CWA | emp=382 | sector=PRIVATE
+  Activision Blizzard QA (Blizzard Albany) | Albany | union=CWA | aff=CWA | emp=200 | sector=PRIVATE
+  Blank Street Coffee (NY - aggregate) | New York | union=Workers United/SEIU | aff=WU | emp=200 | sector=PRIVATE
+  The Public Theater | New York | union=IATSE | aff=IATSE | emp=190 | sector=PRIVATE
+  Neighborhood Defender Service of Harlem | New York | union=UAW Local 2325 (ALAA) | aff=UAW | emp=150 | sector=PRIVATE
+  Starbucks Reserve Roastery | New York | union=Workers United/SEIU | aff=WU | emp=100 | sector=PRIVATE
+  CBS News Digital | New York | union=WGA East | aff=UNAFF | emp=100 | sector=PRIVATE
+  REI SoHo | New York | union=RWDSU | aff=RWDSU | emp=100 | sector=PRIVATE
+  Avalanche Studios (Expansive Worlds) | New York | union=CWA | aff=CWA | emp=100 | sector=PRIVATE
+  Torrey Farms | Elba | union=United Farm Workers | aff=UNAFF | emp=80 | sector=PRIVATE
+  Riverview Nursery | Rensselaer | union=United Farm Workers | aff=UNAFF | emp=60 | sector=PRIVATE
+  Marks Farms | Lowville | union=United Farm Workers | aff=UNAFF | emp=50 | sector=PRIVATE
+  LynOaken Farms | Medina | union=United Farm Workers | aff=UNAFF | emp=50 | sector=PRIVATE
+  H&H Farms | Canandaigua | union=United Farm Workers | aff=UNAFF | emp=45 | sector=PRIVATE
+  Wafler Farms | Wolcott | union=United Farm Workers | aff=UNAFF | emp=40 | sector=PRIVATE
+  Ellsworth & Rose | Albion | union=United Farm Workers | aff=UNAFF | emp=35 | sector=PRIVATE
+  Lemonada Media | New York | union=WGA East | aff=UNAFF | emp=30 | sector=PRIVATE
+
+================================================================================
+5. MV_EMPLOYER_SEARCH - Specific NY union searches
+================================================================================
+
+--- CSEA ---
+  [342c254e08e5] Centers Health Care LLC; Otsego SNF Operations Assoc LLC | Bronx, NY | union=Civil Service Employees Association/American Federation of State County & Municipal Employees CSEA Otsego Health Care Local 782 | src=F7
+  [MANUAL-48] Civil Service Employees Association (CSEA) Local 1000 | None, NY | union=None | src=MANUAL
+  [NLRB-5383189] Community Resources and Services for Children, Inc. | Jamaica, NY | union=CIVIL SERVICE EMPLOYEES ASSOCIATION, INC., (CSEA) LOCAL 1000, AFSCME, AFL-CIO | src=NLRB
+  [15f73713f3ea] Family & Children's Services of Niagara | Niagara Falls, NY | union=CSEA Inc./AFSCME, AFL-CIO 1000 | src=F7
+  [0e87cfc4f5af] Fisher Bus Service | Hamburg, NY | union=CSEA 738 | src=F7
+  [NLRB-5491059] Fisher Moving & Storage, Inc. | Hamburg, NY | union=CSEA Local 1000, AFSCME, AFL-CIO, Local 738 | src=NLRB
+  [8432ea970e31] Morrison Healthcare, A Division of Compass Group North America Division | Buffalo, NY | union=CSEA/AFSCME Local 1000 721 | src=F7
+  [88bb17141ddf] Nioga Library System | Lockport, NY | union=CSEA/AFSCME Local 1000 721 | src=F7
+  [df63ef610d2e] Northern Onondaga Volunteer Ambulance, Inc. | Liverpool, NY | union=CSEA 1000 | src=F7
+  [NLRB-3949464] Orchard Manor ALP, LLC d/b/a Orchard Manor Rehabilitation & Nursing Center | MEDINA, NY | union=CSEA, Local 1000,  AFSCME, AFL-CIO | src=NLRB
+  [2e89f7dcab9d] Orchard Rehabilitation & Nursing Center | Medina, NY | union=CSEA Inc./AFSCME, AFL-CIO 1000 | src=F7
+  [b4a26123741c] QSAC, Inc. | New York, NY | union=CSEA  | src=F7
+  [063175f1fa83] Saratoga County Economic Opportunity Council Head Start Program | Ballston Spa, NY | union=CSEA, AFSCME, AFL-CIO Local 1000 754 | src=F7
+  [2bc91953f0b5] Storm King Art Center | New Windsor, NY | union=Civil Service Employees Association/American Federation of State County & Municipal Employees CSEA Storm King Art Center Local 720, Unit VSS  | src=F7
+  [b5a74107ba52] SUNY at Alfred ACES | Alfred, NY | union=CSEA Local 1000 AFSCME 620 | src=F7
+
+--- DC37 / District Council 37 ---
+  [NLRB-5622029] The Door - A Center of Alternatives, Inc. | New York, NY | union=Local 215 - DC 37 Social Service Employees | src=NLRB
+  [d446a86d5b68] 92 Y | New York, NY | union=District Council 37, AFSCME 215 | src=F7
+  [def87f3e9a59] 92nd Street Y | New York, NY | union=District Council 37, AFSCME 215 | src=F7
+  [f4d968b25f4d] Adult Resource Center (ARC of Brooklyn) | Brooklyn, NY | union=District Council 37, AFSCME 253 | src=F7
+  [38777d0e4351] Adult Resources Center | Brooklyn, NY | union=District Council 37 AFSCME 253 | src=F7
+  [7562c83160fd] AFSCME, DISTRICT COUNCIL 37 | NEW YORK, NY | union=Office & Professional Employees International Union 153 | src=F7
+  [8786b52f8743] AHRC | New York, NY | union=District Council 37, AFSCME 253 | src=F7
+  [2fd61b4d21c9] Allen Health Care Services | Forest Hills, NY | union=AFSCME District Council 37 389 | src=F7
+  [6878b4bc95a0] American Jewish Committee | New York, NY | union=District Council 37, AFSCME 215 | src=F7
+  [7097959b60aa] ARC of Rockland | Valley Cottage, NY | union=District Council 37, AFSCME 253 | src=F7
+  [39d9dd63b866] Bank Street College of Education | New York, NY | union=District Council 37, AFSCME 253 | src=F7
+  [f4ea8bdd07cc] Bowery Residents Committee | New York, NY | union=District Council 37, AFSCME 215 | src=F7
+  [60ad10a2d45f] Breaking Ground | New York, NY | union=District Council 37, AFSCME  | src=F7
+  [6107c1cacf83] Brooklyn Children's Museum | Brooklyn, NY | union=District Council 37, American Federation of State, County and Municipal Employees, AFL-CIO  | src=F7
+  [2cb65381349a] Cardinal McCloskey Community Services | Bronx, NY | union=District Council 37, AFSCME 95 | src=F7
+  [3e54fd94eea6] Care For the Homeless a/k/a Care Found Here | Jamaica, NY | union=District Council 37 AFSCME AFL CIO  | src=F7
+
+--- PEF / Public Employees Federation ---
+  [60118373633c] Association of Contracting Plumbers of NYC Inc. | New York, NY | union=United Ass'n of Journeymen and Apprentices of the Plumbing and Pipefitting Indus. 1 | src=F7
+  [d47e470c3043] Mechanical Contractors Association of the Capital District | Clifton Park, NY | union=Plumbers & Pipefitters Local Union 773 | src=F7
+  [6234b91eda13] MGM Resorts-Empire City | Yonkers, NY | union=United Assoc. of Journeymen and Apprentices of hte Plumbing and Pipefitting Ind. 21 | src=F7
+  [MANUAL-49] Public Employees Federation (PEF) | None, NY | union=None | src=MANUAL
+  [314d1874c796] NYS Public Employees Federation | Albany, NY | union=United Steelworkers of America 9265 | src=F7
+  [NLRB-3843198] Public Employees Federation | Albany, NY | union=None | src=NLRB
+  [MANUAL-49] Public Employees Federation (PEF) | None, NY | union=None | src=MANUAL
+
+--- UUP / United University Professions ---
+  [0d4c8e7a0bf5] UUP Inc. | Staten Island, NY | union=United Association of Journeymen & Apprentices of the Plumbing & Pipe Fitting Industry of the United States & Canada AFL-CIO  | src=F7
+  [dbaca148af2c] United University Professions | Latham, NY | union=Communications Workers of America  | src=F7
+
+--- NYSUT ---
+  [NLRB-5457820] Active Sports Club, the May Ctr at 92 St Y | New York, NY | union=United Federation of Teachers (UFT), Local 2, New York State United Teachers (NYSUT), AFT | src=NLRB
+  [NLRB-3886477] ASTOR DAY TREATMENT PROGRAM | Poughkeepsie, NY | union=ASTOR DAY TREATMENT ASSOCIATION, NYSUT, AFT, AFL-CIO | src=NLRB
+  [NLRB-3886438] ASTOR LEARNING CENTER | Rhinebeck, NY | union=ASTOR STAFF ASSOCIATIOR, NYSUT, AFT, AFL-CIO | src=NLRB
+  [NLRB-5458352] AUTISM SERVICES, INC. | WILLIAMSVILLE, NY | union=AUTISM SERVICES, INC. EDUCATION ASSOCIATION, NYSUT, AFT, NEA, AFL-CIO | src=NLRB
+  [NLRB-5457866] Birch Family Services, Inc. d/b/a Manhattan Early Childhood Center | New York, NY | union=United Federation of Teachers (UFT), Local 2, New York State United Teachers (NYSUT), AFT | src=NLRB
+  [NLRB-3905590] BORGWARNER MORSE TEC | Cortland, NY | union=ADJUNCTS FOR CHANGE/NYSUT | src=NLRB
+  [NLRB-5172928] Building Blocks Developmental Preschool Inc. | Commack, NY | union=United Staff of Building Blocks, NYSUT, AFT, NEA | src=NLRB
+  [e8061f0e5a0d] Development Disabilities Institute, Inc. | Smithtown, NY | union=Developmental Disabilities Institute Teachers' Associaition NYSUT 2413 | src=F7
+  [NLRB-5484909] Evergreen Charter School | Hempstead, NY | union=Evergreen Charter Staff Association, NYSUT, AFT | src=NLRB
+  [NLRB-5418748] Fusion Academy | New York, NY | union=United Educators of Fusion Academy, Local 2 NYSUT, AFL-CIO | src=NLRB
+  [NLRB-5420480] Gustavus Adolphus Child and Family Services, Inc. (GA Learning Center) | Jamestown, NY  14701, NY | union=Learning Center Employees' Union, NYSUT AFT, NEA, AFL-CIO | src=NLRB
+  [NLRB-5457603] JEWISH GUILD FOR THE BLIND/GUILDNET | New York, NY | union=FEDERATION OF NURSES/UNITED FEDERATION OF TEACHERS, LOCAL 2, NYSUT, AFT HEALTHCARE, AFL-CIO | src=NLRB
+  [0f34427a97e6] King Center Charter School | Buffalo, NY | union=King Center United Professionals/NYSUT/AFT/NEA, AFL-CIO  | src=F7
+  [NLRB-3905593] LE MOYNE COLLEGE | Syracuse, NY | union=ADJUNCTS FOR CHANGE/NYSUT | src=NLRB
+  [d7f47082fb32] Long Island University | Brookville , NY | union=C.W. Post Collegial Federation, Local 3517, NYSUT, AFT, AFL-CIO Local 3517 | src=F7
+
+--- UFT / United Federation of Teachers ---
+  [NLRB-5457820] Active Sports Club, the May Ctr at 92 St Y | New York, NY | union=United Federation of Teachers (UFT), Local 2, New York State United Teachers (NYSUT), AFT | src=NLRB
+  [NLRB-5457866] Birch Family Services, Inc. d/b/a Manhattan Early Childhood Center | New York, NY | union=United Federation of Teachers (UFT), Local 2, New York State United Teachers (NYSUT), AFT | src=NLRB
+  [cd5636242c79] KIPP Academy Charter School | New York, NY | union=UFT 2 | src=F7
+  [NLRB-5409723] Lutheran Augustana Center for Extended Care and Rehabilitation, Inc. | Brooklyn, NY | union=FEDERATION OF NURSES/UFT, Local 2, NYSUT, AFT Healthcare, AFL-CIO | src=NLRB
+  [7b7bd186c8e0] Trustees of Tufts College | New York City, NY | union=Office & Professional Employees International Union 153 | src=F7
+  [0dfe5c51ffa3] UFT Trucking Inc. A Wholly Owned Subsidiary of Fresh Direct Holdings Inc | Bronx, NY | union=United Food and Commercial Workers 2013 | src=F7
+  [4b0899f5134c] UNITED FEDERATION OF TEACHERS, UFT | NEW YORK, NY | union=Printing Packaging and Production Works Union of North America 1L | src=F7
+  [8dc7f663ec92] Visting Nurse Servie of New York Home Care | New York, NY | union=Federation of Nurses/UFT, American Federation of Teachers, AFL-CIO 2 | src=F7
+  [NLRB-5418117] Watson Avenue Early Childhood Center | Bronx, NY | union=United Federation of Teachers (UFT), Local 2, New York State United Teachers (NYSUT), AFT | src=NLRB
+  [5da155b9ac72] Academy of the City Charter School | Woodside, NY | union=United Federation of Teachers 2 | src=F7
+  [NLRB-5457820] Active Sports Club, the May Ctr at 92 St Y | New York, NY | union=United Federation of Teachers (UFT), Local 2, New York State United Teachers (NYSUT), AFT | src=NLRB
+  [4d4ab4ba8169] ADAPT Community Network-80 West End  | New York, NY | union=United Federation of Teachers 2 | src=F7
+  [5e9985f2c02e] ADAPT Community Network-Clearview | New York, NY | union=United Federation of Teachers 2 | src=F7
+  [428840b8df02] ADAPT Community Network-Forest Hills West | New York, NY | union=United Federation of Teachers 2 | src=F7
+  [c7eacabd4121] ADAPT Community Network-Greenpoint | New York, NY | union=United Federation of Teachers 2 | src=F7
+  [2b1a1ffac97e] ADAPT Community Network-William O'Connor Bay Ridge | New York, NY | union=United Federation of Teachers 2 | src=F7
+  [5b4d3d82bfa0] ADAPT Community Network - 80 West End Ave 2nd Fl | New York, NY | union=United Federation of Teachers  | src=F7
+  [7eda81bc0cec] ADAPT Community Network - Clearview School | New York, NY | union=United Federation of Teachers  | src=F7
+  [56c36411c7e0] ADAPT Community Network - Flushing Avenue | New York, NY | union=United Federation of Teachers  | src=F7
+  [40ca5e7d0842] ADAPT Community Network - Greenpoint School | New York, NY | union=United Federation of Teachers  | src=F7
+  [c63777a747e7] ADAPT Community Network - Harry H Gordon School | New York, NY | union=United Federation of Teachers  | src=F7
+  [7b475580d22e] ADAPT Community Network - Lawrence Avenue | New York, NY | union=United Federation of Teachers  | src=F7
+  [5967a4c037d3] ADAPT Community Network - Port Richmond | New York, NY | union=United Federation of Teachers  | src=F7
+  [5aeef3bc6f17] ADAPT Community Network - Residences | New York, NY | union=United Federation of Teachers  | src=F7
+
+--- TWU / Transport Workers ---
+  [f1725bbc2c9b] Allied Aviation Fueling Company of Texas, Inc. | New York, NY | union=TWU 513 | src=F7
+  [NLRB-5173048] Nationalgrid Energy Mgmt | Queens Village, NY | union=TWU Local 101 | src=NLRB
+  [96b701df12fc] TWU Local 100 | Brooklyn, NY | union=Office & Professional Employees International Union AFL-CIO 153 | src=F7
+  [9a3615886aba] TWU Local 100- NYTransit Training & Upgrading Fund | Brooklyn , NY | union=Office & Professional Employees International Union AFL-CIO 153 | src=F7
+  [NLRB-5418817] Academy Bus Company, Inc. | Yonkers, NY | union=Transport Workers Union of Greater New York, Local 100, AFL-CIO | src=NLRB
+  [NLRB-5472988] ARDSLEY BUS COMPANY, LLC | Ardsley, NY | union=Transport Workers Union, AFL-CIO, Local 100 | src=NLRB
+  [NLRB-5667375] Avports LLC | West Harrion, NY | union=Transport Workers Union of America AFL-CIO | src=NLRB
+  [0d1513393b8e] Baumann Bus Company, Inc. | Ronkonkoma, NY | union=Transport Workers Union of America, Local 252, AFL-CIO 252 | src=F7
+  [NLRB-3929926] CARGO AIRPORT SERVICES USA, LLC | Jamaica, NY | union=TRANSPORT WORKERS UNION OF AMERICA, LOCAL 504, AFL-CIO | src=NLRB
+  [VR-1-2922354] Chhaya Community Development 
+ Corporation | Jackson Heights, NY | union=Transport Workers Union of America, AFL-CIO | src=VR
+  [NLRB-5688848] ERMC Aviation LLC | Jamaica, NY | union=Transport Workers Union of America AFL-CIO | src=NLRB
+  [5564c3e0ba48] First Mile Square LLC | Yonkers, NY | union=Transport Workers Union of America 100 | src=F7
+  [095bb8b65bf5] First Student, Inc. | Shoreham, NY | union=Transport Workers Union of America, AFL-CIO, Local 252 252 | src=F7
+  [NLRB-3841983] GCV II | Bronx, NY | union=TRANSPORT WORKERS UNION OF GREATER NEW YORK, AFL-CIO, LOCAL 100, AFL-CIO | src=NLRB
+  [f293bd0b4b69] Global Contact Services, LLC | Long Island City, NY | union=Transport Workers Union, AFL-CIO LOCAL 100 Local 100 | src=F7
+  [406c11b1d2d3] Go New York Tours, Inc. | New York, NY | union=Transport Workers Union of Greater New York, AFL-CIO 100 | src=F7
+  [e977753a7006] Guardian Bus Company, Inc. | Oceanside, NY | union=Transport Workers Union Local 252 | src=F7
+  [NLRB-3898031] International Bus Service/ Grayline | New York, NY | union=LOCAL 225, TRANSPORT WORKERS OF AMERICA, AFL-CIO | src=NLRB
+  [NLRB-5457848] J & R Tours, Ltd. | Mount Vernon, NY | union=The Transport Workers Union of Greater New York, Local 100 | src=NLRB
+
+--- NYSCOPBA ---
+  [MANUAL-59] NY State Correctional Officers and Police Benevolent Association (NYSCOPBA) | None, NY | union=None | src=MANUAL
+  [NLRB-3827927] NYSCOPBA | Albany, NY | union=None | src=NLRB
+  [NLRB-5420441] The New York State Correctional Officers and Police Benevolent Association | Albany, NY | union=Professional Association of NYSCOPBA Employees | src=NLRB
+
+--- Council 82 ---
+  NOT FOUND in mv_employer_search
+
+--- AFSCME Council 66 ---
+  NOT FOUND in mv_employer_search
+
+--- PBA / Police Benevolent ---
+  [NLRB-5409947] Brink's Global Services USA, Inc. | New York, NY | union=Law Enforcement Officers Security Unions LEOSU, Law Enforcement Officers Security and Police Benevolent Association (LEOS-PBA) | src=NLRB
+  [NLRB-5410251] Brink’s Global Services USA, Inc. | New York, NY | union=United Federation LEOS-PBA | src=NLRB
+  [NLRB-5447457] Greater Shield LLC | Brooklyn, NY | union=Law Enforcement Officers Security Unions LEOSU, (LEOS-PBA) | src=NLRB
+  [bd9b5b394a04] Jamaica Hospital DTC | Jamaica, NY | union=United Federation LEOS-PBA Law Enforcement Officers Security  | src=F7
+  [6db43bb83aba] Michael Stapleton Associates, Ltd. (MSA Security) | New York, NY | union=United Federation of K-9 Handlers, now affiliated with LEOS-PBA   | src=F7
+  [MANUAL-59] NY State Correctional Officers and Police Benevolent Association (NYSCOPBA) | None, NY | union=None | src=MANUAL
+  [MANUAL-60] NY State Troopers PBA | None, NY | union=None | src=MANUAL
+  [NLRB-3827927] NYSCOPBA | Albany, NY | union=None | src=NLRB
+  [MANUAL-61] PBA of New York State (APSU) | None, NY | union=None | src=MANUAL
+  [NLRB-5420441] The New York State Correctional Officers and Police Benevolent Association | Albany, NY | union=Professional Association of NYSCOPBA Employees | src=NLRB
+  [31fd3b41eb7f] The Sea Gate Association | BROOKLYN, NY | union=United Federation LEOS-PBA  | src=F7
+  [NLRB-5409947] Brink's Global Services USA, Inc. | New York, NY | union=Law Enforcement Officers Security Unions LEOSU, Law Enforcement Officers Security and Police Benevolent Association (LEOS-PBA) | src=NLRB
+  [MANUAL-59] NY State Correctional Officers and Police Benevolent Association (NYSCOPBA) | None, NY | union=None | src=MANUAL
+  [MANUAL-51] Police Benevolent Association of NYC | None, NY | union=None | src=MANUAL
+  [NLRB-5420441] The New York State Correctional Officers and Police Benevolent Association | Albany, NY | union=Professional Association of NYSCOPBA Employees | src=NLRB
+
+--- Teamsters Local 831 ---
+  NOT FOUND in mv_employer_search
+
+--- COBA / Correction Officers ---
+  [MANUAL-58] Correction Officers Benevolent Association (COBA) NYC | None, NY | union=None | src=MANUAL
+  [8aeb08b5b028] Ecobat Resources NY, LLC | Middletown, NY | union=Amalgamated union, local 1, NOITU-IUJAT 1 | src=F7
+  [MANUAL-58] Correction Officers Benevolent Association (COBA) NYC | None, NY | union=None | src=MANUAL
+
+--- UFA Local 94 / Firefighters ---
+  [0b16a4a94e0c] Acco Brands USA LLC | Sidney, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 00503 | src=F7
+  [553ccb2999d8] Acme Nipple Manufactoring Co., Inc. | Buffalo, NY | union=United Steelworkers 08823-04 | src=F7
+  [83a12a216005] Acme Nipple Manufacturing Mfg | Buffalo, NY | union=United Steelworkers 8823-04 | src=F7
+  [29ca42b92e9b] Alkegen | Hoosick Falls, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 01392 | src=F7
+  [e847797273b2] Alkegen/Lydall Performance Materials Inc | Fulton, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 17-01 | src=F7
+  [5a0b9a1c8923] Alpine Paper Box Company | Brooklyn, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 00318-25 | src=F7
+  [8652da942c9c] Arkema Inc | Piffard, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 4-00620 | src=F7
+  [6d1d7296cd10] Arxada | Rochester, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 7-662-01 | src=F7
+  [30713c0fd1e1] Aurubis Buffalo Inc | Buffalo, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 00593 | src=F7
+  [NLRB-5409632] B&H Photo and Electronics | Brooklyn, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union, AFL-CIO/CLC | src=NLRB
+  [552fb462c84b] Barnes & Cone Inc | Syracuse, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 12623-02 | src=F7
+  [4879626ad4fc] Belmont Metals | Brooklyn, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 08228-69 | src=F7
+  [b833c52425ca] Brookhaven National Labs | Upton, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 00431 | src=F7
+  [8aba4b4541aa] Bruno Bock Thiochemicals | Waterloo, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union AFL-CIO 7110 | src=F7
+  [79af2d7c5c67] Buffalo Pumps | North Tonawanda, NY | union=United Steel, Paper & Forestry, Rubber, Manufacturing, Energy, Allied Industrial & Service Workers International Union 9436-04 | src=F7
+  [NLRB-3826254] AIMCO D/B/A FRIENDSET APARTMENTS | Brooklyn, NY | union=LOCAL 947 IUJAT | src=NLRB
+  [NLRB-3826301] ARTHUR R. JOHNSON CO | Brooklyn, NY | union=LOCAL 947 IUJAT | src=NLRB
+  [NLRB-5417550] BISTRO CATERERS | New York, NY | union=UNITED WORKERS UNION, LOCAL 947, IUJAT | src=NLRB
+  [NLRB-3885306] CB, RICHARD ELLIS MEMPHIS, LLC | New York, NY | union=INTERNATIONAL UNION OF OPERATING ENGINEERS, LOCAL 94-94A | src=NLRB
+  [NLRB-3885260] ELENI OPERATING CORP. D/B/A ROYAL REGENCY HOTEL | Yonkers, NY | union=LOCAL 947, IUJAT | src=NLRB
+  [NLRB-5451496] LM HOSPITALITY BROOKLYN, INC. | Brooklyn, NY | union=LOCAL 947  USWU/IUJAT | src=NLRB
+  [NLRB-3885414] MANHATTAN-SOHO HAMPTON INN | New York, NY | union=LOCAL 947, INTERNATIONAL UNION OF JOURNEYMAN & ALLIED TRADES | src=NLRB
+  [NLRB-3826382] MOUNT GOLDA CEMETERY ASSOCIATION, INC. | Huntington Station, NY | union=Local 947 USWU, IUJAT | src=NLRB
+  [NLRB-5409608] Remington Long Island Employers, LLC | Hauppauge, NY | union=Local 947, The International Brotherhood of Boilermakers, Iron Ship Builders, Blacksmiths, Forgers and Helpers (IBBIS), AFL-CIO | src=NLRB
+  [5a16a27020f8] UFA Local 94 | New York, NY | union=Office & Professional Employees International Union Local 153 | src=F7
+  [a645bfbd8473] UFA Local 94 Health and Benefits Fund | New York, NY | union=Office & Professional Employees International Union Local 153 | src=F7
+  [MANUAL-56] Uniformed Firefighters Association (UFA) Local 94 | None, NY | union=None | src=MANUAL
+  [NLRB-5452047] VANTAGE AT PURVES STREET CONDOMINIUMS | Floral Park, NY | union=Local 947, The International Brotherhood of Boilermakers, Iron Ship Builders, Blacksmiths, Forgers and Helpers (IBBIS), AFL-CIO | src=NLRB
+
+--- IBEW Local 2104 / NYPA ---
+  NOT FOUND in mv_employer_search
+
+--- PSC-CUNY ---
+  [680ddcc906e0] Research Foundation of the City University of NY | New York, NY | union=American Federation of Teachers PSC-CUNY/Local #2334 | src=F7
+  [d40473fb6fc5] PROFESSIONAL STAFF CONGRESS  | New York, NY | union=Office and Professional Employee International Union  153 | src=F7
+  [c1fca7728a39] PROFESSIONAL STAFF CONGRESS WELFARE FUND  | New York, NY | union=Office & Professional Employees International Union AFL-CIO 153 | src=F7
+  [NLRB-4091070] RESEARCH FOUNDATION OF THE CITY UNIVERSITY OF NEW YORK AT SCHOOL OF LABOR AND URBAN STUDIES | New York, NY | union=PROFESSIONAL STAFF CONGRESS/CITY UNIVERSITY OF NEW YORK | src=NLRB
+
+================================================================================
+5b. UNIONS_MASTER - NY public-sector union filings
+================================================================================
+
+--- AFSCME (term='afscme') --- [1 results]
+  f_num=546952 | CIVIL SERVICE EMPLYEES ASSOC, AFSCME LOCAL 1000 | members=80 | Albany
+
+--- DC37 (term='dc 37') --- [0 results]
+
+--- CSEA (term='csea') --- [1 results]
+  f_num=545918 | CSEA LAWYERS UNION | members=7 | CLIFTON PARK
+
+--- PEF (term='public employees') --- [0 results]
+
+--- UFT/NYSUT (term='teachers') --- [8 results]
+  f_num=70581 | TEACHERS AFL-CIO | members=698238 | LATHAM
+  f_num=63924 | TEACHERS AFL-CIO | members=195920 | NEW YORK
+  f_num=519220 | TEACHERS AFL-CIO | members=51858 | ALBANY
+  f_num=542561 | TEACHERS AFL-CIO | members=22532 | NEW YORK
+  f_num=509790 | FEDERATION OF CATHOLIC TEACHERS | members=1974 | STATEN ISLAND
+  f_num=543231 | TEACHERS -- ADJUNCT FACULTY AT PACE | members=1748 | NEW YORK
+  f_num=513457 | TEACHERS AFL-CIO | members=1259 | NEW YORK
+  f_num=61984 | TEACHERS AFL-CIO | members=887 | BROOKLYN
+
+--- TWU (term='transport workers') --- [8 results]
+  f_num=3424 | TRANSPORT WORKERS AFL-CIO | members=43295 | Brooklyn
+  f_num=53171 | TRANSPORT WORKERS AFL-CIO | members=4533 | ISLANDIA
+  f_num=23470 | TRANSPORT WORKERS AFL-CIO | members=1500 | BROOKLYN
+  f_num=17151 | TRANSPORT WORKERS AFL-CIO | members=1498 | Hicksville
+  f_num=43711 | TRANSPORT WORKERS AFL-CIO | members=1387 | Maspeth
+  f_num=45929 | TRANSPORT WORKERS AFL-CIO | members=1032 | NEW YORK
+  f_num=541878 | TRANSPORT WORKERS AFL-CIO | members=802 | JAMAICA
+  f_num=51888 | TRANSPORT WORKERS AFL-CIO | members=175 | NEW YORK
+
+--- IAFF (term='fire fighters') --- [5 results]
+  f_num=519080 | FIRE FIGHTERS AFL-CIO | members=8269 | ALBANY
+  f_num=501172 | FIRE FIGHTERS AFL-CIO | members=42 | West Point
+  f_num=502977 | FIRE FIGHTERS AFL-CIO | members=37 | Fort Drum
+  f_num=516526 | FIRE FIGHTERS AFL-CIO | members=30 | AMHERST
+  f_num=545144 | FIRE FIGHTERS AFL-CIO | members=16 | BALLSTON LAKE
+
+--- ATU (term='amalgamated transit') --- [1 results]
+  f_num=546567 | AMALGAMATED TRANSIT WORKERS LOCAL 854 | members=1699 | VALLEY STREAM
+
+--- Teamsters (term='teamsters') --- [8 results]
+  f_num=10132 | TEAMSTERS | members=86814 | NEW YORK
+  f_num=40211 | TEAMSTERS | members=15114 | ALBANY
+  f_num=46272 | TEAMSTERS | members=10090 | STATEN ISLAND
+  f_num=2184 | TEAMSTERS | members=9553 | BUFFALO
+  f_num=31841 | TEAMSTERS | members=9172 | Port Washington
+  f_num=21006 | TEAMSTERS | members=8231 | ELMSFORD
+  f_num=10930 | TEAMSTERS | members=7808 | NEW YORK CITY
+  f_num=42415 | TEAMSTERS | members=5824 | ALBANY
+
+--- IBEW (term='ibew') --- [8 results]
+  f_num=6367 | ELECTRICAL WORKERS IBEW AFL-CIO | members=21827 | FLUSHING
+  f_num=537398 | ELECTRICAL WORKERS IBEW AFL-CIO | members=4405 | SYRACUSE
+  f_num=36835 | ELECTRICAL WORKERS IBEW AFL-CIO | members=3971 | HOLTSVILLE
+  f_num=26594 | ELECTRICAL WORKERS IBEW AFL-CIO | members=3675 | CICERO
+  f_num=52067 | ELECTRICAL WORKERS IBEW AFL-CIO | members=2860 | ARMONK
+  f_num=39321 | ELECTRICAL WORKERS IBEW AFL-CIO | members=2000 | HAUPPAUGE
+  f_num=19056 | ELECTRICAL WORKERS IBEW AFL-CIO | members=1835 | HARRIMAN
+  f_num=541393 | ELECTRICAL WORKERS IBEW AFL-CIO | members=1682 | SCHENECTADY
+
+--- CWA (term='communications workers') --- [8 results]
+  f_num=69907 | COMMUNICATIONS WORKERS AFL-CIO | members=8552 | BUFFALO
+  f_num=538149 | COMMUNICATIONS WORKERS AFL-CIO | members=8496 | NEW YORK
+  f_num=55760 | COMMUNICATIONS WORKERS AFL-CIO | members=5967 | NEW YORK
+  f_num=3705 | COMMUNICATIONS WORKERS AFL-CIO | members=5748 | NEW YORK
+  f_num=515463 | COMMUNICATIONS WORKERS AFL-CIO | members=4831 | AMHERST
+  f_num=55823 | COMMUNICATIONS WORKERS AFL-CIO | members=4511 | FARMINGDALE
+  f_num=529191 | COMMUNICATIONS WORKERS AFL-CIO | members=2507 | BUFFALO
+  f_num=69987 | COMMUNICATIONS WORKERS AFL-CIO | members=2080 | BROOKLYN
+
+--- Police/PBA (term='police') --- [8 results]
+  f_num=544994 | YONKERS RACEWAY POLICE BENEVOLENT ASSOCIATION | members=105 | YONKERS
+  f_num=547108 | SECURITY POLICE, FIRE PROF, IND | members=96 | BROOKLYN
+  f_num=544089 | SECURITY POLICE, FIRE PROF, IND | members=85 | NEW YORK
+  f_num=546982 | SECURITY POLICE, FIRE PROF, IND | members=68 | ALBANY
+  f_num=545956 | LAW ENFORCEMENT OFFICERS SECURITY & POLICE  | members=68 | MINEOLA
+  f_num=544823 | SECURITY POLICE, FIRE PROF, IND | members=62 | OAKLAND GARDENS
+  f_num=545955 | LAW ENFORCEMENT OFFICERS SECURITY & POLICE  | members=60 | MINEOLA
+  f_num=544702 | RIVERBAY POLICE BENEVOLENT  | members=59 | BRONX
+
+--- Corrections (term='correction') --- [0 results]
+
+================================================================================
+6. EXISTING COVERAGE COUNTS
+================================================================================
+
+NY locals by parent union:
+  AFT (American Federation of Teachers): 56 locals, 1445854 members
+  AFSCME (American Federation of State, County and Municipal Employees): 87 locals, 946316 members
+  SEIU (Service Employees International Union): 9 locals, 578869 members
+  NEA (National Education Association): 6 locals, 467266 members
+  OPEIU (Office and Professional Employees International Union): 3 locals, 93040 members
+  TWU (Transport Workers Union): 1 locals, 42000 members
+  IAFF (International Association of Fire Fighters): 7 locals, 20894 members
+  CWA (Communications Workers of America): 1 locals, 9000 members
+  UE (United Electrical Workers): 3 locals, 1496 members
+
+NY employers by type:
+  FEDERAL: 201 employers, 46151 employees
+  UNIVERSITY: 135 employers, 30851 employees
+  COUNTY: 95 employers, 12603 employees
+  SCHOOL_DISTRICT: 93 employers, 6285 employees
+  TRANSIT_AUTHORITY: 44 employers, 14713 employees
+  CITY: 18 employers, 7762 employees
+  STATE_AGENCY: 5 employers, 245 employees
+
+DC37 locals in system:
+  District Council 37 AFSCME | members=150000 | None
+  DC37 in unions_master: 0 filings
+
+CSEA locals/regions in system:
+  Civil Service Employees Association (CSEA) Local 1000 | members=250000 | None
+  CSEA in unions_master: 1 shown
+    f_num=545918 | CSEA LAWYERS UNION | members=7 | CLIFTON PARK
+
+IAFF fire locals in NY:
+  FIRE FIGHTERS AFL-CIO | members=42 | West Point
+  FIRE FIGHTERS AFL-CIO | members=37 | Fort Drum
+  FIRE FIGHTERS AFL-CIO | members=30 | AMHERST
+  FIRE FIGHTERS AFL-CIO | members=8269 | ALBANY
+  FIRE FIGHTERS AFL-CIO | members=16 | BALLSTON LAKE
+  Uniformed Fire Officers Association (UFOA) | members=3500 | None
+  Uniformed Firefighters Association (UFA) Local 94 | members=9000 | None
+  IAFF/fire in unions_master: 5 filings
+
+ATU transit locals in NY:
+  (none found in ps_union_locals)
+  ATU in unions_master: 1 filings
+
+================================================================================
+6b. UNIONS_MASTER - Total NY union filings by affiliation
+================================================================================
+  Other: 1152 filings, 2172787 members
+  Teachers: 67 filings, 979898 members
+  AFSCME: 97 filings, 546427 members
+  SEIU: 104 filings, 541089 members
+  Teamsters: 41 filings, 213429 members
+  IBEW: 52 filings, 63569 members
+  CWA: 94 filings, 62234 members
+  TWU: 9 filings, 54281 members
+  IAFF: 5 filings, 8394 members
+  ATU: 1 filings, 1699 members
+  Police/PBA: 18 filings, 879 members
+  CSEA: 1 filings, 7 members
+
+================================================================================
+7. LARGE NY UNIONS IN UNIONS_MASTER (>5K members)
+================================================================================
+  f_num=70581 | TEACHERS AFL-CIO | members=698238 | LATHAM
+  f_num=31847 | SERVICE EMPLOYEES | members=324595 | NEW YORK
+  f_num=511 | UNITE HERE  | members=295855 | NEW YORK
+  f_num=515614 | STATE COUNTY AND MUNI EMPLS AFL-CIO | members=201013 | ALBANY
+  f_num=63924 | TEACHERS AFL-CIO | members=195920 | NEW YORK
+  f_num=172 | STAGE AND PICTURE OPERATORS AFL-CIO | members=172680 | NEW YORK
+  f_num=11661 | SERVICE EMPLOYEES | members=154460 | NEW YORK
+  f_num=515204 | FOOD AND COMMERCIAL WKRS | members=142066 | Westbury
+  f_num=59403 | STATE COUNTY AND MUNI EMPLS AFL-CIO | members=121845 | NEW YORK
+  f_num=10132 | TEAMSTERS | members=86814 | NEW YORK
+  f_num=67 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO | members=82493 | NEW YORK
+  f_num=207 | MUSICIANS AFL-CIO | members=66642 | NEW YORK
+  f_num=519220 | TEACHERS AFL-CIO | members=51858 | ALBANY
+  f_num=71 | RETAIL WHOLESALE, DC, UFCW | members=49549 | NEW YORK
+  f_num=6029 | ACTORS AND ARTISTES AFL-CIO | members=48145 | NEW YORK
+  f_num=545475 | JOURNEYMEN AND ALLIED TRADES IND | members=44182 | NEW ROCHELLE
+  f_num=3424 | TRANSPORT WORKERS AFL-CIO | members=43295 | Brooklyn
+  f_num=38970 | NATIONAL NURSES UNITED | members=43128 | NEW YORK
+  f_num=533797 | STATE COUNTY AND MUNI EMPLS AFL-CIO | members=40500 | COMMACK
+  f_num=545091 | SAG-AFTRA | members=40202 | NEW YORK
+  f_num=24258 | HOTEL AND GAMING TRADES COUNCIL, AFL-CIO | members=39641 | NEW YORK
+  f_num=543882 | TRANSIT UNION AFL-CIO | members=39047 | STATEN ISLAND
+  f_num=513400 | ENGINEERS, OPERATING, AFL-CIO | members=38528 | LONG ISLAND CITY
+  f_num=517897 | STATE COUNTY AND MUNI EMPLS AFL-CIO | members=37091 | East Amherst
+  f_num=517783 | STATE COUNTY AND MUNI EMPLS AFL-CIO | members=36822 | Liverpool
+  f_num=545364 | NORTHEAST NURSES ASSOCIATION - NENA | members=36456 | NEW YORK
+  f_num=83467 | LETTER CARRIERS, NATL ASN, AFL-CIO | members=32000 | NEW YORK
+  f_num=517781 | STATE COUNTY AND MUNI EMPLS AFL-CIO | members=31485 | Schenectady
+  f_num=517898 | STATE COUNTY AND MUNI EMPLS AFL-CIO | members=29903 | MOUNTAIN DALE
+  f_num=506906 | SERVICE EMPLOYEES | members=29067 | LONG ISLAND CITY
+  f_num=529203 | UNITED SERVICE WORKERS UNION, IUJAT | members=26494 | NEW ROCHELLE
+  f_num=544798 | GOVERNMENT EMPLOYEES AFGE AFL-CIO | members=26037 | New York
+  f_num=28501 | UNITE HERE  | members=25158 | NEW YORK
+  f_num=515249 | UNITE HERE  | members=24922 | NEW YORK
+  f_num=35287 | TV AND RADIO ARTISTS AAAA AFL-CIO | members=24914 | NEW YORK
+  f_num=530034 | PLUMBERS AFL-CIO | members=23000 | QUEENSBURY
+  f_num=542561 | TEACHERS AFL-CIO | members=22532 | NEW YORK
+  f_num=6367 | ELECTRICAL WORKERS IBEW AFL-CIO | members=21827 | FLUSHING
+  f_num=545372 | JOURNEYMEN AND ALLIED TRADES IND | members=18295 | NEW ROCHELLE
+  f_num=60069 | FOOD AND COMMERCIAL WKRS | members=16788 | BROOKLYN
+
+================================================================================
+8. PS_BARGAINING_UNITS - NY entries
+================================================================================
+NY bargaining units: 30 shown
+  BU=167 | STATE COUNTY AND MUNI EMPLS AFL-CIO <-> University Settlement | size=2500
+  BU=65 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> IBT Local 237 | size=2000
+  BU=155 | SERVICE EMPLOYEES <-> McGaw Medical Center of Northwestern University | size=1300
+  BU=192 | TEACHERS AFL-CIO <-> New York University | size=1300
+  BU=163 | SERVICE EMPLOYEES <-> University of Pennsylvania Health System | size=1300
+  BU=162 | SERVICE EMPLOYEES <-> University of Chicago Medical Center | size=1100
+  BU=194 | STATE COUNTY AND MUNI EMPLS AFL-CIO <-> St Louis County | size=1041
+  BU=160 | SERVICE EMPLOYEES <-> Thomas Jefferson University Hospital, a subsidiary of Thomas Jefferson University Health System | size=1013
+  BU=159 | SERVICE EMPLOYEES <-> Thomas Jefferson University Hospital | size=1013
+  BU=157 | SERVICE EMPLOYEES <-> Temple University Hospital | size=832
+  BU=156 | SERVICE EMPLOYEES <-> Rhode Island Hospital / Brown University Health | size=721
+  BU=308 | TEACHERS AFL-CIO <-> Long Island University - Brooklyn Campus | size=608
+  BU=244 | TEACHERS AFL-CIO <-> Research Foundation of the City University of NY | size=600
+  BU=158 | SERVICE EMPLOYEES <-> The George Washington University | size=500
+  BU=233 | TEACHERS AFL-CIO <-> Illinois National Guard | size=381
+  BU=164 | SERVICE EMPLOYEES <-> University of Vermont Medical Center | size=364
+  BU=153 | SERVICE EMPLOYEES <-> Howard University Hospital | size=300
+  BU=224 | SERVICE EMPLOYEES <-> New York University Grossman School of Medicine | size=300
+  BU=151 | SERVICE EMPLOYEES <-> Brookdale University Hospital and Medical Center | size=267
+  BU=226 | SERVICE EMPLOYEES <-> New York University School of Medicine (Woodhull Hospital Cumberland D&TC Related Facilities) | size=250
+  BU=50 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> American Federation of State County and Municipal Employees DC 37 (AFSCME) | size=200
+  BU=76 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> Seton Hall University  | size=200
+  BU=63 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> Fordham University | size=200
+  BU=86 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> Wesleyan University Clericals | size=200
+  BU=77 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> Seton Hall University - Department of Human Resources | size=188
+  BU=228 | SERVICE EMPLOYEES <-> University Group Medical Associates PC Coney Island Hospital | size=150
+  BU=161 | SERVICE EMPLOYEES <-> Thomas Jefferson University Hospitals, Inc., (at Nemours Children’s Hospital, Delaware) | size=146
+  BU=61 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> Fairleigh Dickinson University | size=144
+  BU=168 | STATE COUNTY AND MUNI EMPLS AFL-CIO <-> University Settlement Society | size=140
+  BU=49 | OFFICE AND PROFESSIONAL EMPLS AFL-CIO <-> Adelphi University | size=136
+
+================================================================================
+9. GAP ANALYSIS - Known entities vs database
+================================================================================
+
+Checking known entities against database:
+
+  CSEA (statewide) [FOUND] - Expected: 265,000
+    -> unions_master(f_num=545918, 7 members)
+    -> ps_union_locals(250000 members)
+    -> manual_employers(250000 emp)
+
+  DC37 (NYC municipal) [MISSING] - Expected: 150,000
+    ** ENTIRELY MISSING from database **
+
+  UFT (NYC teachers) [MISSING] - Expected: 190,000
+    ** ENTIRELY MISSING from database **
+
+  NYSUT (statewide teachers) [FOUND] - Expected: 600,000
+    -> ps_union_locals(467000 members)
+    -> manual_employers(467000 emp)
+
+  PEF (state professionals) [FOUND] - Expected: 52,000
+    -> ps_union_locals(55000 members)
+    -> manual_employers(55000 emp)
+
+  UUP (SUNY faculty) [MISSING] - Expected: 42,000
+    ** ENTIRELY MISSING from database **
+
+  TWU Local 100 (NYC Transit) [FOUND] - Expected: 40,000
+    -> unions_master(f_num=3424, 43295 members)
+    -> ps_union_locals(42000 members)
+    -> manual_employers(42000 emp)
+
+  NYC PBA (police) [FOUND] - Expected: 20,000
+    -> unions_master(f_num=544994, 105 members)
+    -> manual_employers(24000 emp)
+
+  Teamsters Local 237 (NYCHA) [MISSING] - Expected: 24,000
+    ** ENTIRELY MISSING from database **
+
+  COBA (NYC corrections) [FOUND] - Expected: 9,000
+    -> manual_employers(9000 emp)
+
+  UFA Local 94 (FDNY firefighters) [FOUND] - Expected: 9,000
+    -> ps_union_locals(9000 members)
+    -> manual_employers(9000 emp)
+
+  Teamsters Local 831 (NYC sanitation) [MISSING] - Expected: 7,100
+    ** ENTIRELY MISSING from database **
+
+  SBA (sergeants) [FOUND] - Expected: 4,400
+    -> manual_employers(13000 emp)
+
+  DEA (detectives) [FOUND] - Expected: 5,500
+    -> manual_employers(19000 emp)
+
+  PSC-CUNY [MISSING] - Expected: 30,000
+    ** ENTIRELY MISSING from database **
+
+  AFSCME Council 66 (upstate) [MISSING] - Expected: 35,000
+    ** ENTIRELY MISSING from database **
+
+  GSEU/CWA 1104 (grad students) [MISSING] - Expected: 4,500
+    ** ENTIRELY MISSING from database **
+
+  NYSCOPBA (corrections officers) [FOUND] - Expected: 18,000
+    -> manual_employers(20000 emp)
+
+  Council 82 (law enforcement) [MISSING] - Expected: 4,500
+    ** ENTIRELY MISSING from database **
+
+  UFOA Local 854 (FDNY officers) [FOUND] - Expected: 7,500
+    -> ps_union_locals(3500 members)
+    -> manual_employers(3500 emp)
+
+------------------------------------------------------------
+FOUND (11 entities):
+  [OK] CSEA (statewide) (expected 265,000, found 250,000)
+  [OK] NYSUT (statewide teachers) (expected 600,000, found 467,000)
+  [OK] PEF (state professionals) (expected 52,000, found 55,000)
+  [OK] TWU Local 100 (NYC Transit) (expected 40,000, found 43,295)
+  [OK] NYC PBA (police) (expected 20,000, found 24,000)
+  [OK] COBA (NYC corrections) (expected 9,000, found 9,000)
+  [OK] UFA Local 94 (FDNY firefighters) (expected 9,000, found 9,000)
+  [OK] SBA (sergeants) (expected 4,400, found 13,000)
+  [OK] DEA (detectives) (expected 5,500, found 19,000)
+  [OK] NYSCOPBA (corrections officers) (expected 18,000, found 20,000)
+  [OK] UFOA Local 854 (FDNY officers) (expected 7,500, found 3,500)
+
+MISSING (9 entities):
+  [MISSING] DC37 (NYC municipal) (expected 150,000)
+  [MISSING] UFT (NYC teachers) (expected 190,000)
+  [MISSING] UUP (SUNY faculty) (expected 42,000)
+  [MISSING] Teamsters Local 237 (NYCHA) (expected 24,000)
+  [MISSING] Teamsters Local 831 (NYC sanitation) (expected 7,100)
+  [MISSING] PSC-CUNY (expected 30,000)
+  [MISSING] AFSCME Council 66 (upstate) (expected 35,000)
+  [MISSING] GSEU/CWA 1104 (grad students) (expected 4,500)
+  [MISSING] Council 82 (law enforcement) (expected 4,500)
+
+------------------------------------------------------------
+OVERALL SUMMARY:
+  Known major NY public sector unions: 20
+  Found in DB: 11
+  Missing from DB: 9
+  Expected total members (major unions): ~1,517,500
+  Found in DB (max per entity): ~912,795
+  Missing members: ~487,100
+
+================================================================================
+10. EPI BENCHMARK FOR NY
+================================================================================
+  state: NY
+  state_name: New York
+  members_private: 889113
+  members_private_year: 2025
+  members_public: 945094
+  members_public_year: 2025
+  members_total: 1834207
+  represented_private: 974132
+  represented_private_year: 2025
+  represented_public: 968340
+  represented_public_year: 2025
+  represented_total: 1942472
+  free_riders_private: 85019
+  free_riders_public: 23246
+  free_rider_rate_private: 8.73
+  free_rider_rate_public: 2.40
+  source: EPI Analysis of CPS-ORG
+  created_at: 2026-01-29 12:22:25.176595
+
+================================================================================
+11. STATE_SECTOR_UNION_DENSITY - NY latest
+================================================================================
+  NY private 2025: 12.4%
+  NY public 2025: 65.2%
+  NY total 2025: 21.3%
+  NY private 2024: 11.4%
+  NY public 2024: 65.1%
+  NY total 2024: 20.6%
+  NY private 2023: 12.2%
+  NY public 2023: 63.7%
+  NY total 2023: 20.6%
+  NY private 2022: 12.2%
+
+================================================================================
+12. TOTAL NY PUBLIC SECTOR WORKERS CURRENTLY TRACKED
+================================================================================
+  ps_union_locals (NY): 3,604,735 members
+  manual_employers (NY): 46 records, 1,149,512 employees
+  unions_master (NY): 1641 filings, 4,644,693 total members
+  unions_master (NY public-sector-related): 197 filings, 1,589,886 members
+
+================================================================================
+13. DC37 LOCALS IN UNIONS_MASTER (detailed)
+================================================================================
+Traceback (most recent call last):
+  File "C:\Users\jakew\Downloads\labor-data-project\scripts\verify\verify_ny_public_sector.py", line 654, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\jakew\Downloads\labor-data-project\scripts\verify\verify_ny_public_sector.py", line 606, in main
+    cur.execute("""
+    ~~~~~~~~~~~^^^^
+        SELECT f_num, union_name, members, city
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        ORDER BY union_name
+        ^^^^^^^^^^^^^^^^^^^
+    """)
+    ^^^^
+psycopg2.errors.UndefinedColumn: column "affiliation" does not exist
+LINE 8:                OR LOWER(affiliation) LIKE '%dc 37%')
+                                ^
+

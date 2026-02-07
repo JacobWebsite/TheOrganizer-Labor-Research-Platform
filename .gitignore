@@ -29,6 +29,7 @@ naics_crosswalks/
 nul
 cd
 py
+*temp_openapi*
 
 # Claude artifacts
 .claude/
@@ -36,3 +37,12 @@ py
 # Archive
 archive/
 2024organizing_files/
+
+# Large data directories
+990 2025/
+02_1_files/
+990 employer files/
+AFSCME case example NY/
+BLS industry and occupation projections/
+New York all companies above 1 m/
+whd_whisard_20260116.csv/
