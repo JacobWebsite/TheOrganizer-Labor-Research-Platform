@@ -48,8 +48,20 @@ def _get_pool():
         )
     return _pool
 
+from contextlib import contextmanager
+
+@contextmanager
 def get_db():
-    return _get_pool().getconn()
+    pool = _get_pool()
+    conn = pool.getconn()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        pool.putconn(conn)
 
 def release_db(conn):
     try:
