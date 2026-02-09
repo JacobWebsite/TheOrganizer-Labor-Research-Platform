@@ -1,8 +1,9 @@
+import os
 """Test VR API queries"""
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect(host='localhost', database='olms_multiyear', user='postgres', password='Juniordog33!')
+conn = psycopg2.connect(host='localhost', database='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print('Testing VR API queries...')

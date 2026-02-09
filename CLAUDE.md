@@ -10,7 +10,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='<password in .env file>'
 )
 ```
 
@@ -97,6 +97,83 @@ BLS check is WARNING-level in validation framework, not critical.
 | **Total** | **42,812** | **15,780** |
 
 86% of matches (36,814) have a union connection via `union_fnum`.
+
+### Corporate Hierarchy Tables
+| Table | Records | Description |
+|-------|---------|-------------|
+| `sec_companies` | 517,403 | SEC EDGAR company registry (CIK, EIN, LEI, ticker) |
+| `gleif_us_entities` | 379,192 | GLEIF/Open Ownership US entities (100% with LEI) |
+| `gleif_ownership_links` | 498,963 | GLEIF parent→child ownership links |
+| `corporate_identifier_crosswalk` | 14,561 | Unified ID mapping across SEC/GLEIF/Mergent/F7/USASpending |
+| `splink_match_results` | ~4,600 | Splink probabilistic match candidates with per-column scores |
+| `corporate_hierarchy` | 125,120 | Parent-to-subsidiary relationships |
+| `qcew_annual` | 1,943,426 | BLS QCEW industry x geography data (2020-2023) |
+| `qcew_industry_density` | 7,143 | State-level NAICS density (private sector, 2023) |
+| `f7_industry_scores` | 121,433 | F7 employer industry density scores from QCEW (97.5% matched) |
+| `federal_contract_recipients` | 47,193 | USASpending FY2024 federal contract recipients |
+| `usaspending_f7_matches` | 9,305 | USASpending-to-F7 matches (exact + fuzzy) |
+| `f7_federal_scores` | 9,305 | Federal contractor scores (0-15 pts) |
+| `state_fips_map` | 54 | State abbreviation to FIPS code mapping |
+
+**GLEIF Raw Schema** (loaded from pgdump into `gleif` schema):
+| Table | Records |
+|-------|---------|
+| `gleif.entity_statement` | 5,667,010 |
+| `gleif.entity_identifiers` | 6,706,686 |
+| `gleif.entity_addresses` | 6,706,686 |
+| `gleif.ooc_statement` | 5,758,526 |
+| `gleif.ooc_interests` | 5,748,906 |
+| `gleif.person_statement` | 2,826,102 |
+
+**gleif_us_entities Key Columns:**
+- `bods_link` - Numeric row ID from entity_statement._link
+- `statementid` - UUID (used for ownership link joins)
+- `entity_name`, `name_normalized`, `address_state`, `address_zip`
+- `lei` - Legal Entity Identifier (100% coverage)
+- `jurisdiction_code` - e.g. `US-NY`
+
+**IMPORTANT:** GLEIF `ooc_statement` references entities via `statementid` (UUID), NOT `_link` (numeric). Always join ownership links through `statementid`.
+
+**Crosswalk Matching Tiers:**
+| Tier | Method | Matches | Confidence |
+|------|--------|---------|------------|
+| 1 | EIN exact (SEC<->Mergent) | 1,127 | HIGH |
+| 2 | LEI exact (SEC<->GLEIF) | 84 | HIGH |
+| 3 | Name+State (all sources, cleanco-normalized) | 3,009 | MEDIUM |
+| 4 | Splink probabilistic (JW>=0.88 + prob>=0.85) | 1,552 | MEDIUM |
+| 5 | USASpending exact name+state | 1,994 | HIGH |
+| 6 | USASpending fuzzy name+state (pg_trgm>=0.55) | 6,795 | MEDIUM |
+
+**Crosswalk Coverage:**
+| Source | Linked | Total | Rate |
+|--------|--------|-------|------|
+| SEC | 1,948 | 517,403 | 0.4% |
+| GLEIF | 3,264 | 379,192 | 0.9% |
+| Mergent | 3,361 | 56,431 | 6.0% |
+| F7 | ~12,000 | 62,163 | 19.3% |
+| Federal contractors | 9,305 | 47,193 | 19.7% |
+| Public companies | 358 | - | - |
+
+**Corporate Hierarchy Sources:**
+| Source | Links | Description |
+|--------|-------|-------------|
+| GLEIF | 116,531 | Both-US ownership (direct/indirect/unknown) |
+| Mergent parent_duns | 7,404 | Direct parent->child |
+| Mergent domestic_parent | 1,185 | Domestic ultimate parent |
+| **Total** | **125,120** | 13,929 distinct parents, 54,924 distinct children |
+
+**ETL Scripts:**
+- `scripts/etl/load_gleif_bods.py` - Restore GLEIF pgdump + extract US entities
+- `scripts/etl/extract_gleif_us_optimized.py` - Optimized 2-step US extraction (use this)
+- `scripts/etl/build_crosswalk.py` - Build crosswalk + hierarchy tables
+- `scripts/etl/update_normalization.py` - Apply cleanco normalization to GLEIF/SEC name_normalized columns
+- `scripts/matching/splink_config.py` - Splink scenario configs (comparisons, blocking rules, thresholds)
+- `scripts/matching/splink_pipeline.py` - Splink probabilistic matching pipeline (DuckDB backend)
+- `scripts/matching/splink_integrate.py` - Integrate Splink results into crosswalk (1:1 dedup + quality filter)
+- `scripts/etl/fetch_qcew.py` - Download BLS QCEW annual data (2020-2023)
+- `scripts/etl/_integrate_qcew.py` - QCEW industry density scoring for F7 employers
+- `scripts/etl/_fetch_usaspending_api.py` - Fetch federal contract recipients via paginated API
+- `scripts/etl/_match_usaspending.py` - Match USASpending recipients to F7 and integrate crosswalk
 
 ### Contract/Target Tables (AFSCME NY)
 | Table | Records | Description |
@@ -324,7 +401,8 @@ Full Swagger docs: http://localhost:8001/docs
 **Sectors (21):** `/api/sectors/list`, `/{sector}/{summary,targets,targets/stats,targets/{id},targets/cities,unionized}`
 **Museums (Legacy):** `/api/museums/{summary,targets,targets/stats,targets/cities,targets/{id},unionized}`
 **Trends:** `/api/trends/{national,sectors,elections}`, `/by-state/{state}`, `/by-affiliation/{aff}`
-**Multi-Employer:** `/api/multi-employer/{stats,groups}`, `/employer/{id}/agreement`, `/corporate/family/{id}`
+**Multi-Employer:** `/api/multi-employer/{stats,groups}`, `/employer/{id}/agreement`
+**Corporate:** `/api/corporate/family/{id}`, `/corporate/hierarchy/{id}`, `/corporate/hierarchy/stats`, `/corporate/hierarchy/search`, `/corporate/sec/{cik}`
 **Projections:** `/api/projections/{summary,search,top}`, `/industry/{naics}`, `/matrix/{code}`, `/employer/{id}/projections`
 **Density:** `/api/density/{all,by-state,by-county,county-summary,industry-rates}`, `/by-state/{state}/{history,counties}`, `/by-govt-level`, `/by-county/{fips}/{industry}`, `/state-industry-comparison/{state}`, `/naics/{code}`
 **NY Density:** `/api/density/ny/{summary,counties,zips,tracts}`, `/county/{fips}`, `/zip/{code}`, `/tract/{fips}`
@@ -342,6 +420,7 @@ Full Swagger docs: http://localhost:8001/docs
 6. **Public Sector Coverage** - 98.3% of EPI benchmark, 50/51 states within +/-15%
 7. **Multi-Sector Organizing Scorecard** - 56,431 Mergent employers, 21 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=15, LOW<15. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
 8. **Industry Outlook** - BLS 2024-2034 projections in employer detail, 6-digit NAICS from OSHA, occupation breakdowns
+9. **Corporate Hierarchy** - SEC EDGAR (517K), GLEIF (379K entities, 499K ownership links), crosswalk linking SEC/GLEIF/Mergent/F7/USASpending (14,561 rows: deterministic + Splink + USASpending), hierarchy with 125K parent->child links from 13,929 distinct parent companies. QCEW industry density scores for 121K F7 employers. 9,305 F7 employers identified as federal contractors with scoring (0-15 pts).
 
 ---
 
@@ -487,6 +566,10 @@ When matching records between tables/datasets, always verify the join key exists
 - `mergent_employers.ein` has ~55% coverage - not reliable for joins
 - Always sample 5-10 rows from each table to verify join keys before building matching logic
 - F7 uses `employer_name_aggressive` (not `employer_name_normalized`) for fuzzy matching
+- F7 has NO `ein` column — match to SEC/GLEIF via name+state only
+- GLEIF ownership joins use `statementid` (UUID), NOT `_link` (numeric row ID)
+- SEC `lei` coverage is very low (409/517K) — LEI matching mainly useful for GLEIF↔SEC enrichment
+- For large GLEIF queries, avoid correlated subqueries — use 2-step INSERT+UPDATE instead
 
 ---
 

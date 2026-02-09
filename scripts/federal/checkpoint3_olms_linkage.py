@@ -1,3 +1,4 @@
+import os
 """
 CHECKPOINT 3: Create OLMS Linkage - Fixed all type issues
 """
@@ -8,7 +9,7 @@ conn = psycopg2.connect(
     host="localhost",
     dbname="olms_multiyear",
     user="postgres",
-    password="Juniordog33!"
+    password="os.environ.get('DB_PASSWORD', '')"
 )
 conn.autocommit = True
 cur = conn.cursor()

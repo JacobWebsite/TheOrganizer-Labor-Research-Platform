@@ -160,7 +160,7 @@ py -m uvicorn labor_api_v5:app --reload --port 8000
 ## Database Verification Command
 
 ```cmd
-set PGPASSWORD=Juniordog33!
+set PGPASSWORD=<password in .env file>
 psql -U postgres -d olms_multiyear -c "SELECT 'f7_employers_deduped' as tbl, COUNT(*) FROM f7_employers_deduped UNION ALL SELECT 'unions_master', COUNT(*) FROM unions_master UNION ALL SELECT 'osha_establishments', COUNT(*) FROM osha_establishments UNION ALL SELECT 'nlrb_elections', COUNT(*) FROM nlrb_elections UNION ALL SELECT 'nlrb_cases', COUNT(*) FROM nlrb_cases UNION ALL SELECT 'nlrb_participants', COUNT(*) FROM nlrb_participants UNION ALL SELECT 'lm_data', COUNT(*) FROM lm_data UNION ALL SELECT 'bls_union_data', COUNT(*) FROM bls_union_data UNION ALL SELECT 'ar_membership', COUNT(*) FROM ar_membership UNION ALL SELECT 'epi_union_membership', COUNT(*) FROM epi_union_membership UNION ALL SELECT 'osha_violation_summary', COUNT(*) FROM osha_violation_summary ORDER BY count DESC;"
 ```
 

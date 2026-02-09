@@ -23,16 +23,18 @@ from splink import Linker, DuckDBAPI
 # Add parent for config imports
 sys.path.insert(0, str(Path(__file__).parent))
 from splink_config import (
+import os
     SCENARIOS,
     THRESHOLD_AUTO_ACCEPT,
     THRESHOLD_REVIEW,
 )
 
 DB_CONFIG = {
-    'host': 'localhost',
-    'dbname': 'olms_multiyear',
-    'user': 'postgres',
-    'password': 'Juniordog33!'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 

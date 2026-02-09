@@ -1,3 +1,4 @@
+import os
 import psycopg2
 import pandas as pd
 import re
@@ -7,7 +8,7 @@ conn = psycopg2.connect(
     port=5432, 
     database='olms_multiyear', 
     user='postgres', 
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 
 # Load F7-only unions

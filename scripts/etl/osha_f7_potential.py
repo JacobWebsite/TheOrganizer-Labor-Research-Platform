@@ -1,3 +1,4 @@
+import os
 """
 OSHA-F7 Matching Potential Analysis
 ===================================
@@ -16,7 +17,7 @@ pg_conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 pg_cur = pg_conn.cursor(cursor_factory=RealDictCursor)
 

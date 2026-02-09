@@ -1,3 +1,4 @@
+import os
 """
 OSHA Violation Aggregation - Phase 3
 Aggregates violations by establishment and type, loads summaries
@@ -13,7 +14,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 def generate_establishment_id(name, address, city, state):

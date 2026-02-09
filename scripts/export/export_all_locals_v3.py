@@ -1,3 +1,4 @@
+import os
 """
 Export COMPLETE list of all union locals and councils with membership
 Includes OLMS (private/mixed), Form 990 (public sector), and FLRA (federal)
@@ -9,7 +10,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

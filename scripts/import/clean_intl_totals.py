@@ -1,9 +1,10 @@
+import os
 """
 CLEAN INTERNATIONAL TOTALS - Excluding federations to avoid double-counting
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='Juniordog33!')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
 cur = conn.cursor()
 
 print("=" * 90)

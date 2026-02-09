@@ -1,3 +1,4 @@
+import os
 """
 VR Employer Matching - Checkpoint 3B
 Fuzzy matching using trigram similarity, token matching, and industry patterns
@@ -19,7 +20,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 conn.autocommit = True
 cur = conn.cursor(cursor_factory=RealDictCursor)

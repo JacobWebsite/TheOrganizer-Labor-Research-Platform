@@ -1,10 +1,11 @@
+import os
 """
 FINAL CROSS-VALIDATION SUMMARY
 990/LM-2 as validation check against OLMS deduplication
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='Juniordog33!')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
 cur = conn.cursor()
 
 print("=" * 100)

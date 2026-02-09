@@ -1,3 +1,4 @@
+import os
 """
 Fix multi-employer group assignments in f7_employers_deduped.
 
@@ -21,7 +22,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 
 mode_label = 'DRY RUN' if DRY_RUN else 'APPLYING CHANGES'

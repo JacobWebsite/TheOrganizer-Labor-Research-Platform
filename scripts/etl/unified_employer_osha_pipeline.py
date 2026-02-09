@@ -1,3 +1,4 @@
+import os
 """
 Unified Employer-to-OSHA Pipeline
 
@@ -17,7 +18,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 

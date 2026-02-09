@@ -24,7 +24,7 @@ def get_connection():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 

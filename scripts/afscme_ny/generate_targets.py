@@ -1,3 +1,4 @@
+import os
 """
 Generate Prioritized Organizing Targets
 Creates a ranked list of potential AFSCME organizing targets from unmatched 990 employers.
@@ -18,7 +19,7 @@ def get_db_connection():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 

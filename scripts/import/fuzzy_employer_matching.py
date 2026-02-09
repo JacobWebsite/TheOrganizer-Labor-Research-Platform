@@ -1,3 +1,4 @@
+import os
 """
 Fuzzy Employer Matching: NLRB Participants → F7 Employers
 Improves match rate from 9.4% using name normalization and fuzzy matching
@@ -43,7 +44,7 @@ def main():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
     cur = conn.cursor()
     

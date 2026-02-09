@@ -1,3 +1,4 @@
+import os
 """Run NLRB schema creation"""
 import psycopg2
 
@@ -5,7 +6,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 schema_file = r'C:\Users\jakew\Downloads\labor-data-project\src\sql\nlrb_schema.sql'

@@ -38,7 +38,7 @@ if __name__ == "__main__":
         host="localhost",
         dbname="olms_multiyear",
         user="postgres",
-        password="Juniordog33!",
+        password="os.environ.get('DB_PASSWORD', '')",
     )
 
     # Quick count of source and target

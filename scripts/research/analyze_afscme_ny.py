@@ -7,12 +7,14 @@ Checks membership counts from OLMS and 990 data, handling known duplications:
 
 import psycopg2
 from collections import defaultdict
+import os
 
 DB_CONFIG = {
-    'host': 'localhost',
-    'dbname': 'olms_multiyear',
-    'user': 'postgres',
-    'password': 'Juniordog33!'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 # CSEA Regions 1-6 are duplicates of Local 1000 (CSEA main)

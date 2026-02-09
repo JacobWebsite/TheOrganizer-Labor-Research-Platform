@@ -1,3 +1,4 @@
+import os
 """
 NLRB Data Loader
 Loads NLRB case data from SQLite to PostgreSQL
@@ -17,7 +18,7 @@ PG_CONFIG = {
     'port': 5432,
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 BATCH_SIZE = 10000
 

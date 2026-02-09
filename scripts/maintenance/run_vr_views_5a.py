@@ -1,3 +1,4 @@
+import os
 """
 Run VR Views 5A SQL
 """
@@ -7,7 +8,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 conn.autocommit = True
 cur = conn.cursor()

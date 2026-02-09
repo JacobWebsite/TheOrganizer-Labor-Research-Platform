@@ -13,11 +13,11 @@ csv.field_size_limit(sys.maxsize)
 
 # Configuration
 DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'olms_multiyear',
-    'user': 'postgres',
-    'password': 'Juniordog33!',
-    'sslmode': 'disable'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 OLMS_DIR = r"C:\Users\jakew\Downloads\Claude Ai union project\OLMS"

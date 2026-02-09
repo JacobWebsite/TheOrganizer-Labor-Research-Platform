@@ -1,9 +1,10 @@
+import os
 """Show which known unions are linked to null-fnum employers via relations table."""
 import psycopg2
 
 conn = psycopg2.connect(
     host='localhost', dbname='olms_multiyear',
-    user='postgres', password='Juniordog33!'
+    user='postgres', password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

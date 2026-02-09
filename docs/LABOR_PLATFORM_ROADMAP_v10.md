@@ -323,7 +323,7 @@ psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='<password in .env file>'
 )
 ```
 

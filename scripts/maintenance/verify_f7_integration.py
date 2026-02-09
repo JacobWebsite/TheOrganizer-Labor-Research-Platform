@@ -1,3 +1,4 @@
+import os
 """Final verification of F-7 data integration"""
 import psycopg2
 
@@ -5,7 +6,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 conn = psycopg2.connect(**PG_CONFIG)

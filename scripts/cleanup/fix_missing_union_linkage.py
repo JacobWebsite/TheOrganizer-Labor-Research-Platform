@@ -1,3 +1,4 @@
+import os
 """
 Fix employers with NULL latest_union_fnum by:
 1. Auto-fix from f7_union_employer_relations (330 employers)
@@ -17,7 +18,7 @@ DRY_RUN = '--apply' not in sys.argv
 
 conn = psycopg2.connect(
     host='localhost', dbname='olms_multiyear',
-    user='postgres', password='Juniordog33!'
+    user='postgres', password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

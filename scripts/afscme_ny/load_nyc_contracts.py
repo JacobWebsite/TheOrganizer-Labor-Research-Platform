@@ -1,3 +1,4 @@
+import os
 """
 Load NYC Contract Awards from Checkbook NYC API
 Source: https://www.checkbooknyc.com/api
@@ -37,7 +38,7 @@ def get_db_connection():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 

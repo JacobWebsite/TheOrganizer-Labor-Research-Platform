@@ -1,3 +1,4 @@
+import os
 """Update state_coverage_comparison with deduplicated F7 private sector counts"""
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -6,7 +7,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

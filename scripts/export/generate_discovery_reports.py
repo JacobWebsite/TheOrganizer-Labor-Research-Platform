@@ -1,3 +1,4 @@
+import os
 """Generate output files for Union Discovery 2024"""
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -8,7 +9,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

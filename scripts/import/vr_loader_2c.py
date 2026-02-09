@@ -1,3 +1,4 @@
+import os
 """
 VR Data Loader - Checkpoint 2C
 Final verification and report generation
@@ -9,7 +10,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

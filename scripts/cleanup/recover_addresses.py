@@ -1,3 +1,4 @@
+import os
 """
 Recover missing street addresses for f7_employers_deduped from lm_data historical filings.
 
@@ -22,7 +23,7 @@ def get_connection():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 

@@ -1,3 +1,4 @@
+import os
 """
 OSHA Phase 6.6: Fuzzy Matching with Prefix Prefilter
 Uses first 3 chars to prefilter before applying expensive similarity
@@ -10,7 +11,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 def main():

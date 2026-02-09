@@ -7,13 +7,15 @@ import psycopg2
 import csv
 from collections import defaultdict
 from datetime import datetime
+import os
 
 # Database connection
 DB_CONFIG = {
-    'host': 'localhost',
-    'dbname': 'olms_multiyear',
-    'user': 'postgres',
-    'password': 'Juniordog33!'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 

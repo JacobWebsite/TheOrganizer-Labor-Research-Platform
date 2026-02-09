@@ -1,3 +1,4 @@
+import os
 """
 CHECKPOINT 2: Load FLRA Federal Bargaining Unit Data
 FIXED: Use auto-generated ID since source ID is per-agency, not per-unit
@@ -11,7 +12,7 @@ conn = psycopg2.connect(
     host="localhost",
     dbname="olms_multiyear",
     user="postgres",
-    password="Juniordog33!"
+    password="os.environ.get('DB_PASSWORD', '')"
 )
 conn.autocommit = True
 cur = conn.cursor()

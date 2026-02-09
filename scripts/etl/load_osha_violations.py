@@ -1,3 +1,4 @@
+import os
 """
 OSHA Phase 4: Load Violation Details (2012+)
 Extracts 2.2M violations from SQLite and loads into PostgreSQL
@@ -15,7 +16,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 BATCH_SIZE = 50000
 START_DATE = '2012-01-01'

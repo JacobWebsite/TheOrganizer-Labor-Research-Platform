@@ -1,3 +1,4 @@
+import os
 """
 SEIU Locals Comparison Script
 Fetches SEIU's official list of locals from their API and compares to OLMS database.
@@ -83,7 +84,7 @@ def fetch_olms_seiu_locals(include_workers_united=True):
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
     if include_workers_united:

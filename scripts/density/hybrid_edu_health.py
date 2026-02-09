@@ -1,3 +1,4 @@
+import os
 """
 Hybrid approach: Industry-weighted for 10 industries, state rate for edu/health.
 
@@ -15,7 +16,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

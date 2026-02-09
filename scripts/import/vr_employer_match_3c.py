@@ -1,3 +1,4 @@
+import os
 """
 VR Employer Matching - Checkpoint 3C
 Verification and match quality report
@@ -11,7 +12,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

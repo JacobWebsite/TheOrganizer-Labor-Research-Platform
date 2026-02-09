@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 # Import name normalizer for Phase 2
 from name_normalizer import normalize_employer, normalize_union
+import os
 
 app = FastAPI(
     title="Labor Relations Research API", 
@@ -27,11 +28,11 @@ app.add_middleware(
 )
 
 DB_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'database': 'olms_multiyear',
-    'user': 'postgres',
-    'password': 'Juniordog33!'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 def get_db():

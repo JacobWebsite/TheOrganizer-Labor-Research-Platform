@@ -1,3 +1,4 @@
+import os
 """
 NLRB Participant Matching - Phase 2: Analyze Unmatched Records
 ==============================================================
@@ -14,7 +15,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

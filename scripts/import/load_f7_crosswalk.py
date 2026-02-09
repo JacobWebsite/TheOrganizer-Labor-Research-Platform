@@ -1,3 +1,4 @@
+import os
 """
 Load F-7 Employers and Crosswalk data from SQLite into PostgreSQL
 Database: olms_multiyear
@@ -13,7 +14,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 F7_DB = r'C:\Users\jakew\Downloads\labor-data-project\data\f7\employers_deduped.db'

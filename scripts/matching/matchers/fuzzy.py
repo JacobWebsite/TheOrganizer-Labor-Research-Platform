@@ -1,7 +1,9 @@
 """
 Fuzzy matching implementation (Tier 5).
 
-Uses PostgreSQL pg_trgm extension for trigram-based fuzzy matching.
+Uses PostgreSQL pg_trgm extension for trigram-based candidate retrieval,
+with RapidFuzz composite scoring for final match selection.
+Falls back to RapidFuzz-only matching if pg_trgm is unavailable.
 """
 
 from typing import Optional, List, Dict, Any
@@ -9,13 +11,46 @@ from .base import BaseMatcher, MatchResult
 from ..config import TIER_FUZZY, DEFAULT_FUZZY_THRESHOLD
 from ..normalizer import normalize_employer_name
 
+try:
+    from rapidfuzz import fuzz
+    from rapidfuzz.distance import JaroWinkler
+    from rapidfuzz import process as rf_process
+    HAS_RAPIDFUZZ = True
+except ImportError:
+    HAS_RAPIDFUZZ = False
+
+
+def _composite_score(source: str, target: str) -> float:
+    """
+    Compute a composite similarity score using multiple RapidFuzz algorithms.
+
+    Weights:
+      0.35 × Jaro-Winkler  (good for transposed chars, prefix emphasis)
+      0.35 × token_set_ratio (handles word reordering, subset matching)
+      0.30 × fuzz.ratio (standard Levenshtein-based)
+
+    Returns float 0.0-1.0.
+    """
+    if not HAS_RAPIDFUZZ:
+        from difflib import SequenceMatcher
+        return SequenceMatcher(None, source, target).ratio()
+
+    jw = JaroWinkler.similarity(source, target)
+    tsr = fuzz.token_set_ratio(source, target) / 100.0
+    ratio = fuzz.ratio(source, target) / 100.0
+    return 0.35 * jw + 0.35 * tsr + 0.30 * ratio
+
 
 class TrigramMatcher(BaseMatcher):
     """
-    Tier 4: Fuzzy trigram matching using pg_trgm.
+    Tier 5: Fuzzy matching using pg_trgm candidate retrieval + RapidFuzz re-scoring.
 
-    Uses PostgreSQL's pg_trgm extension for similarity matching.
-    Falls back to Python difflib if pg_trgm is unavailable.
+    Workflow:
+    1. pg_trgm retrieves top-5 candidates above a lower threshold
+    2. RapidFuzz composite score re-ranks candidates
+    3. Best composite score above the final threshold is returned
+
+    Falls back to RapidFuzz batch matching if pg_trgm is unavailable.
     """
 
     def __init__(self, conn, config, threshold: float = None):
@@ -42,7 +77,7 @@ class TrigramMatcher(BaseMatcher):
               city: Optional[str] = None,
               ein: Optional[str] = None,
               address: Optional[str] = None) -> Optional[MatchResult]:
-        """Match by fuzzy trigram similarity."""
+        """Match by fuzzy similarity."""
         if not source_name:
             return None
 
@@ -50,16 +85,19 @@ class TrigramMatcher(BaseMatcher):
         if len(normalized) < 4:  # Trigrams need at least 3 chars
             return None
 
-        cfg = self.config
-
         if self._check_pg_trgm():
             return self._match_with_pg_trgm(source_id, source_name, normalized, state)
         else:
-            return self._match_with_difflib(source_id, source_name, normalized, state)
+            return self._match_with_rapidfuzz(source_id, source_name, normalized, state)
 
     def _match_with_pg_trgm(self, source_id: Any, source_name: str,
                             normalized: str, state: Optional[str]) -> Optional[MatchResult]:
-        """Match using PostgreSQL pg_trgm."""
+        """
+        Hybrid matching: pg_trgm for candidate retrieval, RapidFuzz for re-scoring.
+
+        Fetches top 5 candidates from PostgreSQL, then picks the best
+        composite score above threshold.
+        """
         cfg = self.config
         cursor = self.conn.cursor()
 
@@ -75,16 +113,19 @@ class TrigramMatcher(BaseMatcher):
                 )))
             """
 
-        # Use named parameters to avoid issues with % operator in pg_trgm
+        # Use a lower pg_trgm threshold for candidate retrieval (cast wider net)
+        retrieval_threshold = max(self.threshold - 0.15, 0.3)
+
         query = f"""
             SELECT
                 {cfg.target_id_col},
                 {cfg.target_name_col},
+                {name_col} as target_normalized,
                 similarity({name_col}, %(term)s) as sim
             FROM {cfg.target_table}
             WHERE similarity({name_col}, %(term)s) >= %(threshold)s
         """
-        params = {"term": normalized, "threshold": self.threshold}
+        params = {"term": normalized, "threshold": retrieval_threshold}
 
         # State filter
         if cfg.require_state_match and state and cfg.target_state_col:
@@ -94,28 +135,48 @@ class TrigramMatcher(BaseMatcher):
         if cfg.target_filter:
             query += f" AND ({cfg.target_filter})"
 
-        query += f"""
+        query += """
             ORDER BY sim DESC
-            LIMIT 1
+            LIMIT 5
         """
 
         try:
             cursor.execute(query, params)
-            row = cursor.fetchone()
+            candidates = cursor.fetchall()
 
-            if row:
-                target_id, target_name, similarity = row
+            if not candidates:
+                return None
+
+            # Re-score with RapidFuzz composite
+            best_result = None
+            best_composite = 0.0
+
+            for target_id, target_name, target_norm, pg_sim in candidates:
+                if not target_norm:
+                    target_norm = normalize_employer_name(target_name, "fuzzy")
+
+                composite = _composite_score(normalized, target_norm)
+
+                if composite > best_composite and composite >= self.threshold:
+                    best_composite = composite
+                    best_result = (target_id, target_name, target_norm, pg_sim, composite)
+
+            if best_result:
+                target_id, target_name, target_norm, pg_sim, composite = best_result
+                method = "pg_trgm+rapidfuzz" if HAS_RAPIDFUZZ else "pg_trgm+difflib"
                 return self._create_result(
                     source_id=source_id,
                     source_name=source_name,
                     target_id=target_id,
                     target_name=target_name,
-                    score=float(similarity),
+                    score=float(composite),
                     metadata={
                         "normalized": normalized,
-                        "similarity": round(float(similarity), 4),
+                        "pg_trgm_similarity": round(float(pg_sim), 4),
+                        "composite_score": round(float(composite), 4),
                         "state": state,
-                        "method": "pg_trgm"
+                        "method": method,
+                        "candidates_evaluated": len(candidates),
                     }
                 )
         except Exception as e:
@@ -124,11 +185,9 @@ class TrigramMatcher(BaseMatcher):
 
         return None
 
-    def _match_with_difflib(self, source_id: Any, source_name: str,
-                            normalized: str, state: Optional[str]) -> Optional[MatchResult]:
-        """Fallback matching using Python difflib."""
-        from difflib import SequenceMatcher
-
+    def _match_with_rapidfuzz(self, source_id: Any, source_name: str,
+                              normalized: str, state: Optional[str]) -> Optional[MatchResult]:
+        """Fallback matching using RapidFuzz (no pg_trgm available)."""
         cfg = self.config
         cursor = self.conn.cursor()
 
@@ -151,24 +210,57 @@ class TrigramMatcher(BaseMatcher):
         query += " LIMIT 10000"
 
         cursor.execute(query, params)
+        rows = cursor.fetchall()
 
+        if not rows:
+            return None
+
+        # Build lookup for RapidFuzz batch processing
         best_match = None
         best_score = 0.0
 
-        for row in cursor.fetchall():
-            target_id, target_name = row
-            target_normalized = normalize_employer_name(target_name, "fuzzy")
+        if HAS_RAPIDFUZZ:
+            # Build target dict for fast lookup
+            targets = {}
+            for target_id, target_name in rows:
+                target_norm = normalize_employer_name(target_name, "fuzzy")
+                if len(target_norm) >= 4:
+                    targets[target_id] = (target_name, target_norm)
 
-            if len(target_normalized) < 4:
-                continue
+            if not targets:
+                return None
 
-            score = SequenceMatcher(None, normalized, target_normalized).ratio()
+            # Use RapidFuzz process.extractOne for fast nearest-neighbor
+            choices = {tid: tn for tid, (_, tn) in targets.items()}
+            result = rf_process.extractOne(
+                normalized, choices,
+                scorer=fuzz.token_set_ratio,
+                score_cutoff=self.threshold * 100
+            )
 
-            if score > best_score and score >= self.threshold:
-                best_score = score
-                best_match = (target_id, target_name)
+            if result:
+                match_norm, raw_score, matched_id = result
+                # Re-score with full composite
+                target_name, target_norm = targets[matched_id]
+                composite = _composite_score(normalized, target_norm)
+
+                if composite >= self.threshold:
+                    best_match = (matched_id, target_name)
+                    best_score = composite
+        else:
+            # Pure difflib fallback (slowest path)
+            from difflib import SequenceMatcher
+            for target_id, target_name in rows:
+                target_norm = normalize_employer_name(target_name, "fuzzy")
+                if len(target_norm) < 4:
+                    continue
+                score = SequenceMatcher(None, normalized, target_norm).ratio()
+                if score > best_score and score >= self.threshold:
+                    best_score = score
+                    best_match = (target_id, target_name)
 
         if best_match:
+            method = "rapidfuzz" if HAS_RAPIDFUZZ else "difflib"
             return self._create_result(
                 source_id=source_id,
                 source_name=source_name,
@@ -177,9 +269,9 @@ class TrigramMatcher(BaseMatcher):
                 score=best_score,
                 metadata={
                     "normalized": normalized,
-                    "similarity": round(best_score, 4),
+                    "composite_score": round(best_score, 4),
                     "state": state,
-                    "method": "difflib"
+                    "method": method,
                 }
             )
 
@@ -191,10 +283,8 @@ class TrigramMatcher(BaseMatcher):
         cfg = self.config
 
         if self._check_pg_trgm():
-            # With pg_trgm, we can do efficient batch queries
             return self._batch_match_pg_trgm(source_records)
         else:
-            # Without pg_trgm, process one at a time
             for r in source_records:
                 result = self.match(
                     source_id=r.get(cfg.source_id_col),
@@ -208,80 +298,28 @@ class TrigramMatcher(BaseMatcher):
         return results
 
     def _batch_match_pg_trgm(self, source_records: List[Dict]) -> List[MatchResult]:
-        """Batch fuzzy matching with pg_trgm."""
+        """Batch fuzzy matching with pg_trgm + RapidFuzz re-scoring."""
         results = []
         cfg = self.config
-        cursor = self.conn.cursor()
 
-        # Group by state for efficient querying
-        by_state: Dict[str, List[Dict]] = {}
         for r in source_records:
-            state = r.get(cfg.source_state_col, "") if cfg.require_state_match else ""
-            if state not in by_state:
-                by_state[state] = []
-            by_state[state].append(r)
+            name = r.get(cfg.source_name_col)
+            if not name:
+                continue
 
-        # Use normalized column if available
-        if cfg.target_normalized_col:
-            name_col = cfg.target_normalized_col
-        else:
-            name_col = f"""
-                LOWER(TRIM(REGEXP_REPLACE(
-                    REGEXP_REPLACE({cfg.target_name_col},
-                        E'\\\\b(inc|incorporated|corp|corporation|llc|llp|ltd|limited|co|company)\\\\b\\\\.?', '', 'gi'),
-                    E'[^\\\\w\\\\s]', ' ', 'g'
-                )))
-            """
+            normalized = normalize_employer_name(name, "fuzzy")
+            if len(normalized) < 4:
+                continue
 
-        for state, records in by_state.items():
-            for r in records:
-                name = r.get(cfg.source_name_col)
-                if not name:
-                    continue
+            state = r.get(cfg.source_state_col) if cfg.require_state_match else None
 
-                normalized = normalize_employer_name(name, "fuzzy")
-                if len(normalized) < 4:
-                    continue
-
-                # Use named parameters to avoid issues with % operator
-                query = f"""
-                    SELECT
-                        {cfg.target_id_col},
-                        {cfg.target_name_col},
-                        similarity({name_col}, %(term)s) as sim
-                    FROM {cfg.target_table}
-                    WHERE similarity({name_col}, %(term)s) >= %(threshold)s
-                """
-                params = {"term": normalized, "threshold": self.threshold}
-
-                if state and cfg.target_state_col:
-                    query += f" AND UPPER({cfg.target_state_col}) = UPPER(%(state)s)"
-                    params["state"] = state
-
-                if cfg.target_filter:
-                    query += f" AND ({cfg.target_filter})"
-
-                query += f"""
-                    ORDER BY sim DESC
-                    LIMIT 1
-                """
-
-                cursor.execute(query, params)
-                row = cursor.fetchone()
-
-                if row:
-                    target_id, target_name, similarity = row
-                    results.append(self._create_result(
-                        source_id=r.get(cfg.source_id_col),
-                        source_name=name,
-                        target_id=target_id,
-                        target_name=target_name,
-                        score=float(similarity),
-                        metadata={
-                            "normalized": normalized,
-                            "similarity": round(float(similarity), 4),
-                            "method": "pg_trgm"
-                        }
-                    ))
+            result = self._match_with_pg_trgm(
+                source_id=r.get(cfg.source_id_col),
+                source_name=name,
+                normalized=normalized,
+                state=state,
+            )
+            if result:
+                results.append(result)
 
         return results

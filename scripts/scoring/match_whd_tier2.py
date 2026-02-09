@@ -1,3 +1,4 @@
+import os
 """
 Match WHD Tier 2 (name + state only) for F7 and Mergent employers.
 Runs AFTER match_whd_to_employers.py completed Tier 1 matching.
@@ -13,7 +14,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

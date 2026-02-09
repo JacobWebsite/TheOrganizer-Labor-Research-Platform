@@ -1,3 +1,4 @@
+import os
 """
 Agent D: Score/Priority & Defunct Status Audit - Phase 1 (Read-Only)
 Audits metadata consistency in mergent_employers and f7_employers_deduped
@@ -10,7 +11,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

@@ -1,3 +1,4 @@
+import os
 """
 VR Data Loader - Checkpoint 2A (Fixed)
 Parses voluntary_recognitions.csv and loads into PostgreSQL
@@ -14,7 +15,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 conn.autocommit = True  # Use autocommit to avoid transaction issues
 cur = conn.cursor()

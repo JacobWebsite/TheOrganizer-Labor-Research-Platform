@@ -34,7 +34,7 @@ def main():
         host='localhost',
         database='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
     cur = conn.cursor(cursor_factory=RealDictCursor)
 

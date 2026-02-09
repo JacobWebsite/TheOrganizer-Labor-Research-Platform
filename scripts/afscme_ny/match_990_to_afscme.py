@@ -1,3 +1,4 @@
+import os
 """
 Match 990 Employers to Existing AFSCME Unions in NY
 Uses EIN matching and fuzzy name matching to identify organized vs unorganized employers.
@@ -28,7 +29,7 @@ def get_db_connection():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 

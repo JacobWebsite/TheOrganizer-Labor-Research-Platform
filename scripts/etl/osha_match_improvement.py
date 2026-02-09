@@ -1,3 +1,4 @@
+import os
 """
 OSHA Match Improvement Script
 Improves F7-OSHA matching from ~32% to 50%+ using:
@@ -13,7 +14,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 # Street abbreviation mappings for normalization

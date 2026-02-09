@@ -17,7 +17,7 @@ def get_conn():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 def test_match(pipeline, name, state=None, city=None, ein=None, address=None):

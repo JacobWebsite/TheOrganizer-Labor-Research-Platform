@@ -1,3 +1,4 @@
+import os
 """
 Match NY State Contracts to 990 Employers
 Links contract vendors to employers for government funding exposure analysis.
@@ -26,7 +27,7 @@ def get_db_connection():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 

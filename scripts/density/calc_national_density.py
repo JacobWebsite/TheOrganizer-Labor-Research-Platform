@@ -1,3 +1,4 @@
+import os
 """Calculate population-weighted national union density by sector."""
 
 import psycopg2
@@ -22,7 +23,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

@@ -1,3 +1,4 @@
+import os
 """
 Form 990 Membership Estimation - Using Researched Per-Capita Rates
 Based on comprehensive research of union dues structures
@@ -18,7 +19,7 @@ conn = psycopg2.connect(
     host='localhost', 
     dbname='olms_multiyear', 
     user='postgres', 
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

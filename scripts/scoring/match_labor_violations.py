@@ -1,3 +1,4 @@
+import os
 """
 Match Mergent employers to NYC Comptroller labor violation data
 and calculate score_labor_violations
@@ -9,7 +10,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

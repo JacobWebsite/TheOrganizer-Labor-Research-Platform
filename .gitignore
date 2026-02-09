@@ -1,3 +1,10 @@
+# Environment
+.env
+
+# Backups
+*.sql.gz
+*.dump
+
 # Python
 __pycache__/
 *.py[cod]

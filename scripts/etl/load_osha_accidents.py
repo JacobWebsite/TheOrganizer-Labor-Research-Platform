@@ -1,3 +1,4 @@
+import os
 """
 OSHA Phase 5: Load Accidents & Fatalities (2012+)
 Extracts accident data from SQLite and loads into PostgreSQL
@@ -15,7 +16,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 BATCH_SIZE = 10000
 START_DATE = '2012-01-01'

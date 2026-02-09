@@ -1,3 +1,4 @@
+import os
 """
 Review 173 employers excluded with exclude_reason='OUTLIER_WORKER_COUNT' (1.6M workers).
 Some may be legitimately large bargaining units incorrectly excluded.
@@ -23,7 +24,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

@@ -31,10 +31,11 @@ import psycopg2.extras
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 DB_CONFIG = {
-    'host': 'localhost',
-    'dbname': 'olms_multiyear',
-    'user': 'postgres',
-    'password': 'Juniordog33!'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 # Legal suffixes to strip for normalization

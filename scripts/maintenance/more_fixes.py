@@ -1,9 +1,10 @@
+import os
 """
 More fixes for remaining UNKNOWN
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='Juniordog33!')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
 conn.autocommit = True
 cur = conn.cursor()
 

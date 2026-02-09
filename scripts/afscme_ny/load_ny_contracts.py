@@ -1,3 +1,4 @@
+import os
 """
 Load NY State Contract Awards from Excel export
 Source: Open Book New York - contracts after 01/01/2023
@@ -32,7 +33,7 @@ def get_db_connection():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
 
 

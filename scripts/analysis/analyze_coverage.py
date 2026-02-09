@@ -1,3 +1,4 @@
+import os
 """
 Private Sector Coverage Analysis
 Uses F7 employer counts with median unit sizes to estimate coverage.
@@ -10,7 +11,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

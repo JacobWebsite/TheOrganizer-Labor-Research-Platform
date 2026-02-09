@@ -1,3 +1,4 @@
+import os
 """
 Verify NY public sector union findings against the database.
 Checks existing coverage and identifies gaps.
@@ -12,7 +13,7 @@ def main():
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
     cur = conn.cursor()
 

@@ -1,3 +1,4 @@
+import os
 """
 Schedule 13 Membership Analysis - Checkpoint 3
 Calculate TRUE ACTIVE membership by national union
@@ -8,7 +9,7 @@ import pandas as pd
 
 conn = psycopg2.connect(
     host='localhost', port=5432, database='olms_multiyear',
-    user='postgres', password='Juniordog33!'
+    user='postgres', password='os.environ.get('DB_PASSWORD', '')'
 )
 
 print("="*80)

@@ -10,6 +10,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+try:
+    from cleanco import basename as cleanco_basename
+    HAS_CLEANCO = True
+except ImportError:
+    HAS_CLEANCO = False
+
 # Add parent paths to import existing normalizer
 sys.path.insert(0, str(Path(__file__).parent.parent / "import"))
 
@@ -115,15 +121,28 @@ def normalize_employer_name(name: str, level: str = "standard") -> str:
         raise ValueError(f"Unknown normalization level: {level}. Use 'standard', 'aggressive', or 'fuzzy'")
 
 
+def _strip_legal_suffixes(name: str) -> str:
+    """Strip legal suffixes using cleanco (80+ international types) then regex fallback."""
+    result = name
+    if HAS_CLEANCO:
+        result = cleanco_basename(result)
+    return result
+
+
 def _normalize_standard(name: str) -> str:
     """
     Standard normalization: lowercase, remove punctuation, strip legal suffixes.
+    Uses cleanco for international suffix stripping (GmbH, S.A., Pty Ltd, etc.)
+    before applying regex-based English suffix removal.
     """
     if HAS_NAME_NORMALIZER:
-        return normalize_employer(name, expand_abbrevs=False, remove_stopwords=False)
+        # Apply cleanco first for international suffixes, then existing normalizer
+        cleaned = _strip_legal_suffixes(name) if HAS_CLEANCO else name
+        return normalize_employer(cleaned, expand_abbrevs=False, remove_stopwords=False)
 
     # Fallback implementation
-    result = name.lower().strip()
+    result = _strip_legal_suffixes(name) if HAS_CLEANCO else name
+    result = result.lower().strip()
 
     # Remove punctuation except hyphens
     result = re.sub(r"[^\w\s\-]", " ", result)
@@ -143,10 +162,12 @@ def _normalize_aggressive(name: str) -> str:
     Aggressive normalization: expand abbreviations, remove stopwords.
     """
     if HAS_NAME_NORMALIZER:
-        return normalize_employer_aggressive(name)
+        cleaned = _strip_legal_suffixes(name) if HAS_CLEANCO else name
+        return normalize_employer_aggressive(cleaned)
 
     # Fallback implementation
-    result = name.lower().strip()
+    result = _strip_legal_suffixes(name) if HAS_CLEANCO else name
+    result = result.lower().strip()
 
     # Normalize common variations
     replacements = [

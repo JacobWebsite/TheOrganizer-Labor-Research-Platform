@@ -1,3 +1,4 @@
+import os
 """
 CHECKPOINT 5: Verification and Documentation
 Final validation and summary report for federal integration
@@ -9,7 +10,7 @@ conn = psycopg2.connect(
     host="localhost",
     dbname="olms_multiyear",
     user="postgres",
-    password="Juniordog33!"
+    password="os.environ.get('DB_PASSWORD', '')"
 )
 cur = conn.cursor()
 

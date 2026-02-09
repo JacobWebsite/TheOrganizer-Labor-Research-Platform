@@ -1,3 +1,4 @@
+import os
 """
 Union Discovery 2024 - Verification and Import Script
 Verifies discovered 2024 organizing events against the Labor Relations Platform database.
@@ -13,7 +14,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

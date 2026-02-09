@@ -1,3 +1,4 @@
+import os
 """
 CHECKPOINT 1: Execute Schema Creation - Run full SQL file
 """
@@ -7,7 +8,7 @@ conn = psycopg2.connect(
     host="localhost",
     dbname="olms_multiyear", 
     user="postgres",
-    password="Juniordog33!"
+    password="os.environ.get('DB_PASSWORD', '')"
 )
 conn.autocommit = True
 cur = conn.cursor()

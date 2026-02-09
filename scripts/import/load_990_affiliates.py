@@ -1,10 +1,11 @@
+import os
 """
 Form 990 State Affiliate Data Loader
 Loads extracted 990 data for state teacher affiliates
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='Juniordog33!')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
 cur = conn.cursor()
 
 # State affiliates data from ProPublica

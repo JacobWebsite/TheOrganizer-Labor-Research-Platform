@@ -1,3 +1,4 @@
+import os
 """
 OSHA Phase 6.6: Fuzzy Trigram Matching - Micro Batches
 Processes 200 establishments at a time to avoid timeouts
@@ -10,7 +11,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'Juniordog33!'
+    'password': 'os.environ.get('DB_PASSWORD', '')'
 }
 
 BATCH_SIZE = 200  # Very small batches

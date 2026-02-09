@@ -1,10 +1,11 @@
+import os
 """
 PROPER 990 VALIDATION FRAMEWORK
 Form 990 is used to VALIDATE and identify GAPS in OLMS data
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='Juniordog33!')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
 cur = conn.cursor()
 
 print("=" * 90)

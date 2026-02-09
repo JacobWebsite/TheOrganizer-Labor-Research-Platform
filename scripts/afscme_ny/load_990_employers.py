@@ -70,7 +70,7 @@ def load_990_employers_to_db(json_path: str, state_filter: str = 'NY'):
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='Juniordog33!'
+        password='os.environ.get('DB_PASSWORD', '')'
     )
     cur = conn.cursor()
 

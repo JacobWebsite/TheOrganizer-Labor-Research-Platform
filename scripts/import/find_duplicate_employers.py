@@ -1,3 +1,4 @@
+import os
 """
 Find potential duplicate employers using fuzzy name matching
 Optimized version with GIN indexes and chunked processing
@@ -11,7 +12,7 @@ conn = psycopg2.connect(
     host='localhost',
     database='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

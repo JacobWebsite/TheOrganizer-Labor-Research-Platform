@@ -1,3 +1,4 @@
+import os
 """
 Load NYC Comptroller Employer Violations Dashboard data into PostgreSQL
 Source: https://comptroller.nyc.gov/services/for-the-public/employer-violations-dashboard/
@@ -13,7 +14,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='Juniordog33!'
+    password='os.environ.get('DB_PASSWORD', '')'
 )
 cur = conn.cursor()
 

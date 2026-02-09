@@ -84,7 +84,7 @@ Then open `labor_search.html` in your browser.
 ```bash
 # Windows
 psql -U postgres -d olms_multiyear
-# Password: Juniordog33!
+# Password: <password in .env file>
 ```
 
 ### Key Tables/Views
