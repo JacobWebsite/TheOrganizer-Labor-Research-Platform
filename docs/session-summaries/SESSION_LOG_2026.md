@@ -2,6 +2,259 @@
 
 Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
+### 2026-02-08 (Phase 5: Data Integrity Sprint - Splink F7 Self-Dedup + Merge)
+**Tasks:** Use Splink probabilistic matching for F7 internal deduplication, execute graduated-confidence merges, link multi-location employer groups, run supporting integrity tasks
+
+**Splink F7 Self-Dedup:**
+- Added `f7_self_dedup` scenario to `splink_config.py`: dedupe_only mode, 6 comparisons (name JW, state exact, city Levenshtein, ZIP JW, NAICS exact+TF, street JW), 3 prediction blocking rules, 2 EM training rules
+- Added `load_self_dedup_data()` and `run_splink_dedup()` to `splink_pipeline.py` for single-DataFrame `Linker([df], settings)` mode
+- Ran on 62,100 records: 3.79M candidate pairs, ~21 minutes
+
+**Combined Evidence Rescoring:**
+- Created `splink_rescore_pairs.py`: joins pg_trgm pairs (11,815) with Splink results (3.79M) for combined-evidence classification
+- Classification tiers: AUTO_MERGE, SPLINK_CONFIRMED, NEW_MATCH, LIKELY_DUPLICATE, MULTI_LOCATION, PGTRGM_ONLY_HIGH/LOW, GEO_ONLY, LOW_CONFIDENCE
+- Critical fix: name_level >= 3 for NEW_MATCH produced 3.77M false positives (geographic noise). Raised to name_level >= 4 (JW >= 0.88) -- reduced to 262 legitimate pairs
+
+**Merge Execution (graduated confidence):**
+| Batch | Pairs | Merged | Errors | Notes |
+|-------|-------|--------|--------|-------|
+| TRUE_DUPLICATE | 234 groups | 0 | 0 | Already done in prior session |
+| SPLINK_CONFIRMED | 1,079 | 967 | 0 | pg_trgm 0.8-0.9 + Splink >= 0.85 |
+| NEW_MATCH | 262 | 243 | 0 | Splink-only discoveries, name_level >= 4 |
+| **Total** | **1,575** | **1,210** | **0** | |
+
+- First SPLINK_CONFIRMED attempt failed: crosswalk used `gleif_lei` not `lei`, no `usaspending_uei` column. Fixed and re-ran successfully.
+- Employer count: 62,163 -> 60,953 (-1,210)
+
+**Multi-Location Linking:**
+- Created `link_multi_location.py`: adds `corporate_parent_id` column, uses union-find for group building
+- MULTI_LOCATION classification never triggered (Splink threshold 0.70 means pairs below 0.50 never returned). Fixed by detecting multi-location pattern directly: pg_trgm >= 0.8 + different cities
+- Result: 969 employers in 459 groups linked via corporate_parent_id (NO deletes, NO FK changes)
+
+**Crosswalk & Post-Merge:**
+- Added crosswalk update step to `merge_f7_enhanced.py`: COALESCE identifiers from deleted into keeper row, then DELETE orphan
+- Added crosswalk orphan check to `post_merge_refresh.py`: found 4,964 orphans, auto-fixed 589 via merge log
+- BLS coverage: 90.4% (within 90-110% PASS range)
+
+**Supporting Integrity Tasks (Step 7):**
+- Union hierarchy audit: 2,104 orphan locals found + flagged
+- Sector contamination check: ran successfully
+- Geocoding: 35 PO Box centroid records applied (Census API intermittent on batch 1)
+- Final validation: 8/8 PASS, 0 orphan references
+
+**Scripts Created/Modified:**
+| File | Action |
+|------|--------|
+| `scripts/matching/splink_config.py` | Modified: added F7_SELF_DEDUP scenario |
+| `scripts/matching/splink_pipeline.py` | Modified: added dedupe_only branch |
+| `scripts/cleanup/splink_rescore_pairs.py` | **Created**: pg_trgm + Splink evidence join |
+| `scripts/cleanup/merge_f7_enhanced.py` | Modified: added crosswalk update + `--source combined` |
+| `scripts/cleanup/link_multi_location.py` | **Created**: corporate_parent_id linking |
+| `scripts/cleanup/post_merge_refresh.py` | Modified: added crosswalk orphan check |
+
+**Key Lessons:**
+- name_level >= 4 (JW >= 0.88) required for Splink-only NEW_MATCH; level 3 only safe with pg_trgm cross-confirmation
+- 99%+ of Splink self-dedup pairs are geographic noise (same city/zip, different employers)
+- Crosswalk table uses `gleif_lei` (not `lei`), has no `usaspending_uei` column
+- MULTI_LOCATION classification requires fallback detection since Splink threshold (0.70) prevents low-prob pairs from being returned
+
+**Status:** Data Integrity Sprint complete. F7 employers: 60,953. 1,210 merges (0 errors). 459 multi-location groups linked. Validation 8/8 PASS. BLS coverage 90.4%.
+
+---
+
+### 2026-02-08 (Phase 3: QCEW + USASpending Data Expansion)
+**Tasks:** Integrate BLS QCEW industry density data and USASpending federal contract recipients
+
+**QCEW Integration:**
+- Downloaded 4 years of BLS QCEW annual data (2020-2023): 302 MB, 1,943,426 rows
+- Created `qcew_industry_density` table: 7,143 state-level NAICS density aggregations
+- Built NAICS mapping to handle QCEW hyphenated codes (e.g., "31-33" Manufacturing, "44-45" Retail, "48-49" Transport)
+- Created `f7_industry_scores`: 121,433 rows, 97.5% matched to QCEW (118,346 of 121,433)
+- All F7 NAICS codes are 2-digit; matched to QCEW level 74 (county-level NAICS sector)
+- Top industry: NAICS 62 (Healthcare) with avg 123,820 establishments/state, avg pay $46,540
+
+**USASpending Integration:**
+- Bulk download API returned 403 Forbidden; fell back to paginated search API
+- Fetched 418,289 FY2024 contract awards across 51 states (~50 min total)
+- Extracted 47,193 unique federal contract recipients (100% with UEI)
+- Key finding: USASpending has NO EIN (tax-sensitive data) -- the F7->USASpending->EIN bridge won't work
+- Exact name+state matching: 2,283 F7 employers identified as federal contractors
+- Fuzzy name+state matching (pg_trgm >= 0.55): 7,022 additional matches
+- Total F7 federal contractors identified: 9,305
+
+**Federal Contractor Scoring (0-15 pts):**
+| Score | Criteria | Count |
+|-------|----------|-------|
+| 15 | $10M+ obligations | 2,651 |
+| 12 | $1M-$10M | 2,455 |
+| 9 | $100K-$1M | 2,567 |
+| 6 | $10K-$100K | 1,548 |
+| 3 | Any contract | 77 |
+
+**Crosswalk Growth (cumulative):**
+| Phase | Total | Change |
+|-------|-------|--------|
+| After Splink (Phase 2) | 5,772 | - |
+| **After USASpending (Phase 3)** | **14,561** | **+152%** |
+
+**New crosswalk tiers added:**
+- USASPENDING_EXACT_NAME_STATE: 1,994
+- USASPENDING_FUZZY_NAME_STATE: 6,795
+
+**Scripts Created:**
+- `scripts/etl/fetch_qcew.py` -- Download BLS QCEW annual data
+- `scripts/etl/_integrate_qcew.py` -- QCEW industry density scoring for F7
+- `scripts/etl/_fetch_usaspending_api.py` -- Paginated USASpending API fetch
+- `scripts/etl/_match_usaspending.py` -- USASpending-to-F7 matching and crosswalk integration
+
+**Status:** Phase 3 complete. Crosswalk at 14,561 rows (+383% from initial 3,010 baseline). 9,305 F7 employers identified as federal contractors with scoring.
+
+---
+
+### 2026-02-08 (Phase 2: Splink Probabilistic Matching)
+**Tasks:** Integrate Splink 4.0.12 for probabilistic record linkage on unmatched employer records
+
+**Setup:**
+- Installed Splink 4.0.12 with DuckDB 1.4.4 backend
+- Created `splink_config.py` with scenario definitions (comparisons, blocking rules)
+- Created `splink_pipeline.py` with full EM training + prediction pipeline
+- Created `splink_integrate.py` for quality filtering and crosswalk integration
+
+**Scenario 1: Mergent -> F7 (54K x 60K)**
+- Blocking: state + 3-char name prefix (704K pairs from 378M, 99.8% reduction)
+- EM training: 2 passes (state+city, 5-char name prefix), converged in 25 iterations each
+- Prediction: 1.97M candidate pairs above 0.70 threshold in 23s
+- Quality filter: prob >= 0.85 AND Jaro-Winkler name >= 0.88 (level 3+)
+- 1:1 deduplication (best per source AND target)
+- **Result: 947 auto-accept + 307 needs_review**
+- Total time: 11 minutes
+
+**Scenario 2: GLEIF -> F7 (376K x 59K)**
+- Much cleaner results: only 2,628 candidates above 0.70
+- **Result: 605 auto-accept** (all name_level >= 3)
+- Total time: 90 seconds
+
+**Crosswalk Growth (cumulative):**
+| Phase | Total | Mergent | F7 | GLEIF | SEC |
+|-------|-------|---------|-----|-------|-----|
+| Before cleanco | 3,010 | 1,737 | 1,253 | 1,332 | 1,926 |
+| After cleanco | 4,220 | 2,414 | 1,820 | 2,659 | 1,948 |
+| **After Splink** | **5,772** | **3,361** | **3,372** | **3,264** | **1,948** |
+| Growth | **+91.8%** | **+93.5%** | **+169%** | **+145%** | +1.1% |
+
+**Key Design Decisions:**
+- DuckDB backend (not PostgreSQL) -- Splink 4.x default, handles 300K+ records in memory fine
+- Name comparison level filter (JW >= 0.88) critical for quality -- without it, geographic overlaps dominate
+- 1:1 deduplication mandatory -- raw Splink returns many-to-many (avg 46 targets per source before dedup)
+- EM training uses separate blocking rules from prediction (required by Splink to estimate all parameters)
+
+**Scripts Created:**
+- `scripts/matching/splink_config.py` -- Scenario settings, comparisons, blocking rules
+- `scripts/matching/splink_pipeline.py` -- Full pipeline: load -> train -> predict -> save
+- `scripts/matching/splink_integrate.py` -- Quality filter + crosswalk integration
+
+**Status:** Phase 2 complete. Crosswalk at 5,772 rows (+91.8% from baseline). Next: Phase 3 (QCEW/USASpending data expansion).
+
+---
+
+### 2026-02-08 (Phase 1: RapidFuzz + cleanco Integration)
+**Tasks:** Integrate RapidFuzz and cleanco libraries, rebuild crosswalk with improved normalization
+
+**Libraries Installed:** RapidFuzz (already present), cleanco (new)
+
+**Changes Made:**
+- `scripts/matching/normalizer.py`: Added cleanco `basename()` call at start of `_normalize_standard()` and `_normalize_aggressive()` — strips 80+ international legal suffixes (GmbH, S.A., Pty Ltd, AG, NV, BV, AB, ApS)
+- `scripts/matching/matchers/fuzzy.py`: Replaced difflib with RapidFuzz composite scoring (0.35 x Jaro-Winkler + 0.35 x token_set_ratio + 0.30 x fuzz.ratio). pg_trgm now fetches top-5 candidates for re-scoring instead of top-1.
+- `scripts/etl/update_normalization.py`: Batch-updated 379K GLEIF + 517K SEC `name_normalized` columns with cleanco (283s total)
+
+**Crosswalk Rebuild Results (Before -> After cleanco):**
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Total crosswalk | 3,010 | **4,220** | **+1,210 (+40.2%)** |
+| GLEIF linked | 1,332 | **2,659** | **+1,327 (+99.6%)** |
+| Mergent linked | 1,737 | **2,414** | +677 (+39.0%) |
+| F7 linked | 1,253 | **1,820** | +567 (+45.3%) |
+| SEC linked | 1,926 | 1,948 | +22 |
+| 3+ sources | 224 | **396** | +172 |
+
+**Key Insight:** cleanco nearly doubled GLEIF matches — international suffixes were the main blocker for GLEIF name+state joins. Far exceeded plan estimate of 3,200-3,400.
+
+**Status:** Phase 1 complete. RapidFuzz fuzzy scoring ready for matching runs. Crosswalk rebuilt.
+
+---
+
+### 2026-02-08 (GLEIF Load + Corporate Crosswalk)
+**Tasks:** Load GLEIF/Open Ownership data, build corporate identifier crosswalk and hierarchy
+
+**Phase 1: GLEIF Data Load**
+- Previous session (2026-02-07) had loaded SEC EDGAR (`sec_companies`: 517,403 rows) and restored GLEIF pgdump into `gleif` schema (52.7M rows across 9 tables)
+- The US entity extraction query (`INSERT INTO gleif_us_entities`) had been running for 13+ hours, stuck on a correlated LEI subquery — 0 rows written, 12GB temp files spilled
+- Killed PID 49932 and rewrote as optimized 2-step:
+  1. INSERT entities without LEI (JOIN + DISTINCT ON) — 379,113 rows in 20s
+  2. UPDATE LEI via indexed JOIN — 379,192 rows in 11s
+- Total: **40 seconds** vs 13+ hours stuck
+- Added `statementid` column (UUID) to `gleif_us_entities` for ownership link joins
+
+**Key Discovery:** GLEIF `ooc_statement` references entities via `statementid` (UUID), NOT `_link` (numeric row ID). Initial ownership link extraction returned 0 rows due to this mismatch. Fixed by adding statementid column and joining through it.
+
+**Phase 1 Results:**
+| Table | Records |
+|-------|---------|
+| `gleif_us_entities` | 379,192 (100% with LEI, 51 states) |
+| `gleif_ownership_links` | 498,963 |
+
+**Ownership Link Breakdown:**
+| Type | Count |
+|------|-------|
+| Both US | 116,521 |
+| Parent US only | 24,843 |
+| Child US only | 357,599 |
+| Direct | 173,332 |
+| Indirect | 171,557 |
+| Unknown | 154,074 |
+
+**Phase 2: Corporate Identifier Crosswalk**
+- Created `corporate_identifier_crosswalk` table with 3-tier matching:
+
+| Tier | Method | Matches | Confidence |
+|------|--------|---------|------------|
+| 1 | EIN exact (SEC↔Mergent) | 1,127 | HIGH |
+| 2 | LEI exact (SEC↔GLEIF) | 84 | HIGH |
+| 3a | Name+State (SEC↔F7) | 670 | MEDIUM |
+| 3b | Name+State (GLEIF↔F7) | 583 new + 82 updated | MEDIUM |
+| 3c | Name+State (GLEIF↔Mergent) | 546 new + 35 updated | MEDIUM |
+| 3d | Name+State backfill (SEC↔Mergent) | 45 updated | MEDIUM |
+| 3e | Name+State backfill (Mergent↔F7) | 64 updated | MEDIUM |
+
+**Crosswalk Results:** 3,010 rows total
+- SEC linked: 1,926 | GLEIF: 1,332 | Mergent: 1,737 | F7: 1,253
+- Public companies: 351 | 3+ sources: 224 | All 4 sources: 4
+
+**Phase 3: Corporate Hierarchy**
+- Built `corporate_hierarchy` from GLEIF ownership + Mergent parent_duns:
+
+| Source | Links |
+|--------|-------|
+| GLEIF ownership (both-US) | 116,525 |
+| Mergent parent_duns | 7,401 |
+| Mergent domestic_parent | 1,185 |
+| **Total** | **125,111** |
+
+- 13,929 distinct parents, 54,924 distinct children, 94 children linked to F7
+
+**Sample hierarchies:** CBRE Group → CBRE Capital Markets, Ameren Corp → Ameren Illinois, AEP → Indiana Michigan Power, Bloomberg LP → Bloomberg Inc, Amalgamated Financial → Amalgamated Bank
+
+**Scripts Created:**
+- `scripts/etl/extract_gleif_us_optimized.py` — Optimized 2-step US extraction
+- `scripts/etl/build_crosswalk.py` — Full crosswalk + hierarchy builder
+
+**Performance Notes:**
+- Composite indexes on (name_normalized, state) across all 4 tables essential for name+state joins
+- All Tier 3 name+state matches completed in <1s each thanks to indexes
+- GLEIF ownership extraction: 56s for 499K links
+
+**Status:** Complete. CLAUDE.md updated with new tables, API endpoints, features, and gotchas.
+
 ### 2026-02-06 (Union Discovery Pipeline)
 **Tasks:** Discover organizing events missing from database, cross-check against existing tables, insert genuinely new records
 
