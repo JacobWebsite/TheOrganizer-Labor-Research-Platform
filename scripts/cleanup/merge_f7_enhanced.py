@@ -14,6 +14,7 @@ Downstream tables updated:
   - nlrb_participants             (matched_employer_id)
   - osha_f7_matches              (f7_employer_id) -- with conflict handling
   - mergent_employers            (matched_f7_employer_id)
+  - corporate_identifier_crosswalk (f7_employer_id) -- COALESCE or re-point
 
 Usage:
     python scripts/cleanup/merge_f7_enhanced.py                      # DRY RUN (default)
@@ -36,6 +37,17 @@ DRY_RUN = '--apply' not in sys.argv
 INCLUDE_DIFF_CITIES = '--include-diff-cities' in sys.argv
 BATCH_SIZE = 100
 
+# Input source: 'pgtrgm' (default) or 'combined' (Splink-rescored evidence)
+SOURCE_MODE = 'pgtrgm'
+CLASSIFICATION_FILTER = None  # e.g., 'SPLINK_CONFIRMED', 'AUTO_MERGE', 'NEW_MATCH'
+for i, arg in enumerate(sys.argv):
+    if arg == '--source' and i + 1 < len(sys.argv):
+        SOURCE_MODE = sys.argv[i + 1]
+    if arg == '--classification' and i + 1 < len(sys.argv):
+        CLASSIFICATION_FILTER = sys.argv[i + 1]
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Parse --min-score if provided
 MIN_SCORE = 0.9
 for arg in sys.argv:
@@ -47,10 +59,10 @@ for arg in sys.argv:
             if idx + 1 < len(sys.argv):
                 MIN_SCORE = float(sys.argv[idx + 1])
 
-CSV_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    'output', 'f7_internal_duplicates.csv'
-)
+if SOURCE_MODE == 'combined':
+    CSV_FILE = os.path.join(BASE_DIR, 'data', 'f7_combined_dedup_evidence.csv')
+else:
+    CSV_FILE = os.path.join(BASE_DIR, 'output', 'f7_internal_duplicates.csv')
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +145,7 @@ def main():
     print("F7 Employer Duplicate Merge - Enhanced")
     print("=" * 70)
     print("Mode: %s" % ('DRY RUN' if DRY_RUN else '*** APPLYING CHANGES ***'))
+    print("Source: %s%s" % (SOURCE_MODE, ' (classification=%s)' % CLASSIFICATION_FILTER if CLASSIFICATION_FILTER else ''))
     print("Minimum score: %s" % MIN_SCORE)
     print("City filter: %s" % (
         'DISABLED (including different cities)' if INCLUDE_DIFF_CITIES
@@ -150,32 +163,64 @@ def main():
     same_city_pairs = []
     diff_city_pairs = []
 
-    with open(CSV_FILE, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            score = float(row['Combined_Score'])
-            if score >= MIN_SCORE:
+    if SOURCE_MODE == 'combined':
+        # Load from combined Splink+pg_trgm evidence CSV
+        print("  Source: combined evidence (classification=%s)" % CLASSIFICATION_FILTER)
+        with open(CSV_FILE, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if CLASSIFICATION_FILTER and row['classification'] != CLASSIFICATION_FILTER:
+                    continue
+                # Use splink_prob as primary score, fall back to pgtrgm
+                score_str = row.get('splink_prob') or row.get('pgtrgm_combined') or '0'
+                score = float(score_str) if score_str else 0.0
                 pair = {
-                    'id1': row['ID1'],
-                    'name1': row['Name1'],
-                    'city1': row['City1'],
-                    'state1': row['State1'],
-                    'size1': int(row['Size1']) if row['Size1'] else 0,
-                    'id2': row['ID2'],
-                    'name2': row['Name2'],
-                    'city2': row['City2'],
-                    'state2': row['State2'],
-                    'size2': int(row['Size2']) if row['Size2'] else 0,
+                    'id1': row['id1'],
+                    'name1': row['name1'],
+                    'city1': row['city1'],
+                    'state1': row['state1'],
+                    'size1': int(row['size1']) if row['size1'] else 0,
+                    'id2': row['id2'],
+                    'name2': row['name2'],
+                    'city2': row['city2'],
+                    'state2': row['state2'],
+                    'size2': int(row['size2']) if row['size2'] else 0,
                     'score': score,
                 }
                 all_pairs.append(pair)
 
-                if cities_match(row['City1'], row['City2']):
+                if cities_match(row['city1'], row['city2']):
                     same_city_pairs.append(pair)
                 else:
                     diff_city_pairs.append(pair)
+    else:
+        # Load from original pg_trgm CSV
+        with open(CSV_FILE, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                score = float(row['Combined_Score'])
+                if score >= MIN_SCORE:
+                    pair = {
+                        'id1': row['ID1'],
+                        'name1': row['Name1'],
+                        'city1': row['City1'],
+                        'state1': row['State1'],
+                        'size1': int(row['Size1']) if row['Size1'] else 0,
+                        'id2': row['ID2'],
+                        'name2': row['Name2'],
+                        'city2': row['City2'],
+                        'state2': row['State2'],
+                        'size2': int(row['Size2']) if row['Size2'] else 0,
+                        'score': score,
+                    }
+                    all_pairs.append(pair)
 
-    print("  Total pairs with score >= %s: %d" % (MIN_SCORE, len(all_pairs)))
+                    if cities_match(row['City1'], row['City2']):
+                        same_city_pairs.append(pair)
+                    else:
+                        diff_city_pairs.append(pair)
+
+    print("  Total pairs loaded: %d" % len(all_pairs))
     print("    - Same city (or typo): %d (will merge)" % len(same_city_pairs))
     print("    - Different cities:    %d (skipped)" % len(diff_city_pairs))
 
@@ -312,7 +357,7 @@ def main():
     # Step 5: Impact analysis on ALL 5 downstream tables
     # =================================================================
     print("\n" + "=" * 70)
-    print("IMPACT ANALYSIS (all 5 downstream tables)")
+    print("IMPACT ANALYSIS (all 6 downstream tables)")
     print("=" * 70)
 
     deleted_ids = [m['deleted_id'] for m in merge_decisions]
@@ -376,6 +421,15 @@ def main():
     impact_mergent = cur.fetchone()['cnt']
     print("  mergent_employers to update:            %d" % impact_mergent)
 
+    # 6. corporate_identifier_crosswalk
+    cur.execute("""
+        SELECT COUNT(*) AS cnt
+        FROM corporate_identifier_crosswalk
+        WHERE f7_employer_id = ANY(%s)
+    """, (deleted_ids,))
+    impact_crosswalk = cur.fetchone()['cnt']
+    print("  corporate_identifier_crosswalk:         %d" % impact_crosswalk)
+
     # Total employers to delete
     print("\n  f7_employers_deduped records to delete: %d" % len(merge_decisions))
 
@@ -399,6 +453,7 @@ Summary:
     nlrb_participants:           %d rows
     osha_f7_matches:             %d rows (%d conflicts)
     mergent_employers:           %d rows
+    corporate_identifier_crosswalk: %d rows
 
 To apply these merges, run:
   python scripts/cleanup/merge_f7_enhanced.py --apply
@@ -407,6 +462,7 @@ To apply these merges, run:
             len(merge_groups), len(merge_decisions),
             impact_f7_relations, impact_vr, impact_nlrb,
             impact_osha, osha_conflict_count, impact_mergent,
+            impact_crosswalk,
         ))
         cur.close()
         conn.close()
@@ -435,7 +491,8 @@ To apply these merges, run:
             nlrb_participants_updated INTEGER DEFAULT 0,
             osha_matches_updated INTEGER DEFAULT 0,
             osha_conflicts_deleted INTEGER DEFAULT 0,
-            mergent_updated INTEGER DEFAULT 0
+            mergent_updated INTEGER DEFAULT 0,
+            crosswalk_updated INTEGER DEFAULT 0
         )
     """)
     conn.commit()
@@ -446,6 +503,7 @@ To apply these merges, run:
         ('osha_matches_updated', 'INTEGER DEFAULT 0'),
         ('osha_conflicts_deleted', 'INTEGER DEFAULT 0'),
         ('mergent_updated', 'INTEGER DEFAULT 0'),
+        ('crosswalk_updated', 'INTEGER DEFAULT 0'),
     ]:
         try:
             cur.execute(
@@ -465,6 +523,7 @@ To apply these merges, run:
         'osha_updated': 0,
         'osha_conflicts': 0,
         'mergent': 0,
+        'crosswalk': 0,
     }
 
     print("Processing %d merges (batch commit every %d)...\n" % (
@@ -545,19 +604,75 @@ To apply these merges, run:
             """, (kept, deleted))
             cnt_mergent = cur.rowcount
 
+            # --- 6. corporate_identifier_crosswalk ---
+            cnt_crosswalk = 0
+            # Check if keeper already has a crosswalk row
+            cur.execute("""
+                SELECT id FROM corporate_identifier_crosswalk
+                WHERE f7_employer_id = %s LIMIT 1
+            """, (kept,))
+            keeper_cw = cur.fetchone()
+
+            cur.execute("""
+                SELECT id, gleif_lei, mergent_duns, sec_cik, ein,
+                       is_federal_contractor, federal_obligations, federal_contract_count
+                FROM corporate_identifier_crosswalk
+                WHERE f7_employer_id = %s
+            """, (deleted,))
+            deleted_cw_rows = cur.fetchall()
+
+            if deleted_cw_rows:
+                if keeper_cw:
+                    # COALESCE: merge identifiers from deleted into keeper
+                    keeper_cw_id = keeper_cw['id']
+                    for dcw in deleted_cw_rows:
+                        cur.execute("""
+                            UPDATE corporate_identifier_crosswalk
+                            SET gleif_lei = COALESCE(gleif_lei, %(lei)s),
+                                mergent_duns = COALESCE(mergent_duns, %(duns)s),
+                                sec_cik = COALESCE(sec_cik, %(cik)s),
+                                ein = COALESCE(ein, %(ein)s),
+                                is_federal_contractor = COALESCE(is_federal_contractor, %(is_fc)s),
+                                federal_obligations = COALESCE(federal_obligations, %(fed_oblig)s),
+                                federal_contract_count = COALESCE(federal_contract_count, %(fed_cnt)s)
+                            WHERE id = %(keeper_id)s
+                        """, {
+                            'lei': dcw['gleif_lei'],
+                            'duns': dcw['mergent_duns'],
+                            'cik': dcw['sec_cik'],
+                            'ein': dcw['ein'],
+                            'is_fc': dcw['is_federal_contractor'],
+                            'fed_oblig': dcw['federal_obligations'],
+                            'fed_cnt': dcw['federal_contract_count'],
+                            'keeper_id': keeper_cw_id,
+                        })
+                        # Delete the orphaned crosswalk row
+                        cur.execute(
+                            "DELETE FROM corporate_identifier_crosswalk WHERE id = %s",
+                            (dcw['id'],))
+                        cnt_crosswalk += 1
+                else:
+                    # Keeper has no crosswalk row: re-point deleted's row to keeper
+                    cur.execute("""
+                        UPDATE corporate_identifier_crosswalk
+                        SET f7_employer_id = %s
+                        WHERE f7_employer_id = %s
+                    """, (kept, deleted))
+                    cnt_crosswalk = cur.rowcount
+
             # --- Audit log ---
             cur.execute("""
                 INSERT INTO f7_employer_merge_log
                     (kept_id, deleted_id, kept_name, deleted_name,
                      similarity_score, f7_relations_updated, vr_records_updated,
                      nlrb_participants_updated, osha_matches_updated,
-                     osha_conflicts_deleted, mergent_updated)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     osha_conflicts_deleted, mergent_updated, crosswalk_updated)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 kept, deleted, m['kept_name'], m['deleted_name'],
                 m['score'],
                 cnt_f7_rel, cnt_vr, cnt_nlrb,
-                cnt_osha, cnt_osha_conflict, cnt_mergent,
+                cnt_osha, cnt_osha_conflict, cnt_mergent, cnt_crosswalk,
             ))
 
             # --- Delete the duplicate from f7_employers_deduped ---
@@ -575,6 +690,7 @@ To apply these merges, run:
             totals['osha_updated'] += cnt_osha
             totals['osha_conflicts'] += cnt_osha_conflict
             totals['mergent'] += cnt_mergent
+            totals['crosswalk'] += cnt_crosswalk
 
         except Exception as e:
             cur.execute("ROLLBACK TO SAVEPOINT %s" % sp_name)
@@ -604,6 +720,7 @@ To apply these merges, run:
     print("    osha_f7_matches updated:     %d" % totals['osha_updated'])
     print("    osha_f7_matches conflicts:   %d (deleted)" % totals['osha_conflicts'])
     print("    mergent_employers:           %d" % totals['mergent'])
+    print("    crosswalk rows updated:      %d" % totals['crosswalk'])
 
     if errors:
         print("\n  First 10 errors:")

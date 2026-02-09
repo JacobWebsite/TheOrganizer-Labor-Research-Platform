@@ -144,7 +144,78 @@ def main():
         print("    %-30s | %6d employers | %12s workers" % (reason, emp_count, format(workers, ',')))
 
     # =========================================================================
-    # Step 4: Merge log summary
+    # Step 4: Crosswalk orphan check
+    # =========================================================================
+    print("\nStep 4: Crosswalk orphan check...")
+
+    try:
+        cur.execute("""
+            SELECT COUNT(*) as orphans
+            FROM corporate_identifier_crosswalk c
+            WHERE c.f7_employer_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM f7_employers_deduped f
+                  WHERE f.employer_id = c.f7_employer_id
+              )
+        """)
+        orphan_count = cur.fetchone()[0]
+
+        if orphan_count == 0:
+            print("  PASS: No orphan crosswalk rows (all f7_employer_ids are valid)")
+        else:
+            print("  WARNING: %d crosswalk rows reference non-existent F7 employers" % orphan_count)
+            # Show examples
+            cur.execute("""
+                SELECT c.f7_employer_id, c.gleif_lei, c.mergent_duns
+                FROM corporate_identifier_crosswalk c
+                WHERE c.f7_employer_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM f7_employers_deduped f
+                      WHERE f.employer_id = c.f7_employer_id
+                  )
+                LIMIT 5
+            """)
+            examples = cur.fetchall()
+            for ex in examples:
+                print("    f7_id=%s lei=%s duns=%s" % (ex[0], ex[1], ex[2]))
+
+            # Auto-fix: check merge log for where these should point
+            print("  Attempting auto-fix via merge log...")
+            cur.execute("""
+                UPDATE corporate_identifier_crosswalk c
+                SET f7_employer_id = ml.kept_id
+                FROM f7_employer_merge_log ml
+                WHERE c.f7_employer_id = ml.deleted_id
+                  AND NOT EXISTS (
+                      SELECT 1 FROM f7_employers_deduped f
+                      WHERE f.employer_id = c.f7_employer_id
+                  )
+            """)
+            fixed = cur.rowcount
+            if fixed > 0:
+                print("  Fixed %d orphan crosswalk rows via merge log" % fixed)
+
+            # Check remaining orphans
+            cur.execute("""
+                SELECT COUNT(*) as remaining
+                FROM corporate_identifier_crosswalk c
+                WHERE c.f7_employer_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM f7_employers_deduped f
+                      WHERE f.employer_id = c.f7_employer_id
+                  )
+            """)
+            remaining = cur.fetchone()[0]
+            if remaining > 0:
+                print("  WARNING: %d orphan crosswalk rows remain (no merge log entry found)" % remaining)
+            else:
+                print("  All orphan crosswalk rows resolved")
+
+    except Exception as e:
+        print("  ERROR checking crosswalk: %s" % str(e))
+
+    # =========================================================================
+    # Step 5: Merge log summary
     # =========================================================================
     print("\n" + "-" * 70)
     print("Merge log summary:")
@@ -156,7 +227,8 @@ def main():
                    SUM(nlrb_participants_updated) as nlrb,
                    SUM(osha_matches_updated) as osha_upd,
                    SUM(osha_conflicts_deleted) as osha_del,
-                   SUM(mergent_updated) as mergent
+                   SUM(mergent_updated) as mergent,
+                   SUM(COALESCE(crosswalk_updated, 0)) as crosswalk
             FROM f7_employer_merge_log
         """)
         log = cur.fetchone()
@@ -169,6 +241,7 @@ def main():
             print("    osha_updated:       %d" % (log[4] or 0))
             print("    osha_conflicts:     %d (deleted)" % (log[5] or 0))
             print("    mergent:            %d" % (log[6] or 0))
+            print("    crosswalk:          %d" % (log[7] or 0))
         else:
             print("  No merges logged yet.")
     except Exception:
