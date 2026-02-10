@@ -4629,6 +4629,15 @@ def get_organizing_scorecard(
 
             cur.execute("SELECT matrix_code, employment_change_pct FROM bls_industry_projections")
             projections = {r['matrix_code']: float(r['employment_change_pct'] or 0) for r in cur.fetchall()}
+            # Map 2-digit NAICS to BLS composite codes (31-33->Manufacturing, etc.)
+            _BLS_ALIASES = {
+                '310000': '31-330', '320000': '31-330', '330000': '31-330',
+                '440000': '44-450', '450000': '44-450',
+                '480000': '48-490', '490000': '48-490',
+            }
+            for alias, real in _BLS_ALIASES.items():
+                if real in projections and alias not in projections:
+                    projections[alias] = projections[real]
 
             # New reference data for Phase 2 scoring upgrades
             cur.execute("SELECT naics_prefix, avg_violations_per_estab FROM ref_osha_industry_averages")
@@ -4883,11 +4892,22 @@ def get_scorecard_detail(estab_id: str):
             # 8. Projections score
             score_projections = 4
             if naics_2:
+                # Try direct lookup, then BLS composite code alias
+                _DETAIL_BLS_ALIASES = {
+                    '31': '31-330', '32': '31-330', '33': '31-330',
+                    '44': '44-450', '45': '44-450',
+                    '48': '48-490', '49': '48-490',
+                }
                 cur.execute("""
                     SELECT employment_change_pct FROM bls_industry_projections WHERE matrix_code = %s
                 """, [f"{naics_2}0000"])
                 proj_row = cur.fetchone()
-                if proj_row and proj_row['employment_change_pct']:
+                if not proj_row and naics_2 in _DETAIL_BLS_ALIASES:
+                    cur.execute("""
+                        SELECT employment_change_pct FROM bls_industry_projections WHERE matrix_code = %s
+                    """, [_DETAIL_BLS_ALIASES[naics_2]])
+                    proj_row = cur.fetchone()
+                if proj_row and proj_row['employment_change_pct'] is not None:
                     change = float(proj_row['employment_change_pct'])
                     score_projections = 10 if change > 10 else 7 if change > 5 else 4 if change > 0 else 2
 
