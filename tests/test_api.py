@@ -121,17 +121,18 @@ def test_employer_cities(client):
 
 def test_union_search(client):
     """Searching for 'teamsters' returns results."""
-    r = client.get("/api/unions/search?q=teamsters&limit=5")
+    r = client.get("/api/unions/search?name=teamsters&limit=5")
     assert r.status_code == 200
     data = r.json()
     assert "unions" in data
     assert data["total"] > 0
+    assert data["total"] < 1000  # Should be filtered, not all 26K
 
 
 def test_union_detail(client):
     """Getting a union by f_num returns detail."""
     # First search to get a valid f_num
-    r = client.get("/api/unions/search?q=seiu&limit=1")
+    r = client.get("/api/unions/search?name=seiu&limit=1")
     assert r.status_code == 200
     unions = r.json()["unions"]
     if len(unions) > 0:

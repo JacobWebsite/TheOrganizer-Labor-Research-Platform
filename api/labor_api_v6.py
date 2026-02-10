@@ -3115,6 +3115,7 @@ def get_union_cities(
 @app.get("/api/unions/search")
 def search_unions(
     name: Optional[str] = None,
+    q: Optional[str] = None,
     aff_abbr: Optional[str] = None,
     sector: Optional[str] = None,
     state: Optional[str] = None,
@@ -3122,24 +3123,37 @@ def search_unions(
     union_type: Optional[str] = None,
     min_members: Optional[int] = None,
     has_employers: Optional[bool] = None,
+    include_historical: bool = False,
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Search unions with filters including display names and hierarchy type"""
+    """Search unions with filters including display names and hierarchy type.
+
+    By default, only shows current unions (yr_covered >= 2022).
+    Set include_historical=true to include older/defunct unions.
+    Accepts both 'name' and 'q' as search parameters.
+    """
+    # Accept both 'q' and 'name' for search term
+    search_term = name or q
+
     with get_db() as conn:
         with conn.cursor() as cur:
             conditions = ["1=1"]
             params = []
-            
-            if name:
+
+            # Filter out stale/historical unions by default
+            if not include_historical:
+                conditions.append("um.yr_covered >= 2022")
+
+            if search_term:
                 # Search union_name, local_number, and display_name
                 conditions.append("""(
-                    um.union_name ILIKE %s 
-                    OR um.local_number = %s 
+                    um.union_name ILIKE %s
+                    OR um.local_number = %s
                     OR v.display_name ILIKE %s
                 )""")
-                clean_name = name.replace('local ', '').replace('Local ', '').strip()
-                params.extend([f"%{name}%", clean_name, f"%{name}%"])
+                clean_name = search_term.replace('local ', '').replace('Local ', '').strip()
+                params.extend([f"%{search_term}%", clean_name, f"%{search_term}%"])
             if aff_abbr:
                 conditions.append("um.aff_abbr = %s")
                 params.append(aff_abbr.upper())
