@@ -155,7 +155,7 @@ cur.execute("""
     SET score_priority = CASE
         WHEN organizing_score >= 30 THEN 'TOP'
         WHEN organizing_score >= 25 THEN 'HIGH'
-        WHEN organizing_score >= 15 THEN 'MEDIUM'
+        WHEN organizing_score >= 20 THEN 'MEDIUM'
         ELSE 'LOW'
     END
     WHERE has_union IS NOT TRUE

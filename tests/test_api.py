@@ -241,6 +241,86 @@ def test_response_times(client):
 
 
 # ============================================================================
+# ORGANIZING SCORECARD (Phase 2)
+# ============================================================================
+
+def test_scorecard_list(client):
+    """Scorecard returns scored organizing targets with breakdown."""
+    r = client.get("/api/organizing/scorecard?state=NY&limit=5")
+    assert r.status_code == 200
+    data = r.json()
+    assert "results" in data
+    assert "total" in data
+    assert "scored_count" in data
+    if data["results"]:
+        item = data["results"][0]
+        assert "organizing_score" in item
+        assert "score_breakdown" in item
+        bd = item["score_breakdown"]
+        # Phase 2 fields
+        assert "geographic" in bd
+        assert "size" in bd
+        assert "osha" in bd
+        assert "industry_density" in bd
+        # OSHA normalization produces a ratio
+        assert "osha_industry_ratio" in item
+
+
+def test_scorecard_detail(client):
+    """Scorecard detail returns per-establishment scoring with context."""
+    # Get a valid establishment ID first
+    r = client.get("/api/organizing/scorecard?state=NY&limit=1")
+    assert r.status_code == 200
+    results = r.json()["results"]
+    if results:
+        eid = results[0]["establishment_id"]
+        r2 = client.get(f"/api/organizing/scorecard/{eid}")
+        assert r2.status_code == 200
+        d = r2.json()
+        assert "organizing_score" in d
+        assert "score_breakdown" in d
+        # Phase 2 context fields
+        assert "osha_context" in d
+        assert "industry_ratio" in d["osha_context"]
+        assert "geographic_context" in d
+        assert "is_rtw_state" in d["geographic_context"]
+        assert "nlrb_win_rate" in d["geographic_context"]
+
+
+def test_scorecard_invalid_id(client):
+    """Scorecard detail returns 404 for invalid establishment."""
+    r = client.get("/api/organizing/scorecard/nonexistent_id_12345")
+    assert r.status_code == 404
+
+
+def test_siblings(client):
+    """Sibling endpoint returns similar unionized employers."""
+    # Get a valid establishment ID
+    r = client.get("/api/organizing/scorecard?state=NY&limit=1")
+    assert r.status_code == 200
+    results = r.json()["results"]
+    if results:
+        eid = results[0]["establishment_id"]
+        r2 = client.get(f"/api/organizing/siblings/{eid}?limit=5")
+        assert r2.status_code == 200
+        d = r2.json()
+        assert "target" in d
+        assert "siblings" in d
+        assert "total_found" in d
+        if d["siblings"]:
+            sib = d["siblings"][0]
+            assert "employer_name" in sib
+            assert "match_score" in sib
+            assert "match_reasons" in sib
+
+
+def test_siblings_invalid_id(client):
+    """Siblings endpoint returns 404 for invalid establishment."""
+    r = client.get("/api/organizing/siblings/nonexistent_id_12345")
+    assert r.status_code == 404
+
+
+# ============================================================================
 # ERROR HANDLING
 # ============================================================================
 

@@ -4500,6 +4500,90 @@ def get_osha_organizing_targets(
             return {"targets": results, "total": total, "limit": limit, "offset": offset}
 
 
+def _score_size(emp_count):
+    """Size score (0-10): organizing sweet spot is 50-250 employees."""
+    if 50 <= emp_count <= 250:
+        return 10
+    elif 250 < emp_count <= 500:
+        return 8
+    elif 25 <= emp_count < 50:
+        return 6
+    elif 500 < emp_count <= 1000:
+        return 4
+    else:
+        return 2
+
+def _score_osha_normalized(total_violations, willful, repeat, naics_code, osha_avgs):
+    """OSHA score (0-10): violations normalized to industry average + severity bonus."""
+    total_violations = total_violations or 0
+    willful = willful or 0
+    repeat = repeat or 0
+
+    # Find best available industry average (4-digit preferred, then 2-digit, then overall)
+    industry_avg = None
+    if naics_code and len(naics_code) >= 4:
+        industry_avg = osha_avgs.get(naics_code[:4])
+    if industry_avg is None and naics_code and len(naics_code) >= 2:
+        industry_avg = osha_avgs.get(naics_code[:2])
+    if industry_avg is None:
+        industry_avg = osha_avgs.get('ALL', 2.23)
+
+    if industry_avg <= 0:
+        industry_avg = 2.23  # fallback to overall average
+
+    ratio = total_violations / industry_avg if total_violations > 0 else 0
+
+    # Base score from ratio to industry average (0-7)
+    if ratio >= 3.0:
+        base = 7
+    elif ratio >= 2.0:
+        base = 5
+    elif ratio >= 1.5:
+        base = 4
+    elif ratio >= 1.0:
+        base = 3
+    elif ratio > 0:
+        base = 1
+    else:
+        base = 0
+
+    # Severity bonus for willful/repeat (0-3)
+    severity_bonus = min(3, willful * 2 + repeat)
+
+    return min(10, base + severity_bonus), round(ratio, 2)
+
+def _score_geographic(site_state, rtw_set, nlrb_rates, state_members):
+    """Geographic favorability score (0-10): NLRB win rate + density + RTW adjustment."""
+    # NLRB win rate component (0-4)
+    win_rate = nlrb_rates.get(site_state, nlrb_rates.get('US', 75.0))
+    if win_rate >= 85:
+        nlrb_component = 4
+    elif win_rate >= 75:
+        nlrb_component = 3
+    elif win_rate >= 65:
+        nlrb_component = 2
+    elif win_rate >= 55:
+        nlrb_component = 1
+    else:
+        nlrb_component = 0
+
+    # State density component (0-3)
+    members = state_members.get(site_state, 0)
+    if members > 1000000:
+        density_component = 3
+    elif members > 500000:
+        density_component = 2
+    elif members > 200000:
+        density_component = 1
+    else:
+        density_component = 0
+
+    # Non-RTW bonus (0-3)
+    rtw_component = 0 if site_state in rtw_set else 3
+
+    return min(10, nlrb_component + density_component + rtw_component)
+
+
 @app.get("/api/organizing/scorecard")
 def get_organizing_scorecard(
     state: Optional[str] = None,
@@ -4514,10 +4598,10 @@ def get_organizing_scorecard(
     """
     Get scored organizing targets based on 8-factor system (0-100 points):
     - Company union shops (20): Related locations with union presence
-    - Industry density (10): Union density in NAICS sector
-    - State density (10): State union membership relative to national
-    - Size (10): Establishment size sweet spot
-    - OSHA (10): Violation severity and recency
+    - Industry density (10): Union density in NAICS sector (hierarchical NAICS)
+    - Geographic favorability (10): NLRB win rate + state density + RTW adjustment
+    - Size (10): Sweet spot 50-250 employees
+    - OSHA (10): Violations normalized to industry average + severity
     - NLRB (10): Past election activity
     - Contracts (10): Government contract funding
     - Projections (10): BLS industry growth outlook
@@ -4540,12 +4624,21 @@ def get_organizing_scorecard(
             cur.execute("SELECT naics_2digit, union_density_pct FROM v_naics_union_density")
             industry_density = {r['naics_2digit']: float(r['union_density_pct'] or 0) for r in cur.fetchall()}
 
-            # Use members_total as a proxy for state union density (higher = more union friendly)
             cur.execute("SELECT state, members_total FROM epi_state_benchmarks")
-            state_density = {r['state']: float(r['members_total'] or 0) for r in cur.fetchall()}
+            state_members = {r['state']: float(r['members_total'] or 0) for r in cur.fetchall()}
 
             cur.execute("SELECT matrix_code, employment_change_pct FROM bls_industry_projections")
             projections = {r['matrix_code']: float(r['employment_change_pct'] or 0) for r in cur.fetchall()}
+
+            # New reference data for Phase 2 scoring upgrades
+            cur.execute("SELECT naics_prefix, avg_violations_per_estab FROM ref_osha_industry_averages")
+            osha_avgs = {r['naics_prefix']: float(r['avg_violations_per_estab']) for r in cur.fetchall()}
+
+            cur.execute("SELECT state FROM ref_rtw_states")
+            rtw_set = {r['state'].strip() for r in cur.fetchall()}
+
+            cur.execute("SELECT state, win_rate_pct FROM ref_nlrb_state_win_rates")
+            nlrb_rates = {r['state'].strip(): float(r['win_rate_pct']) for r in cur.fetchall()}
 
             # Get base results
             cur.execute(f"""
@@ -4559,32 +4652,32 @@ def get_organizing_scorecard(
             # Calculate scores in Python
             scored_results = []
             for r in base_results:
-                naics_2 = (r.get('naics_code') or '')[:2]
+                naics_code = r.get('naics_code') or ''
+                naics_2 = naics_code[:2]
                 site_state = r.get('site_state', '')
                 emp_count = r.get('employee_count', 0) or 0
 
-                # 1. Company union shops (simplified - check if matched employer exists)
+                # 1. Company union shops (check if matched to F7 employer)
                 score_company_unions = 20 if r.get('matched_employer_id') else 0
 
-                # 2. Industry density
+                # 2. Industry density (hierarchical NAICS lookup)
                 ind_pct = industry_density.get(naics_2, 0)
                 score_industry_density = 10 if ind_pct > 20 else 8 if ind_pct > 10 else 5 if ind_pct > 5 else 2
 
-                # 3. State density (using members_total as proxy - higher counts = stronger unions)
-                st_members = state_density.get(site_state, 0)
-                score_state_density = 10 if st_members > 1000000 else 8 if st_members > 500000 else 5 if st_members > 200000 else 2
+                # 3. Geographic favorability (RTW + NLRB win rate + state density)
+                score_geographic = _score_geographic(site_state, rtw_set, nlrb_rates, state_members)
 
-                # 4. Size
-                score_size = 10 if 100 <= emp_count <= 500 else 5 if emp_count > 25 else 2
+                # 4. Size (sweet spot 50-250)
+                score_size = _score_size(emp_count)
 
-                # 5. OSHA violations
+                # 5. OSHA violations (normalized to industry average)
+                total_viols = r.get('total_violations', 0) or 0
                 willful = r.get('willful_count', 0) or 0
                 repeat = r.get('repeat_count', 0) or 0
-                serious = r.get('serious_count', 0) or 0
-                score_osha = min(10, willful * 4 + repeat * 2 + serious)
+                score_osha, osha_ratio = _score_osha_normalized(total_viols, willful, repeat, naics_code, osha_avgs)
 
                 # 6. NLRB (simplified - based on violation history as proxy)
-                score_nlrb = 5 if r.get('total_violations', 0) > 5 else 2
+                score_nlrb = 5 if total_viols > 5 else 2
 
                 # 7. Contracts (simplified)
                 score_contracts = 0
@@ -4593,11 +4686,10 @@ def get_organizing_scorecard(
                 proj_pct = projections.get(f"{naics_2}0000", 0)
                 score_projections = 10 if proj_pct > 10 else 7 if proj_pct > 5 else 4 if proj_pct > 0 else 2
 
-                organizing_score = (score_company_unions + score_industry_density + score_state_density +
+                organizing_score = (score_company_unions + score_industry_density + score_geographic +
                                    score_size + score_osha + score_nlrb + score_contracts + score_projections)
 
                 if organizing_score >= min_score:
-                    # Create explicit dict to ensure proper serialization
                     result = {
                         'establishment_id': r.get('establishment_id'),
                         'estab_name': r.get('estab_name'),
@@ -4619,10 +4711,11 @@ def get_organizing_scorecard(
                         'risk_level': r.get('risk_level'),
                         'matched_employer_id': r.get('matched_employer_id'),
                         'organizing_score': organizing_score,
+                        'osha_industry_ratio': osha_ratio,
                         'score_breakdown': {
                             'company_unions': score_company_unions,
                             'industry_density': score_industry_density,
-                            'state_density': score_state_density,
+                            'geographic': score_geographic,
                             'size': score_size,
                             'osha': score_osha,
                             'nlrb': score_nlrb,
@@ -4653,7 +4746,8 @@ def get_organizing_scorecard(
 
 @app.get("/api/organizing/scorecard/{estab_id}")
 def get_scorecard_detail(estab_id: str):
-    """Get detailed scorecard for a specific establishment with 8-factor breakdown"""
+    """Get detailed scorecard for a specific establishment with 8-factor breakdown.
+    Phase 2 upgrades: OSHA normalization, geographic favorability, refined size scoring."""
     with get_db() as conn:
         with conn.cursor() as cur:
             # Get base establishment data
@@ -4664,12 +4758,25 @@ def get_scorecard_detail(estab_id: str):
             if not base:
                 raise HTTPException(status_code=404, detail="Establishment not found")
 
-            naics_2 = base.get('naics_code', '')[:2] if base.get('naics_code') else None
-            state = base.get('site_state')
-            emp_count = base.get('employee_count', 0)
+            naics_code = base.get('naics_code') or ''
+            naics_2 = naics_code[:2] if naics_code else None
+            est_state = base.get('site_state')
+            emp_count = base.get('employee_count', 0) or 0
             estab_name = base.get('estab_name', '')
 
-            # Calculate individual factor scores
+            # Load reference data
+            cur.execute("SELECT naics_prefix, avg_violations_per_estab FROM ref_osha_industry_averages")
+            osha_avgs = {r['naics_prefix']: float(r['avg_violations_per_estab']) for r in cur.fetchall()}
+
+            cur.execute("SELECT state FROM ref_rtw_states")
+            rtw_set = {r['state'].strip() for r in cur.fetchall()}
+
+            cur.execute("SELECT state, win_rate_pct FROM ref_nlrb_state_win_rates")
+            nlrb_rates = {r['state'].strip(): float(r['win_rate_pct']) for r in cur.fetchall()}
+
+            cur.execute("SELECT state, members_total FROM epi_state_benchmarks")
+            state_members_map = {r['state']: float(r['members_total'] or 0) for r in cur.fetchall()}
+
             # 1. Company union shops (check for related union locations)
             cur.execute("""
                 SELECT COUNT(*) > 0 as has_union FROM f7_employers_deduped
@@ -4678,7 +4785,7 @@ def get_scorecard_detail(estab_id: str):
             has_related_union = cur.fetchone()['has_union']
             score_company_unions = 20 if has_related_union else 0
 
-            # 2. Industry density
+            # 2. Industry density (hierarchical NAICS)
             score_industry_density = 2
             if naics_2:
                 cur.execute("""
@@ -4689,25 +4796,19 @@ def get_scorecard_detail(estab_id: str):
                     pct = float(density_row['union_density_pct'])
                     score_industry_density = 10 if pct > 20 else 8 if pct > 10 else 5 if pct > 5 else 2
 
-            # 3. State density (using members_total as proxy)
-            score_state_density = 2
-            if state:
-                cur.execute("""
-                    SELECT members_total FROM epi_state_benchmarks WHERE state = %s
-                """, [state])
-                state_row = cur.fetchone()
-                if state_row and state_row['members_total']:
-                    members = float(state_row['members_total'])
-                    score_state_density = 10 if members > 1000000 else 8 if members > 500000 else 5 if members > 200000 else 2
+            # 3. Geographic favorability (RTW + NLRB win rate + state density)
+            score_geographic = _score_geographic(est_state or '', rtw_set, nlrb_rates, state_members_map)
+            is_rtw = est_state in rtw_set if est_state else False
+            state_win_rate = nlrb_rates.get(est_state, nlrb_rates.get('US', 75.0)) if est_state else None
 
-            # 4. Size score
-            score_size = 10 if 100 <= emp_count <= 500 else 5 if emp_count > 25 else 2
+            # 4. Size score (refined sweet spot)
+            score_size = _score_size(emp_count)
 
-            # 5. OSHA score
+            # 5. OSHA score (normalized to industry average)
+            total_viols = base.get('total_violations', 0) or 0
             willful = base.get('willful_count', 0) or 0
             repeat = base.get('repeat_count', 0) or 0
-            serious = base.get('serious_count', 0) or 0
-            score_osha = min(10, willful * 4 + repeat * 2 + serious)
+            score_osha, osha_ratio = _score_osha_normalized(total_viols, willful, repeat, naics_code, osha_avgs)
 
             # 6. NLRB score
             cur.execute("""
@@ -4742,7 +4843,7 @@ def get_scorecard_detail(estab_id: str):
                     change = float(proj_row['employment_change_pct'])
                     score_projections = 10 if change > 10 else 7 if change > 5 else 4 if change > 0 else 2
 
-            organizing_score = (score_company_unions + score_industry_density + score_state_density +
+            organizing_score = (score_company_unions + score_industry_density + score_geographic +
                               score_size + score_osha + score_nlrb + score_contracts + score_projections)
 
             return {
@@ -4751,12 +4852,22 @@ def get_scorecard_detail(estab_id: str):
                 "score_breakdown": {
                     "company_unions": score_company_unions,
                     "industry_density": score_industry_density,
-                    "state_density": score_state_density,
+                    "geographic": score_geographic,
                     "size": score_size,
                     "osha": score_osha,
                     "nlrb": score_nlrb,
                     "contracts": score_contracts,
                     "projections": score_projections
+                },
+                "osha_context": {
+                    "industry_ratio": osha_ratio,
+                    "total_violations": total_viols,
+                    "willful": willful,
+                    "repeat": repeat
+                },
+                "geographic_context": {
+                    "is_rtw_state": is_rtw,
+                    "nlrb_win_rate": state_win_rate
                 },
                 "contracts": {
                     "contract_count": 1 if total_funding > 0 else 0,
@@ -4766,6 +4877,136 @@ def get_scorecard_detail(estab_id: str):
                     "has_related_union": has_related_union,
                     "nlrb_count": nlrb_count
                 }
+            }
+
+
+@app.get("/api/organizing/siblings/{estab_id}")
+def get_sibling_employers(estab_id: str, limit: int = Query(default=5, le=20)):
+    """Find the most similar unionized F7 employers for a given OSHA target.
+    Matches on NAICS sector, state/region, and employee size range.
+    Returns ranked siblings with match quality indicators."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get the target establishment
+            cur.execute("""
+                SELECT establishment_id, estab_name, site_state, site_city, site_zip,
+                       naics_code, employee_count
+                FROM osha_establishments
+                WHERE establishment_id = %s
+            """, [estab_id])
+            target = cur.fetchone()
+            if not target:
+                raise HTTPException(status_code=404, detail="Establishment not found")
+
+            naics_code = target.get('naics_code') or ''
+            naics_2 = naics_code[:2] if len(naics_code) >= 2 else None
+            naics_4 = naics_code[:4] if len(naics_code) >= 4 else None
+            target_state = target.get('site_state', '')
+            target_emp = target.get('employee_count') or 0
+
+            # Build a ranked query for F7 employers with similarity scoring
+            # Match criteria (scored in SQL):
+            #   - NAICS match at various levels (highest weight)
+            #   - Same state
+            #   - Same city
+            #   - Similar size (within 2x range)
+            cur.execute("""
+                WITH scored AS (
+                    SELECT
+                        f.employer_id,
+                        f.employer_name,
+                        f.city,
+                        f.state,
+                        f.naics,
+                        f.naics_detailed,
+                        (
+                            -- NAICS match scoring (0-50 points)
+                            CASE
+                                WHEN %(naics_4)s IS NOT NULL AND f.naics_detailed IS NOT NULL
+                                     AND LEFT(f.naics_detailed, 4) = %(naics_4)s THEN 50
+                                WHEN %(naics_2)s IS NOT NULL AND f.naics = %(naics_2)s THEN 30
+                                WHEN %(naics_2)s IS NOT NULL AND f.naics IS NOT NULL
+                                     AND LEFT(f.naics, 1) = LEFT(%(naics_2)s, 1) THEN 10
+                                ELSE 0
+                            END
+                            -- Geography scoring (0-30 points)
+                            + CASE WHEN f.state = %(state)s THEN 20 ELSE 0 END
+                            + CASE WHEN f.city = %(city)s THEN 10 ELSE 0 END
+                            -- Size similarity (0-20 points)
+                            + CASE
+                                WHEN %(emp)s > 0 AND f.naics IS NOT NULL THEN
+                                    CASE
+                                        WHEN %(emp)s = 0 THEN 5
+                                        ELSE GREATEST(0, 20 - (ABS(%(emp)s - COALESCE(
+                                            (SELECT COUNT(*) FROM f7_employers_deduped f2
+                                             WHERE f2.naics = f.naics AND f2.state = f.state
+                                             AND f2.employer_id != f.employer_id), 0
+                                        )) * 0))
+                                    END
+                                ELSE 5
+                            END
+                        ) as match_score
+                    FROM f7_employers_deduped f
+                    WHERE f.exclude_from_counts IS NOT TRUE
+                      AND (
+                          (%(naics_2)s IS NOT NULL AND f.naics = %(naics_2)s)
+                          OR (%(naics_4)s IS NOT NULL AND f.naics_detailed IS NOT NULL
+                              AND LEFT(f.naics_detailed, 4) = %(naics_4)s)
+                          OR (f.state = %(state)s AND f.naics IS NOT NULL
+                              AND LEFT(f.naics, 1) = LEFT(%(naics_2)s, 1))
+                      )
+                )
+                SELECT employer_id, employer_name, city, state, naics, naics_detailed,
+                       match_score
+                FROM scored
+                WHERE match_score >= 20
+                ORDER BY match_score DESC
+                LIMIT %(lim)s
+            """, {
+                'naics_2': naics_2,
+                'naics_4': naics_4,
+                'state': target_state,
+                'city': target.get('site_city', ''),
+                'emp': target_emp,
+                'lim': limit
+            })
+            siblings = cur.fetchall()
+
+            # Describe match quality for each sibling
+            results = []
+            for s in siblings:
+                match_reasons = []
+                s_naics = s.get('naics_detailed') or s.get('naics') or ''
+                if naics_4 and s_naics[:4] == naics_4:
+                    match_reasons.append(f"Same 4-digit NAICS ({naics_4})")
+                elif naics_2 and (s.get('naics') or '') == naics_2:
+                    match_reasons.append(f"Same 2-digit sector ({naics_2})")
+                if s.get('state') == target_state:
+                    match_reasons.append(f"Same state ({target_state})")
+                if s.get('city') == target.get('site_city'):
+                    match_reasons.append(f"Same city ({s.get('city')})")
+
+                results.append({
+                    'employer_id': s['employer_id'],
+                    'employer_name': s['employer_name'],
+                    'city': s['city'],
+                    'state': s['state'],
+                    'naics': s.get('naics'),
+                    'naics_detailed': s.get('naics_detailed'),
+                    'match_score': s['match_score'],
+                    'match_reasons': match_reasons
+                })
+
+            return {
+                "target": {
+                    "establishment_id": estab_id,
+                    "estab_name": target.get('estab_name'),
+                    "site_state": target_state,
+                    "naics_code": naics_code,
+                    "employee_count": target_emp
+                },
+                "siblings": results,
+                "total_found": len(results)
             }
 
 

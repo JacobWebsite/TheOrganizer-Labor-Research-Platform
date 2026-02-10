@@ -257,8 +257,8 @@ cur.execute("""
       AND (
         (organizing_score >= 30 AND score_priority != 'TOP') OR
         (organizing_score >= 25 AND organizing_score < 30 AND score_priority != 'HIGH') OR
-        (organizing_score >= 15 AND organizing_score < 25 AND score_priority != 'MEDIUM') OR
-        (organizing_score < 15 AND score_priority != 'LOW')
+        (organizing_score >= 20 AND organizing_score < 25 AND score_priority != 'MEDIUM') OR
+        (organizing_score < 20 AND score_priority != 'LOW')
       )
 """)
 r = cur.fetchone()
@@ -270,7 +270,7 @@ if r['cnt'] > 0:
                CASE
                    WHEN organizing_score >= 30 THEN 'TOP'
                    WHEN organizing_score >= 25 THEN 'HIGH'
-                   WHEN organizing_score >= 15 THEN 'MEDIUM'
+                   WHEN organizing_score >= 20 THEN 'MEDIUM'
                    ELSE 'LOW'
                END as expected_tier
         FROM mergent_employers

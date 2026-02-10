@@ -1,17 +1,13 @@
-import os
+import os, sys
 """
 Create sector-specific views for organizing targets
 Similar to the museum views but for each major sector
 """
 
-import psycopg2
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from db_config import get_connection
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password='os.environ.get('DB_PASSWORD', '')'
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 70)
