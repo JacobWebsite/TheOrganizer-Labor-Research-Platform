@@ -343,6 +343,38 @@ def test_employer_comparables_populated(db):
 # CHECK 13: No Duplicate Employers
 # ============================================================================
 
+def test_nlrb_pattern_tables_populated(db):
+    """NLRB pattern reference tables should be populated with valid data."""
+    # Industry win rates
+    ind_count = query_one(db, "SELECT COUNT(*) FROM ref_nlrb_industry_win_rates")
+    assert ind_count >= 20, f"Only {ind_count} industry win rate rows, expected >= 20"
+
+    # Size bucket win rates
+    size_count = query_one(db, "SELECT COUNT(*) FROM ref_nlrb_size_win_rates")
+    assert size_count == 8, f"Expected 8 size buckets, got {size_count}"
+
+    # Win rates should be in reasonable range (30-100%)
+    bad_rates = query_one(db, """
+        SELECT COUNT(*) FROM ref_nlrb_industry_win_rates
+        WHERE win_rate_pct < 30 OR win_rate_pct > 100
+    """)
+    assert bad_rates == 0, f"Found {bad_rates} industry win rates outside [30, 100]"
+
+    # Predicted win pct populated on mergent_employers
+    predicted_count = query_one(db, """
+        SELECT COUNT(*) FROM mergent_employers WHERE nlrb_predicted_win_pct IS NOT NULL
+    """)
+    total = query_one(db, "SELECT COUNT(*) FROM mergent_employers")
+    rate = predicted_count / total if total > 0 else 0
+    assert rate >= 0.90, (
+        f"Only {rate:.1%} of mergent_employers have nlrb_predicted_win_pct. Need >= 90%."
+    )
+
+
+# ============================================================================
+# CHECK 14: No Duplicate Employers
+# ============================================================================
+
 def test_no_exact_duplicate_employers(db):
     """No two employers should have the exact same name+city+state."""
     dupes = query_one(db, """

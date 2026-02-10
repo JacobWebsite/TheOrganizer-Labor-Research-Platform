@@ -8,6 +8,8 @@ Features:
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
@@ -29,10 +31,20 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8001", "http://127.0.0.1:8001"],
+    allow_origins=["*"],
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+
+# Serve frontend at root
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_files_dir = os.path.join(_project_root, "files")
+
+@app.get("/")
+def serve_frontend():
+    return FileResponse(os.path.join(_files_dir, "organizer_v5.html"))
+
+app.mount("/files", StaticFiles(directory=_files_dir), name="files")
 
 # Connection pool: reuse connections instead of creating new ones per request
 _pool = None
@@ -4668,13 +4680,22 @@ def get_organizing_scorecard(
 
             # Pre-fetch similarity scores (powers score_similarity)
             cur.execute("""
-                SELECT m.establishment_id, me.similarity_score
+                SELECT m.establishment_id, me.similarity_score, me.nlrb_predicted_win_pct
                 FROM osha_f7_matches m
                 JOIN mergent_employers me ON me.matched_f7_employer_id = m.f7_employer_id
-                WHERE me.similarity_score IS NOT NULL
+                WHERE me.similarity_score IS NOT NULL OR me.nlrb_predicted_win_pct IS NOT NULL
             """)
-            similarity_scores = {r['establishment_id']: float(r['similarity_score'])
-                                 for r in cur.fetchall()}
+            similarity_scores = {}
+            nlrb_predicted = {}
+            for r in cur.fetchall():
+                if r['similarity_score'] is not None:
+                    similarity_scores[r['establishment_id']] = float(r['similarity_score'])
+                if r['nlrb_predicted_win_pct'] is not None:
+                    nlrb_predicted[r['establishment_id']] = float(r['nlrb_predicted_win_pct'])
+
+            # Load NLRB industry win rates for enhanced scoring
+            cur.execute("SELECT naics_2, win_rate_pct FROM ref_nlrb_industry_win_rates")
+            nlrb_industry_rates = {r['naics_2']: float(r['win_rate_pct']) for r in cur.fetchall()}
 
             # Get base results
             cur.execute(f"""
@@ -4713,9 +4734,16 @@ def get_organizing_scorecard(
                 repeat = r.get('repeat_count', 0) or 0
                 score_osha, osha_ratio = _score_osha_normalized(total_viols, willful, repeat, naics_code, osha_avgs)
 
-                # 6. NLRB (based on NLRB win rate for geographic area)
-                win_rate = nlrb_rates.get(site_state, nlrb_rates.get('US', 75.0))
-                score_nlrb = 8 if win_rate >= 80 else 5 if win_rate >= 70 else 3 if win_rate >= 60 else 1
+                # 6. NLRB (enhanced: predicted win % from state + industry + size patterns)
+                predicted_pct = nlrb_predicted.get(estab_id)
+                if predicted_pct is not None:
+                    score_nlrb = 10 if predicted_pct >= 82 else 8 if predicted_pct >= 78 else 5 if predicted_pct >= 74 else 3 if predicted_pct >= 70 else 1
+                else:
+                    # Fallback: state win rate + industry bonus
+                    win_rate = nlrb_rates.get(site_state, nlrb_rates.get('US', 75.0))
+                    ind_rate = nlrb_industry_rates.get(naics_2, nlrb_industry_rates.get('US', 68.0))
+                    blended = win_rate * 0.6 + ind_rate * 0.4
+                    score_nlrb = 10 if blended >= 82 else 8 if blended >= 78 else 5 if blended >= 74 else 3 if blended >= 70 else 1
 
                 # 7. Contracts (federal contractor data via crosswalk)
                 fed = federal_contracts.get(estab_id)
@@ -4775,7 +4803,8 @@ def get_organizing_scorecard(
                             'contracts': score_contracts,
                             'projections': score_projections,
                             'similarity': score_similarity
-                        }
+                        },
+                        'nlrb_predicted_win_pct': predicted_pct or nlrb_rates.get(site_state, nlrb_rates.get('US', 75.0))
                     }
                     scored_results.append(result)
 
@@ -4871,13 +4900,41 @@ def get_scorecard_detail(estab_id: str):
             repeat = base.get('repeat_count', 0) or 0
             score_osha, osha_ratio = _score_osha_normalized(total_viols, willful, repeat, naics_code, osha_avgs)
 
-            # 6. NLRB score
+            # 6. NLRB score (enhanced: predicted win % + direct case count)
             cur.execute("""
                 SELECT COUNT(*) as cnt FROM nlrb_participants
                 WHERE participant_name ILIKE %s AND participant_type = 'Employer'
             """, [f"%{estab_name[:20]}%"])
             nlrb_count = cur.fetchone()['cnt']
-            score_nlrb = min(10, nlrb_count * 5)
+
+            # Get predicted win pct from mergent_employers via osha_f7_matches
+            nlrb_predicted_pct = None
+            nlrb_factors = None
+            cur.execute("""
+                SELECT me.nlrb_predicted_win_pct, me.nlrb_success_factors
+                FROM osha_f7_matches m
+                JOIN mergent_employers me ON me.matched_f7_employer_id = m.f7_employer_id
+                WHERE m.establishment_id = %s AND me.nlrb_predicted_win_pct IS NOT NULL
+                LIMIT 1
+            """, [estab_id])
+            nlrb_row = cur.fetchone()
+            if nlrb_row:
+                nlrb_predicted_pct = float(nlrb_row['nlrb_predicted_win_pct'])
+                nlrb_factors = nlrb_row['nlrb_success_factors']
+
+            # Load NLRB industry win rate for this employer's industry
+            nlrb_industry_rate = None
+            if naics_2:
+                cur.execute("SELECT win_rate_pct FROM ref_nlrb_industry_win_rates WHERE naics_2 = %s", [naics_2])
+                ir = cur.fetchone()
+                if ir:
+                    nlrb_industry_rate = float(ir['win_rate_pct'])
+
+            # Score: use predicted pct if available, else case count
+            if nlrb_predicted_pct is not None:
+                score_nlrb = 10 if nlrb_predicted_pct >= 82 else 8 if nlrb_predicted_pct >= 78 else 5 if nlrb_predicted_pct >= 74 else 3 if nlrb_predicted_pct >= 70 else 1
+            else:
+                score_nlrb = min(10, nlrb_count * 5)
 
             # 7. Contracts score (NY/NYC state contracts + federal via crosswalk)
             cur.execute("""
@@ -4983,6 +5040,13 @@ def get_scorecard_detail(estab_id: str):
                     "federal_funding": federal_funding,
                     "federal_contract_count": federal_count,
                     "total_funding": total_funding
+                },
+                "nlrb_context": {
+                    "predicted_win_pct": nlrb_predicted_pct,
+                    "state_win_rate": state_win_rate,
+                    "industry_win_rate": nlrb_industry_rate,
+                    "direct_case_count": nlrb_count,
+                    "factors": nlrb_factors
                 },
                 "context": {
                     "has_related_union": has_related_union,
@@ -7044,6 +7108,58 @@ def get_sector_unionized(
                 "sector": sector_key.upper(),
                 "total": total,
                 "unionized": cur.fetchall()
+            }
+
+
+@app.get("/api/nlrb/patterns")
+def get_nlrb_patterns():
+    """Return NLRB historical success pattern reference data:
+    industry win rates, size bucket win rates, and summary stats."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT naics_2, total_elections, union_wins, win_rate_pct, sample_quality
+                FROM ref_nlrb_industry_win_rates
+                ORDER BY total_elections DESC
+            """)
+            industry = cur.fetchall()
+
+            cur.execute("""
+                SELECT size_bucket, min_employees, max_employees,
+                       total_elections, union_wins, win_rate_pct
+                FROM ref_nlrb_size_win_rates
+                ORDER BY min_employees
+            """)
+            size_buckets = cur.fetchall()
+
+            cur.execute("""
+                SELECT state, total_elections, union_wins, win_rate_pct
+                FROM ref_nlrb_state_win_rates
+                ORDER BY win_rate_pct DESC
+            """)
+            states = cur.fetchall()
+
+            # Summary stats
+            cur.execute("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN union_won THEN 1 ELSE 0 END) as wins,
+                       ROUND(100.0 * SUM(CASE WHEN union_won THEN 1 ELSE 0 END) / COUNT(*), 1) as win_rate,
+                       MIN(election_date) as earliest,
+                       MAX(election_date) as latest
+                FROM nlrb_elections WHERE union_won IS NOT NULL
+            """)
+            summary = cur.fetchone()
+
+            return {
+                "summary": {
+                    "total_elections": summary['total'],
+                    "union_wins": summary['wins'],
+                    "overall_win_rate": float(summary['win_rate']),
+                    "date_range": [str(summary['earliest']), str(summary['latest'])]
+                },
+                "by_industry": [dict(r) for r in industry],
+                "by_size": [dict(r) for r in size_buckets],
+                "by_state": [dict(r) for r in states]
             }
 
 

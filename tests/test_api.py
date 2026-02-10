@@ -363,6 +363,60 @@ def test_comparables_invalid_id(client):
 
 
 # ============================================================================
+# NLRB PATTERNS
+# ============================================================================
+
+def test_nlrb_patterns_endpoint(client):
+    """NLRB patterns endpoint returns industry, size, and state win rates."""
+    r = client.get("/api/nlrb/patterns")
+    assert r.status_code == 200
+    data = r.json()
+    assert "summary" in data
+    assert data["summary"]["total_elections"] > 30000
+    assert 50 < data["summary"]["overall_win_rate"] < 90
+    assert "by_industry" in data
+    assert len(data["by_industry"]) >= 20
+    assert "by_size" in data
+    assert len(data["by_size"]) == 8
+    assert "by_state" in data
+    assert len(data["by_state"]) >= 50
+
+
+def test_scorecard_has_nlrb_predicted(client):
+    """Scorecard list results include nlrb_predicted_win_pct."""
+    r = client.get("/api/organizing/scorecard?limit=5&min_score=20")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["results"]) > 0
+    result = data["results"][0]
+    # Should have nlrb_predicted_win_pct field
+    assert "nlrb_predicted_win_pct" in result
+    if result["nlrb_predicted_win_pct"] is not None:
+        assert 50 <= result["nlrb_predicted_win_pct"] <= 100
+
+
+def test_scorecard_detail_has_nlrb_context(client):
+    """Scorecard detail includes nlrb_context with predicted win pct and factors."""
+    # Get an establishment from scorecard list first
+    r = client.get("/api/organizing/scorecard?limit=1&min_score=20")
+    assert r.status_code == 200
+    results = r.json()["results"]
+    if not results:
+        pytest.skip("No scorecard results")
+    estab_id = results[0]["establishment_id"]
+
+    r2 = client.get(f"/api/organizing/scorecard/{estab_id}")
+    assert r2.status_code == 200
+    detail = r2.json()
+    assert "nlrb_context" in detail
+    ctx = detail["nlrb_context"]
+    assert "predicted_win_pct" in ctx
+    assert "state_win_rate" in ctx
+    assert "industry_win_rate" in ctx
+    assert "direct_case_count" in ctx
+
+
+# ============================================================================
 # ERROR HANDLING
 # ============================================================================
 

@@ -6894,7 +6894,7 @@
                 segments = [
                     { value: breakdown.size || 0, max: 5, color: 'bg-yellow-500', label: 'Size' },
                     { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry Density' },
-                    { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB Momentum' },
+                    { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB Patterns' },
                     { value: breakdown.osha || 0, max: 4, color: 'bg-red-500', label: 'OSHA' },
                     { value: breakdown.contracts || 0, max: 15, color: 'bg-orange-500', label: 'Contracts' },
                     { value: breakdown.labor || 0, max: 10, color: 'bg-pink-500', label: 'Labor Violations' },
@@ -6986,7 +6986,7 @@
                     <div class="space-y-3">
                         ${renderScoreRow('Size Sweet Spot', breakdown.size, 5, 'bg-yellow-500', '100-500 employees = optimal', getScoreReason('size', item))}
                         ${renderScoreRow('Industry Density', breakdown.industry_density, 10, 'bg-blue-500', 'BLS NAICS unionization rate', getScoreReason('industry_density', item))}
-                        ${renderScoreRow('NLRB Momentum', breakdown.nlrb, 10, 'bg-green-500', 'Recent wins in same industry', getScoreReason('nlrb', item))}
+                        ${renderScoreRow('NLRB Patterns', breakdown.nlrb, 10, 'bg-green-500', item.nlrb_predicted_win_pct ? `${item.nlrb_predicted_win_pct.toFixed(0)}% predicted win rate` : 'Historical win patterns', getScoreReason('nlrb', item))}
                         ${renderScoreRow('OSHA Violations', breakdown.osha, 4, 'bg-red-500', 'Safety violations on record', getScoreReason('osha', item))}
                         ${renderScoreRow('Govt Contracts', breakdown.contracts, 15, 'bg-orange-500', 'NY State + NYC contract value', getScoreReason('contracts', item))}
                         ${renderScoreRow('Labor Violations', breakdown.labor, 10, 'bg-pink-500', 'Wage theft, ULP, PSSL/FWW', getScoreReason('labor', item))}
@@ -7123,7 +7123,7 @@
                         ${renderScoreRow('State Density', breakdown.state_density, 10, 'bg-purple-500', 'State union membership vs national average')}
                         ${renderScoreRow('Establishment Size', breakdown.size, 10, 'bg-yellow-500', 'Sweet spot 100-500 employees')}
                         ${renderScoreRow('OSHA Violations', breakdown.osha, 10, 'bg-red-500', 'Workplace safety violations on record')}
-                        ${renderScoreRow('NLRB History', breakdown.nlrb, 10, 'bg-green-500', 'Past election activity for this employer')}
+                        ${renderScoreRow('NLRB Patterns', breakdown.nlrb, 10, 'bg-green-500', detail.nlrb_context?.predicted_win_pct ? `Predicted ${detail.nlrb_context.predicted_win_pct.toFixed(0)}% win probability` : 'Past election activity for this employer')}
                         ${renderScoreRow('Govt Contracts', breakdown.contracts, 10, 'bg-orange-500', 'NY State & NYC contract funding')}
                         ${renderScoreRow('Industry Growth', breakdown.projections, 10, 'bg-teal-500', 'BLS industry employment projections')}
                         ${renderScoreRow('Union Similarity', breakdown.similarity, 10, 'bg-cyan-500', 'Gower distance to unionized employers')}
@@ -7143,6 +7143,37 @@
                             <div class="bg-cyan-500 h-2 rounded-full" style="width: ${(detail.similarity_context.similarity_score * 100).toFixed(0)}%"></div>
                         </div>
                         <p class="text-xs text-warmgray-500 mt-2">Based on Gower distance across 14 features (industry, size, geography, violations, contracts)</p>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- NLRB Success Patterns -->
+                ${detail.nlrb_context?.predicted_win_pct ? `
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-warmgray-700 uppercase tracking-wide mb-3">NLRB Success Prediction</h4>
+                    <div class="bg-green-50 rounded-lg p-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-green-700">Predicted election win probability</span>
+                            <span class="text-lg font-bold text-green-700">${detail.nlrb_context.predicted_win_pct.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full bg-green-200 rounded-full h-2 mt-2">
+                            <div class="bg-green-500 h-2 rounded-full" style="width: ${Math.min(100, detail.nlrb_context.predicted_win_pct).toFixed(0)}%"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mt-3 text-xs">
+                            <div class="text-center">
+                                <div class="font-semibold text-green-700">${detail.nlrb_context.state_win_rate ? detail.nlrb_context.state_win_rate.toFixed(0) + '%' : 'N/A'}</div>
+                                <div class="text-warmgray-500">State rate</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="font-semibold text-green-700">${detail.nlrb_context.industry_win_rate ? detail.nlrb_context.industry_win_rate.toFixed(0) + '%' : 'N/A'}</div>
+                                <div class="text-warmgray-500">Industry rate</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="font-semibold text-green-700">${detail.nlrb_context.direct_case_count || 0}</div>
+                                <div class="text-warmgray-500">Past cases</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-warmgray-500 mt-2">Based on 33K NLRB elections: state win rate, industry patterns, and unit size</p>
                     </div>
                 </div>
                 ` : ''}
