@@ -4666,6 +4666,16 @@ def get_organizing_scorecard(
                 'count': r['federal_contract_count'] or 0
             } for r in cur.fetchall()}
 
+            # Pre-fetch similarity scores (powers score_similarity)
+            cur.execute("""
+                SELECT m.establishment_id, me.similarity_score
+                FROM osha_f7_matches m
+                JOIN mergent_employers me ON me.matched_f7_employer_id = m.f7_employer_id
+                WHERE me.similarity_score IS NOT NULL
+            """)
+            similarity_scores = {r['establishment_id']: float(r['similarity_score'])
+                                 for r in cur.fetchall()}
+
             # Get base results
             cur.execute(f"""
                 SELECT * FROM v_osha_organizing_targets
@@ -4719,8 +4729,16 @@ def get_organizing_scorecard(
                 proj_pct = projections.get(f"{naics_2}0000", 0)
                 score_projections = 10 if proj_pct > 10 else 7 if proj_pct > 5 else 4 if proj_pct > 0 else 2
 
+                # 9. Similarity (Gower distance to union employers)
+                sim = similarity_scores.get(estab_id)
+                if sim is not None:
+                    score_similarity = 10 if sim >= 0.80 else 7 if sim >= 0.60 else 4 if sim >= 0.40 else 1
+                else:
+                    score_similarity = 0
+
                 organizing_score = (score_company_unions + score_industry_density + score_geographic +
-                                   score_size + score_osha + score_nlrb + score_contracts + score_projections)
+                                   score_size + score_osha + score_nlrb + score_contracts + score_projections +
+                                   score_similarity)
 
                 if organizing_score >= min_score:
                     result = {
@@ -4755,7 +4773,8 @@ def get_organizing_scorecard(
                             'osha': score_osha,
                             'nlrb': score_nlrb,
                             'contracts': score_contracts,
-                            'projections': score_projections
+                            'projections': score_projections,
+                            'similarity': score_similarity
                         }
                     }
                     scored_results.append(result)
@@ -4911,8 +4930,24 @@ def get_scorecard_detail(estab_id: str):
                     change = float(proj_row['employment_change_pct'])
                     score_projections = 10 if change > 10 else 7 if change > 5 else 4 if change > 0 else 2
 
+            # 9. Similarity score (via osha_f7_matches -> mergent_employers)
+            score_similarity = 0
+            similarity_score_val = None
+            cur.execute("""
+                SELECT me.similarity_score
+                FROM osha_f7_matches m
+                JOIN mergent_employers me ON me.matched_f7_employer_id = m.f7_employer_id
+                WHERE m.establishment_id = %s AND me.similarity_score IS NOT NULL
+                LIMIT 1
+            """, [estab_id])
+            sim_row = cur.fetchone()
+            if sim_row and sim_row['similarity_score'] is not None:
+                similarity_score_val = float(sim_row['similarity_score'])
+                score_similarity = 10 if similarity_score_val >= 0.80 else 7 if similarity_score_val >= 0.60 else 4 if similarity_score_val >= 0.40 else 1
+
             organizing_score = (score_company_unions + score_industry_density + score_geographic +
-                              score_size + score_osha + score_nlrb + score_contracts + score_projections)
+                              score_size + score_osha + score_nlrb + score_contracts + score_projections +
+                              score_similarity)
 
             return {
                 "establishment": base,
@@ -4925,7 +4960,12 @@ def get_scorecard_detail(estab_id: str):
                     "osha": score_osha,
                     "nlrb": score_nlrb,
                     "contracts": score_contracts,
-                    "projections": score_projections
+                    "projections": score_projections,
+                    "similarity": score_similarity
+                },
+                "similarity_context": {
+                    "similarity_score": similarity_score_val,
+                    "comparables_url": f"/api/employers/{estab_id}/comparables" if similarity_score_val else None
                 },
                 "osha_context": {
                     "industry_ratio": osha_ratio,
@@ -7004,6 +7044,97 @@ def get_sector_unionized(
                 "sector": sector_key.upper(),
                 "total": total,
                 "unionized": cur.fetchall()
+            }
+
+
+@app.get("/api/employers/{employer_id}/comparables")
+def get_employer_comparables(employer_id: int):
+    """Get the top-5 most similar unionized employers for a given mergent employer.
+    Uses pre-computed Gower distance from the employer similarity engine."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Get the target employer
+            cur.execute("""
+                SELECT id, company_name, state, naics_primary, employees_site,
+                       employees_all_sites, similarity_score
+                FROM mergent_employers WHERE id = %s
+            """, [employer_id])
+            employer = cur.fetchone()
+            if not employer:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            # Get comparables
+            cur.execute("""
+                SELECT ec.rank, ec.gower_distance, ec.feature_breakdown,
+                       me.id AS comparable_id, me.company_name AS comparable_name,
+                       me.state AS comparable_state, me.naics_primary AS comparable_naics,
+                       me.employees_site AS comparable_employees,
+                       me.f7_union_name
+                FROM employer_comparables ec
+                JOIN mergent_employers me ON me.id = ec.comparable_employer_id
+                WHERE ec.employer_id = %s
+                ORDER BY ec.rank
+            """, [employer_id])
+            rows = cur.fetchall()
+
+            comparables = []
+            for r in rows:
+                breakdown = r.get('feature_breakdown') or {}
+                if isinstance(breakdown, str):
+                    import json
+                    breakdown = json.loads(breakdown)
+
+                # Generate human-readable match reasons from feature breakdown
+                match_reasons = []
+                target_naics = employer.get('naics_primary') or ''
+                comp_naics = r.get('comparable_naics') or ''
+                if breakdown.get('naics_4', 1) == 0:
+                    match_reasons.append(f"Same industry (NAICS {target_naics[:4]})")
+                elif breakdown.get('naics_4', 1) <= 0.3:
+                    match_reasons.append(f"Same sector (NAICS {target_naics[:2]})")
+
+                if breakdown.get('state', 1) == 0:
+                    match_reasons.append(f"Same state ({employer.get('state')})")
+
+                if breakdown.get('employees_here_log', 1) < 0.15:
+                    t_emp = employer.get('employees_site') or employer.get('employees_all_sites')
+                    c_emp = r.get('comparable_employees')
+                    if t_emp and c_emp:
+                        match_reasons.append(f"Similar size ({t_emp:,} vs {c_emp:,} employees)")
+                    else:
+                        match_reasons.append("Similar workforce size")
+
+                if breakdown.get('county', 1) == 0:
+                    match_reasons.append("Same county")
+
+                if breakdown.get('is_subsidiary', 1) == 0:
+                    match_reasons.append("Same corporate structure")
+
+                if breakdown.get('osha_violation_rate', 1) < 0.1:
+                    match_reasons.append("Similar OSHA violation profile")
+
+                if breakdown.get('whd_violation_rate', 1) < 0.1:
+                    match_reasons.append("Similar wage compliance profile")
+
+                if breakdown.get('is_federal_contractor', 1) == 0:
+                    match_reasons.append("Both federal contractors" if breakdown.get('is_federal_contractor', 1) == 0 else "")
+
+                comparables.append({
+                    'rank': r['rank'],
+                    'comparable_id': r['comparable_id'],
+                    'comparable_name': r['comparable_name'],
+                    'union_name': r.get('f7_union_name'),
+                    'gower_distance': float(r['gower_distance']),
+                    'similarity_pct': round((1 - float(r['gower_distance'])) * 100),
+                    'match_reasons': [m for m in match_reasons if m],
+                    'feature_breakdown': breakdown
+                })
+
+            return {
+                "employer_id": employer_id,
+                "employer_name": employer.get('company_name'),
+                "similarity_score": float(employer['similarity_score']) if employer.get('similarity_score') is not None else None,
+                "comparables": comparables
             }
 
 

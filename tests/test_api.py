@@ -321,6 +321,48 @@ def test_siblings_invalid_id(client):
 
 
 # ============================================================================
+# EMPLOYER COMPARABLES
+# ============================================================================
+
+def test_comparables_endpoint(client):
+    """Comparables endpoint returns similar unionized employers."""
+    # Find an employer with comparables data
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    from db_config import get_connection
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT employer_id FROM employer_comparables LIMIT 1")
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        pytest.skip("No comparables data computed yet")
+
+    eid = row[0]
+    r = client.get(f"/api/employers/{eid}/comparables")
+    assert r.status_code == 200
+    data = r.json()
+    assert "employer_id" in data
+    assert "employer_name" in data
+    assert "comparables" in data
+    assert len(data["comparables"]) > 0
+    comp = data["comparables"][0]
+    assert "rank" in comp
+    assert "gower_distance" in comp
+    assert "similarity_pct" in comp
+    assert "match_reasons" in comp
+    assert "feature_breakdown" in comp
+    assert comp["rank"] == 1
+    assert 0 <= comp["gower_distance"] <= 1
+
+
+def test_comparables_invalid_id(client):
+    """Comparables endpoint returns 404 for non-existent employer."""
+    r = client.get("/api/employers/999999999/comparables")
+    assert r.status_code == 404
+
+
+# ============================================================================
 # ERROR HANDLING
 # ============================================================================
 

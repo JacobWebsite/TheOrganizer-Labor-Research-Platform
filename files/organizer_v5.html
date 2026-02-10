@@ -6914,10 +6914,12 @@
                     { value: breakdown.osha || 0, max: 10, color: 'bg-red-500', label: 'OSHA' },
                     { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB' },
                     { value: breakdown.contracts || 0, max: 10, color: 'bg-orange-500', label: 'Contracts' },
-                    { value: breakdown.projections || 0, max: 10, color: 'bg-teal-500', label: 'Growth' }
+                    { value: breakdown.projections || 0, max: 10, color: 'bg-teal-500', label: 'Growth' },
+                    { value: breakdown.similarity || 0, max: 10, color: 'bg-cyan-500', label: 'Similarity' }
                 ];
+                const oshaTotal = 110;
                 return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
-                    ${segments.map(s => `<div class="${s.color}" style="width: ${s.value}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
+                    ${segments.map(s => `<div class="${s.color}" style="width: ${(s.value / oshaTotal * 100).toFixed(1)}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
                 </div>`;
             }
         }
@@ -7124,8 +7126,26 @@
                         ${renderScoreRow('NLRB History', breakdown.nlrb, 10, 'bg-green-500', 'Past election activity for this employer')}
                         ${renderScoreRow('Govt Contracts', breakdown.contracts, 10, 'bg-orange-500', 'NY State & NYC contract funding')}
                         ${renderScoreRow('Industry Growth', breakdown.projections, 10, 'bg-teal-500', 'BLS industry employment projections')}
+                        ${renderScoreRow('Union Similarity', breakdown.similarity, 10, 'bg-cyan-500', 'Gower distance to unionized employers')}
                     </div>
                 </div>
+
+                <!-- Similarity Context -->
+                ${detail.similarity_context?.similarity_score ? `
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-warmgray-700 uppercase tracking-wide mb-3">Union Similarity</h4>
+                    <div class="bg-cyan-50 rounded-lg p-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-cyan-700">Similarity to unionized employers</span>
+                            <span class="text-lg font-bold text-cyan-700">${(detail.similarity_context.similarity_score * 100).toFixed(0)}%</span>
+                        </div>
+                        <div class="w-full bg-cyan-200 rounded-full h-2 mt-2">
+                            <div class="bg-cyan-500 h-2 rounded-full" style="width: ${(detail.similarity_context.similarity_score * 100).toFixed(0)}%"></div>
+                        </div>
+                        <p class="text-xs text-warmgray-500 mt-2">Based on Gower distance across 14 features (industry, size, geography, violations, contracts)</p>
+                    </div>
+                </div>
+                ` : ''}
 
                 <!-- Government Contracts -->
                 ${contracts.contract_count > 0 ? `

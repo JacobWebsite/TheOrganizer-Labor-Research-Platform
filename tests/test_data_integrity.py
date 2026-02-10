@@ -291,7 +291,56 @@ def test_crosswalk_size(db):
 
 
 # ============================================================================
-# CHECK 12: No Duplicate Employers
+# CHECK 12: Employer Comparables Populated
+# ============================================================================
+
+def test_employer_comparables_populated(db):
+    """employer_comparables should have rows with valid ranks and distances."""
+    # Check if table exists first
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_name = 'employer_comparables'
+    """)
+    if not exists:
+        pytest.skip("employer_comparables table not created yet")
+
+    total = query_one(db, "SELECT COUNT(*) FROM employer_comparables")
+    if total == 0:
+        pytest.skip("employer_comparables not populated yet (run compute_gower_similarity.py)")
+
+    # Ranks should be 1-5
+    bad_ranks = query_one(db, """
+        SELECT COUNT(*) FROM employer_comparables
+        WHERE rank < 1 OR rank > 5
+    """)
+    assert bad_ranks == 0, f"Found {bad_ranks} rows with rank outside [1,5]"
+
+    # Distances should be in [0,1]
+    bad_dist = query_one(db, """
+        SELECT COUNT(*) FROM employer_comparables
+        WHERE gower_distance < 0 OR gower_distance > 1
+    """)
+    assert bad_dist == 0, f"Found {bad_dist} rows with distance outside [0,1]"
+
+    # No orphan employer_ids
+    orphans = query_one(db, """
+        SELECT COUNT(*) FROM employer_comparables ec
+        LEFT JOIN mergent_employers me ON me.id = ec.employer_id
+        WHERE me.id IS NULL
+    """)
+    assert orphans == 0, f"Found {orphans} orphan employer_ids in comparables"
+
+    # No orphan comparable_employer_ids
+    orphans2 = query_one(db, """
+        SELECT COUNT(*) FROM employer_comparables ec
+        LEFT JOIN mergent_employers me ON me.id = ec.comparable_employer_id
+        WHERE me.id IS NULL
+    """)
+    assert orphans2 == 0, f"Found {orphans2} orphan comparable_employer_ids"
+
+
+# ============================================================================
+# CHECK 13: No Duplicate Employers
 # ============================================================================
 
 def test_no_exact_duplicate_employers(db):
