@@ -4640,6 +4640,23 @@ def get_organizing_scorecard(
             cur.execute("SELECT state, win_rate_pct FROM ref_nlrb_state_win_rates")
             nlrb_rates = {r['state'].strip(): float(r['win_rate_pct']) for r in cur.fetchall()}
 
+            # Pre-fetch F7 matches (powers score_company_unions)
+            cur.execute("SELECT establishment_id, f7_employer_id FROM osha_f7_matches")
+            f7_match_set = {r['establishment_id'] for r in cur.fetchall()}
+
+            # Pre-fetch federal contractor data (powers score_contracts)
+            cur.execute("""
+                SELECT DISTINCT m.establishment_id,
+                       c.federal_obligations, c.federal_contract_count
+                FROM osha_f7_matches m
+                JOIN corporate_identifier_crosswalk c ON c.f7_employer_id = m.f7_employer_id
+                WHERE c.is_federal_contractor = TRUE
+            """)
+            federal_contracts = {r['establishment_id']: {
+                'obligations': float(r['federal_obligations'] or 0),
+                'count': r['federal_contract_count'] or 0
+            } for r in cur.fetchall()}
+
             # Get base results
             cur.execute(f"""
                 SELECT * FROM v_osha_organizing_targets
@@ -4657,8 +4674,9 @@ def get_organizing_scorecard(
                 site_state = r.get('site_state', '')
                 emp_count = r.get('employee_count', 0) or 0
 
-                # 1. Company union shops (check if matched to F7 employer)
-                score_company_unions = 20 if r.get('matched_employer_id') else 0
+                # 1. Company union shops (check if matched to F7 employer via osha_f7_matches)
+                estab_id = r.get('establishment_id', '')
+                score_company_unions = 20 if estab_id in f7_match_set else 0
 
                 # 2. Industry density (hierarchical NAICS lookup)
                 ind_pct = industry_density.get(naics_2, 0)
@@ -4676,11 +4694,17 @@ def get_organizing_scorecard(
                 repeat = r.get('repeat_count', 0) or 0
                 score_osha, osha_ratio = _score_osha_normalized(total_viols, willful, repeat, naics_code, osha_avgs)
 
-                # 6. NLRB (simplified - based on violation history as proxy)
-                score_nlrb = 5 if total_viols > 5 else 2
+                # 6. NLRB (based on NLRB win rate for geographic area)
+                win_rate = nlrb_rates.get(site_state, nlrb_rates.get('US', 75.0))
+                score_nlrb = 8 if win_rate >= 80 else 5 if win_rate >= 70 else 3 if win_rate >= 60 else 1
 
-                # 7. Contracts (simplified)
-                score_contracts = 0
+                # 7. Contracts (federal contractor data via crosswalk)
+                fed = federal_contracts.get(estab_id)
+                if fed:
+                    oblig = fed['obligations']
+                    score_contracts = 10 if oblig > 5_000_000 else 7 if oblig > 1_000_000 else 4 if oblig > 100_000 else 2
+                else:
+                    score_contracts = 0
 
                 # 8. Projections
                 proj_pct = projections.get(f"{naics_2}0000", 0)
@@ -4709,7 +4733,9 @@ def get_organizing_scorecard(
                         'accident_count': r.get('accident_count'),
                         'fatality_count': r.get('fatality_count'),
                         'risk_level': r.get('risk_level'),
-                        'matched_employer_id': r.get('matched_employer_id'),
+                        'has_f7_match': estab_id in f7_match_set,
+                        'has_federal_contracts': estab_id in federal_contracts,
+                        'federal_obligations': fed['obligations'] if fed else None,
                         'organizing_score': organizing_score,
                         'osha_industry_ratio': osha_ratio,
                         'score_breakdown': {
@@ -4777,12 +4803,19 @@ def get_scorecard_detail(estab_id: str):
             cur.execute("SELECT state, members_total FROM epi_state_benchmarks")
             state_members_map = {r['state']: float(r['members_total'] or 0) for r in cur.fetchall()}
 
-            # 1. Company union shops (check for related union locations)
+            # 1. Company union shops (check osha_f7_matches first, then fuzzy fallback)
             cur.execute("""
-                SELECT COUNT(*) > 0 as has_union FROM f7_employers_deduped
-                WHERE similarity(employer_name_aggressive, %s) > 0.5
-            """, [estab_name])
-            has_related_union = cur.fetchone()['has_union']
+                SELECT f7_employer_id FROM osha_f7_matches WHERE establishment_id = %s
+            """, [estab_id])
+            f7_match = cur.fetchone()
+            if f7_match:
+                has_related_union = True
+            else:
+                cur.execute("""
+                    SELECT COUNT(*) > 0 as has_union FROM f7_employers_deduped
+                    WHERE similarity(employer_name_aggressive, %s) > 0.5
+                """, [estab_name])
+                has_related_union = cur.fetchone()['has_union']
             score_company_unions = 20 if has_related_union else 0
 
             # 2. Industry density (hierarchical NAICS)
@@ -4818,7 +4851,7 @@ def get_scorecard_detail(estab_id: str):
             nlrb_count = cur.fetchone()['cnt']
             score_nlrb = min(10, nlrb_count * 5)
 
-            # 7. Contracts score
+            # 7. Contracts score (NY/NYC state contracts + federal via crosswalk)
             cur.execute("""
                 SELECT COALESCE(SUM(current_amount), 0) as total FROM ny_state_contracts
                 WHERE vendor_name ILIKE %s
@@ -4829,7 +4862,22 @@ def get_scorecard_detail(estab_id: str):
                 WHERE vendor_name ILIKE %s
             """, [f"%{estab_name[:15]}%"])
             nyc_funding = cur.fetchone()['total'] or 0
-            total_funding = ny_funding + nyc_funding
+
+            # Federal contracts via osha_f7_matches -> crosswalk
+            federal_funding = 0
+            federal_count = 0
+            cur.execute("""
+                SELECT c.federal_obligations, c.federal_contract_count
+                FROM osha_f7_matches m
+                JOIN corporate_identifier_crosswalk c ON c.f7_employer_id = m.f7_employer_id
+                WHERE m.establishment_id = %s AND c.is_federal_contractor = TRUE
+            """, [estab_id])
+            fed_row = cur.fetchone()
+            if fed_row:
+                federal_funding = float(fed_row['federal_obligations'] or 0)
+                federal_count = fed_row['federal_contract_count'] or 0
+
+            total_funding = ny_funding + nyc_funding + federal_funding
             score_contracts = 10 if total_funding > 5000000 else 7 if total_funding > 1000000 else 4 if total_funding > 100000 else 2 if total_funding > 0 else 0
 
             # 8. Projections score
@@ -4870,7 +4918,10 @@ def get_scorecard_detail(estab_id: str):
                     "nlrb_win_rate": state_win_rate
                 },
                 "contracts": {
-                    "contract_count": 1 if total_funding > 0 else 0,
+                    "ny_state_funding": ny_funding,
+                    "nyc_funding": nyc_funding,
+                    "federal_funding": federal_funding,
+                    "federal_contract_count": federal_count,
                     "total_funding": total_funding
                 },
                 "context": {

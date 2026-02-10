@@ -177,6 +177,11 @@ All items completed:
 
 **New scripts:** `scripts/scoring/create_scorecard_reference_tables.py`, `scripts/scoring/rescore_phase2.py`, `scripts/scoring/recalibrate_tiers.py`
 
+**Phase 2 Integration Fix (February 9, 2026):** Fixed two critical scoring gaps in the API scorecard list endpoint:
+- `score_company_unions` was always 0 (view had no `matched_employer_id` column). Now uses `osha_f7_matches` table pre-fetch -- 51% of CA results and 12% of NY results now score > 0.
+- `score_contracts` was hardcoded to 0. Now uses federal contractor data via `osha_f7_matches -> corporate_identifier_crosswalk` join -- 14,223 OSHA establishments have federal contractor data (14% of top CA results score > 0).
+- Detail endpoint upgraded: checks `osha_f7_matches` for precise union linkage (with fuzzy fallback), adds federal contract data alongside NY/NYC contracts in response.
+
 **Tests:** 37/37 passing (25 API + 12 data integrity, includes 5 new Phase 2 tests)
 
 ---
