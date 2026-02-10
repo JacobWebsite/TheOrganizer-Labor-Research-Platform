@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-02-09T20:04:08.858017",
+  "checks": {
+    "BLS Alignment": {
+      "status": "PASS",
+      "value": 14499677,
+      "benchmark": 14286000,
+      "variance": "1.5%"
+    },
+    "NAICS Coverage": {
+      "status": "PASS",
+      "value": "99.2%",
+      "detail": "60,455/60,953"
+    },
+    "Geocode Coverage": {
+      "status": "PASS",
+      "value": "99.8%",
+      "detail": "60,843/60,953"
+    },
+    "Hierarchy Coverage": {
+      "status": "PASS",
+      "value": "100.0%",
+      "detail": "26,665/26,665"
+    },
+    "Sector Completeness": {
+      "status": "PASS",
+      "value": "100.0%"
+    },
+    "Crosswalk Orphans": {
+      "status": "PASS",
+      "value": "36.3%",
+      "detail": "4,384 orphans / 12,089 total"
+    },
+    "No Exact Duplicates": {
+      "status": "PASS",
+      "value": 0
+    },
+    "Materialized Views": {
+      "status": "PASS",
+      "value": "2/2 populated",
+      "empty": null
+    },
+    "Table Drift": {
+      "status": "SKIP",
+      "message": "No baselines saved"
+    }
+  }
+}
