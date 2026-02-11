@@ -60,6 +60,42 @@
         /* Tab styling */
         .tab-inactive { color: #7d7770; }
         .tab-active { background: #1a1a1a; color: white; }
+
+        /* App mode toggle */
+        .app-mode-inactive { color: #a8a298; }
+        .app-mode-inactive:hover { color: #d4d0c8; }
+        .app-mode-active { background: #c41e3a; color: white; }
+
+        /* Territory mode */
+        .territory-card {
+            background: white;
+            border: 2px solid #e8e5e0;
+            border-radius: 12px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .territory-card:hover {
+            border-color: #c41e3a;
+            box-shadow: 0 4px 12px rgba(196, 30, 58, 0.1);
+            transform: translateY(-2px);
+        }
+        .territory-kpi {
+            background: white;
+            border: 1px solid #e8e5e0;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #f5f3f0 25%, #e8e5e0 50%, #f5f3f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+            border-radius: 6px;
+        }
+        @keyframes skeleton-pulse {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
         
         /* List item states */
         .list-item { border-left: 3px solid transparent; transition: all 0.15s ease; }
@@ -197,12 +233,25 @@
     <header class="bg-warmgray-900 text-white">
         <div class="max-w-7xl mx-auto px-6 py-5">
             <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="headline text-2xl font-bold tracking-tight">The Organizer</h1>
-                    <p class="text-warmgray-400 text-sm mt-0.5">Labor Research Tool</p>
+                <div class="flex items-center gap-6">
+                    <div>
+                        <h1 class="headline text-2xl font-bold tracking-tight">The Organizer</h1>
+                        <p class="text-warmgray-400 text-sm mt-0.5">Labor Research Tool</p>
+                    </div>
+                    <!-- App Mode Toggle -->
+                    <div class="inline-flex gap-1 p-1 bg-warmgray-800 rounded-full">
+                        <button id="modeTerritory" onclick="setAppMode('territory')"
+                            class="app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all">
+                            Territory
+                        </button>
+                        <button id="modeSearch" onclick="setAppMode('search')"
+                            class="app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all">
+                            Search
+                        </button>
+                    </div>
                 </div>
                 <div class="flex items-center gap-8 text-sm">
-                    <button onclick="openAnalyticsDashboard()" 
+                    <button onclick="openAnalyticsDashboard()"
                         class="flex items-center gap-2 px-4 py-2 bg-warmgray-800 hover:bg-warmgray-700 rounded-lg transition-colors"
                         title="Analytics Dashboard">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,7 +280,89 @@
     <!-- MAIN CONTENT -->
     <!-- ============================================ -->
     <main class="max-w-7xl mx-auto px-6 py-6">
-        
+
+        <!-- ============================================ -->
+        <!-- TERRITORY MODE -->
+        <!-- ============================================ -->
+        <div id="territoryMode">
+            <!-- Union selector bar -->
+            <div class="bg-white rounded-lg shadow-sm border border-warmgray-200 mb-6 p-5">
+                <div class="flex items-end gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">National Union</label>
+                        <select id="territoryUnion" onchange="onTerritoryUnionChange()"
+                            class="w-full px-3 py-2.5 border border-warmgray-300 rounded-md text-sm bg-white font-medium">
+                            <option value="">All Unions</option>
+                        </select>
+                    </div>
+                    <div class="w-44">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
+                        <select id="territoryState" onchange="onTerritoryStateChange()"
+                            class="w-full px-3 py-2.5 border border-warmgray-300 rounded-md text-sm bg-white">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div class="w-52">
+                        <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Metro Area</label>
+                        <select id="territoryMetro" onchange="onTerritoryMetroChange()"
+                            class="w-full px-3 py-2.5 border border-warmgray-300 rounded-md text-sm bg-white" disabled>
+                            <option value="">Select state first</option>
+                        </select>
+                    </div>
+                    <button onclick="loadTerritoryDashboard()"
+                        class="px-6 py-2.5 bg-accent-red text-white font-semibold rounded-md hover:bg-accent-redDark transition-colors whitespace-nowrap">
+                        View Territory
+                    </button>
+                </div>
+            </div>
+
+            <!-- Welcome state: quick-start cards -->
+            <div id="territoryWelcome">
+                <div class="text-center mb-8">
+                    <h2 class="headline text-3xl font-bold text-warmgray-900 mb-2">Your Territory at a Glance</h2>
+                    <p class="text-warmgray-500 text-lg">Select a union above or click one below to get started</p>
+                </div>
+                <div id="quickStartGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <!-- Populated by loadQuickStartUnions() -->
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                    <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                </div>
+            </div>
+
+            <!-- Dashboard (hidden until union/state selected) -->
+            <div id="territoryDashboard" class="hidden">
+                <!-- Filled by Sprint 2 -->
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- DEEP DIVE MODE -->
+        <!-- ============================================ -->
+        <div id="deepDiveMode" class="hidden">
+            <!-- Back button -->
+            <button onclick="returnFromDeepDive()" class="flex items-center gap-2 text-warmgray-500 hover:text-warmgray-700 mb-4 text-sm font-medium">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span id="deepDiveBackLabel">Back to Territory</span>
+            </button>
+            <!-- Deep dive content (filled by Sprint 3) -->
+            <div id="deepDiveContent">
+                <div class="text-center py-12 text-warmgray-400">Select an employer to view details</div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SEARCH MODE (existing content) -->
+        <!-- ============================================ -->
+        <div id="searchMode" class="hidden">
+
         <!-- ============================================ -->
         <!-- SEARCH MODE TOGGLE -->
         <!-- ============================================ -->
@@ -790,6 +921,7 @@
                 </div>
             </div>
         </div>
+        </div><!-- end #searchMode -->
     </main>
 
     <!-- ============================================ -->
@@ -2154,7 +2286,681 @@
         
         // Comparison state
         let comparisonItems = [null, null]; // [leftItem, rightItem]
-        
+
+        // App mode state
+        let currentAppMode = 'territory'; // 'territory' | 'search' | 'deepdive'
+        let territoryContext = { union: '', state: '', metro: '' };
+        let deepDiveReturnMode = 'territory';
+        let territoryMap = null;
+        let territoryMarkerCluster = null;
+        let territoryCharts = {};  // track Chart.js instances for cleanup
+        let territoryDataCache = {}; // cache fetched territory data
+
+        // ==========================================
+        // APP MODE SWITCHING
+        // ==========================================
+        function setAppMode(mode) {
+            currentAppMode = mode;
+
+            // Toggle visibility
+            document.getElementById('territoryMode').classList.toggle('hidden', mode !== 'territory');
+            document.getElementById('searchMode').classList.toggle('hidden', mode !== 'search');
+            document.getElementById('deepDiveMode').classList.toggle('hidden', mode !== 'deepdive');
+
+            // Update header toggle
+            document.getElementById('modeTerritory').className = mode === 'territory'
+                ? 'app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
+                : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+            document.getElementById('modeSearch').className = mode === 'search'
+                ? 'app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
+                : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+        }
+
+        function openDeepDive(employerId, returnTo) {
+            deepDiveReturnMode = returnTo || currentAppMode;
+            document.getElementById('deepDiveBackLabel').textContent =
+                deepDiveReturnMode === 'territory' ? 'Back to Territory' : 'Back to Search';
+            setAppMode('deepdive');
+            loadDeepDiveData(employerId);
+        }
+
+        function returnFromDeepDive() {
+            setAppMode(deepDiveReturnMode);
+        }
+
+        // ==========================================
+        // TERRITORY: UNION SELECTOR & QUICK START
+        // ==========================================
+        async function loadTerritoryDropdowns() {
+            try {
+                // Load affiliations for union dropdown
+                const resp = await fetch(`${API_BASE}/lookups/affiliations`);
+                if (!resp.ok) throw new Error('Failed to load affiliations');
+                const data = await resp.json();
+                const select = document.getElementById('territoryUnion');
+                (data.affiliations || []).forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.aff_abbr;
+                    opt.textContent = `${a.aff_abbr} (${formatNumber(a.total_members || 0)} members)`;
+                    select.appendChild(opt);
+                });
+
+                // Load states for territory state dropdown
+                const stateResp = await fetch(`${API_BASE}/lookups/states`);
+                if (stateResp.ok) {
+                    const stateData = await stateResp.json();
+                    const stateSelect = document.getElementById('territoryState');
+                    (stateData.states || []).forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s;
+                        opt.textContent = s;
+                        stateSelect.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load territory dropdowns:', e);
+            }
+        }
+
+        async function loadQuickStartUnions() {
+            try {
+                const resp = await fetch(`${API_BASE}/unions/national?limit=100`);
+                if (!resp.ok) throw new Error('Failed');
+                const data = await resp.json();
+                const unions = (data.national_unions || [])
+                    .sort((a, b) => (b.total_members || 0) - (a.total_members || 0))
+                    .slice(0, 8);
+
+                const grid = document.getElementById('quickStartGrid');
+                grid.innerHTML = unions.map(u => `
+                    <div class="territory-card" onclick="selectQuickStartUnion('${escapeHtml(u.aff_abbr)}')">
+                        <div class="text-2xl font-bold text-warmgray-900 headline mb-1">${escapeHtml(u.aff_abbr)}</div>
+                        <div class="text-accent-red font-semibold text-lg">${formatNumber(u.total_members || 0)}</div>
+                        <div class="text-warmgray-400 text-xs mt-1">members</div>
+                        <div class="flex justify-between mt-3 text-xs text-warmgray-500">
+                            <span>${u.local_count || 0} locals</span>
+                            <span>${(u.states || []).length} states</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load quick start unions:', e);
+                document.getElementById('quickStartGrid').innerHTML =
+                    '<div class="col-span-4 text-center text-warmgray-400 py-8">Failed to load unions. Is the API running?</div>';
+            }
+        }
+
+        function selectQuickStartUnion(abbr) {
+            document.getElementById('territoryUnion').value = abbr;
+            territoryContext.union = abbr;
+            loadTerritoryDashboard();
+        }
+
+        function onTerritoryUnionChange() {
+            territoryContext.union = document.getElementById('territoryUnion').value;
+        }
+
+        async function onTerritoryStateChange() {
+            const state = document.getElementById('territoryState').value;
+            territoryContext.state = state;
+            territoryContext.metro = '';
+
+            const metroSelect = document.getElementById('territoryMetro');
+            metroSelect.innerHTML = '<option value="">All Metros</option>';
+
+            if (!state) {
+                metroSelect.disabled = true;
+                return;
+            }
+
+            metroSelect.disabled = false;
+            try {
+                const resp = await fetch(`${API_BASE}/lookups/metros?state=${state}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    (data.metros || []).forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        metroSelect.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load metros:', e);
+            }
+        }
+
+        function onTerritoryMetroChange() {
+            territoryContext.metro = document.getElementById('territoryMetro').value;
+        }
+
+        async function loadTerritoryDashboard() {
+            const union = territoryContext.union || document.getElementById('territoryUnion').value;
+            const state = territoryContext.state || document.getElementById('territoryState').value;
+
+            if (!union && !state) {
+                // Nothing selected, show welcome
+                document.getElementById('territoryWelcome').classList.remove('hidden');
+                document.getElementById('territoryDashboard').classList.add('hidden');
+                return;
+            }
+
+            territoryContext.union = union;
+            territoryContext.state = state;
+            territoryContext.metro = document.getElementById('territoryMetro').value || '';
+
+            // Switch to dashboard view
+            document.getElementById('territoryWelcome').classList.add('hidden');
+            document.getElementById('territoryDashboard').classList.remove('hidden');
+
+            // Show loading state
+            renderTerritoryLoading();
+
+            // Sprint 2 will populate the actual dashboard content
+            await fetchTerritoryData();
+        }
+
+        function renderTerritoryLoading() {
+            const dash = document.getElementById('territoryDashboard');
+            dash.innerHTML = `
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="headline text-2xl font-bold text-warmgray-900">
+                            ${territoryContext.union ? escapeHtml(territoryContext.union) : 'All Unions'}
+                            ${territoryContext.state ? ' — ' + escapeHtml(territoryContext.state) : ''}
+                            ${territoryContext.metro ? ' / ' + escapeHtml(territoryContext.metro) : ''}
+                        </h2>
+                        <p class="text-warmgray-500 text-sm mt-0.5">Territory Overview</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportTerritoryReport()" class="px-4 py-2 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-sm font-medium rounded-lg transition-colors">
+                            Export Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Row -->
+                <div id="territoryKPIs" class="grid grid-cols-5 gap-4 mb-6">
+                    ${[1,2,3,4,5].map(() => '<div class="territory-kpi"><div class="skeleton h-16"></div></div>').join('')}
+                </div>
+
+                <!-- Map + Industry Row -->
+                <div class="grid grid-cols-5 gap-4 mb-6">
+                    <div class="col-span-3 bg-white rounded-xl border border-warmgray-200 p-4">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Territory Map</div>
+                        <div id="territoryMapContainer" class="skeleton" style="height: 350px; border-radius: 8px;"></div>
+                    </div>
+                    <div class="col-span-2 bg-white rounded-xl border border-warmgray-200 p-4">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Workers by Industry</div>
+                        <div id="territoryIndustry" class="skeleton" style="height: 350px;"></div>
+                    </div>
+                </div>
+
+                <!-- Targets + Trends Row -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-white rounded-xl border border-warmgray-200 p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">Top Organizing Targets</div>
+                            <button onclick="openOrganizingScorecard()" class="text-xs text-accent-red hover:text-accent-redDark font-medium">View All</button>
+                        </div>
+                        <div id="territoryTargets"><div class="skeleton h-64"></div></div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-warmgray-200 p-4">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Membership Trends</div>
+                        <div id="territoryTrends"><div class="skeleton h-64"></div></div>
+                    </div>
+                </div>
+
+                <!-- Elections + Hotspots Row -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-white rounded-xl border border-warmgray-200 p-4">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Recent NLRB Elections</div>
+                        <div id="territoryElections"><div class="skeleton h-48"></div></div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-warmgray-200 p-4">
+                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Top Wage &amp; Safety Violators</div>
+                        <div id="territoryHotspots"><div class="skeleton h-48"></div></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchTerritoryData() {
+            // Sprint 2 implementation - for now just show the skeleton layout
+            // This will be replaced with 6 parallel fetches
+            const ctx = territoryContext;
+            const params = new URLSearchParams();
+            if (ctx.state) params.set('state', ctx.state);
+
+            try {
+                // Parallel fetches for all sections
+                const fetches = [];
+
+                // 1. Union detail (KPIs + industry)
+                if (ctx.union) {
+                    fetches.push(
+                        fetch(`${API_BASE}/unions/national/${encodeURIComponent(ctx.union)}`)
+                            .then(r => r.ok ? r.json() : null)
+                            .catch(() => null)
+                    );
+                } else {
+                    fetches.push(Promise.resolve(null));
+                }
+
+                // 2. Organizing targets
+                const scorecardParams = new URLSearchParams({ limit: '10', min_score: '20' });
+                if (ctx.state) scorecardParams.set('state', ctx.state);
+                fetches.push(
+                    fetch(`${API_BASE}/organizing/scorecard?${scorecardParams}`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                );
+
+                // 3. Trends
+                if (ctx.state) {
+                    fetches.push(
+                        fetch(`${API_BASE}/trends/by-state/${ctx.state}`)
+                            .then(r => r.ok ? r.json() : null)
+                            .catch(() => null)
+                    );
+                } else {
+                    fetches.push(
+                        fetch(`${API_BASE}/trends/national`)
+                            .then(r => r.ok ? r.json() : null)
+                            .catch(() => null)
+                    );
+                }
+
+                // 4. Elections
+                const electionParams = new URLSearchParams({ limit: '10' });
+                if (ctx.state) electionParams.set('state', ctx.state);
+                fetches.push(
+                    fetch(`${API_BASE}/nlrb/elections/search?${electionParams}`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                );
+
+                // 5. Density
+                fetches.push(
+                    fetch(`${API_BASE}/density/by-state`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                );
+
+                // 6. WHD hotspots
+                const whdParams = new URLSearchParams({ limit: '10' });
+                if (ctx.state) whdParams.set('state', ctx.state);
+                fetches.push(
+                    fetch(`${API_BASE}/whd/top-violators?${whdParams}`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                );
+
+                // 7. Industry density rates
+                fetches.push(
+                    fetch(`${API_BASE}/density/industry-rates`)
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                );
+
+                const [unionData, targetsData, trendsData, electionsData, densityData, whdData, industryData] = await Promise.all(fetches);
+                territoryDataCache = { unionData, targetsData, trendsData, electionsData, densityData, whdData, industryData };
+
+                // Render each section
+                renderTerritoryKPIs(unionData, densityData);
+                renderTerritoryTargets(targetsData);
+                renderTerritoryTrends(trendsData);
+                renderTerritoryElections(electionsData);
+                renderTerritoryHotspots(whdData);
+                renderTerritoryIndustry(industryData);
+                renderTerritoryMap(targetsData);
+
+            } catch (e) {
+                console.error('Failed to load territory data:', e);
+            }
+        }
+
+        // ==========================================
+        // TERRITORY: RENDER FUNCTIONS
+        // ==========================================
+        function renderTerritoryKPIs(unionData, densityData) {
+            const el = document.getElementById('territoryKPIs');
+            if (!el) return;
+
+            let members = 0, locals = 0, workers = 0, targets = 0, density = 0;
+
+            if (unionData) {
+                const s = unionData.summary || unionData;
+                members = s.total_members || s.members || 0;
+                locals = s.local_count || s.locals || 0;
+                workers = s.covered_workers || s.workers || 0;
+            }
+
+            if (densityData && territoryContext.state) {
+                const stateRow = (densityData.states || []).find(s => s.state === territoryContext.state);
+                if (stateRow) density = stateRow.total_density_pct || 0;
+            } else if (densityData && densityData.states) {
+                // Compute average national density
+                const allStates = densityData.states;
+                const sum = allStates.reduce((acc, s) => acc + (s.total_density_pct || 0), 0);
+                density = allStates.length > 0 ? sum / allStates.length : 0;
+            }
+
+            el.innerHTML = `
+                <div class="territory-kpi text-center">
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">Members</div>
+                    <div class="text-2xl font-bold text-warmgray-900 mt-1">${formatNumber(members)}</div>
+                </div>
+                <div class="territory-kpi text-center">
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">Locals</div>
+                    <div class="text-2xl font-bold text-warmgray-900 mt-1">${formatNumber(locals)}</div>
+                </div>
+                <div class="territory-kpi text-center">
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">Covered Workers</div>
+                    <div class="text-2xl font-bold text-warmgray-900 mt-1">${formatNumber(workers)}</div>
+                </div>
+                <div class="territory-kpi text-center">
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">Organizing Targets</div>
+                    <div class="text-2xl font-bold text-accent-red mt-1">${formatNumber(targets)}</div>
+                </div>
+                <div class="territory-kpi text-center">
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">Union Density</div>
+                    <div class="text-2xl font-bold text-warmgray-900 mt-1">${typeof density === 'number' ? density.toFixed(1) + '%' : '--'}</div>
+                </div>
+            `;
+        }
+
+        function renderTerritoryTargets(data) {
+            const el = document.getElementById('territoryTargets');
+            if (!el) return;
+
+            const targets = data?.results || data?.targets || data?.employers || [];
+            if (targets.length === 0) {
+                el.innerHTML = '<div class="text-warmgray-400 text-sm text-center py-8">No organizing targets found for this territory</div>';
+                return;
+            }
+
+            // Update KPI count
+            const kpiEl = document.querySelector('#territoryKPIs .territory-kpi:nth-child(4) .text-2xl');
+            if (kpiEl) kpiEl.textContent = formatNumber(data?.total || targets.length);
+
+            el.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-warmgray-500 text-xs uppercase border-b border-warmgray-100">
+                            <th class="text-left py-2 font-semibold">Employer</th>
+                            <th class="text-left py-2 font-semibold">Location</th>
+                            <th class="text-right py-2 font-semibold">Score</th>
+                            <th class="text-right py-2 font-semibold">Tier</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${targets.slice(0, 10).map(t => {
+                            const score = t.organizing_score || t.total_score || 0;
+                            const tier = t.tier || (score >= 30 ? 'TOP' : score >= 25 ? 'HIGH' : score >= 20 ? 'MEDIUM' : 'LOW');
+                            const tierColor = tier === 'TOP' ? 'text-green-700 bg-green-50' : tier === 'HIGH' ? 'text-blue-700 bg-blue-50' : tier === 'MEDIUM' ? 'text-yellow-700 bg-yellow-50' : 'text-warmgray-500 bg-warmgray-50';
+                            const eid = t.establishment_id || t.employer_id || t.id;
+                            return `
+                                <tr class="border-b border-warmgray-50 hover:bg-warmgray-50 cursor-pointer" onclick="openDeepDive('${eid}', 'territory')">
+                                    <td class="py-2.5 font-medium text-warmgray-900">${escapeHtml(t.estab_name || t.company_name || t.employer_name || '')}</td>
+                                    <td class="py-2.5 text-warmgray-500">${escapeHtml((t.site_city || t.city || '') + (t.site_state || t.state ? ', ' + (t.site_state || t.state) : ''))}</td>
+                                    <td class="py-2.5 text-right font-semibold">${score}</td>
+                                    <td class="py-2.5 text-right"><span class="badge ${tierColor}">${tier}</span></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderTerritoryTrends(data) {
+            const el = document.getElementById('territoryTrends');
+            if (!el) return;
+
+            const trends = data?.trends || data?.years || [];
+            if (trends.length === 0) {
+                el.innerHTML = '<div class="text-warmgray-400 text-sm text-center py-8">No trend data available</div>';
+                return;
+            }
+
+            // Create canvas for chart
+            el.innerHTML = '<canvas id="territoryTrendsChart" height="260"></canvas>';
+
+            // Destroy previous chart if exists
+            if (territoryCharts.trends) territoryCharts.trends.destroy();
+
+            const ctx = document.getElementById('territoryTrendsChart').getContext('2d');
+            const labels = trends.map(t => t.year);
+            const memberData = trends.map(t => (t.total_members_dedup || t.total_members || t.members || 0) / 1000);
+
+            territoryCharts.trends = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Members (K)',
+                        data: memberData,
+                        borderColor: '#c41e3a',
+                        backgroundColor: 'rgba(196, 30, 58, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#c41e3a'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { title: { display: true, text: 'Members (K)', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function renderTerritoryElections(data) {
+            const el = document.getElementById('territoryElections');
+            if (!el) return;
+
+            const elections = data?.elections || [];
+            if (elections.length === 0) {
+                el.innerHTML = '<div class="text-warmgray-400 text-sm text-center py-8">No recent elections found</div>';
+                return;
+            }
+
+            el.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-warmgray-500 text-xs uppercase border-b border-warmgray-100">
+                            <th class="text-left py-2 font-semibold">Date</th>
+                            <th class="text-left py-2 font-semibold">Employer</th>
+                            <th class="text-center py-2 font-semibold">Voters</th>
+                            <th class="text-right py-2 font-semibold">Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${elections.slice(0, 10).map(e => {
+                            const won = e.union_won === true;
+                            return `
+                                <tr class="border-b border-warmgray-50">
+                                    <td class="py-2 text-warmgray-500">${e.election_date || '--'}</td>
+                                    <td class="py-2 font-medium text-warmgray-900">${escapeHtml(e.employer_name || '')}</td>
+                                    <td class="py-2 text-center">${e.eligible_voters || '--'}</td>
+                                    <td class="py-2 text-right">
+                                        <span class="badge ${won ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}">${won ? 'Won' : 'Lost'}</span>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderTerritoryHotspots(data) {
+            const el = document.getElementById('territoryHotspots');
+            if (!el) return;
+
+            const violators = data?.results || data?.violators || data?.top_violators || [];
+            if (violators.length === 0) {
+                el.innerHTML = '<div class="text-warmgray-400 text-sm text-center py-8">No violation data found</div>';
+                return;
+            }
+
+            el.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-warmgray-500 text-xs uppercase border-b border-warmgray-100">
+                            <th class="text-left py-2 font-semibold">Employer</th>
+                            <th class="text-right py-2 font-semibold">Back Wages</th>
+                            <th class="text-right py-2 font-semibold">Violations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${violators.slice(0, 10).map(v => `
+                            <tr class="border-b border-warmgray-50">
+                                <td class="py-2 font-medium text-warmgray-900">${escapeHtml(v.name_normalized || v.trade_name || v.legal_name || '')}</td>
+                                <td class="py-2 text-right text-accent-red font-semibold">$${formatNumber(Math.round(v.total_backwages || v.civil_penalties || 0))}</td>
+                                <td class="py-2 text-right">${formatNumber(v.total_violations || 0)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderTerritoryIndustry(industryData) {
+            const el = document.getElementById('territoryIndustry');
+            if (!el) return;
+
+            const industries = industryData?.industry_rates || [];
+            if (industries.length === 0) {
+                el.innerHTML = '<div class="text-warmgray-400 text-sm text-center py-8">No industry data available</div>';
+                return;
+            }
+
+            el.innerHTML = '<canvas id="territoryIndustryChart" height="350"></canvas>';
+            if (territoryCharts.industry) territoryCharts.industry.destroy();
+
+            const ctx = document.getElementById('territoryIndustryChart').getContext('2d');
+            const sorted = [...industries].sort((a, b) => b.union_density_pct - a.union_density_pct);
+
+            territoryCharts.industry = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(i => (i.industry_name || '').replace(/ and /g, ' & ').substring(0, 30)),
+                    datasets: [{
+                        label: 'Union Density %',
+                        data: sorted.map(i => i.union_density_pct),
+                        backgroundColor: sorted.map(i => i.union_density_pct >= 10 ? 'rgba(196, 30, 58, 0.8)' : i.union_density_pct >= 5 ? 'rgba(196, 30, 58, 0.5)' : 'rgba(196, 30, 58, 0.25)'),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            title: { display: true, text: 'Union Density %', font: { size: 10 } }
+                        },
+                        y: { ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // State center coordinates for territory map
+        const STATE_CENTERS = {
+            'AL': [32.8, -86.8], 'AK': [64.2, -152.5], 'AZ': [34.0, -111.1], 'AR': [34.8, -92.2],
+            'CA': [36.8, -119.4], 'CO': [39.1, -105.4], 'CT': [41.6, -72.7], 'DE': [39.0, -75.5],
+            'DC': [38.9, -77.0], 'FL': [27.6, -81.5], 'GA': [32.2, -83.7], 'HI': [19.9, -155.6],
+            'ID': [44.1, -114.7], 'IL': [40.6, -89.3], 'IN': [40.3, -86.1], 'IA': [42.0, -93.2],
+            'KS': [38.5, -98.8], 'KY': [37.8, -84.3], 'LA': [30.5, -91.2], 'ME': [45.3, -69.4],
+            'MD': [39.0, -76.6], 'MA': [42.4, -71.4], 'MI': [44.3, -84.5], 'MN': [46.7, -94.7],
+            'MS': [32.7, -89.5], 'MO': [38.5, -92.3], 'MT': [46.8, -110.4], 'NE': [41.1, -98.3],
+            'NV': [38.8, -116.4], 'NH': [43.2, -71.6], 'NJ': [40.1, -74.4], 'NM': [34.5, -106.0],
+            'NY': [43.0, -75.0], 'NC': [35.8, -80.0], 'ND': [47.5, -100.5], 'OH': [40.4, -82.9],
+            'OK': [35.0, -97.1], 'OR': [43.8, -120.6], 'PA': [41.2, -77.2], 'PR': [18.2, -66.6],
+            'RI': [41.6, -71.5], 'SC': [33.8, -81.2], 'SD': [43.9, -99.9], 'TN': [35.5, -86.6],
+            'TX': [31.1, -97.6], 'UT': [39.3, -111.1], 'VT': [44.6, -72.6], 'VA': [37.4, -78.7],
+            'WA': [47.7, -120.7], 'WV': [38.6, -80.6], 'WI': [43.8, -88.8], 'WY': [43.1, -107.6]
+        };
+
+        function renderTerritoryMap(targetsData) {
+            const container = document.getElementById('territoryMapContainer');
+            if (!container) return;
+
+            container.classList.remove('skeleton');
+            container.innerHTML = '';
+            container.style.height = '350px';
+
+            if (territoryMap) {
+                territoryMap.remove();
+                territoryMap = null;
+            }
+
+            // Determine center & zoom from context
+            const stateCenter = STATE_CENTERS[territoryContext.state];
+            const center = stateCenter || [39.8283, -98.5795];
+            const zoom = stateCenter ? 6 : 4;
+
+            territoryMap = L.map(container).setView(center, zoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(territoryMap);
+
+            // Add target markers (for those with coordinates)
+            const targets = targetsData?.results || targetsData?.targets || [];
+            const markers = [];
+            targets.forEach(t => {
+                if (!t.latitude || !t.longitude) return;
+                const score = t.organizing_score || t.total_score || 0;
+                const tier = score >= 30 ? 'TOP' : score >= 25 ? 'HIGH' : 'MEDIUM';
+                const color = tier === 'TOP' ? '#16a34a' : tier === 'HIGH' ? '#2563eb' : '#ca8a04';
+                const marker = L.circleMarker([t.latitude, t.longitude], {
+                    radius: 6, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.8
+                });
+                marker.bindPopup(`
+                    <div style="min-width:150px">
+                        <div style="font-weight:600">${escapeHtml(t.estab_name || t.company_name || '')}</div>
+                        <div style="color:#666;font-size:12px">${t.site_city || t.city || ''}, ${t.site_state || t.state || ''}</div>
+                        <div style="margin-top:4px;font-size:13px">Score: <strong>${score}</strong> (${tier})</div>
+                    </div>
+                `);
+                markers.push(marker);
+                marker.addTo(territoryMap);
+            });
+
+            if (markers.length > 0) {
+                const group = L.featureGroup(markers);
+                territoryMap.fitBounds(group.getBounds().pad(0.1));
+            }
+
+            setTimeout(() => territoryMap.invalidateSize(), 200);
+        }
+
+        // Deep dive placeholder (Sprint 3)
+        async function loadDeepDiveData(employerId) {
+            document.getElementById('deepDiveContent').innerHTML = `
+                <div class="text-center py-12">
+                    <div class="skeleton h-8 w-48 mx-auto mb-4"></div>
+                    <div class="text-warmgray-400">Loading employer profile...</div>
+                </div>
+            `;
+            // Sprint 3 will implement the full deep dive
+        }
+
+        // Export placeholder (Sprint 4)
+        function exportTerritoryReport() {
+            alert('Territory export coming in Sprint 4');
+        }
+
         // ==========================================
         // INITIALIZATION
         // ==========================================
@@ -2166,27 +2972,28 @@
 
             // Sort dropdown triggers search
             document.getElementById('sortBy').addEventListener('change', () => executeSearch());
-            
+
             // Check for URL params before loading
             const hasUrlParams = parseUrlAndSearch();
-            
-            // Load initial data
+
+            // Load initial data + territory dropdowns in parallel
             await Promise.all([
                 loadStates(),
-                loadHeaderStats()
+                loadHeaderStats(),
+                loadTerritoryDropdowns(),
+                loadQuickStartUnions()
             ]);
-            
-            // Apply any pending URL params after data loads
+
+            // Default to territory mode unless URL has search params
             if (hasUrlParams) {
+                setAppMode('search');
                 await applyPendingUrlParams();
+            } else {
+                setAppMode('territory');
             }
 
-            // Debug: Check if modal functions are defined
-            console.log('=== MODAL FUNCTIONS CHECK ===');
-            console.log('openUnifiedEmployersModal:', typeof openUnifiedEmployersModal);
-            console.log('openElectionsModal:', typeof openElectionsModal);
-            console.log('openPublicSectorModal:', typeof openPublicSectorModal);
-            console.log('openTrendsModal:', typeof openTrendsModal);
+            console.log('=== INIT COMPLETE ===');
+            console.log('App mode:', currentAppMode);
             console.log('API_BASE:', API_BASE);
         });
 
