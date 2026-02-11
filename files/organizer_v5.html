@@ -96,6 +96,55 @@
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
         }
+
+        /* Mode transitions */
+        #territoryMode, #searchMode, #deepDiveMode {
+            transition: opacity 0.2s ease;
+        }
+        .mode-enter { animation: mode-fade-in 0.25s ease forwards; }
+        @keyframes mode-fade-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Deep dive back button */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: #f5f3f0;
+            border: 1px solid #e8e5e0;
+            border-radius: 8px;
+            color: #5c5752;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .back-btn:hover {
+            background: #e8e5e0;
+            color: #1a1a1a;
+        }
+
+        /* Section header with icon */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #7d7770;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+        .section-header svg { width: 14px; height: 14px; opacity: 0.6; }
+
+        /* Score bar animation */
+        .score-bar-fill {
+            transition: width 0.6s ease;
+        }
         
         /* List item states */
         .list-item { border-left: 3px solid transparent; transition: all 0.15s ease; }
@@ -322,7 +371,32 @@
                     <h2 class="headline text-3xl font-bold text-warmgray-900 mb-2">Your Territory at a Glance</h2>
                     <p class="text-warmgray-500 text-lg">Select a union above or click one below to get started</p>
                 </div>
-                <div id="quickStartGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+
+                <!-- Quick stats banner -->
+                <div class="flex justify-center gap-8 mb-8 text-center">
+                    <div>
+                        <div class="text-2xl font-bold text-warmgray-900" id="welcomeWorkers">--</div>
+                        <div class="text-xs text-warmgray-500 uppercase font-semibold tracking-wide">Workers Covered</div>
+                    </div>
+                    <div class="w-px bg-warmgray-200"></div>
+                    <div>
+                        <div class="text-2xl font-bold text-warmgray-900" id="welcomeEmployers">--</div>
+                        <div class="text-xs text-warmgray-500 uppercase font-semibold tracking-wide">Employers</div>
+                    </div>
+                    <div class="w-px bg-warmgray-200"></div>
+                    <div>
+                        <div class="text-2xl font-bold text-warmgray-900" id="welcomeUnions">--</div>
+                        <div class="text-xs text-warmgray-500 uppercase font-semibold tracking-wide">Local Unions</div>
+                    </div>
+                    <div class="w-px bg-warmgray-200"></div>
+                    <div>
+                        <div class="text-2xl font-bold text-accent-red" id="welcomeTargets">--</div>
+                        <div class="text-xs text-warmgray-500 uppercase font-semibold tracking-wide">Organizing Targets</div>
+                    </div>
+                </div>
+
+                <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3 text-center">Top Unions by Membership</div>
+                <div id="quickStartGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <!-- Populated by loadQuickStartUnions() -->
                     <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
                     <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
@@ -332,6 +406,11 @@
                     <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
                     <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
                     <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
+                </div>
+                <div class="text-center mb-8">
+                    <button onclick="openNationalUnionsBrowser()" class="text-sm text-accent-red hover:text-accent-redDark font-medium">
+                        Browse all national unions &rarr;
+                    </button>
                 </div>
             </div>
 
@@ -346,7 +425,7 @@
         <!-- ============================================ -->
         <div id="deepDiveMode" class="hidden">
             <!-- Back button -->
-            <button onclick="returnFromDeepDive()" class="flex items-center gap-2 text-warmgray-500 hover:text-warmgray-700 mb-4 text-sm font-medium">
+            <button onclick="returnFromDeepDive()" class="back-btn mb-5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                 </svg>
@@ -2302,18 +2381,46 @@
         function setAppMode(mode) {
             currentAppMode = mode;
 
-            // Toggle visibility
-            document.getElementById('territoryMode').classList.toggle('hidden', mode !== 'territory');
-            document.getElementById('searchMode').classList.toggle('hidden', mode !== 'search');
-            document.getElementById('deepDiveMode').classList.toggle('hidden', mode !== 'deepdive');
+            const modes = ['territory', 'search', 'deepdive'];
+            const containers = {
+                territory: document.getElementById('territoryMode'),
+                search: document.getElementById('searchMode'),
+                deepdive: document.getElementById('deepDiveMode')
+            };
+
+            // Hide inactive, show + animate active
+            modes.forEach(m => {
+                const el = containers[m];
+                if (m === mode) {
+                    el.classList.remove('hidden');
+                    el.classList.remove('mode-enter');
+                    void el.offsetWidth; // reflow
+                    el.classList.add('mode-enter');
+                } else {
+                    el.classList.add('hidden');
+                    el.classList.remove('mode-enter');
+                }
+            });
 
             // Update header toggle
             document.getElementById('modeTerritory').className = mode === 'territory'
                 ? 'app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
                 : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+            document.getElementById('modeSearch').className = (mode === 'search' || mode === 'deepdive')
+                ? 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
+                : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+            // Search button only active in search mode
             document.getElementById('modeSearch').className = mode === 'search'
                 ? 'app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
                 : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+
+            // Invalidate maps when switching to avoid stale tiles
+            if (mode === 'search' && fullMap) {
+                setTimeout(() => fullMap.invalidateSize(), 200);
+            }
+            if (mode === 'territory' && territoryMap) {
+                setTimeout(() => territoryMap.invalidateSize(), 200);
+            }
         }
 
         function openDeepDive(employerId, returnTo) {
@@ -2364,8 +2471,20 @@
 
         async function loadQuickStartUnions() {
             try {
-                const resp = await fetch(`${API_BASE}/unions/national?limit=100`);
+                // Fetch unions + total target count in parallel
+                const [resp, targetResp] = await Promise.all([
+                    fetch(`${API_BASE}/unions/national?limit=100`),
+                    fetch(`${API_BASE}/organizing/scorecard?limit=1&min_score=20`).catch(() => null)
+                ]);
                 if (!resp.ok) throw new Error('Failed');
+
+                // Show targets count on welcome screen
+                if (targetResp && targetResp.ok) {
+                    const td = await targetResp.json();
+                    const wt = document.getElementById('welcomeTargets');
+                    if (wt) wt.textContent = formatNumber(td.total || 0);
+                }
+
                 const data = await resp.json();
                 const unions = (data.national_unions || [])
                     .sort((a, b) => (b.total_members || 0) - (a.total_members || 0))
@@ -2494,11 +2613,17 @@
                 <!-- Map + Industry Row -->
                 <div class="grid grid-cols-5 gap-4 mb-6">
                     <div class="col-span-3 bg-white rounded-xl border border-warmgray-200 p-4">
-                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Territory Map</div>
+                        <div class="section-header">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            Territory Map
+                        </div>
                         <div id="territoryMapContainer" class="skeleton" style="height: 350px; border-radius: 8px;"></div>
                     </div>
                     <div class="col-span-2 bg-white rounded-xl border border-warmgray-200 p-4">
-                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Workers by Industry</div>
+                        <div class="section-header">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            Industry Union Density
+                        </div>
                         <div id="territoryIndustry" class="skeleton" style="height: 350px;"></div>
                     </div>
                 </div>
@@ -2507,13 +2632,19 @@
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     <div class="bg-white rounded-xl border border-warmgray-200 p-4">
                         <div class="flex justify-between items-center mb-3">
-                            <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">Top Organizing Targets</div>
+                            <div class="section-header" style="margin-bottom:0">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                Top Organizing Targets
+                            </div>
                             <button onclick="openOrganizingScorecard()" class="text-xs text-accent-red hover:text-accent-redDark font-medium">View All</button>
                         </div>
                         <div id="territoryTargets"><div class="skeleton h-64"></div></div>
                     </div>
                     <div class="bg-white rounded-xl border border-warmgray-200 p-4">
-                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Membership Trends</div>
+                        <div class="section-header">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                            Membership Trends
+                        </div>
                         <div id="territoryTrends"><div class="skeleton h-64"></div></div>
                     </div>
                 </div>
@@ -2521,11 +2652,17 @@
                 <!-- Elections + Hotspots Row -->
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     <div class="bg-white rounded-xl border border-warmgray-200 p-4">
-                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Recent NLRB Elections</div>
+                        <div class="section-header">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                            Recent NLRB Elections
+                        </div>
                         <div id="territoryElections"><div class="skeleton h-48"></div></div>
                     </div>
                     <div class="bg-white rounded-xl border border-warmgray-200 p-4">
-                        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Top Wage &amp; Safety Violators</div>
+                        <div class="section-header">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            Top Wage &amp; Safety Violators
+                        </div>
                         <div id="territoryHotspots"><div class="skeleton h-48"></div></div>
                     </div>
                 </div>
@@ -2624,6 +2761,18 @@
 
             } catch (e) {
                 console.error('Failed to load territory data:', e);
+                const dash = document.getElementById('territoryDashboard');
+                if (dash) {
+                    dash.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+                            <div class="text-red-600 font-semibold mb-2">Failed to load territory data</div>
+                            <div class="text-red-500 text-sm mb-4">${escapeHtml(e.message || 'Check that the API is running on port 8001')}</div>
+                            <button onclick="loadTerritoryDashboard()" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors">
+                                Retry
+                            </button>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -2697,6 +2846,7 @@
                         <tr class="text-warmgray-500 text-xs uppercase border-b border-warmgray-100">
                             <th class="text-left py-2 font-semibold">Employer</th>
                             <th class="text-left py-2 font-semibold">Location</th>
+                            <th class="text-right py-2 font-semibold">Emp</th>
                             <th class="text-right py-2 font-semibold">Score</th>
                             <th class="text-right py-2 font-semibold">Tier</th>
                         </tr>
@@ -2711,6 +2861,7 @@
                                 <tr class="border-b border-warmgray-50 hover:bg-warmgray-50 cursor-pointer" onclick="openDeepDive('${eid}', 'territory')">
                                     <td class="py-2.5 font-medium text-warmgray-900">${escapeHtml(t.estab_name || t.company_name || t.employer_name || '')}</td>
                                     <td class="py-2.5 text-warmgray-500">${escapeHtml((t.site_city || t.city || '') + (t.site_state || t.state ? ', ' + (t.site_state || t.state) : ''))}</td>
+                                    <td class="py-2.5 text-right text-warmgray-500">${t.employee_count ? formatNumber(t.employee_count) : '--'}</td>
                                     <td class="py-2.5 text-right font-semibold">${score}</td>
                                     <td class="py-2.5 text-right"><span class="badge ${tierColor}">${tier}</span></td>
                                 </tr>
@@ -3103,7 +3254,7 @@
                                     <div class="flex items-center gap-3">
                                         <div class="w-32 text-sm text-warmgray-600">${f.label}</div>
                                         <div class="flex-1 bg-warmgray-100 rounded-full h-2.5">
-                                            <div class="h-2.5 rounded-full" style="width:${pct}%; background:${barColor}"></div>
+                                            <div class="score-bar-fill h-2.5 rounded-full" style="width:${pct}%; background:${barColor}"></div>
                                         </div>
                                         <div class="w-12 text-right text-sm font-semibold">${val}/${f.max}</div>
                                     </div>
@@ -3940,9 +4091,21 @@
                 const response = await fetch(`${API_BASE}/summary`);
                 const data = await response.json();
 
-                document.getElementById('headerWorkers').textContent = formatNumber(data.employers?.covered_workers || 0);
-                document.getElementById('headerEmployers').textContent = formatNumber(data.employers?.total_employers || 0);
-                document.getElementById('headerUnions').textContent = formatNumber(data.unions?.total_unions || 0);
+                const workers = data.employers?.covered_workers || 0;
+                const employers = data.employers?.total_employers || 0;
+                const unions = data.unions?.total_unions || 0;
+
+                document.getElementById('headerWorkers').textContent = formatNumber(workers);
+                document.getElementById('headerEmployers').textContent = formatNumber(employers);
+                document.getElementById('headerUnions').textContent = formatNumber(unions);
+
+                // Welcome screen stats
+                const ww = document.getElementById('welcomeWorkers');
+                if (ww) ww.textContent = formatNumber(workers);
+                const we = document.getElementById('welcomeEmployers');
+                if (we) we.textContent = formatNumber(employers);
+                const wu = document.getElementById('welcomeUnions');
+                if (wu) wu.textContent = formatNumber(unions);
             } catch (e) {
                 console.error('Failed to load header stats:', e);
             }
