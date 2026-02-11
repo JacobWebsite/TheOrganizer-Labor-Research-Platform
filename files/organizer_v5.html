@@ -2473,8 +2473,15 @@
                         <p class="text-warmgray-500 text-sm mt-0.5">Territory Overview</p>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="exportTerritoryReport()" class="px-4 py-2 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-sm font-medium rounded-lg transition-colors">
-                            Export Report
+                        <button onclick="exportTerritoryReport()" class="px-4 py-2 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            Print Report
+                        </button>
+                        <button onclick="exportTerritoryTargetsCSV()" class="px-4 py-2 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-sm font-medium rounded-lg transition-colors">
+                            Targets CSV
+                        </button>
+                        <button onclick="exportTerritoryElectionsCSV()" class="px-4 py-2 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-sm font-medium rounded-lg transition-colors">
+                            Elections CSV
                         </button>
                     </div>
                 </div>
@@ -3050,6 +3057,12 @@
                             <div class="text-sm text-warmgray-500 uppercase font-semibold">Organizing Score</div>
                             <div class="text-4xl font-bold mt-1" style="color: ${score >= 30 ? '#16a34a' : score >= 25 ? '#2563eb' : score >= 20 ? '#ca8a04' : '#7d7770'}">${score}</div>
                             <span class="badge ${tierColor} mt-1 inline-block">${tier}</span>
+                            <div class="mt-3">
+                                <button onclick="exportEmployerReport()" class="px-3 py-1.5 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                    Print Report
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3300,9 +3313,297 @@
             return formatNumber(Math.round(num));
         }
 
-        // Export placeholder (Sprint 4)
+        // ==========================================
+        // EXPORTS: TERRITORY + EMPLOYER
+        // ==========================================
         function exportTerritoryReport() {
-            alert('Territory export coming in Sprint 4');
+            const ctx = territoryContext;
+            const cache = territoryDataCache;
+            const title = (ctx.union || 'All Unions') + (ctx.state ? ' — ' + ctx.state : '') + (ctx.metro ? ' / ' + ctx.metro : '');
+            const date = new Date().toLocaleDateString();
+
+            // Gather KPIs
+            const s = cache.unionData?.summary || cache.unionData || {};
+            const members = s.total_members || s.members || 0;
+            const locals = s.local_count || s.locals || 0;
+            const workers = s.covered_workers || s.workers || 0;
+
+            // Targets table
+            const targets = cache.targetsData?.results || [];
+            let targetsHtml = '';
+            if (targets.length) {
+                targetsHtml = `
+                    <h2 style="font-size:16px; margin:24px 0 8px;">Top Organizing Targets</h2>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <tr style="background:#f5f3f0;">
+                            <th style="text-align:left; padding:6px 8px; border:1px solid #ddd;">Employer</th>
+                            <th style="text-align:left; padding:6px 8px; border:1px solid #ddd;">Location</th>
+                            <th style="text-align:right; padding:6px 8px; border:1px solid #ddd;">Score</th>
+                            <th style="text-align:right; padding:6px 8px; border:1px solid #ddd;">Tier</th>
+                        </tr>
+                        ${targets.slice(0, 20).map(t => {
+                            const score = t.organizing_score || 0;
+                            const tier = score >= 30 ? 'TOP' : score >= 25 ? 'HIGH' : score >= 20 ? 'MEDIUM' : 'LOW';
+                            return `<tr>
+                                <td style="padding:5px 8px; border:1px solid #ddd;">${escapeHtml(t.estab_name || '')}</td>
+                                <td style="padding:5px 8px; border:1px solid #ddd;">${escapeHtml((t.site_city || '') + ', ' + (t.site_state || ''))}</td>
+                                <td style="padding:5px 8px; border:1px solid #ddd; text-align:right; font-weight:bold;">${score}</td>
+                                <td style="padding:5px 8px; border:1px solid #ddd; text-align:right;">${tier}</td>
+                            </tr>`;
+                        }).join('')}
+                    </table>
+                `;
+            }
+
+            // Elections table
+            const elections = cache.electionsData?.elections || [];
+            let electionsHtml = '';
+            if (elections.length) {
+                electionsHtml = `
+                    <h2 style="font-size:16px; margin:24px 0 8px;">Recent NLRB Elections</h2>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <tr style="background:#f5f3f0;">
+                            <th style="text-align:left; padding:6px 8px; border:1px solid #ddd;">Date</th>
+                            <th style="text-align:left; padding:6px 8px; border:1px solid #ddd;">Employer</th>
+                            <th style="text-align:center; padding:6px 8px; border:1px solid #ddd;">Voters</th>
+                            <th style="text-align:right; padding:6px 8px; border:1px solid #ddd;">Result</th>
+                        </tr>
+                        ${elections.slice(0, 15).map(e => `<tr>
+                            <td style="padding:5px 8px; border:1px solid #ddd;">${e.election_date || '--'}</td>
+                            <td style="padding:5px 8px; border:1px solid #ddd;">${escapeHtml(e.employer_name || '')}</td>
+                            <td style="padding:5px 8px; border:1px solid #ddd; text-align:center;">${e.eligible_voters || '--'}</td>
+                            <td style="padding:5px 8px; border:1px solid #ddd; text-align:right; color:${e.union_won ? '#16a34a' : '#dc2626'};">${e.union_won ? 'Won' : 'Lost'}</td>
+                        </tr>`).join('')}
+                    </table>
+                `;
+            }
+
+            // WHD violators
+            const violators = cache.whdData?.results || [];
+            let violatorsHtml = '';
+            if (violators.length) {
+                violatorsHtml = `
+                    <h2 style="font-size:16px; margin:24px 0 8px;">Top Wage & Safety Violators</h2>
+                    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <tr style="background:#f5f3f0;">
+                            <th style="text-align:left; padding:6px 8px; border:1px solid #ddd;">Employer</th>
+                            <th style="text-align:right; padding:6px 8px; border:1px solid #ddd;">Back Wages</th>
+                            <th style="text-align:right; padding:6px 8px; border:1px solid #ddd;">Violations</th>
+                        </tr>
+                        ${violators.slice(0, 10).map(v => `<tr>
+                            <td style="padding:5px 8px; border:1px solid #ddd;">${escapeHtml(v.name_normalized || '')}</td>
+                            <td style="padding:5px 8px; border:1px solid #ddd; text-align:right; color:#dc2626;">$${formatNumber(Math.round(v.total_backwages || 0))}</td>
+                            <td style="padding:5px 8px; border:1px solid #ddd; text-align:right;">${formatNumber(v.total_violations || 0)}</td>
+                        </tr>`).join('')}
+                    </table>
+                `;
+            }
+
+            const pw = window.open('', '_blank');
+            pw.document.write(`<!DOCTYPE html><html><head>
+                <title>Territory Report — ${escapeHtml(title)}</title>
+                <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+                <style>
+                    body { font-family: 'Source Sans Pro', sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; color: #1a1a1a; }
+                    h1 { font-family: 'Playfair Display', serif; margin: 0; }
+                    .kpi-row { display: flex; gap: 16px; margin: 20px 0; }
+                    .kpi { flex: 1; background: #f5f3f0; border-radius: 8px; padding: 16px; text-align: center; }
+                    .kpi-value { font-size: 22px; font-weight: 700; }
+                    .kpi-label { font-size: 11px; text-transform: uppercase; color: #7d7770; letter-spacing: 0.05em; }
+                    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 12px; color: #999; }
+                    @media print { body { padding: 20px; } }
+                </style>
+            </head><body>
+                <h1>${escapeHtml(title)}</h1>
+                <p style="color:#7d7770; margin:4px 0 0;">Territory Report &mdash; Generated ${date}</p>
+
+                <div class="kpi-row">
+                    <div class="kpi"><div class="kpi-label">Members</div><div class="kpi-value">${formatNumber(members)}</div></div>
+                    <div class="kpi"><div class="kpi-label">Locals</div><div class="kpi-value">${formatNumber(locals)}</div></div>
+                    <div class="kpi"><div class="kpi-label">Covered Workers</div><div class="kpi-value">${formatNumber(workers)}</div></div>
+                    <div class="kpi"><div class="kpi-label">Organizing Targets</div><div class="kpi-value">${formatNumber(cache.targetsData?.total || targets.length)}</div></div>
+                </div>
+
+                ${targetsHtml}
+                ${electionsHtml}
+                ${violatorsHtml}
+
+                <div class="footer">
+                    <p>Data sources: DOL OLMS, OSHA, NLRB, WHD, BLS</p>
+                    <p>Generated from The Organizer &mdash; Labor Research Platform</p>
+                </div>
+            </body></html>`);
+            pw.document.close();
+            pw.focus();
+            setTimeout(() => pw.print(), 300);
+        }
+
+        function exportEmployerReport() {
+            const sc = deepDiveData.scorecard;
+            if (!sc) { alert('No employer data loaded'); return; }
+
+            const est = sc.establishment || {};
+            const score = sc.organizing_score || 0;
+            const breakdown = sc.score_breakdown || {};
+            const osha = sc.osha_context || {};
+            const geo = sc.geographic_context || {};
+            const contracts = sc.contracts || {};
+            const nlrb = sc.nlrb_context || {};
+            const ctx = sc.context || {};
+            const tier = score >= 30 ? 'TOP' : score >= 25 ? 'HIGH' : score >= 20 ? 'MEDIUM' : 'LOW';
+            const date = new Date().toLocaleDateString();
+
+            const factors = [
+                ['Existing Unions', breakdown.company_unions, 20],
+                ['Industry Density', breakdown.industry_density, 10],
+                ['Geographic', breakdown.geographic, 15],
+                ['Employer Size', breakdown.size, 10],
+                ['OSHA Violations', breakdown.osha, 10],
+                ['NLRB Patterns', breakdown.nlrb, 10],
+                ['Govt Contracts', breakdown.contracts, 15],
+                ['Industry Growth', breakdown.projections, 5],
+                ['Similarity', breakdown.similarity, 5]
+            ];
+
+            const siblings = deepDiveData.siblings?.siblings || [];
+
+            const pw = window.open('', '_blank');
+            pw.document.write(`<!DOCTYPE html><html><head>
+                <title>${escapeHtml(est.estab_name || 'Employer')} — Report</title>
+                <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+                <style>
+                    body { font-family: 'Source Sans Pro', sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; color: #1a1a1a; }
+                    h1 { font-family: 'Playfair Display', serif; margin: 0; }
+                    h2 { font-size: 16px; margin: 24px 0 8px; }
+                    .score-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 14px; }
+                    .kpi-row { display: flex; gap: 16px; margin: 20px 0; }
+                    .kpi { flex: 1; background: #f5f3f0; border-radius: 8px; padding: 16px; text-align: center; }
+                    .kpi-value { font-size: 22px; font-weight: 700; }
+                    .kpi-label { font-size: 11px; text-transform: uppercase; color: #7d7770; letter-spacing: 0.05em; }
+                    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                    th { background: #f5f3f0; text-align: left; padding: 6px 8px; border: 1px solid #ddd; }
+                    td { padding: 5px 8px; border: 1px solid #ddd; }
+                    .bar { height: 10px; border-radius: 5px; background: #e8e5e0; }
+                    .bar-fill { height: 10px; border-radius: 5px; }
+                    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 12px; color: #999; }
+                    @media print { body { padding: 20px; } }
+                </style>
+            </head><body>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <h1>${escapeHtml(est.estab_name || 'Unknown')}</h1>
+                        <p style="color:#7d7770; margin:4px 0;">
+                            ${escapeHtml(est.site_address || '')}${est.site_address ? ', ' : ''}${escapeHtml(est.site_city || '')}, ${escapeHtml(est.site_state || '')} ${escapeHtml(est.site_zip || '')}
+                        </p>
+                        <p style="color:#7d7770; font-size:12px;">NAICS: ${est.naics_code || 'N/A'} | Risk: ${est.risk_level || 'N/A'} | ${geo.is_rtw_state ? 'Right-to-Work State' : 'Non-RTW State'}</p>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:36px; font-weight:700; color:${score >= 30 ? '#16a34a' : score >= 25 ? '#2563eb' : '#ca8a04'};">${score}</div>
+                        <span class="score-badge" style="background:${tier === 'TOP' ? '#dcfce7' : tier === 'HIGH' ? '#dbeafe' : '#fef9c3'}; color:${tier === 'TOP' ? '#166534' : tier === 'HIGH' ? '#1e40af' : '#854d0e'};">${tier}</span>
+                    </div>
+                </div>
+
+                <div class="kpi-row">
+                    <div class="kpi"><div class="kpi-label">Employees</div><div class="kpi-value">${formatNumber(est.employee_count || 0)}</div></div>
+                    <div class="kpi"><div class="kpi-label">OSHA Violations</div><div class="kpi-value" style="color:#dc2626;">${formatNumber(est.total_violations || 0)}</div></div>
+                    <div class="kpi"><div class="kpi-label">Penalties</div><div class="kpi-value">$${formatNumber(Math.round(est.total_penalties || 0))}</div></div>
+                    <div class="kpi"><div class="kpi-label">Govt Contracts</div><div class="kpi-value">${contracts.total_funding ? '$' + formatCompact(contracts.total_funding) : 'None'}</div></div>
+                </div>
+
+                <h2>Score Breakdown</h2>
+                <table>
+                    <tr><th>Factor</th><th style="text-align:right;">Score</th><th style="text-align:right;">Max</th><th style="width:40%;">Bar</th></tr>
+                    ${factors.map(([label, val, max]) => {
+                        const v = val || 0;
+                        const pct = Math.round((v / max) * 100);
+                        return `<tr>
+                            <td>${label}</td>
+                            <td style="text-align:right; font-weight:700;">${v}</td>
+                            <td style="text-align:right; color:#999;">${max}</td>
+                            <td><div class="bar"><div class="bar-fill" style="width:${pct}%; background:${pct >= 80 ? '#16a34a' : pct >= 50 ? '#2563eb' : '#ca8a04'};"></div></div></td>
+                        </tr>`;
+                    }).join('')}
+                </table>
+
+                <h2>Context</h2>
+                <table>
+                    <tr><td>OSHA Industry Ratio</td><td style="text-align:right;">${osha.industry_ratio ? osha.industry_ratio.toFixed(1) + 'x average' : 'N/A'}</td></tr>
+                    <tr><td>NLRB Win Prediction</td><td style="text-align:right;">${nlrb.predicted_win_pct ? nlrb.predicted_win_pct.toFixed(1) + '%' : 'N/A'}</td></tr>
+                    <tr><td>State NLRB Win Rate</td><td style="text-align:right;">${geo.nlrb_win_rate ? geo.nlrb_win_rate.toFixed(1) + '%' : 'N/A'}</td></tr>
+                    <tr><td>Past Elections at Employer</td><td style="text-align:right;">${nlrb.direct_case_count || ctx.nlrb_count || 0}</td></tr>
+                    <tr><td>Federal Contract Obligations</td><td style="text-align:right;">${contracts.federal_funding ? '$' + formatCompact(contracts.federal_funding) : 'None'}</td></tr>
+                </table>
+
+                ${siblings.length ? `
+                    <h2>Similar Unionized Employers</h2>
+                    <table>
+                        <tr><th>Employer</th><th>Location</th><th style="text-align:right;">Match</th></tr>
+                        ${siblings.slice(0, 8).map(s => `<tr>
+                            <td>${escapeHtml(s.employer_name || '')}</td>
+                            <td>${escapeHtml((s.city || '') + ', ' + (s.state || ''))}</td>
+                            <td style="text-align:right;">${s.match_score || 0}%</td>
+                        </tr>`).join('')}
+                    </table>
+                ` : ''}
+
+                <div class="footer">
+                    <p>Employer Profile Report &mdash; Generated ${date}</p>
+                    <p>Data sources: DOL OLMS, OSHA, NLRB, WHD, BLS, USASpending</p>
+                    <p>Generated from The Organizer &mdash; Labor Research Platform</p>
+                </div>
+            </body></html>`);
+            pw.document.close();
+            pw.focus();
+            setTimeout(() => pw.print(), 300);
+        }
+
+        function exportTerritoryTargetsCSV() {
+            const targets = territoryDataCache.targetsData?.results || [];
+            if (!targets.length) { alert('No targets data to export'); return; }
+
+            const header = 'Employer,Address,City,State,ZIP,NAICS,Employees,Score,Tier,Violations,Penalties';
+            const rows = targets.map(t => {
+                const score = t.organizing_score || 0;
+                const tier = score >= 30 ? 'TOP' : score >= 25 ? 'HIGH' : score >= 20 ? 'MEDIUM' : 'LOW';
+                return [
+                    csvEscape(t.estab_name || ''),
+                    csvEscape(t.site_address || ''),
+                    csvEscape(t.site_city || ''),
+                    csvEscape(t.site_state || ''),
+                    csvEscape(t.site_zip || ''),
+                    t.naics_code || '',
+                    t.employee_count || 0,
+                    score,
+                    tier,
+                    t.total_violations || 0,
+                    t.total_penalties || 0
+                ].join(',');
+            });
+
+            const ctx = territoryContext;
+            const filename = `organizing_targets_${ctx.union || 'all'}_${ctx.state || 'national'}_${new Date().toISOString().slice(0,10)}.csv`;
+            downloadCSV(header + '\n' + rows.join('\n'), filename);
+        }
+
+        function exportTerritoryElectionsCSV() {
+            const elections = territoryDataCache.electionsData?.elections || [];
+            if (!elections.length) { alert('No elections data to export'); return; }
+
+            const header = 'Date,Employer,City,State,Union,Eligible Voters,Vote Margin,Result';
+            const rows = elections.map(e => [
+                csvEscape(e.election_date || ''),
+                csvEscape(e.employer_name || ''),
+                csvEscape(e.employer_city || ''),
+                csvEscape(e.employer_state || ''),
+                csvEscape(e.aff_abbr || ''),
+                e.eligible_voters || 0,
+                e.vote_margin || 0,
+                e.union_won ? 'Won' : 'Lost'
+            ].join(','));
+
+            const ctx = territoryContext;
+            const filename = `nlrb_elections_${ctx.state || 'national'}_${new Date().toISOString().slice(0,10)}.csv`;
+            downloadCSV(header + '\n' + rows.join('\n'), filename);
         }
 
         // ==========================================
