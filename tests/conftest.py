@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from httpx import Client, ASGITransport
-from api.labor_api_v6 import app
+from api.main import app
 
 
 @pytest.fixture(scope="session")
