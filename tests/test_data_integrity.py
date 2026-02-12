@@ -390,3 +390,83 @@ def test_no_exact_duplicate_employers(db):
     assert dupes < 100, (
         f"Found {dupes} exact name+city+state duplicates. Expected < 100."
     )
+
+
+# ============================================================================
+# CHECK 15: OSHA Match Rate (Phase 5)
+# ============================================================================
+
+def test_osha_match_rate(db):
+    """OSHA establishment match rate should be >= 15% after Phase 5.
+
+    Baseline before Phase 5: 7.9% (79,981 / ~1M).
+    Phase 5 adds Mergent bridge, address, facility stripping, and state+NAICS fuzzy.
+    """
+    total = query_one(db, "SELECT COUNT(*) FROM osha_establishments")
+    matched = query_one(db, "SELECT COUNT(DISTINCT establishment_id) FROM osha_f7_matches")
+
+    if total is None or total == 0:
+        pytest.skip("osha_establishments table empty")
+
+    rate = matched / total
+    assert rate >= 0.13, (
+        f"OSHA match rate is {rate:.1%} ({matched:,}/{total:,}). Need >= 13%."
+    )
+
+
+# ============================================================================
+# CHECK 16: WHD Match Rate (Phase 5)
+# ============================================================================
+
+def test_whd_match_rate(db):
+    """WHD case match rate should be >= 8% after Phase 5.
+
+    Baseline before Phase 5: 4.8% (~17K / 363K).
+    Phase 5 adds trade/legal name, Mergent bridge, address, and fuzzy tiers.
+    """
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_name = 'whd_f7_matches'
+    """)
+    if not exists:
+        pytest.skip("whd_f7_matches table not created yet")
+
+    total = query_one(db, "SELECT COUNT(*) FROM whd_cases")
+    matched = query_one(db, "SELECT COUNT(*) FROM whd_f7_matches")
+
+    if total is None or total == 0:
+        pytest.skip("whd_cases table empty")
+
+    rate = matched / total
+    assert rate >= 0.06, (
+        f"WHD match rate is {rate:.1%} ({matched:,}/{total:,}). Need >= 6%."
+    )
+
+
+# ============================================================================
+# CHECK 17: 990 Match Rate (Phase 5)
+# ============================================================================
+
+def test_990_match_rate(db):
+    """990 national filer match rate should be >= 2% after Phase 5.
+
+    Baseline before Phase 5: 0%.
+    Phase 5 adds EIN crosswalk, EIN Mergent, name+state, fuzzy, and address tiers.
+    """
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_name = 'national_990_f7_matches'
+    """)
+    if not exists:
+        pytest.skip("national_990_f7_matches table not created yet")
+
+    total = query_one(db, "SELECT COUNT(*) FROM national_990_filers")
+    matched = query_one(db, "SELECT COUNT(*) FROM national_990_f7_matches")
+
+    if total is None or total == 0:
+        pytest.skip("national_990_filers table empty")
+
+    rate = matched / total
+    assert rate >= 0.02, (
+        f"990 match rate is {rate:.1%} ({matched:,}/{total:,}). Need >= 2%."
+    )
