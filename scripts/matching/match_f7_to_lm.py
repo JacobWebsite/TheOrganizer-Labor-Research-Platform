@@ -9,7 +9,7 @@ conn = psycopg2.connect(
     port=5432, 
     database='olms_multiyear', 
     user='postgres', 
-    password='os.environ.get('DB_PASSWORD', '')'
+    password=os.environ.get('DB_PASSWORD', '')
 )
 
 # Load F7-only unions from CSV

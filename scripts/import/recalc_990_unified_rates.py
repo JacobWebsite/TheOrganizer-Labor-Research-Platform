@@ -5,7 +5,7 @@ Not per-capita portions - what members actually pay
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
 cur = conn.cursor()
 
 # Clear existing 990 data and reload with correct rates

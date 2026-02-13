@@ -29,7 +29,7 @@ METHODOLOGY:
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
 cur = conn.cursor()
 
 cur.execute("DELETE FROM form_990_estimates")

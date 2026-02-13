@@ -111,13 +111,11 @@ def get_corporate_family(employer_id: str):
     """Get related employers (corporate family) - ownership hierarchy + name similarity + multi-employer groups"""
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Get employer info
+            # Get employer info (only columns that exist on f7_employers_deduped)
             cur.execute("""
                 SELECT employer_id, employer_name, employer_name_aggressive, state, naics,
                        multi_employer_group_id, latest_union_name, latest_unit_size,
-                       city, latitude, longitude, street,
-                       sec_cik, sec_ticker, sec_is_public,
-                       ultimate_parent_name, ultimate_parent_duns, corporate_family_id
+                       city, latitude, longitude, street
                 FROM f7_employers_deduped WHERE employer_id = %s
             """, [employer_id])
             employer = cur.fetchone()
@@ -125,25 +123,38 @@ def get_corporate_family(employer_id: str):
             if not employer:
                 raise HTTPException(status_code=404, detail="Employer not found")
 
+            # Get crosswalk data for this employer (SEC, GLEIF, corporate family)
+            cur.execute("""
+                SELECT corporate_family_id, sec_cik, gleif_lei, mergent_duns,
+                       ein, ticker, is_public, canonical_name
+                FROM corporate_identifier_crosswalk
+                WHERE f7_employer_id = %s
+                LIMIT 1
+            """, [employer_id])
+            xwalk = cur.fetchone()
+
             family_members = []
             hierarchy_source = "NAME_SIMILARITY"
 
-            # Priority 1: Corporate hierarchy (ownership-based)
-            if employer.get('corporate_family_id'):
+            # Priority 1: Corporate hierarchy via crosswalk corporate_family_id
+            corporate_family_id = xwalk['corporate_family_id'] if xwalk else None
+            if corporate_family_id:
                 hierarchy_source = "CORPORATE_HIERARCHY"
                 cur.execute("""
                     SELECT f.employer_id, f.employer_name, f.city, f.state, f.naics,
                            f.latest_unit_size, f.latest_union_name,
                            'CORPORATE_FAMILY' as relationship,
-                           f.latitude, f.longitude, f.sec_ticker, f.sec_is_public
-                    FROM f7_employers_deduped f
-                    WHERE f.corporate_family_id = %s AND f.employer_id != %s
+                           f.latitude, f.longitude,
+                           c.ticker, c.is_public
+                    FROM corporate_identifier_crosswalk c
+                    JOIN f7_employers_deduped f ON c.f7_employer_id = f.employer_id
+                    WHERE c.corporate_family_id = %s AND f.employer_id != %s
                     ORDER BY f.latest_unit_size DESC NULLS LAST
                     LIMIT 50
-                """, [employer['corporate_family_id'], employer_id])
+                """, [corporate_family_id, employer_id])
                 family_members.extend(cur.fetchall())
 
-                # Also include Mergent employers in same family
+                # Also include Mergent employers in same family via crosswalk
                 cur.execute("""
                     SELECT m.duns as employer_id, m.company_name as employer_name,
                            m.city, m.state, m.naics_primary as naics,
@@ -151,19 +162,14 @@ def get_corporate_family(employer_id: str):
                            CASE WHEN m.has_union THEN m.f7_union_name ELSE NULL END as latest_union_name,
                            'MERGENT_FAMILY' as relationship,
                            NULL as latitude, NULL as longitude,
-                           m.sec_ticker, m.sec_is_public
-                    FROM mergent_employers m
-                    WHERE m.corporate_family_id = %s
-                      AND m.matched_f7_employer_id IS DISTINCT FROM %s
-                      AND NOT EXISTS (
-                          SELECT 1 FROM f7_employers_deduped f2
-                          WHERE f2.corporate_family_id = %s
-                            AND f2.employer_id = m.matched_f7_employer_id
-                      )
+                           c.ticker, c.is_public
+                    FROM corporate_identifier_crosswalk c
+                    JOIN mergent_employers m ON c.mergent_duns = m.duns
+                    WHERE c.corporate_family_id = %s
+                      AND c.f7_employer_id IS DISTINCT FROM %s
                     ORDER BY m.employees_site DESC NULLS LAST
                     LIMIT 30
-                """, [employer['corporate_family_id'], employer_id,
-                      employer['corporate_family_id']])
+                """, [corporate_family_id, employer_id])
                 family_members.extend(cur.fetchall())
 
             # Priority 2: Multi-employer group members
@@ -172,7 +178,7 @@ def get_corporate_family(employer_id: str):
                 cur.execute("""
                     SELECT employer_id, employer_name, city, state, naics,
                            latest_unit_size, latest_union_name, 'MULTI_EMPLOYER_GROUP' as relationship,
-                           latitude, longitude, sec_ticker, sec_is_public
+                           latitude, longitude, NULL as ticker, NULL as is_public
                     FROM f7_employers_deduped
                     WHERE multi_employer_group_id = %s AND employer_id != %s
                     ORDER BY latest_unit_size DESC
@@ -190,7 +196,7 @@ def get_corporate_family(employer_id: str):
                            latest_unit_size, latest_union_name,
                            'NAME_SIMILARITY' as relationship,
                            similarity(employer_name_aggressive, %s) as name_similarity,
-                           latitude, longitude, sec_ticker, sec_is_public
+                           latitude, longitude, NULL as ticker, NULL as is_public
                     FROM f7_employers_deduped
                     WHERE employer_id != %s
                       AND similarity(employer_name_aggressive, %s) > 0.5
@@ -204,7 +210,7 @@ def get_corporate_family(employer_id: str):
                         family_members.append(row)
 
             # Compute summary stats
-            root_name = employer.get('ultimate_parent_name') or employer['employer_name']
+            root_name = (xwalk['canonical_name'] if xwalk and xwalk.get('canonical_name') else None) or employer['employer_name']
             states = list(set(m.get('state') for m in family_members if m.get('state')))
             states.sort()
             total_workers = sum(m.get('latest_unit_size') or 0 for m in family_members)
@@ -212,13 +218,13 @@ def get_corporate_family(employer_id: str):
             unions = list(set(m.get('latest_union_name') for m in family_members if m.get('latest_union_name')))
             unionized_count = sum(1 for m in family_members if m.get('latest_union_name'))
 
-            # SEC info
+            # SEC info via crosswalk
             sec_info = None
-            if employer.get('sec_cik'):
+            if xwalk and xwalk.get('sec_cik'):
                 sec_info = {
-                    "cik": employer['sec_cik'],
-                    "ticker": employer.get('sec_ticker'),
-                    "is_public": employer.get('sec_is_public', False)
+                    "cik": xwalk['sec_cik'],
+                    "ticker": xwalk.get('ticker'),
+                    "is_public": xwalk.get('is_public', False)
                 }
 
             return {
@@ -251,27 +257,25 @@ def get_corporate_hierarchy_stats():
             """)
             stats['by_source'] = [dict(r) for r in cur.fetchall()]
 
-            cur.execute("SELECT COUNT(*) as cnt FROM corporate_ultimate_parents")
-            stats['total_ultimate_parents'] = cur.fetchone()['cnt']
+            # Count distinct ultimate parents from hierarchy
+            cur.execute("SELECT COUNT(DISTINCT parent_duns) FROM corporate_hierarchy WHERE is_direct = false")
+            stats['total_ultimate_parents'] = cur.fetchone()[0]
 
-            cur.execute("SELECT COUNT(DISTINCT corporate_family_id) FROM f7_employers_deduped WHERE corporate_family_id IS NOT NULL")
+            # Corporate families and SEC linkages via crosswalk
+            cur.execute("SELECT COUNT(DISTINCT corporate_family_id) FROM corporate_identifier_crosswalk WHERE corporate_family_id IS NOT NULL")
             stats['f7_families'] = cur.fetchone()[0]
 
-            cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE sec_cik IS NOT NULL")
+            cur.execute("SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE sec_cik IS NOT NULL")
             stats['f7_with_sec'] = cur.fetchone()[0]
 
-            cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE sec_is_public = TRUE")
+            cur.execute("SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE is_public = TRUE")
             stats['f7_public_companies'] = cur.fetchone()[0]
 
             cur.execute("SELECT COUNT(*) FROM sec_companies")
             stats['total_sec_companies'] = cur.fetchone()[0]
 
-            try:
-                cur.execute("SELECT COUNT(*) FROM gleif_us_entities")
-                stats['total_gleif_us_entities'] = cur.fetchone()[0]
-            except Exception:
-                conn.rollback()
-                stats['total_gleif_us_entities'] = 0
+            cur.execute("SELECT COUNT(*) FROM gleif_us_entities")
+            stats['total_gleif_us_entities'] = cur.fetchone()[0]
 
             cur.execute("SELECT COUNT(*) FROM corporate_identifier_crosswalk")
             stats['total_crosswalk_entries'] = cur.fetchone()[0]
@@ -287,29 +291,37 @@ def get_corporate_hierarchy(employer_id: str, source: str = Query("f7")):
     """
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Find the employer's DUNS or corporate_family_id
+            # Find the employer basic info
             if source == 'f7':
                 cur.execute("""
-                    SELECT employer_id, employer_name, corporate_family_id,
-                           ultimate_parent_name, ultimate_parent_duns,
-                           sec_cik, sec_ticker, sec_is_public
-                    FROM f7_employers_deduped WHERE employer_id = %s
+                    SELECT f.employer_id, f.employer_name, f.city, f.state
+                    FROM f7_employers_deduped f WHERE f.employer_id = %s
                 """, [employer_id])
             else:
                 cur.execute("""
-                    SELECT duns as employer_id, company_name as employer_name,
-                           corporate_family_id, ultimate_parent_name,
-                           COALESCE(domestic_parent_duns, parent_duns) as ultimate_parent_duns,
-                           sec_cik, sec_ticker, sec_is_public
-                    FROM mergent_employers WHERE duns = %s
+                    SELECT m.duns as employer_id, m.company_name as employer_name,
+                           m.city, m.state,
+                           COALESCE(m.domestic_parent_duns, m.parent_duns) as parent_duns_val
+                    FROM mergent_employers m WHERE m.duns = %s
                 """, [employer_id])
 
             employer = cur.fetchone()
             if not employer:
                 raise HTTPException(status_code=404, detail="Employer not found")
 
+            # Get crosswalk data
+            cur.execute("""
+                SELECT corporate_family_id, sec_cik, gleif_lei, mergent_duns,
+                       ein, ticker, is_public, canonical_name
+                FROM corporate_identifier_crosswalk
+                WHERE f7_employer_id = %s
+                LIMIT 1
+            """, [employer_id])
+            xwalk = cur.fetchone()
+
             result = {
                 "employer": employer,
+                "crosswalk": dict(xwalk) if xwalk else None,
                 "ultimate_parent": None,
                 "parent_chain": [],
                 "siblings": [],
@@ -319,37 +331,47 @@ def get_corporate_hierarchy(employer_id: str, source: str = Query("f7")):
             }
 
             # Get hierarchy links where this employer is involved
-            duns = employer.get('ultimate_parent_duns')
-            family_id = employer.get('corporate_family_id')
+            duns = xwalk['mergent_duns'] if xwalk and xwalk.get('mergent_duns') else (employer.get('parent_duns_val') if source == 'mergent' else None)
+            family_id = xwalk['corporate_family_id'] if xwalk else None
 
-            if duns:
-                # Find parent chain
+            # Also check hierarchy directly by f7_employer_id
+            cur.execute("""
+                SELECT parent_name, parent_duns, parent_lei, parent_cik,
+                       relationship_type, is_direct, source, confidence
+                FROM corporate_hierarchy
+                WHERE child_f7_employer_id = %s
+                ORDER BY is_direct DESC
+            """, [employer_id])
+            result['parent_chain'] = [dict(r) for r in cur.fetchall()]
+
+            if duns and not result['parent_chain']:
                 cur.execute("""
                     SELECT parent_name, parent_duns, parent_lei, parent_cik,
                            relationship_type, is_direct, source, confidence
                     FROM corporate_hierarchy
-                    WHERE child_duns = %s OR child_f7_employer_id = %s
+                    WHERE child_duns = %s
                     ORDER BY is_direct DESC
-                """, [duns, employer_id])
+                """, [duns])
                 result['parent_chain'] = [dict(r) for r in cur.fetchall()]
 
-                # Find siblings (same parent)
-                if result['parent_chain']:
-                    parent_duns = result['parent_chain'][0].get('parent_duns')
-                    if parent_duns:
-                        cur.execute("""
-                            SELECT h.child_name, h.child_duns, h.child_lei,
-                                   m.has_union, m.employees_site, m.city, m.state
-                            FROM corporate_hierarchy h
-                            LEFT JOIN mergent_employers m ON h.child_duns = m.duns
-                            WHERE h.parent_duns = %s AND h.child_duns != %s
-                            LIMIT 50
-                        """, [parent_duns, duns])
-                        result['siblings'] = [dict(r) for r in cur.fetchall()]
+            # Find siblings (same parent)
+            if result['parent_chain']:
+                parent_duns = result['parent_chain'][0].get('parent_duns')
+                if parent_duns:
+                    cur.execute("""
+                        SELECT h.child_name, h.child_duns,
+                               m.has_union, m.employees_site, m.city, m.state
+                        FROM corporate_hierarchy h
+                        LEFT JOIN mergent_employers m ON h.child_duns = m.duns
+                        WHERE h.parent_duns = %s AND COALESCE(h.child_duns, '') != COALESCE(%s, '')
+                        LIMIT 50
+                    """, [parent_duns, duns])
+                    result['siblings'] = [dict(r) for r in cur.fetchall()]
 
-                # Find subsidiaries
+            # Find subsidiaries
+            if duns:
                 cur.execute("""
-                    SELECT h.child_name, h.child_duns, h.child_lei,
+                    SELECT h.child_name, h.child_duns,
                            m.has_union, m.employees_site, m.city, m.state
                     FROM corporate_hierarchy h
                     LEFT JOIN mergent_employers m ON h.child_duns = m.duns
@@ -359,21 +381,24 @@ def get_corporate_hierarchy(employer_id: str, source: str = Query("f7")):
                 result['subsidiaries'] = [dict(r) for r in cur.fetchall()]
 
             # Ultimate parent info
-            if employer.get('ultimate_parent_name'):
+            if result['parent_chain']:
+                top = result['parent_chain'][-1]  # Last in chain = ultimate parent
                 result['ultimate_parent'] = {
-                    "name": employer['ultimate_parent_name'],
-                    "duns": employer.get('ultimate_parent_duns'),
-                    "cik": employer.get('sec_cik'),
-                    "ticker": employer.get('sec_ticker'),
-                    "is_public": employer.get('sec_is_public', False)
+                    "name": top.get('parent_name'),
+                    "duns": top.get('parent_duns'),
+                    "cik": top.get('parent_cik') or (xwalk['sec_cik'] if xwalk else None),
+                    "ticker": xwalk.get('ticker') if xwalk else None,
+                    "is_public": xwalk.get('is_public', False) if xwalk else False
                 }
 
-            # Family stats
+            # Family stats via crosswalk
             if family_id:
                 cur.execute("""
                     SELECT COUNT(*) as total,
-                           COUNT(*) FILTER (WHERE latest_union_name IS NOT NULL) as unionized
-                    FROM f7_employers_deduped WHERE corporate_family_id = %s
+                           COUNT(*) FILTER (WHERE f.latest_union_name IS NOT NULL) as unionized
+                    FROM corporate_identifier_crosswalk c
+                    JOIN f7_employers_deduped f ON c.f7_employer_id = f.employer_id
+                    WHERE c.corporate_family_id = %s
                 """, [family_id])
                 fam = cur.fetchone()
                 result['total_family_size'] = fam['total']
@@ -442,20 +467,24 @@ def get_sec_company(cik: int):
             if not company:
                 raise HTTPException(status_code=404, detail="SEC company not found")
 
-            # Find linked F7 employers
+            # Find linked F7 employers via crosswalk
             cur.execute("""
                 SELECT f.employer_id, f.employer_name, f.city, f.state,
                        f.latest_union_name, f.latest_unit_size
-                FROM f7_employers_deduped f WHERE f.sec_cik = %s
+                FROM corporate_identifier_crosswalk c
+                JOIN f7_employers_deduped f ON c.f7_employer_id = f.employer_id
+                WHERE c.sec_cik = %s
                 ORDER BY f.latest_unit_size DESC NULLS LAST
             """, [cik])
             f7_employers = [dict(r) for r in cur.fetchall()]
 
-            # Find linked Mergent employers
+            # Find linked Mergent employers via crosswalk
             cur.execute("""
                 SELECT m.duns, m.company_name, m.city, m.state,
                        m.has_union, m.employees_site, m.sector_category
-                FROM mergent_employers m WHERE m.sec_cik = %s
+                FROM corporate_identifier_crosswalk c
+                JOIN mergent_employers m ON c.mergent_duns = m.duns
+                WHERE c.sec_cik = %s
                 ORDER BY m.employees_site DESC NULLS LAST
             """, [cik])
             mergent_employers = [dict(r) for r in cur.fetchall()]

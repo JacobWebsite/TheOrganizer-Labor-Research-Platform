@@ -1,7 +1,7 @@
 # Labor Relations Research Platform - Claude Context
 
 ## Quick Reference
-**Last Updated:** February 2026
+**Last Updated:** 2026-02-13 (post-audit resolution)
 
 ### Database Connection
 ```python
@@ -28,7 +28,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | Federal Sector | 1.28M | 1.1M | 116% |
 | State/Local Public | 6.9M | 7.0M (EPI) | 98.3% |
 | States Reconciled | 50/51 | - | 98% |
-| F7 Employers | 62,163 | - | 51,337 counted |
+| F7 Employers | 60,953 | - | 51,337 counted |
 
 ---
 
@@ -38,14 +38,14 @@ BLS check is WARNING-level in validation framework, not critical.
 | Table | Records | Description |
 |-------|---------|-------------|
 | `unions_master` | 26,665 | OLMS union filings (has local_number field) |
-| `f7_employers_deduped` | 62,163 | Private sector employers |
+| `f7_employers_deduped` | 60,953 | Private sector employers (PK: employer_id) |
 | `nlrb_elections` | 33,096 | NLRB election records |
-| `nlrb_participants` | 30,399 | Union petitioners (95.7% matched to OLMS) |
-| `lm_data` | 2.6M+ | Historical filings (2010-2024) |
+| `nlrb_participants` | 1,906,542 | Union petitioners (95.7% matched to OLMS) |
+| `lm_data` | 331,238 | Historical filings (2010-2024) |
 | `epi_state_benchmarks` | 51 | State union benchmarks |
-| `manual_employers` | 509 | State/public sector + research discoveries |
+| `manual_employers` | 520 | State/public sector + research discoveries |
 | `employer_review_flags` | - | Manual review flags (ALREADY_UNION, DUPLICATE, etc.) |
-| `mv_employer_search` | 120,169 | Materialized view: unified F7+NLRB+VR+Manual search |
+| `mv_employer_search` | 118,015 | Materialized view: unified F7+NLRB+VR+Manual search |
 
 ### Public Sector Tables
 | Table | Records | Description |
@@ -60,7 +60,7 @@ BLS check is WARNING-level in validation framework, not critical.
 |-------|---------|-------------|
 | `osha_establishments` | 1,007,217 | OSHA-covered workplaces |
 | `osha_violations_detail` | 2,245,020 | Violation records ($3.52B penalties) |
-| `osha_f7_matches` | 79,981 | Linkages to F-7 employers (44.6% match rate) |
+| `osha_f7_matches` | 138,340 | Linkages to F-7 employers (13.7% of OSHA establishments / 47.3% of F7 employers) |
 | `v_osha_organizing_targets` | - | Organizing target view |
 
 ### WHD Tables (Wage & Hour Division - National)
@@ -71,7 +71,32 @@ BLS check is WARNING-level in validation framework, not critical.
 
 **Key columns:** `case_id`, `trade_name`, `legal_name`, `name_normalized`, `city`, `state`, `naics_code`, `total_violations`, `civil_penalties`, `backwages_amount`, `employees_violated`, `flsa_repeat_violator`, `flsa_child_labor_violations`, `findings_start_date`, `findings_end_date`
 
-**Match coverage:** F7: 2,990 (4.8%), Mergent: 1,170 (2.1%). Total backwages: $4.7B, penalties: $361M
+**Match coverage:** F7: 24,610 (6.8%) via `whd_f7_matches`, Mergent: 1,170 (2.1%). Total backwages: $4.7B, penalties: $361M
+
+### Match Tables
+| Table | Records | Description |
+|-------|---------|-------------|
+| `osha_f7_matches` | 138,340 | OSHA-to-F7 employer matches (4-tier) |
+| `whd_f7_matches` | 24,610 | WHD-to-F7 employer matches (PK: f7_employer_id, case_id) |
+| `national_990_f7_matches` | 14,059 | 990-to-F7 employer matches (PK: f7_employer_id, ein) |
+| `sam_f7_matches` | 11,050 | SAM-to-F7 employer matches (PK: f7_employer_id, uei) |
+| `nlrb_employer_xref` | 179,275 | NLRB-to-F7 cross-reference |
+| `employer_comparables` | 269,810 | Gower similarity results (5 comparables per employer) |
+
+### SAM.gov Tables
+| Table | Records | Description |
+|-------|---------|-------------|
+| `sam_entities` | 826,042 | SAM.gov federal contractor registry (UEI, CAGE, NAICS) |
+
+### Additional Data Tables
+| Table | Records | Description |
+|-------|---------|-------------|
+| `epi_union_membership` | 1,420,064 | EPI union membership microdata (322 MB) |
+| `employers_990_deduped` | 1,046,167 | Deduped national 990 employers (265 MB) |
+| `ar_disbursements_emp_off` | 2,813,248 | Annual report: disbursements to employees/officers |
+| `ar_membership` | 216,508 | Annual report: membership data |
+| `ar_disbursements_total` | 216,372 | Annual report: total disbursements |
+| `ar_assets_investments` | 304,816 | Annual report: assets and investments |
 
 ### Unified Employer Tables (NEW)
 | Table | Records | Description |
@@ -104,8 +129,8 @@ BLS check is WARNING-level in validation framework, not critical.
 | `sec_companies` | 517,403 | SEC EDGAR company registry (CIK, EIN, LEI, ticker) |
 | `gleif_us_entities` | 379,192 | GLEIF/Open Ownership US entities (100% with LEI) |
 | `gleif_ownership_links` | 498,963 | GLEIF parent→child ownership links |
-| `corporate_identifier_crosswalk` | 14,561 | Unified ID mapping across SEC/GLEIF/Mergent/F7/USASpending |
-| `splink_match_results` | ~4,600 | Splink probabilistic match candidates with per-column scores |
+| `corporate_identifier_crosswalk` | 25,177 | Unified ID mapping across SEC/GLEIF/Mergent/F7/USASpending/SAM/990 |
+| ~~`splink_match_results`~~ | ARCHIVED | Was 5,761,285 rows — archived to `~/splink_match_results_archive.sql.gz` and dropped |
 | `corporate_hierarchy` | 125,120 | Parent-to-subsidiary relationships |
 | `qcew_annual` | 1,943,426 | BLS QCEW industry x geography data (2020-2023) |
 | `qcew_industry_density` | 7,143 | State-level NAICS density (private sector, 2023) |
@@ -149,8 +174,8 @@ BLS check is WARNING-level in validation framework, not critical.
 |--------|--------|-------|------|
 | SEC | 1,948 | 517,403 | 0.4% |
 | GLEIF | 3,264 | 379,192 | 0.9% |
-| Mergent | 3,361 | 56,431 | 6.0% |
-| F7 | ~12,000 | 62,163 | 19.3% |
+| Mergent | 3,361 | 56,426 | 6.0% |
+| F7 | ~12,000 | 60,953 | 19.7% |
 | Federal contractors | 9,305 | 47,193 | 19.7% |
 | Public companies | 358 | - | - |
 
@@ -186,7 +211,7 @@ BLS check is WARNING-level in validation framework, not critical.
 ### Mergent Employer Tables (Sector Scorecards)
 | Table | Records | Description |
 |-------|---------|-------------|
-| `mergent_employers` | 56,431 | Mergent Intellect employer data (21 sectors) |
+| `mergent_employers` | 56,426 | Mergent Intellect employer data (21 sectors) |
 | `national_990_filers` | 586,767 | IRS Form 990 national filers (2022-2024), deduped by EIN |
 | `ny_990_filers` | 47,614 | IRS Form 990 NY nonprofit filers (2022-2024) |
 
@@ -236,7 +261,7 @@ BLS check is WARNING-level in validation framework, not critical.
 - `score_geographic` (removed - set to 0), `score_size` (0-5), `score_industry_density` (0-10 BLS)
 - `score_nlrb_momentum` (0-10 by NAICS), `score_osha_violations` (0-4), `score_govt_contracts` (0-15)
 - `score_labor_violations` (0-10 NYC Comptroller), `sibling_union_bonus` (0-8)
-- Max score: 62 pts | Tiers: TOP >=30, HIGH >=25, MEDIUM >=15, LOW <15
+- Max score: 62 pts | Tiers: TOP >=30, HIGH >=25, MEDIUM >=20, LOW <20
 
 **Labor Violation Columns:**
 - `nyc_wage_theft_cases`, `nyc_wage_theft_amount` - NYS/US DOL wage theft
@@ -260,14 +285,13 @@ For each sector (e.g., `education`, `social_services`, `building_services`):
 |------|-------------|
 | TOP | >=30 |
 | HIGH | 25-29 |
-| MEDIUM | 15-24 |
-| LOW | <15 |
+| MEDIUM | 20-24 |
+| LOW | <20 |
 
 ### Geography Tables
 | Table | Records | Description |
 |-------|---------|-------------|
-| `zip_geography` | 39,366 | ZIP to City/County/CBSA mapping |
-| `cbsa_reference` | 937 | Metro area definitions |
+| `cbsa_definitions` | 935 | Metro area definitions (CBSA codes, titles, counties) |
 | `state_sector_union_density` | 6,191 | Union density by state/sector (1978-2025) |
 | `state_workforce_shares` | 51 | Public/private workforce shares by state |
 | `state_govt_level_density` | 51 | Estimated fed/state/local density by state |
@@ -412,15 +436,15 @@ Full Swagger docs: http://localhost:8001/docs
 
 ## Key Features (What Exists - Don't Rebuild)
 
-1. **OSHA Organizing Scorecard** - 6-factor, 0-100 pts via `/api/organizing/scorecard`. Factors: safety violations (25), industry density (15), geographic (15), size (15), NLRB momentum (15), govt contracts (15)
+1. **OSHA Organizing Scorecard** - 9-factor, 0-100 pts via `/api/organizing/scorecard`. Factors: safety violations (20), industry density (10), geographic favorability (15), size (10), NLRB patterns (10), govt contracts (15), company unions (10), employer similarity (5), WHD violations (5)
 2. **AFSCME NY Organizing Targets** - 5,428 targets from 990 + contract data, $18.35B funding. Tiers: TOP (70+), HIGH (50-69), MEDIUM (30-49), LOW (<30)
 3. **Geographic Analysis** - MSA/metro density, city search, CBSA mapping (40.8%)
 4. **Membership Deduplication** - 70.1M raw -> 14.5M deduplicated (matches BLS within 1.5%)
 5. **Historical Trends** - 16 years OLMS LM filings (2010-2024), Chart.js visualizations
 6. **Public Sector Coverage** - 98.3% of EPI benchmark, 50/51 states within +/-15%
-7. **Multi-Sector Organizing Scorecard** - 56,431 Mergent employers, 21 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=15, LOW<15. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
+7. **Multi-Sector Organizing Scorecard** - 56,426 Mergent employers, 21 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=20, LOW<20. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
 8. **Industry Outlook** - BLS 2024-2034 projections in employer detail, 6-digit NAICS from OSHA, occupation breakdowns
-9. **Corporate Hierarchy** - SEC EDGAR (517K), GLEIF (379K entities, 499K ownership links), crosswalk linking SEC/GLEIF/Mergent/F7/USASpending (14,561 rows: deterministic + Splink + USASpending), hierarchy with 125K parent->child links from 13,929 distinct parent companies. QCEW industry density scores for 121K F7 employers. 9,305 F7 employers identified as federal contractors with scoring (0-15 pts).
+9. **Corporate Hierarchy** - SEC EDGAR (517K), GLEIF (379K entities, 499K ownership links), crosswalk linking SEC/GLEIF/Mergent/F7/USASpending/SAM/990 (25,177 rows: deterministic + Splink + USASpending + SAM + 990), hierarchy with 125K parent->child links from 13,929 distinct parent companies. QCEW industry density scores for 121K F7 employers. 9,305 F7 employers identified as federal contractors with scoring (0-15 pts).
 
 ---
 
@@ -599,7 +623,7 @@ When modifying scoring/ranking logic, always update associated documentation to 
 
 ```cmd
 cd C:\Users\jakew\Downloads\labor-data-project
-py -m uvicorn api.labor_api_v6:app --reload --port 8001
+py -m uvicorn api.main:app --reload --port 8001
 ```
 
 Open `files/organizer_v5.html` in browser.

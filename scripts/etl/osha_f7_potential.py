@@ -17,7 +17,7 @@ pg_conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='os.environ.get('DB_PASSWORD', '')'
+    password=os.environ.get('DB_PASSWORD', '')
 )
 pg_cur = pg_conn.cursor(cursor_factory=RealDictCursor)
 

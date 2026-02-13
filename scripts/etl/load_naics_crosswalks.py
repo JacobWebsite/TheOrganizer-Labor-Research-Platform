@@ -14,7 +14,7 @@ conn = psycopg2.connect(
     host='localhost',
     dbname='olms_multiyear',
     user='postgres',
-    password='os.environ.get('DB_PASSWORD', '')'
+    password=os.environ.get('DB_PASSWORD', '')
 )
 conn.autocommit = True
 cur = conn.cursor()

@@ -84,7 +84,7 @@ def fetch_olms_seiu_locals(include_workers_united=True):
         host='localhost',
         dbname='olms_multiyear',
         user='postgres',
-        password='os.environ.get('DB_PASSWORD', '')'
+        password=os.environ.get('DB_PASSWORD', '')
     )
 
     if include_workers_united:

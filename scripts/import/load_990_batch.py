@@ -5,7 +5,7 @@ Based on ProPublica Nonprofit Explorer data
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
 cur = conn.cursor()
 
 # Top state affiliates with data from ProPublica and published sources

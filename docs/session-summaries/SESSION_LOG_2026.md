@@ -2,6 +2,51 @@
 
 Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
+### 2026-02-13 (Comprehensive Platform Audit)
+**Tasks:** Full 8-section audit of the entire platform — database, API, scripts, documentation
+
+**Audit Report:** `docs/AUDIT_REPORT_2026.md` (1,254 lines)
+
+**Platform Health Score: 68/100 — FUNCTIONAL BUT FRAGILE**
+
+| Category | Score |
+|----------|-------|
+| Data Completeness | 78/100 |
+| Data Integrity | 55/100 |
+| API Reliability | 88/100 |
+| Code Quality | 50/100 |
+| Documentation | 30/100 |
+| Infrastructure | 55/100 |
+
+**8 Sections Completed:**
+
+1. **Database Table Inventory** — 346 objects (149 tables, 194 views, 3 materialized views), 22 GB total. 6 empty tables. `f7_employers_deduped` has NO primary key. `splink_match_results` largest at 1.6 GB. Autovacuum never ran (stale stats).
+
+2. **Data Quality Deep Dive** — Column-by-column null analysis on 7 core tables. **CRITICAL: 60,373 orphaned rows (50.4%) in `f7_union_employer_relations`** — employer_ids point to pre-dedup IDs, silently dropping half of bargaining links in any JOIN. 1,604 duplicate NLRB case_numbers. Crosswalk covers 37.4% of F7.
+
+3. **Materialized Views & Indexes** — All 3 materialized views working. All 187 regular views working (0 broken). 535 indexes consuming 3.4 GB; **73% never scanned**. 21 confirmed duplicate indexes wasting 176 MB. 257 unused non-unique indexes consuming 2.1 GB. 9 views reference raw `f7_employers` instead of deduped. 67 sector-specific views (36% of all views).
+
+4. **Cross-Reference Integrity** — 61.7% of F7 employers have at least 1 external match. OSHA strongest at 47.3% F7 coverage. Mergent-to-F7 connection nearly nonexistent (1.5%). 14,150 orphaned `nlrb_employer_xref` records (same root cause as #2). Only 5.3% of public sector employers have bargaining units.
+
+5. **API Endpoint Audit** — 144 endpoints across 16 routers. 140 working, **4 broken** (`corporate.py` references nonexistent `corporate_ultimate_parents` table and `corporate_family_id` column). Zero SQL injection vulnerabilities. 98 tables have no API access (15.9M rows invisible to frontend).
+
+6. **File System & Script Inventory** — 778 Python files, 102 SQL. **259 scripts have broken password pattern** (`password='os.environ.get(...)'` as string literal). 1 script has hardcoded password (`nlrb_win_rates.py`). Only 32 scripts use correct `db_config` import. 3 dead API monoliths (348 KB) in active `api/` directory. 71.8 MB of SQL data dumps in archive. All 13 critical path scripts verified present.
+
+7. **Documentation Accuracy** — **CLAUDE.md has 19 factual inaccuracies**: startup command wrong (will fail), 13 wrong row counts (splink off by 1,250x), scoring tiers wrong (>=15 should be >=20), missing 13+ tables and 7+ features. README.md has 12 inaccuracies. Roadmap v12 completely obsolete (all 4 phases described as future work are complete).
+
+8. **Summary & Recommendations** — Top 10 issues ranked by impact. 8 quick wins (<30 min each). Tables that could be dropped (~3.5 GB recoverable). Missing indexes to add. Documentation update priorities.
+
+**Top 3 Issues:**
+1. 60,373 orphaned `f7_union_employer_relations` rows (50.4% of bargaining links broken)
+2. CLAUDE.md startup command wrong + 19 inaccuracies
+3. `f7_employers_deduped` has no primary key
+
+**Also completed:** LM2 vs F7 membership comparison (14.5M LM2 vs 15.8M F7, 108.7% ratio). Three structural patterns: public sector unions invisible to F7, building trades 10-32x over-covered, 195 orphaned F7 file numbers. Script: `scripts/analysis/compare_lm2_vs_f7.py`.
+
+**Status:** Audit complete. Report at `docs/AUDIT_REPORT_2026.md`. No code changes made — audit is read-only.
+
+---
+
 ### 2026-02-08 (Phase 5: Data Integrity Sprint - Splink F7 Self-Dedup + Merge)
 **Tasks:** Use Splink probabilistic matching for F7 internal deduplication, execute graduated-confidence merges, link multi-location employer groups, run supporting integrity tasks
 

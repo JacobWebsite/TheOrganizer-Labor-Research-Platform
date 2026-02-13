@@ -4,7 +4,7 @@ Fix UNKNOWN affiliations and add more exclusions
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
 conn.autocommit = True
 cur = conn.cursor()
 

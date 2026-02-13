@@ -1543,13 +1543,13 @@
             </div>
             
             <!-- Loading state -->
-            <div id="dashboardLoading" class="p-12 text-center">
+            <div id="analyticsDashboardLoading" class="p-12 text-center">
                 <div class="inline-block w-10 h-10 border-4 border-warmgray-300 border-t-warmgray-900 rounded-full animate-spin mb-4"></div>
                 <p class="text-warmgray-600">Loading dashboard data...</p>
             </div>
-            
+
             <!-- Dashboard content -->
-            <div id="dashboardContent" class="hidden p-6">
+            <div id="analyticsDashboardContent" class="hidden p-6">
                 <!-- Summary Cards Row -->
                 <div class="grid grid-cols-6 gap-4 mb-6">
                     <div class="bg-white rounded-lg p-4 shadow-sm border border-warmgray-200">
@@ -2459,8 +2459,8 @@
                     const stateSelect = document.getElementById('territoryState');
                     (stateData.states || []).forEach(s => {
                         const opt = document.createElement('option');
-                        opt.value = s;
-                        opt.textContent = s;
+                        opt.value = s.state || s;
+                        opt.textContent = s.state || s;
                         stateSelect.appendChild(opt);
                     });
                 }
@@ -2498,7 +2498,7 @@
                         <div class="text-warmgray-400 text-xs mt-1">members</div>
                         <div class="flex justify-between mt-3 text-xs text-warmgray-500">
                             <span>${u.local_count || 0} locals</span>
-                            <span>${(u.states || []).length} states</span>
+                            <span>${u.state_count || 0} states</span>
                         </div>
                     </div>
                 `).join('');
@@ -2539,8 +2539,8 @@
                     const data = await resp.json();
                     (data.metros || []).forEach(m => {
                         const opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
+                        opt.value = m.cbsa_code || m;
+                        opt.textContent = m.cbsa_title || m;
                         metroSelect.appendChild(opt);
                     });
                 }
@@ -3159,7 +3159,7 @@
                 let electionsData = null;
                 if (elName) {
                     try {
-                        const elResp = await fetch(`${API_BASE}/nlrb/elections/search?employer=${encodeURIComponent(elName)}&limit=10`);
+                        const elResp = await fetch(`${API_BASE}/nlrb/elections/search?employer_name=${encodeURIComponent(elName)}&limit=10`);
                         if (elResp.ok) electionsData = await elResp.json();
                     } catch(e) {}
                 }
@@ -4476,7 +4476,7 @@
             document.getElementById('mainSearch').value = '';
             // Set the industry filter to be a union affiliation
             selectedIndustry = { type: 'union', abbr: affAbbr, name: affAbbr };
-            renderIndustryTag();
+            showSelectedIndustryTag();
             executeSearch();
         }
         
@@ -4533,11 +4533,11 @@
                         </div>
                         <div>
                             <span class="text-warmgray-500">Employers:</span>
-                            <span class="font-semibold">${formatNumber(u.total_employers || 0)}</span>
+                            <span class="font-semibold">${formatNumber(u.employer_count || 0)}</span>
                         </div>
                     </div>
                     <div class="text-xs text-warmgray-400 mt-2">
-                        ${(u.states || []).length} states · ${formatNumber(u.covered_workers || 0)} workers covered
+                        ${u.state_count || 0} states · ${formatNumber(u.covered_workers || 0)} workers covered
                     </div>
                 </div>
             `).join('');
@@ -5689,7 +5689,8 @@
             return str.replace(/&/g, '&amp;')
                       .replace(/</g, '&lt;')
                       .replace(/>/g, '&gt;')
-                      .replace(/"/g, '&quot;');
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#39;');
         }
         
         // Format union name for display: "SEIU Local 2015 (Los Angeles, CA)"
@@ -6645,8 +6646,8 @@
         
         function renderOshaContent(data) {
             const contentEl = document.getElementById('oshaContent');
-            
-            if (!data.summary || data.summary.total_establishments === 0) {
+
+            if (!data.osha_summary || data.osha_summary.total_establishments === 0) {
                 contentEl.innerHTML = `
                     <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center text-sm text-green-700">
                         <span class="font-medium">✓ No OSHA violations found</span>
@@ -6656,21 +6657,23 @@
                 return;
             }
             
-            const s = data.summary;
+            const s = data.osha_summary;
             const riskColors = {
                 'HIGH': 'bg-red-100 text-red-800 border-red-200',
                 'MEDIUM': 'bg-yellow-100 text-yellow-800 border-yellow-200',
                 'LOW': 'bg-green-100 text-green-700 border-green-200',
                 'NONE': 'bg-warmgray-100 text-warmgray-600 border-warmgray-200'
             };
-            const riskClass = riskColors[s.risk_level] || riskColors['NONE'];
+            // Compute risk level from violation data since API doesn't return it
+            const riskLevel = s.willful_violations > 0 ? 'HIGH' : s.serious_violations > 2 ? 'MEDIUM' : s.total_violations > 0 ? 'LOW' : 'NONE';
+            const riskClass = riskColors[riskLevel] || riskColors['NONE'];
             
             let html = `
                 <div class="space-y-3">
                     <!-- Summary -->
                     <div class="flex items-center justify-between">
                         <span class="px-2 py-1 text-xs font-semibold rounded border ${riskClass}">
-                            ${s.risk_level} RISK
+                            ${riskLevel} RISK
                         </span>
                         <span class="text-xs text-warmgray-500">${s.total_establishments} establishment${s.total_establishments !== 1 ? 's' : ''} matched</span>
                     </div>
@@ -6690,8 +6693,8 @@
                             <div class="text-xs text-red-600">Willful</div>
                         </div>
                         <div class="bg-warmgray-100 rounded p-2">
-                            <div class="text-lg font-bold text-warmgray-900">${formatNumber(s.repeat_violations)}</div>
-                            <div class="text-xs text-warmgray-500">Repeat</div>
+                            <div class="text-lg font-bold text-warmgray-900">${formatNumber(s.total_inspections || 0)}</div>
+                            <div class="text-xs text-warmgray-500">Inspections</div>
                         </div>
                     </div>
                     
@@ -6722,7 +6725,7 @@
                                 <div class="text-xs font-medium ${est.total_violations > 0 ? 'text-red-600' : 'text-green-600'}">
                                     ${est.total_violations} violations
                                 </div>
-                                ${est.last_inspection ? `<div class="text-xs text-warmgray-400">${est.last_inspection}</div>` : ''}
+                                ${est.last_inspection_date ? `<div class="text-xs text-warmgray-400">${est.last_inspection_date}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -6773,28 +6776,29 @@
                 return;
             }
             
-            const s = data.summary;
-            
+            const es = data.elections_summary || {};
+            const us = data.ulp_summary || {};
+
             let html = '<div class="space-y-3">';
-            
+
             // Summary stats
-            if (s.total_elections > 0 || s.total_ulp_cases > 0) {
+            if ((es.total || 0) > 0 || (us.total || 0) > 0) {
                 html += `
                     <div class="grid grid-cols-4 gap-2 text-center">
                         <div class="bg-warmgray-100 rounded p-2">
-                            <div class="text-lg font-bold text-warmgray-900">${s.total_elections}</div>
+                            <div class="text-lg font-bold text-warmgray-900">${es.total || 0}</div>
                             <div class="text-xs text-warmgray-500">Elections</div>
                         </div>
                         <div class="bg-green-50 rounded p-2">
-                            <div class="text-lg font-bold text-green-700">${s.election_wins}</div>
+                            <div class="text-lg font-bold text-green-700">${es.union_wins || 0}</div>
                             <div class="text-xs text-green-600">Union Wins</div>
                         </div>
                         <div class="bg-red-50 rounded p-2">
-                            <div class="text-lg font-bold text-red-700">${s.election_losses}</div>
+                            <div class="text-lg font-bold text-red-700">${es.union_losses || 0}</div>
                             <div class="text-xs text-red-600">Losses</div>
                         </div>
                         <div class="bg-yellow-50 rounded p-2">
-                            <div class="text-lg font-bold text-yellow-700">${s.total_ulp_cases}</div>
+                            <div class="text-lg font-bold text-yellow-700">${us.total || 0}</div>
                             <div class="text-xs text-yellow-600">ULP Cases</div>
                         </div>
                     </div>
@@ -6809,26 +6813,26 @@
                         <div class="space-y-2 max-h-48 overflow-y-auto">
                 `;
                 data.elections.slice(0, 8).forEach(el => {
-                    const isWin = el.election_winner === 'Union';
-                    const isLoss = el.election_winner === 'Employer';
+                    const isWin = el.union_won === true;
+                    const isLoss = el.union_won === false;
                     const resultClass = isWin ? 'text-green-600' : (isLoss ? 'text-red-600' : 'text-warmgray-500');
-                    const resultText = isWin ? 'Union Won' : (isLoss ? 'Employer Won' : (el.status || 'Pending'));
-                    
+                    const resultText = isWin ? 'Union Won' : (isLoss ? 'Employer Won' : 'Pending');
+
                     html += `
                         <div class="text-sm p-2 bg-warmgray-50 rounded">
                             <div class="flex justify-between items-start">
                                 <div>
-                                    <div class="font-medium text-warmgray-900">${escapeHtml(el.case_number)}</div>
+                                    <div class="font-medium text-warmgray-900">${escapeHtml(el.case_number || '')}</div>
                                     <div class="text-xs text-warmgray-500">${el.election_date || el.date_filed || '—'}</div>
                                 </div>
                                 <span class="text-xs font-medium ${resultClass}">${resultText}</span>
                             </div>
-                            ${el.votes_for_union != null ? `
+                            ${el.eligible_voters != null ? `
                                 <div class="mt-1 text-xs text-warmgray-500">
-                                    Vote: ${el.votes_for_union} for / ${el.votes_against} against
+                                    ${el.eligible_voters} eligible voters${el.vote_margin != null ? `, margin: ${el.vote_margin}` : ''}
                                 </div>
                             ` : ''}
-                            ${el.union_to_certify ? `<div class="text-xs text-warmgray-400 mt-1">${escapeHtml(el.union_to_certify)}</div>` : ''}
+                            ${el.union_name ? `<div class="text-xs text-warmgray-400 mt-1">${escapeHtml(el.union_name)}</div>` : ''}
                         </div>
                     `;
                 });
@@ -6995,44 +6999,33 @@
         }
         
         function renderUnionDetailData(detail, item) {
-            const financials = detail.financial_history || [];
-            const latest = financials[0];
-            
+            // API returns {union, top_employers, nlrb_elections, nlrb_summary}
+            const u = detail.union || {};
+            const hasFinancials = u.ttl_receipts || u.ttl_assets;
+
             // Financial summary
-            if (latest) {
-                const netAssets = (latest.ttl_assets || 0) - (latest.ttl_liabilities || 0);
+            if (hasFinancials) {
+                const netAssets = (u.ttl_assets || 0) - (u.ttl_liabilities || 0);
                 document.getElementById('detailFilingSection').innerHTML = `
-                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">LM Filing (${latest.yr_covered})</div>
+                    <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">LM Filing${u.yr_covered ? ` (${u.yr_covered})` : ''}</div>
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div class="bg-warmgray-50 rounded p-3">
                             <div class="text-warmgray-500 text-xs mb-1">Total Receipts</div>
-                            <div class="font-semibold text-warmgray-900">${formatCurrency(latest.ttl_receipts)}</div>
+                            <div class="font-semibold text-warmgray-900">${formatCurrency(u.ttl_receipts)}</div>
                         </div>
                         <div class="bg-warmgray-50 rounded p-3">
-                            <div class="text-warmgray-500 text-xs mb-1">Disbursements</div>
-                            <div class="font-semibold text-warmgray-900">${formatCurrency(latest.ttl_disbursements)}</div>
+                            <div class="text-warmgray-500 text-xs mb-1">Members</div>
+                            <div class="font-semibold text-warmgray-900">${formatNumber(u.members || 0)}</div>
                         </div>
                         <div class="bg-warmgray-50 rounded p-3">
                             <div class="text-warmgray-500 text-xs mb-1">Total Assets</div>
-                            <div class="font-semibold text-warmgray-900">${formatCurrency(latest.ttl_assets)}</div>
+                            <div class="font-semibold text-warmgray-900">${formatCurrency(u.ttl_assets)}</div>
                         </div>
                         <div class="bg-warmgray-50 rounded p-3">
                             <div class="text-warmgray-500 text-xs mb-1">Net Assets</div>
                             <div class="font-semibold ${netAssets >= 0 ? 'text-green-700' : 'text-red-700'}">${formatCurrency(netAssets)}</div>
                         </div>
                     </div>
-                    ${detail.trends && detail.trends.member_change_pct !== undefined ? `
-                        <div class="mt-3 flex gap-4 text-xs">
-                            <span class="${detail.trends.member_change_pct >= 0 ? 'text-green-600' : 'text-red-600'}">
-                                ${detail.trends.member_change_pct >= 0 ? '↑' : '↓'} ${Math.abs(detail.trends.member_change_pct)}% members (${detail.trends.years_of_data}yr)
-                            </span>
-                            ${detail.trends.asset_change_pct !== undefined ? `
-                                <span class="${detail.trends.asset_change_pct >= 0 ? 'text-green-600' : 'text-red-600'}">
-                                    ${detail.trends.asset_change_pct >= 0 ? '↑' : '↓'} ${Math.abs(detail.trends.asset_change_pct)}% assets
-                                </span>
-                            ` : ''}
-                        </div>
-                    ` : ''}
                 `;
             } else {
                 document.getElementById('detailFilingSection').innerHTML = `
@@ -7284,8 +7277,8 @@
                     const response = await fetch(`${API_BASE}/unions/search?f_num=${fNum}&limit=1`);
                     if (response.ok) {
                         const data = await response.json();
-                        if (data.results && data.results.length > 0) {
-                            currentResults.push(data.results[0]);
+                        if (data.unions && data.unions.length > 0) {
+                            currentResults.push(data.unions[0]);
                             selectItem(fNum);
                         }
                     }
@@ -7375,7 +7368,7 @@
                     
                     // Transform data to match expected format
                     const transformedData = {
-                        total_count: data.total_count,
+                        total_count: data.total_employers,
                         total_workers: data.employers.reduce((sum, e) => sum + (e.latest_unit_size || 0), 0),
                         total_locals: 1,
                         results: data.employers.map(e => ({
@@ -7808,11 +7801,11 @@
         function selectCorporateLocation(employerId) {
             // Close modal and load employer in main view
             closeCorporateFamily();
-            
-            // Search for this employer
-            document.getElementById('searchInput').value = '';
+
+            // Search for this employer by ID
+            document.getElementById('mainSearch').value = employerId;
             currentMode = 'employers';
-            loadSearchResults({ employer_id: employerId });
+            executeSearch();
         }
         
         // ==========================================
@@ -7824,8 +7817,8 @@
             document.getElementById('analyticsDashboardModal').classList.remove('hidden');
             document.getElementById('analyticsDashboardModal').classList.add('flex');
             document.body.classList.add('modal-open');
-            document.getElementById('dashboardLoading').classList.remove('hidden');
-            document.getElementById('dashboardContent').classList.add('hidden');
+            document.getElementById('analyticsDashboardLoading').classList.remove('hidden');
+            document.getElementById('analyticsDashboardContent').classList.add('hidden');
 
             try {
                 // Load data using existing endpoints
@@ -7874,7 +7867,7 @@
                 renderDashboard(summary, trends, nlrbRecent, growth, geographic);
             } catch (e) {
                 console.error('Dashboard load failed:', e);
-                document.getElementById('dashboardLoading').innerHTML = `
+                document.getElementById('analyticsDashboardLoading').innerHTML = `
                     <div class="text-red-600">Failed to load dashboard. Check that the API is running.</div>
                 `;
             }
@@ -7894,8 +7887,8 @@
         
         function renderDashboard(summary, trends, nlrbRecent, growth, geographic) {
             // Hide loading, show content
-            document.getElementById('dashboardLoading').classList.add('hidden');
-            document.getElementById('dashboardContent').classList.remove('hidden');
+            document.getElementById('analyticsDashboardLoading').classList.add('hidden');
+            document.getElementById('analyticsDashboardContent').classList.remove('hidden');
             
             // Summary cards
             document.getElementById('dashUnions').textContent = formatNumber(summary.total_unions || 0);
@@ -8532,7 +8525,7 @@
                     { value: breakdown.projections || 0, max: 10, color: 'bg-teal-500', label: 'Growth' },
                     { value: breakdown.similarity || 0, max: 10, color: 'bg-cyan-500', label: 'Similarity' }
                 ];
-                const oshaTotal = 110;
+                const oshaTotal = 100;
                 return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
                     ${segments.map(s => `<div class="${s.color}" style="width: ${(s.value / oshaTotal * 100).toFixed(1)}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
                 </div>`;
@@ -10085,6 +10078,12 @@
             document.getElementById('trendsModal').classList.add('hidden');
             document.getElementById('trendsModal').classList.remove('flex');
             document.body.classList.remove('modal-open');
+
+            // Destroy charts to prevent memory leaks
+            Object.values(trendsCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            trendsCharts = {};
         }
 
         async function loadTrendsData() {

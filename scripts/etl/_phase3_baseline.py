@@ -2,7 +2,7 @@ import os
 """Phase 3 baseline stats - what QCEW and USASpending could improve."""
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
 cur = conn.cursor()
 
 # NAICS gap analysis

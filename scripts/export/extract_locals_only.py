@@ -6,7 +6,7 @@ Plus add Form 990 public sector organizations
 import psycopg2
 import csv
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password='os.environ.get('DB_PASSWORD', '')')
+conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
 cur = conn.cursor()
 
 print("=" * 80)

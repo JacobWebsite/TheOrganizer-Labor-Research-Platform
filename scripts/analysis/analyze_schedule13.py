@@ -8,7 +8,7 @@ import pandas as pd
 
 conn = psycopg2.connect(
     host='localhost', port=5432, database='olms_multiyear',
-    user='postgres', password='os.environ.get('DB_PASSWORD', '')'
+    user='postgres', password=os.environ.get('DB_PASSWORD', '')
 )
 
 print("="*80)

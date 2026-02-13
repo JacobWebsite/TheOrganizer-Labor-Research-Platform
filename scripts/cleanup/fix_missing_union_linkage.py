@@ -18,7 +18,7 @@ DRY_RUN = '--apply' not in sys.argv
 
 conn = psycopg2.connect(
     host='localhost', dbname='olms_multiyear',
-    user='postgres', password='os.environ.get('DB_PASSWORD', '')'
+    user='postgres', password=os.environ.get('DB_PASSWORD', '')
 )
 cur = conn.cursor()
 
