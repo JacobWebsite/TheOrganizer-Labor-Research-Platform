@@ -93,7 +93,7 @@ We use a combination of text matching (comparing how similar names look), geogra
 | Union elections | 33,096 |
 | API endpoints | 142+ (across 16 routers) |
 | Database tables | 207 |
-| Automated tests | 63 (47 API + 16 auth) |
+| Automated tests | 162 (30 API + 16 auth + 24 data integrity + 51 matching + 39 scoring) |
 
 ---
 
@@ -134,11 +134,52 @@ If I have numbers that seem off, help me investigate. Example: "BLS says 14.3M u
 
 For context on questions about current platform capabilities:
 
-1. **Orphan fix** — 60,000 orphaned union-employer relations resolved by adding 52,760 historical employers. The `f7_employers_deduped` table now has 113,713 rows (61K current + 53K historical, tracked via `is_historical` flag).
-2. **Organizing scorecard** — Now a materialized view (`mv_organizing_scorecard`) with 9 scoring factors computed in SQL. Score range 10-78, average 32.3. Replaces earlier on-the-fly Python scoring.
-3. **JWT authentication** — Added to the API (disabled by default, enabled via environment variable).
-4. **API decomposition** — Monolith split into 16 focused routers. 63 automated tests passing.
-5. **Match rates remain low** — OSHA 13.7%, WHD 6.8%, 990 2.4%. Key data gaps: SEC EDGAR full index (300K+ companies), IRS BMF (all nonprofits), SEC 10-K Exhibit 21 (subsidiary lists).
+### Sprints 1-4 (Complete)
+1. **Orphan fix (Sprint 1)** — 60,000 orphaned union-employer relations resolved by adding 52,760 historical employers. The `f7_employers_deduped` table now has 113,713 rows (61K current + 53K historical, tracked via `is_historical` flag).
+2. **JWT authentication (Sprint 2)** — Added to the API (disabled by default, enabled via `LABOR_JWT_SECRET` env var). CORS restricted.
+3. **Organizing scorecard (Sprint 3)** — Now a materialized view (`mv_organizing_scorecard`) with 9 scoring factors computed in SQL. Score range 10-78, average 32.3.
+4. **Test coverage (Sprint 4)** — 162 automated tests (matching pipeline + scoring engine + data integrity).
 
-*Last updated: February 14, 2026 (after Sprint 3 completion)*
-*Context: This briefing was written so you can effectively research and fact-check without needing our full technical history.*
+### Sprint 6 (Complete) — Frontend & Score Explanations
+5. **Frontend split** — 10,506-line monolith HTML split into 2,139 lines markup + CSS + 10 JS files. Uses plain `<script>` tags (not ES modules) because 103 inline `onclick=` handlers require global functions.
+6. **Score explanations** — API now returns `score_explanations` dict with plain-language reasons for each of the 9 scoring factors (e.g., "150 employees -- in the 50-250 organizing sweet spot").
+7. **F7 public-sector banner** — UI now documents that F7 data only covers private-sector employers. Public-sector unions (5.4M members) are tracked through separate state PERB systems.
+
+### Known Data Quality Issues
+8. **Match rates remain low** — OSHA 13.7%, WHD 6.8%, 990 2.4%. Key data gaps: SEC EDGAR full index (300K+ companies), IRS BMF (all nonprofits), SEC 10-K Exhibit 21 (subsidiary lists).
+9. **F7 employer duplicates** — Multi-employer agreements (e.g., SAG-AFTRA with 5+ filings for different contract types) create duplicate rows in search results, all showing the same ~165K workers. F7 `unit_size` is bargaining unit size, not actual employer employees.
+10. **No FMCS data** — Contract expiration dates (#1 timing signal for organizing) not yet integrated.
+11. **No national ULP data** — Unfair labor practice tracking limited to NYC tables.
+
+## Architecture Review History
+
+**Sprint 6 review** (`docs/review_gemini.md`): You reviewed the frontend split architecture. Key decisions:
+
+**Accepted:**
+- Plain scripts over ES modules was the correct pragmatic call
+- Don't put score explanations in the materialized view
+- Cache-until-reload is acceptable for a research tool
+
+**Rejected (with rationale):**
+- Split modals.js into 11 files — more script tags + load-order complexity for no functional benefit
+- Split detail.js into renderer files — same reasoning
+- Global Decimal->float conversion — only 2 occurrences, not worth an abstraction
+- HTML templates loaded via fetch — over-engineering for internal tool
+- Raw data columns in MV for explanations — adds MV complexity for marginal benefit
+
+When reviewing future sprints, check `docs/review_gemini.md` for the response table format we use.
+
+---
+
+## What I Also Need From You (Gemini) — Expanded Role
+
+In addition to research and fact-checking, you now serve as **architecture reviewer** for major platform changes. When I send you code for review:
+
+1. **Evaluate architectural decisions** — Was the right approach chosen? What are the trade-offs?
+2. **Assess file organization** — Are concerns well-separated? Any files too large or too fragmented?
+3. **State management** — Is state handled cleanly? Any risk of stale data or race conditions?
+4. **API design** — Are endpoints well-structured? Do response shapes make sense for the frontend?
+5. **Suggest improvements** — But be pragmatic. This is an internal research tool, not a SaaS product. Over-engineering is worse than under-engineering.
+
+*Last updated: February 14, 2026 (after Sprint 6 completion + review fixes)*
+*Context: This briefing was written so you can effectively research, fact-check, and review architecture without needing our full technical history.*

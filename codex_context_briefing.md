@@ -15,7 +15,7 @@ I'm building a research platform that pulls together data from multiple U.S. gov
 
 - **Database:** PostgreSQL (called `olms_multiyear`), about 33GB, ~207 tables, ~13.5 million records
 - **Backend API:** Python with FastAPI, about 142 endpoints (web addresses the frontend calls to get data)
-- **Frontend:** Single-page HTML/JavaScript app (`organizer_v5.html`)
+- **Frontend:** HTML/JavaScript app — `organizer_v5.html` (markup) + 10 JS files + CSS (split in Sprint 6)
 - **Data Processing:** Python scripts for importing, cleaning, and matching data
 - **Matching Library:** `pg_trgm` (PostgreSQL extension for fuzzy text matching — finds similar-but-not-identical names)
 
@@ -82,14 +82,31 @@ The API (v7.0) was decomposed from a monolith into 16 focused routers under `api
 | `auth.py` | JWT login, register, refresh, /me | 4 |
 | `admin.py` | Scorecard refresh, admin operations | 1+ |
 
-**Authentication:** JWT auth is available (disabled by default). Enable by setting `LABOR_JWT_SECRET` in `.env` (32+ chars). First registered user bootstraps as admin.
+**Authentication:** JWT auth is available (disabled by default). Enable by setting `LABOR_JWT_SECRET` in `.env` (32+ chars). First registered user bootstraps as admin. Login rate limiting (10/5min/IP).
 
-**Test suite:** 63 tests passing (47 API + 16 auth). Run with `py -m pytest tests/`.
+**Test suite:** 162 tests passing (30 API + 16 auth + 24 data integrity + 51 matching + 39 scoring). Run with `py -m pytest tests/`.
+
+**Frontend structure (Sprint 6 split):**
+The frontend was split from a 10,506-line monolith into:
+- `files/organizer_v5.html` (2,139 lines — markup only)
+- `files/css/organizer.css` (228 lines)
+- 10 JS files under `files/js/` loaded in strict order via plain `<script>` tags (NOT ES modules):
+  `config.js` -> `utils.js` -> `maps.js` -> `territory.js` -> `search.js` -> `deepdive.js` -> `detail.js` -> `scorecard.js` -> `modals.js` -> `app.js`
+- All functions are global (no import/export). 103 inline `onclick=` handlers in HTML.
+- Global state in `config.js`, module-scoped state (`let` vars) in individual files.
+- **Key constraint:** Duplicate `let`/`const` declarations across files cause `SyntaxError` that kills the entire later file.
+
+**Score explanations (Sprint 6):**
+- 10 helper functions in `api/routers/organizing.py` (lines ~97-238) generate plain-language explanation strings
+- `_build_explanations(row, is_rtw, win_rate)` aggregates all 9 into a dict
+- API returns `score_explanations` in scorecard list + detail responses
+- Frontend `getScoreReason()` in `scorecard.js` prefers server explanations, falls back to client-side logic
 
 **Remaining known issues:**
-- 98 tables still have no API access (including some important ones)
 - `f7_employers_deduped` has no primary key
 - 73% of indexes never scanned (2.1 GB wasted space)
+- F7 employer duplicates — multi-employer agreements (SAG-AFTRA) create duplicate rows with inflated worker counts
+- F7 `unit_size` ≠ actual employees — misleading when sorted by "workers"
 
 ---
 
@@ -128,11 +145,26 @@ Your job is to be a **second pair of eyes on code** that Claude (my primary AI) 
 3. **SQL safety** — Are queries properly parameterized (not vulnerable to injection)?
 4. **Performance** — Will this be slow on large tables? Missing indexes? Unnecessary full table scans?
 5. **Python best practices** — Proper error handling? Resource cleanup? Type issues?
+6. **Cross-file JS issues** — Duplicate declarations, functions called before defined, XSS via raw innerHTML
+7. **API/frontend alignment** — Do field names in JS match the API response keys?
 
 **You do NOT need to:**
 - Understand the full platform architecture (Claude handles that)
-- Suggest major redesigns or new features
+- Suggest major redesigns or new features (e.g., splitting modals.js into 11 files — we considered and rejected this)
 - Know the history of why things were built a certain way
+
+## Previous Review History
+
+**Sprint 6 review** (`docs/review_codex.md`): You found 7 issues, 5 were fixed:
+1. FIXED: `renderTrendsChart(financials)` — undefined variable at detail.js:1055
+2. FIXED: Scorecard field mismatches (`state_density`→`geographic`, `contract_count`→`federal_contract_count`)
+3. FIXED: Duplicate `getSourceBadge()` in utils.js and modals.js
+4. FIXED: XSS raw innerHTML in scorecard.js
+5. FIXED: Stale `getScoreReason()` fallback (old 100-500 sweet spot, wrong NLRB/OSHA buckets)
+6. DEFERRED: Score explanation helpers not fully aligned with scoring sub-factors (intentionally simplified)
+7. DEFERRED: Inconsistent `response.ok` checks in some fetch paths
+
+When reviewing future sprints, check `docs/review_codex.md` for the response table format we use.
 
 ---
 
@@ -166,5 +198,5 @@ cur.execute("""
 
 ---
 
-*Last updated: February 14, 2026 (after Sprint 3 completion)*
+*Last updated: February 14, 2026 (after Sprint 6 completion + review fixes)*
 *Context: This briefing was written so you can effectively review code without needing the full project history.*

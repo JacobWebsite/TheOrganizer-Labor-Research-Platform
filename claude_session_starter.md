@@ -23,10 +23,11 @@ I'm building a research platform that connects data from 10+ U.S. government dat
 **The system includes:**
 - A PostgreSQL database (`olms_multiyear`) with 207 tables and ~13.5M records
 - A Python FastAPI backend (v7.0) with 16 routers, 142+ API endpoints, and JWT authentication
-- An interactive web frontend (`organizer_v5.html`)
+- An interactive web frontend (`organizer_v5.html` + 10 JS files + CSS)
 - A materialized-view-based organizing scorecard (`mv_organizing_scorecard`)
+- Server-side score explanations (10 helper functions in `organizing.py`)
 - Python scripts for data importing, cleaning, and matching across databases
-- 63 automated tests (47 API + 16 auth)
+- 162 automated tests (30 API + 16 auth + 24 data integrity + 51 matching + 39 scoring)
 
 ---
 
@@ -68,32 +69,47 @@ I'm building a research platform that connects data from 10+ U.S. government dat
 
 ---
 
-## Completed Improvements (Sprints 1-3, February 2026)
+## Completed Improvements (Sprints 1-4, 6 — February 2026)
 
-1. **Orphan fix** — 60,000 orphaned union-employer relations resolved by adding 52,760 historical employers. Zero orphans remain.
-2. **Corporate endpoints fixed** — 4 broken endpoints now use `corporate_hierarchy` + `corporate_identifier_crosswalk`.
-3. **JWT authentication added** — Disabled by default; enable by setting `LABOR_JWT_SECRET` in `.env` (32+ chars). First user bootstraps as admin.
-4. **Scorecard materialized view** — 9-factor organizing scorecard computed in SQL, replacing slow on-the-fly Python scoring. Admin can refresh via `POST /api/admin/refresh-scorecard`.
-5. **API decomposed** — Monolith split into 16 focused routers under `api/routers/`. Start script: `start-claude.bat`.
-6. **Test suite** — 63 tests passing (47 API + 16 auth).
+1. **Orphan fix (Sprint 1)** — 60,000 orphaned union-employer relations resolved by adding 52,760 historical employers. Zero orphans remain. `is_historical` flag + `v_f7_employers_current` view added.
+2. **Corporate endpoints fixed (Sprint 1)** — 4 broken endpoints now use `corporate_hierarchy` + `corporate_identifier_crosswalk`.
+3. **JWT authentication (Sprint 2)** — Disabled by default; enable by setting `LABOR_JWT_SECRET` in `.env` (32+ chars). First user bootstraps as admin. Login rate limiting (10/5min/IP).
+4. **CORS restricted (Sprint 2)** — Configurable `ALLOWED_ORIGINS` env var, defaults to localhost.
+5. **Scorecard materialized view (Sprint 3)** — 9-factor organizing scorecard computed in SQL, replacing slow on-the-fly Python scoring. Admin can refresh via `POST /api/admin/refresh-scorecard`.
+6. **Test coverage (Sprint 4)** — 162 tests passing (30 API + 16 auth + 24 data integrity + 51 matching + 39 scoring + 2 misc).
+7. **Frontend split (Sprint 6)** — `organizer_v5.html` split from 10,506 lines to 2,139 lines (markup only) + `files/css/organizer.css` + 10 JS files under `files/js/`. Plain `<script>` tags (not ES modules) — 103 inline `onclick=` handlers require global functions.
+8. **Score explanations API (Sprint 6)** — 10 helper functions generate plain-language explanations from actual data. API returns `score_explanations` dict. Frontend falls back to client-side `getScoreReason()`.
+9. **Review fixes (Sprint 6)** — Fixed 5 bugs found by Codex/Gemini review: `renderTrendsChart(financials)` undefined var, scorecard field name mismatches, duplicate `getSourceBadge()`, XSS innerHTML, stale `getScoreReason()` fallback.
+
+## Frontend Architecture (Sprint 6)
+
+The frontend is now split across 11 files loaded in strict order:
+```
+config.js (30) -> utils.js (197) -> maps.js (212) -> territory.js (671) ->
+search.js (935) -> deepdive.js (356) -> detail.js (1352) -> scorecard.js (816) ->
+modals.js (2606) -> app.js (1010)
+```
+- **All functions are global** — no ES modules, no import/export
+- **State split:** Global state in `config.js`, module-scoped state in individual files
+- **CSS:** `files/css/organizer.css` (228 lines) + Tailwind CDN
 
 ## Remaining Known Issues
 
-1. **98 tables have no API access** — including important ones like `f7_union_employer_relations` (the core union-employer links)
-2. **3 dead code files** in the API folder (~348KB of unused Python)
-3. **`f7_employers_deduped` has no primary key** — works but not ideal
-4. **73% of indexes never scanned** — 2.1 GB of wasted space (scheduled for Sprint 7)
-5. **Match rates are low** — OSHA 13.7%, WHD 6.8%, 990 2.4%. Needs SEC EDGAR full index and IRS BMF data.
+1. **`f7_employers_deduped` has no primary key** — works but not ideal (Sprint 7)
+2. **73% of indexes never scanned** — 2.1 GB of wasted space (Sprint 7)
+3. **Match rates are low** — OSHA 13.7%, WHD 6.8%, 990 2.4%. Needs SEC EDGAR full index and IRS BMF data.
+4. **F7 employer duplicates** — Multi-employer agreements (SAG-AFTRA) create duplicate rows. F7 `unit_size` is bargaining unit size, not actual employee count. (Sprint 9.5)
+5. **No FMCS contract expiration data** — #1 timing signal for organizing (Sprint 5)
+6. **No national ULP data** — Unfair labor practice tracking (Sprint 5)
 
 ## Roadmap
 
 See `ROADMAP.md` for the full 9-sprint plan. Current status:
-- Sprints 1-3: COMPLETE
-- **Sprint 4 (next):** Test coverage for matching pipeline + scoring engine
-- Sprint 5: Performance optimization
-- Sprint 6: Data quality improvements
-- Sprint 7: Index cleanup
-- Sprints 8-9: New data sources + frontend enhancements
+- **Sprints 1-4, 6: COMPLETE**
+- Sprint 5: New data sources (FMCS + ULP)
+- Sprint 7: Database cleanup (index drop, PK, GLEIF ROI)
+- Sprint 8: Deployment infrastructure (Docker + CI/CD)
+- Sprint 9: Polish & accessibility (mobile, a11y, F7 dedup)
 
 ---
 
@@ -127,10 +143,20 @@ User: postgres
 Password: [in .env file]
 Project path: C:\Users\jakew\Downloads\labor-data-project
 API start: py -m uvicorn api.main:app --reload --port 8001
-Frontend: files/organizer_v5.html
+Frontend: http://localhost:8001 (served by FastAPI, NOT file:// URLs)
 API docs: http://localhost:8001/docs
 ```
 
 ---
 
-*Last updated: February 14, 2026 (after Sprint 3 completion)*
+## Multi-AI Review History
+
+Sprint 6 was reviewed by both Codex and Gemini. Review prompts and responses are in:
+- `docs/review_codex.md` — Code review (9 focus areas, 5 bugs found and fixed)
+- `docs/review_gemini.md` — Architecture review (10 questions, decisions documented)
+
+For future sprints, prepare review prompts in the same format and update both docs with response tables.
+
+---
+
+*Last updated: February 14, 2026 (after Sprint 6 completion + review fixes)*
