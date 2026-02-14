@@ -1,7 +1,7 @@
 # Labor Relations Research Platform - Claude Context
 
 ## Quick Reference
-**Last Updated:** 2026-02-14 (audit remediation committed, 990 XML archived)
+**Last Updated:** 2026-02-14 (audit issues resolved, disk cleanup complete)
 
 ### Database Connection
 ```python
@@ -199,6 +199,34 @@ BLS check is WARNING-level in validation framework, not critical.
 - `scripts/etl/_integrate_qcew.py` - QCEW industry density scoring for F7 employers
 - `scripts/etl/_fetch_usaspending_api.py` - Fetch federal contract recipients via paginated API
 - `scripts/etl/_match_usaspending.py` - Match USASpending recipients to F7 and integrate crosswalk
+
+### Web Scraper Tables (AFSCME)
+| Table | Records | Description |
+|-------|---------|-------------|
+| `web_union_profiles` | 295 | Union directory entries + scraped website text |
+| `web_union_employers` | 160 | Employers extracted from union websites (AI + heuristic) |
+| `web_union_contracts` | 120 | Contract/CBA documents found (115 with PDF URLs) |
+| `web_union_membership` | 31 | Membership counts extracted from web text |
+| `web_union_news` | 183 | News items extracted from union sites |
+| `scrape_jobs` | 112 | Scrape audit trail (status, duration, errors) |
+
+**Pipeline:** CSV directory load -> OLMS matching -> Crawl4AI fetch -> Heuristic + AI extraction -> 5-tier employer matching (F7 exact, OSHA exact, F7 fuzzy, OSHA fuzzy, cross-state)
+
+**Key columns (web_union_profiles):** `union_name`, `local_number`, `state`, `website_url`, `platform`, `raw_text`, `raw_text_about`, `raw_text_contracts`, `raw_text_news`, `scrape_status` (NO_WEBSITE/EXTRACTED/FAILED), `match_status` (MATCHED_OLMS/UNMATCHED/NO_LOCAL_NUMBER), `f_num`
+
+**Key columns (web_union_employers):** `employer_name`, `state`, `sector` (PUBLIC_STATE/PUBLIC_LOCAL/PUBLIC_EDUCATION/HEALTHCARE/NONPROFIT), `match_status` (MATCHED_F7_EXACT/MATCHED_OSHA_EXACT/MATCHED_F7_FUZZY/MATCHED_OSHA_FUZZY/UNMATCHED), `matched_employer_id` (TEXT, links to f7_employers_deduped.employer_id)
+
+**Match coverage:** 73/160 employers matched (46%). 87 unmatched are predominantly public-sector (confirming F7's private-sector-only gap).
+
+**Scripts:**
+- `scripts/etl/setup_afscme_scraper.py` — Checkpoint 1: table creation + CSV load + OLMS matching
+- `scripts/scraper/fetch_union_sites.py` — Checkpoint 2: Crawl4AI website fetching
+- `scripts/scraper/extract_union_data.py` — Checkpoint 3: heuristic extraction + JSON insert
+- `scripts/scraper/fix_extraction.py` — Boilerplate detection + false positive cleanup
+- `scripts/scraper/match_web_employers.py` — Checkpoint 4: 5-tier employer matching
+- `scripts/scraper/export_html.py` — Generate browsable HTML data viewer
+
+**Data viewer:** `files/afscme_scraper_data.html` — 6-tab HTML with sortable tables
 
 ### Contract/Target Tables (AFSCME NY)
 | Table | Records | Description |
@@ -586,7 +614,15 @@ scripts/matching/
 When matching records between tables/datasets, always verify the join key exists in both sources before implementing. Check for null/empty values in join columns first.
 
 **Archived source data:**
-- `990_2025_archive.7z` — 650K IRS Form 990 XML files (1.2 GB compressed, was 20 GB). Already parsed and loaded into `national_990_filers` and `employers_990_deduped`. Extract with 7-Zip if re-import needed.
+- `990_2025_archive.7z` — 650K IRS Form 990 XML files (1.2 GB compressed, was 20 GB). Already loaded into `national_990_filers` and `employers_990_deduped`.
+- `data/free_company_dataset.csv.7z` — Company dataset (1.6 GB compressed, was 5.1 GB). Future use for employer email lookup.
+- `backup_20260209.dump.7z` — PostgreSQL backup (2.0 GB compressed, was 2.1 GB). Recreatable with `pg_dump`.
+
+**Match quality flags:**
+- `osha_f7_matches.low_confidence` — TRUE for 32,243 matches (23.3%) with match_confidence < 0.6
+- `whd_f7_matches.low_confidence` — TRUE for 6,657 matches (27.0%) with match_confidence < 0.6
+
+**f7_union_employer_relations note:** 60,373 rows (50.4%) reference pre-2020 employer_ids excluded by the dedup date filter (`WHERE latest_notice_date >= '2020-01-01'`). These are real historical relationships, not errors. JOINs to `f7_employers_deduped` will only show post-2020 active relationships (~59K rows).
 
 **Common gotchas:**
 - Contract tables (`ny_state_contracts`, `nyc_contracts`) have NO EIN values - use `vendor_name_normalized` for matching

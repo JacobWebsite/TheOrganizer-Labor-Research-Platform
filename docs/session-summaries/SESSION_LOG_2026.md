@@ -2,6 +2,77 @@
 
 Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
+### 2026-02-14b (AFSCME Web Scraper — Full Pipeline)
+**Tasks:** Build end-to-end union website scraper pipeline for AFSCME national directory
+
+**Input:** `afscme_national_directory.csv` (295 entries scraped from AFSCME national directory website)
+
+**4-Checkpoint Architecture:**
+
+**Checkpoint 1 — Setup & Data Load**
+- Created 6 database tables: `web_union_profiles`, `web_union_employers`, `web_union_contracts`, `web_union_membership`, `web_union_news`, `scrape_jobs`
+- Loaded 295 CSV rows into `web_union_profiles` with parsed local numbers, state codes, contact info
+- Matched against `unions_master` (aff_abbr='AFSCME'): 157 matched (137 exact + 20 cross-state), 65 unmatched, 73 no local number
+- 112 profiles had website URLs ready for scraping
+- Script: `scripts/etl/setup_afscme_scraper.py`
+
+**Checkpoint 2 — Website Fetching (Crawl4AI)**
+- Major dependency hurdles: Python 3.14 + Windows = lxml build failure (no Visual C++), had to install crawl4ai with `--no-deps` then ~14 dependencies manually
+- cp1252 encoding crash with Rich library Unicode arrows — fixed with `PYTHONIOENCODING=utf-8`
+- Built `scripts/scraper/fetch_union_sites.py` with: robots.txt compliance, 1 req/sec rate limiting, 2-sec domain cooldown, subpage discovery (/about, /contracts, /news), WordPress detection
+- Results: 103 fetched, 9 failed (CSEA site down, Mimecast proxy blocks, dead sites). 3.4 MB total raw text, 84 WordPress sites
+- Script: `scripts/scraper/fetch_union_sites.py`, `scripts/scraper/fetch_summary.py`
+
+**Checkpoint 3 — Data Extraction (Heuristic + AI)**
+- Phase 1 (Heuristic): Auto-extracted 48 employers, 120 contracts, 88 membership, 183 news
+- Quality disaster: ALL 48 employers were "Howard County Schools" (shared AFSCME sidebar content on 42+ sites). Membership had false positives: local numbers matched as counts (Local 4041 -> "4,041 members"), years (2026) matched
+- Phase 2 (Fix): Built boilerplate detection (phrase frequency across profiles), deleted false positives, re-extracted. Result: 5 v2-heuristic employers, 28 clean membership counts
+- Phase 3 (AI extraction): 4 parallel Claude Code agents across 2 rounds. Round 1: 87 employers from 42 top profiles. Round 2: 73 employers from 51 profiles with substantial text but 0 heuristic hits
+- Scripts: `scripts/scraper/extract_union_data.py`, `scripts/scraper/fix_extraction.py`
+- JSON files: `ai_employers_batch1.json`, `ai_employers_batch2.json`, `manual_employers.json`, `manual_employers_2.json`
+
+**Checkpoint 4 — Employer Matching**
+- 5-tier matching: (1) Exact name+state vs F7, (1b) Exact aggressive name, (2) Exact vs OSHA, (3) Fuzzy F7 pg_trgm>=0.55, (4) Fuzzy OSHA, (5) Cross-state F7 pg_trgm>=0.70
+- Bug fix: `matched_employer_id` was INTEGER but `f7_employers_deduped.employer_id` is TEXT (hex hashes). ALTER COLUMN to TEXT.
+- Manual review: Reverted 28 bad fuzzy matches (e.g. "State of New York" -> "NEW YORK STATE DMV", "City of New York" -> "New York City Opera", "Pima County" -> "PINAL COUNTY")
+- Script: `scripts/scraper/match_web_employers.py`
+
+**Final Results:**
+
+| Data | Count |
+|------|-------|
+| Profiles loaded | 295 |
+| Websites scraped | 103 (9 failed) |
+| Employers extracted | 160 |
+| Employers matched to F7/OSHA | 73 (46%) |
+| Unmatched (new discoveries) | 87 |
+| Contracts (with document URLs) | 120 (115) |
+| Membership counts | 31 |
+| News items | 183 |
+
+**Unmatched employer breakdown by sector:**
+- PUBLIC_STATE: 41 (state governments)
+- PUBLIC_LOCAL: 26 (cities, counties)
+- PUBLIC_EDUCATION: 11 (school districts, universities)
+- HEALTHCARE: 5
+- NONPROFIT: 3
+- PUBLIC_FEDERAL: 1
+
+**Key insight:** 87 unmatched employers are overwhelmingly public-sector entities — exactly what we'd expect since F7 only covers private-sector employers. This confirms the known F7 public-sector gap and these represent genuine new employer discoveries from web data.
+
+**Data viewer:** `files/afscme_scraper_data.html` — browsable HTML with 6 tabs, sortable columns, color-coded match statuses
+
+**Key lessons learned:**
+1. Crawl4AI on Python 3.14/Windows requires manual dependency installation (`--no-deps` + individual pip installs)
+2. Shared sidebar/template content creates massive false positives in auto-extraction — boilerplate frequency detection is essential
+3. Local union numbers get matched as membership counts — always cross-check extracted numbers against profile metadata
+4. F7 employer_id is TEXT (hex hashes), not INTEGER — match tables must use TEXT columns
+5. State government names match badly with fuzzy: "State of X" matches "Company of X State" — require higher thresholds (>=0.70) or manual review
+6. AI extraction far outperforms heuristic regex (160 vs 5 clean employers) but needs human review for quality
+7. Public-sector employers dominate AFSCME's web presence but are invisible to F7 data
+
+---
+
 ### 2026-02-14 (Audit Remediation + Disk Cleanup)
 **Tasks:** Commit audit fixes, compress and archive 990 XML data
 
@@ -14,16 +85,36 @@ Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
 **Disk cleanup:**
 - Compressed `990 2025/` (650K XML files, 20 GB) to `990_2025_archive.7z` (1.2 GB, 94% reduction)
-- Deleted original directory — **~19 GB recovered**
+- Compressed `data/free_company_dataset.csv` (5.1 GB) to `.7z` (1.6 GB, 69% reduction)
+- Compressed `backup_20260209.dump` (2.1 GB) to `.7z` (2.0 GB)
+- Deleted `archive/` directory (~9.3 GB)
+- Deleted originals after verification — **~33 GB total recovered**
 
-**Remaining audit issues (not yet addressed):**
-1. 60,373 orphaned `f7_union_employer_relations` rows (50.4% of bargaining links)
-2. Dead score factors (4/9 always zero for 98.5% of Mergent employers)
-3. 14,150 orphaned NLRB xref rows
-4. No primary key on `f7_employers_deduped`
-5. ~40K low-confidence matches (<0.6)
-6. 222 MB duplicate indexes
-7. ~37.9 GB additional disk recovery possible (archive/, free_company_dataset.csv, etc.)
+**Audit issue investigation and resolution:**
+
+1. **Orphaned union-employer relations (50.4%): NOT A BUG** — investigated and found root cause is `WHERE latest_notice_date >= '2020-01-01'` date filter in original dedup SQL. 56,291 employers excluded by design (pre-2020 filings). Only 2,710 (4.8%) have name+state match in current deduped table. These are real historical relationships, not duplicates. No fix needed.
+
+2. **Dead score factors: DEFERRED** — accepted as-is. Small number of perfect targets is fine; scorecard will be reworked in future iterations.
+
+3. **NLRB xref orphans: FIXED** — same date-filter root cause. Remapped 128 via merge log, 363 via name+state match, nulled 10,212 historical (no current match). Zero remaining orphans.
+
+4. **Primary keys: ALREADY DONE** — all 4 tables (f7_employers_deduped, whd_f7_matches, national_990_f7_matches, sam_f7_matches) already had PKs from prior session.
+
+5. **Low-confidence matches: FLAGGED** — added `low_confidence BOOLEAN` column to osha_f7_matches (32,243 flagged, 23.3%) and whd_f7_matches (6,657 flagged, 27.0%). No deletions. Will consider frontend visibility later.
+
+6. **Duplicate indexes: ALREADY DONE** — all 17 pairs already dropped in prior session.
+
+7. **Views referencing raw f7_employers: FIXED** — `v_state_overview` recreated to use `f7_employers_deduped`. Other 2 views already correct.
+
+8. **Duplicate museum views + empty tables: ALREADY DONE** — dropped in prior session.
+
+9. **Materialized views: ANALYZED** — all 3 (mv_employer_features, mv_employer_search, mv_whd_employer_agg) freshly analyzed.
+
+**New scripts:**
+- `scripts/analysis/investigate_orphaned_relations.py` — orphan root cause investigation
+- `scripts/fixes/fix_nlrb_xref_orphans.py` — NLRB xref remapping
+- `scripts/scoring/flag_low_confidence.py` — low confidence flagging
+- `scripts/maintenance/db_fixes_2026_02_14.py` — DB cleanup (PKs, indexes, views, tables)
 
 ---
 
