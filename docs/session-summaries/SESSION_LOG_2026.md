@@ -73,6 +73,85 @@ Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
 ---
 
+### 2026-02-14d (Sprints 2-3: Auth + Scoring Performance)
+**Tasks:** Sprint 2 (JWT auth, CORS, frontend URL, requirements.txt) + Sprint 3 (LIMIT 500 fix, scorecard MV, indexes) + Codex/Gemini review fixes for both
+
+**Sprint 2: Deployment Blockers**
+- Created `api/routers/auth.py`: login, register, refresh, /me endpoints with bcrypt password hashing
+- First-user bootstrap as admin (advisory-locked), subsequent registration requires admin token
+- Auth middleware: parses tokens optionally on public paths, requires on protected paths
+- Sanitized all error messages (no exception details leaked)
+- CORS restricted from `*` to configurable ALLOWED_ORIGINS (defaults to localhost)
+- Frontend API_BASE externalized: `window.LABOR_API_BASE || window.location.origin`
+- Created requirements.txt, added bcrypt to pyproject.toml
+- 16 auth tests in test_auth.py
+- Codex/Gemini review incorporated: advisory lock for bootstrap race (#1), startup warning for fail-open (#2), 32-char secret minimum (#3), UniqueViolation guard (#5), login rate limiting (10/5min/IP)
+
+**Sprint 3: Scoring & Performance**
+- Created `scripts/scoring/create_scorecard_mv.py` -- translates all 9 Python scoring factors to SQL
+- `mv_organizing_scorecard`: 24,841 rows pre-computed (vs old LIMIT 500 cap). Scores: 10-78, avg 32.3
+- `v_organizing_scorecard`: wrapper view with `organizing_score` total column
+- Refactored scorecard list endpoint: single SQL query against MV (was: load 138K records + Python loop)
+- LIMIT 500 bug eliminated: all establishments scored, filter+paginate at query time
+- Tier distribution: TOP 14,184 / HIGH 6,049 / MEDIUM 3,436 / LOW 1,172
+- Added `POST /api/admin/refresh-scorecard` endpoint
+- Created 5 missing FK indexes (osha_unified_matches + 4 web scraper tables)
+- Corporate endpoints confirmed already fixed (Sprint 1 session)
+
+**Sprint 3 Codex/Gemini Review Fixes:**
+- Fix 1 (High - score drift): Detail endpoint now reads base scores from MV instead of recomputing in Python. Eliminates 3 divergences: fuzzy union fallback, nlrb_count*5, NY/NYC contracts. Detail-only context (NY/NYC contracts, NLRB participants, success factors) layered on top.
+- Fix 2 (High - duplicate rows): MV CTEs for `fed_contracts` and `mergent_data` now use `GROUP BY establishment_id` + `MAX()` aggregation. Previously could produce multiple rows per establishment if multiple f7_employer_ids mapped to different crosswalk/mergent entries.
+- Fix 3 (Medium - admin auth): Refresh endpoint requires admin role when JWT_SECRET is set. Added role check to `POST /api/admin/refresh-scorecard`.
+- Fix 4 (Medium - blocking refresh): Added UNIQUE INDEX on `establishment_id`, switched to `REFRESH MATERIALIZED VIEW CONCURRENTLY`. Added `get_raw_connection()` to `api/database.py` for autocommit mode.
+- Declined: Codex suggestion to replace anti-join OSHA fallback with LATERAL join (Gemini confirmed anti-join is idiomatic and performant).
+
+**Tests:** 63/63 pass (47 existing + 16 auth)
+
+---
+
+### 2026-02-14c (Sprint 1: Data Integrity & Security)
+**Tasks:** Create project roadmap from three-audit comparison, execute Sprint 1 (orphan fix + password removal + doc fixes), incorporate Codex/Gemini review feedback
+
+**Roadmap Creation:**
+- Synthesized `three_audit_comparison.md` (Claude, Gemini, Codex audits) into `ROADMAP.md` with 9 sprints
+- Supersedes `ROADMAP_TO_DEPLOYMENT.md` v3.0 (Feb 9)
+- Priority: Critical (data integrity, deployment) -> High (scoring, tests) -> Medium (new data, frontend, DB cleanup) -> Low (deployment infra, polish)
+
+**Sprint 1.1: Fix 60,373 orphaned union-employer relations**
+- Root cause: `WHERE latest_notice_date >= '2020-01-01'` excluded 56,291 pre-2020 employers from deduped table
+- Script: `scripts/etl/fix_orphaned_relations.py` (3-tier, single transaction)
+- Tier 1: 2,713 IDs repointed via exact name+state match (8 dups removed)
+- Tier 2: 818 IDs repointed via normalized name match (4 dups removed)
+- Tier 3: 52,760 historical employers INSERTed from raw f7_employers
+- Result: 60,373 -> 0 orphans. f7_employers_deduped: 60,953 -> 113,713 (60,953 current + 52,760 historical)
+
+**Codex/Gemini Review + Post-Fix Cleanup:**
+- Both reviewers agreed: add `is_historical` flag (no conflicts between them)
+- Script: `scripts/etl/post_orphan_fix_cleanup.py` (4 steps)
+- Step 1: Added `is_historical` BOOLEAN column, marked 52,760 pre-2020 employers TRUE
+- Step 2: Created `v_f7_employers_current` view (60,953 rows, post-2020 only)
+- Step 3: Removed 387 duplicate relation rows (ctid-based dedup)
+- Step 4: Re-normalized 52,760 `employer_name_aggressive` with canonical normalizer via importlib
+
+**Sprint 1.2: Password removal**
+- Fixed `scripts/scoring/nlrb_win_rates.py` -- removed hardcoded password, now uses `db_config.get_connection()`
+- Removed password from `README.md` example code
+- Manual step remaining: PostgreSQL password rotation (`ALTER USER postgres PASSWORD`)
+
+**Sprint 1.3: Documentation fixes**
+- README.md: Fixed startup command (`api.labor_api_v6:app` -> `api.main:app`)
+- CLAUDE.md: Updated employer counts (60,953 -> 113,713), crosswalk coverage (19.7% -> 10.6%), orphan note (FIXED)
+- Updated test baseline: `test_f7_employer_count_stable` EXPECTED 60,953 -> 113,713
+
+**Tests:** 47/47 pass. Updated `tests/test_data_integrity.py` baseline.
+
+**Key lessons:**
+1. Python 3.14 `\s` escape warnings -- must double backslash in SQL strings (`'\\s+'` not `'\s+'`)
+2. `scripts/import/` directory requires importlib.util (Python reserved word `import`)
+3. Dry run Tier 3 count shows full orphan count, not post-Tier-1/2 count -- subtract earlier tier matches
+
+---
+
 ### 2026-02-14 (Audit Remediation + Disk Cleanup)
 **Tasks:** Commit audit fixes, compress and archive 990 XML data
 

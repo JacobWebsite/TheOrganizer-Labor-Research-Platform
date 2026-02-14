@@ -1,0 +1,195 @@
+[
+    {
+        "profile_id": 129,
+        "union_name": "Council 93: Boston (Headquarters)",
+        "state": "MA",
+        "notes": "Multi-state council covering MA, ME, NH, VT. Website organized by sub-regions: Massachusetts Higher Education, Massachusetts Human Services, North Shore, South Shore, Western Massachusetts, Maine, New Hampshire, Vermont. No specific employer names listed on scraped pages.",
+        "employers": [
+            {"employer_name": "Commonwealth of Massachusetts", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract", "notes": "Primary state employer inferred from 'We Make Massachusetts Happen' framing and sub-region offices for Higher Education and Human Services"},
+            {"employer_name": "State of Maine", "sector": "PUBLIC_STATE", "confidence": 0.65, "method": "ai_extract", "notes": "Council 93 has a Maine office and covers ME"},
+            {"employer_name": "State of New Hampshire", "sector": "PUBLIC_STATE", "confidence": 0.65, "method": "ai_extract", "notes": "Council 93 has a New Hampshire office and covers NH"},
+            {"employer_name": "State of Vermont", "sector": "PUBLIC_STATE", "confidence": 0.65, "method": "ai_extract", "notes": "Council 93 has a Vermont office and covers VT"}
+        ]
+    },
+    {
+        "profile_id": 141,
+        "union_name": "Council 65: Nashwauk Office",
+        "state": "MN",
+        "notes": "Minnesota statewide council. School Worker UI resource page suggests school district employees are a significant constituency. No specific employer names listed on scraped pages.",
+        "employers": [
+            {"employer_name": "State of Minnesota", "sector": "PUBLIC_STATE", "confidence": 0.7, "method": "ai_extract", "notes": "Primary state employer for MN AFSCME council"},
+            {"employer_name": "Minnesota School Districts", "sector": "PUBLIC_EDUCATION", "confidence": 0.6, "method": "ai_extract", "notes": "School Worker UI resource page indicates school employees represented"}
+        ]
+    },
+    {
+        "profile_id": 62,
+        "union_name": "CT Health Care Associates, NUHHCE (CHCA District 1199)",
+        "state": "CT",
+        "notes": "Connecticut healthcare workers union. 'A UNION FOR ALL HEALTHCARE WORKERS'. Part of AFSCME Council 57 (California structure, but CHCA is Connecticut). Safe Staffing and Fight Against Private Equity campaigns. News mentions Waterbury Hospital and Kaiser Permanente.",
+        "employers": [
+            {"employer_name": "Waterbury Hospital", "sector": "HEALTHCARE", "confidence": 0.7, "method": "ai_extract", "notes": "Mentioned in homepage news article 'Waterbury Hospital: Dawn of a New Day'"},
+            {"employer_name": "Connecticut Nursing Homes and Healthcare Facilities", "sector": "HEALTHCARE", "confidence": 0.6, "method": "ai_extract", "notes": "CHCA District 1199 represents healthcare workers across CT facilities; Safe Staffing campaign indicates hospital/nursing home focus"}
+        ]
+    },
+    {
+        "profile_id": 171,
+        "union_name": "Council 18: Albuquerque (Headquarters)",
+        "state": "NM",
+        "notes": "New Mexico statewide council. 'We Make New Mexico Happen'. Has Public Sector Job Openings page and Find Your Local Union page. No specific employers listed in scraped text.",
+        "employers": [
+            {"employer_name": "State of New Mexico", "sector": "PUBLIC_STATE", "confidence": 0.8, "method": "ai_extract", "notes": "Primary state employer for NM AFSCME council; 'We Make New Mexico Happen' tagline"},
+            {"employer_name": "New Mexico Local Governments", "sector": "PUBLIC_LOCAL", "confidence": 0.6, "method": "ai_extract", "notes": "Council structure with multiple local unions suggests county/city representation"}
+        ]
+    },
+    {
+        "profile_id": 3,
+        "union_name": "Retiree Chapter: Chapter 52 (ASEA)",
+        "state": "AK",
+        "notes": "Alaska State Employees Association retiree chapter. Same website as Local 52 (profile 5). Contract pages list specific employers. Chapters organized geographically across Alaska.",
+        "employers": [
+            {"employer_name": "State of Alaska", "sector": "PUBLIC_STATE", "confidence": 0.95, "method": "ai_extract", "notes": "State GGU Contract 2025-2028 listed; State GGU Contract Negotiating Committee exists; ASEA = Alaska State Employees Association"},
+            {"employer_name": "Fairbanks North Star Borough", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "notes": "Fairbanks North Star Borough Supervisors Contract 2024-2027 listed; dedicated FNSB Contract Negotiating Committee and FNSB Chapter"},
+            {"employer_name": "City and Borough of Sitka", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "notes": "Sitka Municipal Employees Contract 2025-2028 listed; City of Sitka Contract Negotiating Committee and City of Sitka Chapter"}
+        ]
+    },
+    {
+        "profile_id": 5,
+        "union_name": "ASEA Local 52: Anchorage (Headquarters)",
+        "state": "AK",
+        "notes": "Alaska State Employees Association - same website content as profile 3 (retiree chapter). 8,000+ members per ASEA reputation. Contract pages and committees confirm specific employers.",
+        "employers": [
+            {"employer_name": "State of Alaska", "sector": "PUBLIC_STATE", "confidence": 0.95, "method": "ai_extract", "notes": "State GGU Contract 2025-2028 listed; primary employer. GGU = General Government Unit"},
+            {"employer_name": "Fairbanks North Star Borough", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "notes": "Fairbanks North Star Borough Supervisors Contract 2024-2027 listed; dedicated chapter and negotiating committee"},
+            {"employer_name": "City and Borough of Sitka", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "notes": "Sitka Municipal Employees Contract 2025-2028 listed; dedicated chapter and negotiating committee"}
+        ],
+        "membership": [{"member_count": 8000, "source": "external_knowledge", "count_type": "estimated", "notes": "ASEA/AFSCME Local 52 is known to represent approx 8,000 Alaska state and local government employees"}]
+    },
+    {
+        "profile_id": 177,
+        "union_name": "New York AFSCME Retiree Chapter 37 (DC 37 Retirees Association)",
+        "state": "NY",
+        "notes": "DC 37 Retirees Association. About page returned 404. NYC-based retiree organization. DC 37 is the largest public employee union in NYC, representing NYC municipal workers.",
+        "employers": [
+            {"employer_name": "City of New York", "sector": "PUBLIC_LOCAL", "confidence": 0.85, "method": "ai_extract", "notes": "DC 37 is the municipal employees union for New York City; retirees would be former NYC employees. Address: 125 Barclay Street, New York, NY 10007"}
+        ]
+    },
+    {
+        "profile_id": 126,
+        "union_name": "Association of Classified Employees, Local 2250 (ACE-AFSCME)",
+        "state": "MD",
+        "notes": "Educational support personnel union in Maryland. 'Comprised of educational support personnel that promotes fairness, democracy, economic opportunity, high-quality public education.' News mentions paraprofessional educators at Prince George's County Public Schools and MSEA link.",
+        "employers": [
+            {"employer_name": "Prince George's County Public Schools", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "notes": "News article specifically mentions paraprofessional educators at Prince George's County Public Schools and ParaPro Assessment test requirement. MSEA (Maryland State Education Association) link confirms education focus."}
+        ]
+    },
+    {
+        "profile_id": 60,
+        "union_name": "Connecticut Retiree Chapter 4",
+        "state": "CT",
+        "notes": "Retiree chapter of AFSCME Council 4 in Connecticut. About page returned 404. Council 4 represents CT state and local government employees. Retirees are former public employees.",
+        "employers": [
+            {"employer_name": "State of Connecticut", "sector": "PUBLIC_STATE", "confidence": 0.7, "method": "ai_extract", "notes": "Council 4 Retirees are former CT state/local government employees. Address: 444 East Main Street, New Britain, CT 06051"}
+        ]
+    },
+    {
+        "profile_id": 233,
+        "union_name": "Pennsylvania Public Employees Council 13: Harrisburg (Headquarters)",
+        "state": "PA",
+        "notes": "Pennsylvania statewide council. 'We Make Pennsylvania Happen!' Homepage prominently features Master Agreement 2023-2027 and Master Memorandum 2023-2027 with the State of Pennsylvania. Has Affiliates page and Workers' Compensation resources.",
+        "employers": [
+            {"employer_name": "Commonwealth of Pennsylvania", "sector": "PUBLIC_STATE", "confidence": 0.95, "method": "ai_extract", "notes": "Master Agreement 2023-2027 and Master Memorandum 2023-2027 prominently displayed on homepage; these are the statewide contracts with the Commonwealth. Headquarters at 150 S. 43rd St. Suite 3, Harrisburg, PA 17111"}
+        ],
+        "membership": [{"member_count": 65000, "source": "external_knowledge", "count_type": "estimated", "notes": "AFSCME Council 13 is known to represent approximately 65,000 PA state and local government employees"}]
+    },
+    {
+        "profile_id": 229,
+        "union_name": "Pennsylvania AFSCME Retiree Chapter 13",
+        "state": "PA",
+        "notes": "Retiree chapter of AFSCME Council 13. About page returned 404. Has subchapters across Pennsylvania. Retirees are former state/local government employees.",
+        "employers": [
+            {"employer_name": "Commonwealth of Pennsylvania", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract", "notes": "Retirees from AFSCME Council 13, which primarily represents PA state employees. Subchapter structure mirrors Council 13 geographic coverage"}
+        ]
+    },
+    {
+        "profile_id": 262,
+        "union_name": "Texas AFSCME Retiree Chapter 12",
+        "state": "TX",
+        "notes": "Texas AFSCME retiree chapter. Squarespace website. Has Candidate Endorsements, Voter Portal, and political engagement resources. No specific employer names on scraped pages.",
+        "employers": [
+            {"employer_name": "State of Texas", "sector": "PUBLIC_STATE", "confidence": 0.65, "method": "ai_extract", "notes": "Texas AFSCME retirees are former state/local government employees. Texas is a right-to-work state with limited public sector bargaining."}
+        ]
+    },
+    {
+        "profile_id": 291,
+        "union_name": "OH-WV Chapter 1184 (Ohio-West Virginia AFSCME Retiree Chapter)",
+        "state": "WV",
+        "notes": "Ohio-West Virginia AFSCME Retiree Chapter 1184. About page returned 404. 'Leading the Fight for Retirement Security' tagline. Covers both Ohio and West Virginia.",
+        "employers": [
+            {"employer_name": "State of Ohio", "sector": "PUBLIC_STATE", "confidence": 0.65, "method": "ai_extract", "notes": "Retirees from Ohio and West Virginia AFSCME locals; Ohio is the primary state"},
+            {"employer_name": "State of West Virginia", "sector": "PUBLIC_STATE", "confidence": 0.55, "method": "ai_extract", "notes": "Chapter covers WV as secondary state"}
+        ]
+    },
+    {
+        "profile_id": 18,
+        "union_name": "Area Office: Sacramento (AFSCME California)",
+        "state": "CA",
+        "notes": "AFSCME California political/legislative coordination office. Not a direct bargaining council - functions as political arm for CA AFSCME affiliates. CalPERS election endorsements, State Legislature endorsements, ballot measure endorsements. References COVID-19 resources for both state and local government.",
+        "employers": [
+            {"employer_name": "State of California", "sector": "PUBLIC_STATE", "confidence": 0.6, "method": "ai_extract", "notes": "AFSCME California coordinates political action for state government workers; State of California COVID-19 Resources page exists"},
+            {"employer_name": "California Local Governments", "sector": "PUBLIC_LOCAL", "confidence": 0.5, "method": "ai_extract", "notes": "Local Government COVID-19 Resources page indicates local government employees are part of constituency"}
+        ]
+    },
+    {
+        "profile_id": 72,
+        "union_name": "Retiree Chapter: Chapter 79 (AFSCME Florida)",
+        "state": "FL",
+        "notes": "AFSCME Florida Council 79 retiree chapter. Same website as Council 79 (profile 73). Has Locals page, Regions page. Florida AFSCME represents state, county, and municipal employees.",
+        "employers": [
+            {"employer_name": "State of Florida", "sector": "PUBLIC_STATE", "confidence": 0.7, "method": "ai_extract", "notes": "Council 79 / AFSCME Florida is the statewide council; retirees are former FL public employees"}
+        ]
+    },
+    {
+        "profile_id": 73,
+        "union_name": "Council 79: Miami (Headquarters) (AFSCME Florida)",
+        "state": "FL",
+        "notes": "AFSCME Florida statewide council. 'The AFSCME Difference in Florida' messaging. Has Locals page, Regions page, Weingarten Rights page. About page returned 404 on content (just nav). Covers state, county, and city employees across Florida.",
+        "employers": [
+            {"employer_name": "State of Florida", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract", "notes": "Primary state employer for FL AFSCME council"},
+            {"employer_name": "Florida County and Municipal Governments", "sector": "PUBLIC_LOCAL", "confidence": 0.6, "method": "ai_extract", "notes": "Council 79 has Locals and Regions structure indicating representation across local governments"}
+        ]
+    },
+    {
+        "profile_id": 104,
+        "union_name": "Council 61: Des Moines (Headquarters)",
+        "state": "IA",
+        "notes": "Multi-state council covering Iowa, Missouri, and Kansas. Has Iowa Locals page, Missouri/Kansas Locals page, Retiree Chapter 61. Recertification elections page (Iowa Chapter 20 - Iowa public employee bargaining law). Iowa Chapter 20 resources, IA Admin Code Reference Guide.",
+        "employers": [
+            {"employer_name": "State of Iowa", "sector": "PUBLIC_STATE", "confidence": 0.8, "method": "ai_extract", "notes": "Primary state employer; Iowa Chapter 20 (public employee bargaining law) resources, Iowa membership page, recertification elections tied to Iowa law"},
+            {"employer_name": "Iowa Local Governments", "sector": "PUBLIC_LOCAL", "confidence": 0.6, "method": "ai_extract", "notes": "Iowa Locals page suggests county/city representation"},
+            {"employer_name": "Missouri State and Local Governments", "sector": "PUBLIC_STATE", "confidence": 0.5, "method": "ai_extract", "notes": "Missouri/Kansas Locals page and Missouri & Kansas Membership page"},
+            {"employer_name": "Kansas State and Local Governments", "sector": "PUBLIC_STATE", "confidence": 0.45, "method": "ai_extract", "notes": "Missouri/Kansas Locals page; Kansas has limited public sector bargaining"}
+        ]
+    },
+    {
+        "profile_id": 278,
+        "union_name": "Washington AFSCME Retiree Chapter 10 (RPEC)",
+        "state": "WA",
+        "notes": "Retired Public Employees Council of Washington (RPEC). 'Your Voice for Retirement Security'. Has Healthcare Resources, Legislative Bill Tracker, Legislative Priorities documents. WEA-R (Washington Education Association Retired) mentioned as partner for Virtual Legislative Week.",
+        "employers": [
+            {"employer_name": "State of Washington", "sector": "PUBLIC_STATE", "confidence": 0.8, "method": "ai_extract", "notes": "RPEC = Retired Public Employees Council of Washington; members are retired state employees. Legislative priorities focused on WA state retirement security."}
+        ]
+    },
+    {
+        "profile_id": 176,
+        "union_name": "New York AFSCME Retiree Chapter 1000 (CSEA)",
+        "state": "NY",
+        "notes": "Civil Service Employees Association (CSEA) Local 1000 retiree chapter. CSEA is the largest AFSCME affiliate, representing 300,000+ active and retired NY public employees. Has 6 geographic regions. Civil Service Test Prep indicates state/local government civil service employees.",
+        "employers": [
+            {"employer_name": "State of New York", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract", "notes": "CSEA Local 1000 represents NY state employees; Civil Service Test Prep, 'This Week in Albany' legislative column. 6 regions: Long Island, Metropolitan, Southern, Capital, Central, Western"},
+            {"employer_name": "New York Local Governments", "sector": "PUBLIC_LOCAL", "confidence": 0.7, "method": "ai_extract", "notes": "CSEA represents county, city, town, and village employees across NY"},
+            {"employer_name": "New York School Districts", "sector": "PUBLIC_EDUCATION", "confidence": 0.7, "method": "ai_extract", "notes": "CSEA represents school district employees (non-teaching staff) statewide"},
+            {"employer_name": "New York Public Authorities", "sector": "PUBLIC_STATE", "confidence": 0.6, "method": "ai_extract", "notes": "CSEA represents public authority employees across NY"}
+        ],
+        "membership": [{"member_count": 300000, "source": "external_knowledge", "count_type": "estimated", "notes": "CSEA Local 1000 is the largest AFSCME local, representing approximately 300,000 active and retired NY state and local government employees"}]
+    }
+]

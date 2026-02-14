@@ -1,0 +1,173 @@
+[
+    {
+        "profile_id": 14,
+        "employers": [
+            {"employer_name": "City of Peoria", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 61,
+        "employers": [
+            {"employer_name": "State of Connecticut", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 46,
+        "employers": [
+            {"employer_name": "County of Santa Barbara", "sector": "PUBLIC_LOCAL", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 199,
+        "employers": [
+            {"employer_name": "State of Ohio", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 267,
+        "employers": [
+            {"employer_name": "City of Austin", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract"},
+            {"employer_name": "Travis County", "sector": "PUBLIC_LOCAL", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 220,
+        "employers": [
+            {"employer_name": "State of Oregon", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 134,
+        "employers": [
+            {"employer_name": "State of Michigan", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 166,
+        "employers": [
+            {"employer_name": "State of New Jersey", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 234,
+        "employers": [
+            {"employer_name": "City of Philadelphia", "sector": "PUBLIC_LOCAL", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 243,
+        "employers": [
+            {"employer_name": "Community Legal Services", "sector": "NONPROFIT", "confidence": 0.90, "method": "ai_extract"},
+            {"employer_name": "Philadelphia Tribune", "sector": "OTHER", "confidence": 0.85, "method": "ai_extract"},
+            {"employer_name": "Visiting Nurse Association", "sector": "HEALTHCARE", "confidence": 0.85, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 183,
+        "employers": [
+            {"employer_name": "State of New York", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 4,
+        "employers": [
+            {"employer_name": "Municipality of Anchorage", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 8,
+        "employers": [
+            {"employer_name": "State of Alaska", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 50,
+        "employers": [
+            {"employer_name": "University of California", "sector": "PUBLIC_EDUCATION", "confidence": 0.99, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 11,
+        "employers": [
+            {"employer_name": "El Rio Health", "sector": "HEALTHCARE", "confidence": 0.90, "method": "ai_extract"},
+            {"employer_name": "Tucson Unified School District", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract"},
+            {"employer_name": "Pima County", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract"},
+            {"employer_name": "Pima Community College", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract"},
+            {"employer_name": "PimaCare at Home", "sector": "HEALTHCARE", "confidence": 0.85, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 114,
+        "employers": [
+            {"employer_name": "State of Louisiana", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract"},
+            {"employer_name": "Louisiana Department of Public Safety and Corrections", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 155,
+        "employers": [
+            {"employer_name": "State of Nebraska", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract"},
+            {"employer_name": "City of Omaha", "sector": "PUBLIC_LOCAL", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 215,
+        "employers": [
+            {"employer_name": "City of Oklahoma City", "sector": "PUBLIC_LOCAL", "confidence": 0.85, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 294,
+        "employers": [
+            {"employer_name": "State of Wisconsin", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 65,
+        "employers": [
+            {"employer_name": "State of Delaware", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 48,
+        "employers": [
+            {"employer_name": "Kaiser Permanente", "sector": "HEALTHCARE", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 12,
+        "employers": [
+            {"employer_name": "City of Phoenix", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 13,
+        "employers": [
+            {"employer_name": "City of Phoenix", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 111,
+        "employers": [
+            {"employer_name": "Marion County", "sector": "PUBLIC_LOCAL", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 99,
+        "employers": [
+            {"employer_name": "Marion County", "sector": "PUBLIC_LOCAL", "confidence": 0.80, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 82,
+        "employers": [
+            {"employer_name": "State of Hawaii", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 80,
+        "employers": [
+            {"employer_name": "State of Hawaii", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract"}
+        ]
+    }
+]

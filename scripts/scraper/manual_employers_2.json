@@ -1,0 +1,82 @@
+[
+    {
+        "profile_id": 68,
+        "employers": [
+            {"employer_name": "U.S. Federal Government", "sector": "PUBLIC_FEDERAL", "confidence": 0.95, "method": "ai_extract"},
+            {"employer_name": "District of Columbia Government", "sector": "PUBLIC_LOCAL", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 136,
+        "employers": [
+            {"employer_name": "State of Michigan", "sector": "PUBLIC_STATE", "confidence": 0.95, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 139,
+        "employers": [
+            {"employer_name": "State of Minnesota", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract"},
+            {"employer_name": "University of Minnesota", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 154,
+        "employers": [
+            {"employer_name": "State of Nebraska", "sector": "PUBLIC_STATE", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 159,
+        "employers": [
+            {"employer_name": "State of Nevada", "sector": "PUBLIC_STATE", "confidence": 0.95, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 208,
+        "employers": [
+            {"employer_name": "Ohio Public School Districts", "sector": "PUBLIC_EDUCATION", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 211,
+        "employers": [
+            {"employer_name": "State of Ohio", "sector": "PUBLIC_STATE", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 245,
+        "employers": [
+            {"employer_name": "Pennsylvania Department of Human Services", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 264,
+        "employers": [
+            {"employer_name": "Texas Department of Criminal Justice", "sector": "PUBLIC_STATE", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 265,
+        "employers": [
+            {"employer_name": "City of Houston", "sector": "PUBLIC_LOCAL", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 266,
+        "employers": [
+            {"employer_name": "Harris Health System", "sector": "HEALTHCARE", "confidence": 0.85, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 270,
+        "employers": [
+            {"employer_name": "Salt Lake City Public Library", "sector": "PUBLIC_LOCAL", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    },
+    {
+        "profile_id": 279,
+        "employers": [
+            {"employer_name": "Washington State Counties and Cities", "sector": "PUBLIC_LOCAL", "confidence": 0.9, "method": "ai_extract"}
+        ]
+    }
+]

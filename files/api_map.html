@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API ↔ Frontend Map — Labor Relations Platform</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #232736;
+  --border: #2e3347;
+  --text: #e2e4eb;
+  --text2: #8b8fa3;
+  --accent: #6c8cff;
+  --green: #34d399;
+  --yellow: #fbbf24;
+  --red: #f87171;
+  --orange: #fb923c;
+  --purple: #a78bfa;
+  --cyan: #22d3ee;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace; background: var(--bg); color: var(--text); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Header */
+.header {
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
+.header h1 span { color: var(--accent); }
+.stats-bar {
+  display: flex;
+  gap: 24px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.stats-bar .stat { display: flex; align-items: center; gap: 6px; }
+.stats-bar .dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-green { background: var(--green); }
+.dot-yellow { background: var(--yellow); }
+.dot-red { background: var(--red); }
+
+/* Controls */
+.controls {
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--text); }
+.filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.view-toggle button {
+  padding: 6px 12px;
+  background: var(--surface);
+  color: var(--text2);
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.view-toggle button.active { background: var(--accent); color: #fff; }
+
+/* Layout */
+.main { display: flex; height: calc(100vh - 120px); }
+
+/* Left: Modules list */
+.sidebar {
+  width: 280px;
+  min-width: 280px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+}
+.module-card {
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.module-card:hover { background: var(--surface2); }
+.module-card.active { background: var(--surface2); border-left: 3px solid var(--accent); }
+.module-name { font-size: 13px; font-weight: 500; }
+.module-counts {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+.module-counts .connected { color: var(--green); }
+.module-counts .orphaned { color: var(--text2); }
+
+/* Right: Endpoint list */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.content-header h2 { font-size: 16px; font-weight: 600; }
+.endpoint-grid { display: flex; flex-direction: column; gap: 6px; }
+.endpoint-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 240px 100px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.endpoint-row:hover { border-color: var(--accent); transform: translateX(2px); }
+.endpoint-row.expanded { border-color: var(--accent); background: var(--surface2); }
+.method-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.method-GET { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+.method-POST { background: rgba(251, 191, 36, 0.15); color: var(--yellow); }
+.method-DELETE { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+.ep-path { font-size: 13px; word-break: break-all; }
+.ep-path .param { color: var(--orange); }
+.ep-frontend-tag {
+  font-size: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fe-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(108, 140, 255, 0.12);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.fe-tag.none {
+  background: rgba(139, 143, 163, 0.1);
+  color: var(--text2);
+  font-style: italic;
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 0 auto;
+}
+.status-connected { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.4); }
+.status-partial { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.4); }
+.status-orphaned { background: var(--red); opacity: 0.5; }
+
+/* Detail panel */
+.detail-panel {
+  display: none;
+  grid-column: 1 / -1;
+  padding: 14px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.detail-panel.visible { display: block; }
+.detail-section { margin-bottom: 10px; }
+.detail-label { color: var(--text2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.detail-value { color: var(--text); }
+.detail-value code {
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.param-list { list-style: none; }
+.param-list li { padding: 2px 0; }
+.param-list .param-name { color: var(--orange); }
+.param-list .param-type { color: var(--text2); font-size: 11px; }
+
+.live-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.live-btn:hover { opacity: 0.85; }
+.live-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Frontend sections view */
+.fe-section-card {
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.fe-section-card h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fe-section-card .tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.fe-section-card .ep-link {
+  padding: 4px 10px;
+  border-radius: 5px;
+  background: var(--bg);
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: border-color 0.15s;
+}
+.fe-section-card .ep-link:hover { border-color: var(--accent); color: var(--accent); }
+.fe-section-card .description { font-size: 12px; color: var(--text2); line-height: 1.5; }
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.summary-card {
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+.summary-card .big { font-size: 28px; font-weight: 700; }
+.summary-card .label { font-size: 11px; color: var(--text2); margin-top: 4px; }
+.big.green { color: var(--green); }
+.big.yellow { color: var(--yellow); }
+.big.red { color: var(--red); }
+.big.purple { color: var(--purple); }
+
+.hidden { display: none !important; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>API <span>↔</span> Frontend Map</h1>
+  <div class="stats-bar">
+    <div class="stat"><div class="dot dot-green"></div><span id="stat-connected">0</span> Connected</div>
+    <div class="stat"><div class="dot dot-yellow"></div><span id="stat-partial">0</span> Partial</div>
+    <div class="stat"><div class="dot dot-red"></div><span id="stat-orphaned">0</span> Backend-Only</div>
+    <div class="stat" style="color:var(--text)">|</div>
+    <div class="stat"><span id="stat-total">0</span> Total Endpoints</div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="view-toggle">
+    <button class="active" onclick="setView('modules')">By Module</button>
+    <button onclick="setView('frontend')">By Frontend Section</button>
+    <button onclick="setView('coverage')">Coverage Summary</button>
+  </div>
+  <button class="filter-btn active" data-filter="all" onclick="setFilter(this)">All</button>
+  <button class="filter-btn" data-filter="connected" onclick="setFilter(this)">Connected</button>
+  <button class="filter-btn" data-filter="orphaned" onclick="setFilter(this)">Backend-Only</button>
+  <input class="search-input" placeholder="Search endpoints…  /api/employers, scorecard, density…" oninput="onSearch(this.value)">
+  <button class="live-btn" id="liveTestBtn" onclick="runLiveTests()" disabled>Test Live API</button>
+</div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const MODULES = [
+  {
+    name: "Health / Summary",
+    id: "health",
+    endpoints: [
+      { method: "GET", path: "/api/health", desc: "API health check", params: [], fe: ["Header", "Debug"] },
+      { method: "GET", path: "/api/summary", desc: "Overall platform summary statistics", params: [], fe: ["Header", "Analytics Dashboard"] },
+      { method: "GET", path: "/api/stats/breakdown", desc: "Filter-panel breakdown stats", params: ["state","naics_code","cbsa_code","name"], fe: ["Search Results"] },
+    ]
+  },
+  {
+    name: "Lookups",
+    id: "lookups",
+    endpoints: [
+      { method: "GET", path: "/api/lookups/sectors", desc: "Union sectors list", params: [], fe: [] },
+      { method: "GET", path: "/api/lookups/affiliations", desc: "National union affiliations with stats", params: ["sector"], fe: ["Territory Mode"] },
+      { method: "GET", path: "/api/lookups/states", desc: "States with employer counts", params: [], fe: ["Territory Mode", "Search Mode"] },
+      { method: "GET", path: "/api/lookups/naics-sectors", desc: "NAICS 2-digit sectors with density", params: [], fe: [] },
+      { method: "GET", path: "/api/lookups/metros", desc: "Metro areas with density", params: [], fe: ["Territory Mode"] },
+      { method: "GET", path: "/api/lookups/cities", desc: "Cities for a state or metro", params: ["state","cbsa","limit"], fe: ["Territory Mode", "Search Mode"] },
+      { method: "GET", path: "/api/metros/{cbsa_code}/stats", desc: "Detailed metro area stats", params: [], fe: [] },
+    ]
+  },
+  {
+    name: "Employers",
+    id: "employers",
+    endpoints: [
+      { method: "GET", path: "/api/employers/search", desc: "Search employers with filters", params: ["name","state","city","naics","aff_abbr","metro","sector","has_nlrb","limit","offset"], fe: ["Search Mode"] },
+      { method: "GET", path: "/api/employers/fuzzy-search", desc: "Fuzzy search (pg_trgm)", params: ["name","threshold","state","limit","offset"], fe: [] },
+      { method: "GET", path: "/api/employers/normalized-search", desc: "Search with normalized names", params: ["name","threshold","state","limit","offset"], fe: [] },
+      { method: "GET", path: "/api/employers/cities", desc: "Cities by employer count", params: ["state","limit"], fe: [] },
+      { method: "GET", path: "/api/employers/{id}", desc: "Full employer details + NLRB history", params: [], fe: ["Deep Dive"] },
+      { method: "GET", path: "/api/employers/{id}/similar", desc: "Similar employers", params: ["limit"], fe: ["Deep Dive"] },
+      { method: "GET", path: "/api/employers/{id}/comparables", desc: "Top-5 similar unionized (Mergent)", params: [], fe: [] },
+      { method: "GET", path: "/api/employers/{id}/osha", desc: "OSHA violations for employer", params: [], fe: ["Deep Dive OSHA Tab"] },
+      { method: "GET", path: "/api/employers/{id}/nlrb", desc: "NLRB elections + ULP for employer", params: [], fe: ["Deep Dive NLRB Tab"] },
+      { method: "GET", path: "/api/employers/by-naics-detailed/{code}", desc: "Employers by detailed NAICS", params: ["limit"], fe: [] },
+      { method: "GET", path: "/api/employers/unified/stats", desc: "Unified employer source stats", params: [], fe: [] },
+      { method: "GET", path: "/api/employers/unified/search", desc: "Search unified employers", params: ["name","state","city","source_type","has_union","has_osha","limit","offset"], fe: ["Unified Modal", "Debug"] },
+      { method: "GET", path: "/api/employers/unified/{id}", desc: "Unified employer detail", params: [], fe: ["Unified Modal"] },
+      { method: "GET", path: "/api/employers/unified/sources", desc: "Source types with counts", params: [], fe: [] },
+      { method: "GET", path: "/api/employers/unified-search", desc: "Search all sources (alt path)", params: ["name","state","city","source_type","has_union","limit","offset"], fe: [] },
+      { method: "GET", path: "/api/employers/unified-detail/{canonical_id}", desc: "Cross-reference detail", params: [], fe: ["Deep Dive Cross-Ref Tab"] },
+      { method: "POST", path: "/api/employers/flags", desc: "Create review flag", params: ["body: flag_type, reason, canonical_id"], fe: ["Deep Dive Flags"] },
+      { method: "GET", path: "/api/employers/flags/pending", desc: "Pending flags for review", params: ["flag_type","limit"], fe: [] },
+      { method: "DELETE", path: "/api/employers/flags/{id}", desc: "Remove review flag", params: [], fe: ["Deep Dive Flags"] },
+      { method: "GET", path: "/api/employers/flags/by-employer/{canonical_id}", desc: "Flags by employer", params: [], fe: [] },
+      { method: "GET", path: "/api/employers/flags/by-source", desc: "Flags by source type/id", params: ["source_type","source_id"], fe: ["Deep Dive Scorecard"] },
+      { method: "POST", path: "/api/employers/refresh-search", desc: "Refresh materialized view", params: [], fe: [] },
+      { method: "GET", path: "/api/naics/stats", desc: "NAICS code granularity stats", params: [], fe: [] },
+    ]
+  },
+  {
+    name: "Unions",
+    id: "unions",
+    endpoints: [
+      { method: "GET", path: "/api/unions/search", desc: "Search unions with filters", params: ["name","q","aff_abbr","sector","state","city","union_type","min_members","has_employers","limit","offset"], fe: ["Search Mode Unions"] },
+      { method: "GET", path: "/api/unions/national", desc: "National unions by affiliation", params: ["limit"], fe: ["Territory Mode", "Union Browser"] },
+      { method: "GET", path: "/api/unions/national/{aff_abbr}", desc: "National union detail", params: [], fe: ["Territory Mode", "Union Browser"] },
+      { method: "GET", path: "/api/unions/{f_num}", desc: "Full union details", params: [], fe: ["Deep Dive Union Tab"] },
+      { method: "GET", path: "/api/unions/{f_num}/employers", desc: "Employers for a union", params: ["limit"], fe: ["Union Browser"] },
+      { method: "GET", path: "/api/unions/locals/{affiliation}", desc: "Local unions for affiliation", params: ["state","limit"], fe: [] },
+      { method: "GET", path: "/api/unions/types", desc: "Union designation types", params: [], fe: [] },
+      { method: "GET", path: "/api/unions/cities", desc: "Cities from unions_master", params: ["state","limit"], fe: [] },
+    ]
+  },
+  {
+    name: "NLRB",
+    id: "nlrb",
+    endpoints: [
+      { method: "GET", path: "/api/nlrb/summary", desc: "Overall NLRB statistics", params: [], fe: [] },
+      { method: "GET", path: "/api/nlrb/elections/search", desc: "Search NLRB elections", params: ["state","aff_abbr","employer_name","union_won","year_from","year_to","min_voters","limit","offset"], fe: ["Territory Mode", "Elections Modal", "Deep Dive", "Debug"] },
+      { method: "GET", path: "/api/nlrb/elections/map", desc: "Election data for maps", params: ["state","aff_abbr","year_from","union_won","limit"], fe: [] },
+      { method: "GET", path: "/api/nlrb/elections/by-year", desc: "Elections by year", params: ["aff_abbr"], fe: [] },
+      { method: "GET", path: "/api/nlrb/elections/by-state", desc: "Elections by state", params: ["year"], fe: [] },
+      { method: "GET", path: "/api/nlrb/elections/by-affiliation", desc: "Elections by union", params: [], fe: [] },
+      { method: "GET", path: "/api/nlrb/election/{case_number}", desc: "Single election detail", params: [], fe: [] },
+      { method: "GET", path: "/api/nlrb/ulp/search", desc: "Search ULP cases", params: ["state","case_type","section","charged_party","year_from","year_to","limit","offset"], fe: [] },
+      { method: "GET", path: "/api/nlrb/ulp/by-section", desc: "ULP by NLRA section", params: ["year"], fe: [] },
+      { method: "GET", path: "/api/nlrb/patterns", desc: "Historical success patterns", params: [], fe: [] },
+    ]
+  },
+  {
+    name: "OSHA",
+    id: "osha",
+    endpoints: [
+      { method: "GET", path: "/api/osha/summary", desc: "OSHA database summary", params: [], fe: [] },
+      { method: "GET", path: "/api/osha/establishments/search", desc: "Search OSHA establishments", params: ["q","state","union_status","risk_level","naics","f7_matched","limit"], fe: [] },
+      { method: "GET", path: "/api/osha/establishments/{id}", desc: "Establishment details", params: [], fe: [] },
+      { method: "GET", path: "/api/osha/by-state", desc: "OSHA by state", params: [], fe: [] },
+      { method: "GET", path: "/api/osha/high-severity", desc: "High-severity violations", params: ["state","violation_type","limit"], fe: [] },
+      { method: "GET", path: "/api/osha/organizing-targets", desc: "Non-union with violations", params: ["state","risk_level","limit"], fe: [] },
+      { method: "GET", path: "/api/osha/employer-safety/{id}", desc: "F-7 employer safety profile", params: [], fe: [] },
+      { method: "GET", path: "/api/osha/unified-matches", desc: "OSHA → unified employer matches", params: ["state","source_type","has_union","min_confidence","match_method","limit"], fe: [] },
+    ]
+  },
+  {
+    name: "WHD (Wage & Hour)",
+    id: "whd",
+    endpoints: [
+      { method: "GET", path: "/api/whd/summary", desc: "National WHD summary", params: [], fe: [] },
+      { method: "GET", path: "/api/whd/search", desc: "Search WHD cases", params: ["q","state","city","naics","min_backwages","repeat_only","limit"], fe: [] },
+      { method: "GET", path: "/api/whd/by-state/{state}", desc: "WHD by state", params: [], fe: [] },
+      { method: "GET", path: "/api/whd/employer/{id}", desc: "WHD for specific employer", params: [], fe: [] },
+      { method: "GET", path: "/api/whd/top-violators", desc: "Top WHD violators", params: ["state","metric","limit"], fe: ["Territory Mode"] },
+    ]
+  },
+  {
+    name: "Organizing",
+    id: "organizing",
+    endpoints: [
+      { method: "GET", path: "/api/organizing/summary", desc: "Combined organizing summary", params: [], fe: [] },
+      { method: "GET", path: "/api/organizing/by-state", desc: "Organizing activity by state", params: [], fe: [] },
+      { method: "GET", path: "/api/organizing/scorecard", desc: "Scored organizing targets (8-factor)", params: ["state","naics_2digit","min_employees","max_employees","min_score","has_contracts","limit"], fe: ["Territory Mode", "Scorecard Modal"] },
+      { method: "GET", path: "/api/organizing/scorecard/{estab_id}", desc: "Individual scorecard detail", params: [], fe: ["Deep Dive Scorecard"] },
+      { method: "GET", path: "/api/organizing/siblings/{estab_id}", desc: "Similar unionized F7 employers", params: ["limit"], fe: ["Deep Dive"] },
+    ]
+  },
+  {
+    name: "Sectors",
+    id: "sectors",
+    endpoints: [
+      { method: "GET", path: "/api/sectors/list", desc: "All sectors with target counts", params: [], fe: [] },
+      { method: "GET", path: "/api/sectors/{sector}/summary", desc: "Sector summary stats", params: [], fe: ["Sector Modal"] },
+      { method: "GET", path: "/api/sectors/{sector}/targets", desc: "Organizing targets in sector", params: ["tier","city","min_employees","max_employees","min_score","has_osha_violations","has_govt_contracts","search","sort_by","sort_order","limit"], fe: ["Sector Modal"] },
+      { method: "GET", path: "/api/sectors/{sector}/targets/stats", desc: "Target stats by tier", params: [], fe: [] },
+      { method: "GET", path: "/api/sectors/{sector}/targets/{id}", desc: "Individual target detail", params: [], fe: [] },
+      { method: "GET", path: "/api/sectors/{sector}/targets/cities", desc: "Cities with targets", params: [], fe: ["Sector Modal"] },
+      { method: "GET", path: "/api/sectors/{sector}/unionized", desc: "Unionized employers in sector", params: ["city","search","limit"], fe: [] },
+    ]
+  },
+  {
+    name: "Museums (Legacy)",
+    id: "museums",
+    endpoints: [
+      { method: "GET", path: "/api/museums/summary", desc: "Museum sector summary", params: [], fe: [] },
+      { method: "GET", path: "/api/museums/targets", desc: "Museum organizing targets", params: ["tier","city","min_employees","max_employees","min_score","has_osha_violations","has_govt_contracts","search","sort_by","sort_order","limit"], fe: [] },
+      { method: "GET", path: "/api/museums/targets/stats", desc: "Stats by tier", params: [], fe: [] },
+      { method: "GET", path: "/api/museums/targets/{id}", desc: "Target detail", params: [], fe: [] },
+      { method: "GET", path: "/api/museums/targets/cities", desc: "Cities with museums", params: [], fe: [] },
+      { method: "GET", path: "/api/museums/unionized", desc: "Unionized museums", params: ["city","search","limit"], fe: [] },
+    ]
+  },
+  {
+    name: "Trends",
+    id: "trends",
+    endpoints: [
+      { method: "GET", path: "/api/trends/national", desc: "National membership trends 2010-2024", params: ["start_year","end_year"], fe: ["Territory Mode", "Trends Modal"] },
+      { method: "GET", path: "/api/trends/by-state/{state}", desc: "State membership trends", params: [], fe: ["Trends Modal"] },
+      { method: "GET", path: "/api/trends/by-affiliation/{aff_abbr}", desc: "Affiliation trends", params: [], fe: ["Trends Modal"] },
+      { method: "GET", path: "/api/trends/elections", desc: "Election trends by year", params: [], fe: ["Trends Modal", "Analytics Dashboard"] },
+      { method: "GET", path: "/api/trends/affiliations/summary", desc: "Top affiliation summaries", params: [], fe: ["Trends Modal", "Analytics Dashboard"] },
+      { method: "GET", path: "/api/trends/states/summary", desc: "State membership summary", params: [], fe: ["Trends Modal", "Analytics Dashboard"] },
+      { method: "GET", path: "/api/trends/sectors", desc: "Employer distribution by NAICS", params: [], fe: ["Trends Modal", "Analytics Dashboard"] },
+      { method: "GET", path: "/api/trends/elections/by-affiliation/{aff_abbr}", desc: "Election trends by union", params: [], fe: [] },
+    ]
+  },
+  {
+    name: "Projections",
+    id: "projections",
+    endpoints: [
+      { method: "GET", path: "/api/projections/summary", desc: "Industry projections summary", params: [], fe: [] },
+      { method: "GET", path: "/api/projections/search", desc: "Search/filter projections", params: ["q","growth_category","min_employment","min_growth","max_growth","limit"], fe: [] },
+      { method: "GET", path: "/api/projections/top", desc: "Top growing/declining", params: ["growing","limit"], fe: [] },
+      { method: "GET", path: "/api/projections/industry/{naics_code}", desc: "NAICS 2-digit projections", params: [], fe: [] },
+      { method: "GET", path: "/api/projections/industries/{sector}", desc: "Sub-industries for sector", params: [], fe: [] },
+      { method: "GET", path: "/api/projections/occupations/{naics_code}", desc: "Top occupations", params: ["limit"], fe: [] },
+      { method: "GET", path: "/api/projections/matrix/{matrix_code}", desc: "BLS matrix code projection", params: [], fe: ["Deep Dive Projections"] },
+      { method: "GET", path: "/api/projections/matrix/{code}/occupations", desc: "Occupation breakdown", params: ["occupation_type","min_employment","sort_by","limit"], fe: ["Deep Dive Projections"] },
+      { method: "GET", path: "/api/projections/naics/{naics_2digit}", desc: "NAICS projections (legacy)", params: ["limit"], fe: ["Deep Dive Projections"] },
+      { method: "GET", path: "/api/employer/{id}/projections", desc: "Industry outlook for employer", params: [], fe: [] },
+    ]
+  },
+  {
+    name: "Corporate",
+    id: "corporate",
+    endpoints: [
+      { method: "GET", path: "/api/corporate/family/{id}", desc: "Corporate family (ownership + name + multi-employer)", params: [], fe: ["Deep Dive Corporate Tab"] },
+      { method: "GET", path: "/api/corporate/hierarchy/search", desc: "Search hierarchy by name/EIN/ticker", params: ["name","ein","ticker","limit"], fe: [] },
+      { method: "GET", path: "/api/corporate/hierarchy/stats", desc: "Hierarchy statistics", params: [], fe: [] },
+      { method: "GET", path: "/api/corporate/hierarchy/{id}", desc: "Ownership hierarchy tree", params: ["source"], fe: [] },
+      { method: "GET", path: "/api/corporate/sec/{cik}", desc: "SEC company profile", params: [], fe: [] },
+      { method: "GET", path: "/api/multi-employer/stats", desc: "Multi-employer dedup stats", params: [], fe: [] },
+      { method: "GET", path: "/api/multi-employer/groups", desc: "Multi-employer groups", params: ["limit"], fe: [] },
+      { method: "GET", path: "/api/employer/{id}/agreement", desc: "Multi-employer agreement context", params: [], fe: [] },
+    ]
+  },
+  {
+    name: "Public Sector",
+    id: "public_sector",
+    endpoints: [
+      { method: "GET", path: "/api/public-sector/stats", desc: "Public sector summary", params: [], fe: [] },
+      { method: "GET", path: "/api/public-sector/parent-unions", desc: "Parent unions list", params: [], fe: ["Public Sector Modal"] },
+      { method: "GET", path: "/api/public-sector/employer-types", desc: "Employer types", params: [], fe: ["Public Sector Modal"] },
+      { method: "GET", path: "/api/public-sector/locals", desc: "Search public sector locals", params: ["state","parent_union","name","limit"], fe: [] },
+      { method: "GET", path: "/api/public-sector/employers", desc: "Search public employers", params: ["state","employer_type","name","limit"], fe: ["Public Sector Modal"] },
+      { method: "GET", path: "/api/public-sector/benchmarks", desc: "State benchmarks", params: ["state"], fe: [] },
+    ]
+  },
+  {
+    name: "Density",
+    id: "density",
+    endpoints: [
+      { method: "GET", path: "/api/density/all", desc: "Density for all NAICS sectors", params: ["year"], fe: [] },
+      { method: "GET", path: "/api/density/naics/{naics_2digit}", desc: "Density for NAICS sector", params: [], fe: [] },
+      { method: "GET", path: "/api/density/by-state", desc: "Density by state", params: ["state"], fe: ["Territory Mode"] },
+      { method: "GET", path: "/api/density/by-state/{state}/history", desc: "Historical density for state", params: ["sector"], fe: [] },
+      { method: "GET", path: "/api/density/by-state/{state}/counties", desc: "County densities for state", params: [], fe: [] },
+      { method: "GET", path: "/api/density/by-govt-level", desc: "Density by govt level (all states)", params: [], fe: [] },
+      { method: "GET", path: "/api/density/by-govt-level/{state}", desc: "Govt level density for state", params: [], fe: [] },
+      { method: "GET", path: "/api/density/by-county", desc: "County density estimates", params: ["state","min_density","max_density","limit","offset"], fe: [] },
+      { method: "GET", path: "/api/density/by-county/{fips}", desc: "Single county density", params: [], fe: [] },
+      { method: "GET", path: "/api/density/by-county/{fips}/industry", desc: "County industry breakdown", params: [], fe: [] },
+      { method: "GET", path: "/api/density/county-summary", desc: "County density summary stats", params: [], fe: [] },
+      { method: "GET", path: "/api/density/industry-rates", desc: "BLS industry density rates 2024", params: [], fe: ["Territory Mode"] },
+      { method: "GET", path: "/api/density/state-industry-comparison", desc: "Expected vs actual density", params: ["sort_by","order"], fe: [] },
+      { method: "GET", path: "/api/density/state-industry-comparison/{state}", desc: "State industry detail", params: [], fe: [] },
+      { method: "GET", path: "/api/density/ny/summary", desc: "NY density summary", params: [], fe: [] },
+      { method: "GET", path: "/api/density/ny/counties", desc: "NY 62 county densities", params: ["min_density","max_density","sort_by"], fe: [] },
+      { method: "GET", path: "/api/density/ny/county/{fips}", desc: "Single NY county density", params: [], fe: [] },
+      { method: "GET", path: "/api/density/ny/zips", desc: "NY ZIP densities", params: ["min_density","max_density","limit","offset"], fe: [] },
+      { method: "GET", path: "/api/density/ny/zip/{code}", desc: "Single NY ZIP density", params: [], fe: [] },
+      { method: "GET", path: "/api/density/ny/tracts", desc: "NY census tract densities", params: ["county_fips","min_density","max_density","limit","offset"], fe: [] },
+      { method: "GET", path: "/api/density/ny/tract/{fips}", desc: "Single NY tract density", params: [], fe: [] },
+    ]
+  },
+  {
+    name: "Voluntary Recognition",
+    id: "vr",
+    endpoints: [
+      { method: "GET", path: "/api/vr/stats/summary", desc: "VR statistics summary", params: [], fe: [] },
+      { method: "GET", path: "/api/vr/stats/by-year", desc: "VR cases by year", params: [], fe: [] },
+      { method: "GET", path: "/api/vr/stats/by-state", desc: "VR cases by state", params: [], fe: [] },
+      { method: "GET", path: "/api/vr/stats/by-affiliation", desc: "VR by union affiliation", params: [], fe: [] },
+      { method: "GET", path: "/api/vr/search", desc: "Search VR cases", params: ["employer","union","affiliation","state","city","region","year","employer_matched","union_matched","limit","sort_by"], fe: [] },
+      { method: "GET", path: "/api/vr/{case_number}", desc: "Single VR case detail", params: [], fe: [] },
+      { method: "GET", path: "/api/vr/map", desc: "VR cases for mapping", params: ["state","affiliation","year","limit"], fe: [] },
+      { method: "GET", path: "/api/vr/new-employers", desc: "VR employers not in F7", params: ["state","affiliation","min_employees","limit"], fe: [] },
+      { method: "GET", path: "/api/vr/pipeline", desc: "VR→F7 pipeline analysis", params: ["sequence","limit"], fe: [] },
+    ]
+  },
+];
+
+// ─── FRONTEND SECTIONS ──────────────────────────────────────────────────────
+const FE_SECTIONS = [
+  {
+    name: "Territory Mode",
+    icon: "🗺️",
+    desc: "Union territory dashboard — select a union, state, or metro to see membership, elections, density, and organizing targets for that territory.",
+    endpoints: ["/api/lookups/affiliations","/api/lookups/states","/api/lookups/metros","/api/lookups/cities","/api/unions/national","/api/unions/national/{aff_abbr}","/api/nlrb/elections/search","/api/density/by-state","/api/density/industry-rates","/api/whd/top-violators","/api/trends/national","/api/organizing/scorecard"]
+  },
+  {
+    name: "Search Mode (Employers)",
+    icon: "🔍",
+    desc: "Search employers by name, state, NAICS, city. Results show employer cards with quick stats.",
+    endpoints: ["/api/employers/search","/api/lookups/states","/api/lookups/cities","/api/stats/breakdown"]
+  },
+  {
+    name: "Search Mode (Unions)",
+    icon: "🔍",
+    desc: "Search unions by name, affiliation, state. Shows union cards with membership and employer counts.",
+    endpoints: ["/api/unions/search"]
+  },
+  {
+    name: "Deep Dive — Overview",
+    icon: "📊",
+    desc: "Full employer detail page with header stats, OSHA, NLRB, projections, scorecard, corporate family, and cross-reference tabs.",
+    endpoints: ["/api/employers/{id}","/api/employers/{id}/similar","/api/organizing/scorecard/{estab_id}","/api/nlrb/elections/search","/api/corporate/family/{id}","/api/organizing/siblings/{estab_id}"]
+  },
+  {
+    name: "Deep Dive — OSHA Tab",
+    icon: "⚠️",
+    desc: "OSHA violations, inspection history, and safety metrics for the selected employer.",
+    endpoints: ["/api/employers/{id}/osha"]
+  },
+  {
+    name: "Deep Dive — NLRB Tab",
+    icon: "⚖️",
+    desc: "NLRB elections and ULP cases for the selected employer.",
+    endpoints: ["/api/employers/{id}/nlrb"]
+  },
+  {
+    name: "Deep Dive — Projections Tab",
+    icon: "📈",
+    desc: "BLS 2024-2034 industry outlook, occupation breakdown for the employer's NAICS.",
+    endpoints: ["/api/projections/matrix/{matrix_code}","/api/projections/matrix/{code}/occupations","/api/projections/naics/{naics_2digit}"]
+  },
+  {
+    name: "Deep Dive — Scorecard Tab",
+    icon: "🎯",
+    desc: "Multi-factor organizing score breakdown for individual employer.",
+    endpoints: ["/api/organizing/scorecard/{estab_id}","/api/employers/flags/by-source"]
+  },
+  {
+    name: "Deep Dive — Corporate Family",
+    icon: "🏢",
+    desc: "Ownership hierarchy, name-similar entities, and multi-employer agreement relationships.",
+    endpoints: ["/api/corporate/family/{id}"]
+  },
+  {
+    name: "Deep Dive — Cross-Reference",
+    icon: "🔗",
+    desc: "Unified employer detail showing matches across F7, NLRB, VR, Manual sources.",
+    endpoints: ["/api/employers/unified-detail/{canonical_id}"]
+  },
+  {
+    name: "Deep Dive — Union Detail",
+    icon: "✊",
+    desc: "Full union profile — membership, locals, employers, affiliation info.",
+    endpoints: ["/api/unions/{f_num}"]
+  },
+  {
+    name: "Deep Dive — Flags/Review",
+    icon: "🚩",
+    desc: "Flag employers for review (ALREADY_UNION, DUPLICATE, etc). Create and delete flags.",
+    endpoints: ["/api/employers/flags","/api/employers/flags/{id}"]
+  },
+  {
+    name: "Scorecard Modal",
+    icon: "🎯",
+    desc: "Browse and filter organizing targets across all establishments. 8-factor scoring system.",
+    endpoints: ["/api/organizing/scorecard"]
+  },
+  {
+    name: "National Unions Browser",
+    icon: "✊",
+    desc: "Browse all national/international unions, see locals and employers per union.",
+    endpoints: ["/api/unions/national","/api/unions/national/{aff_abbr}","/api/unions/{f_num}/employers"]
+  },
+  {
+    name: "Elections Modal",
+    icon: "🗳️",
+    desc: "NLRB election search and results browser.",
+    endpoints: ["/api/nlrb/elections/search"]
+  },
+  {
+    name: "Unified Employers Modal",
+    icon: "🔗",
+    desc: "Search across all employer sources (F7, NLRB, VR, Manual) in one place.",
+    endpoints: ["/api/employers/unified/search","/api/employers/unified/{id}"]
+  },
+  {
+    name: "Trends Modal",
+    icon: "📉",
+    desc: "Historical membership and election trends — national, by state, by affiliation, with Chart.js charts.",
+    endpoints: ["/api/trends/national","/api/trends/by-state/{state}","/api/trends/by-affiliation/{aff_abbr}","/api/trends/elections","/api/trends/affiliations/summary","/api/trends/states/summary","/api/trends/sectors"]
+  },
+  {
+    name: "Public Sector Modal",
+    icon: "🏛️",
+    desc: "Public sector employer and union search — filter by parent union, employer type, state.",
+    endpoints: ["/api/public-sector/parent-unions","/api/public-sector/employer-types","/api/public-sector/employers"]
+  },
+  {
+    name: "Analytics Dashboard",
+    icon: "📊",
+    desc: "Summary analytics — overall stats, top unions, election trends, sector distribution.",
+    endpoints: ["/api/summary","/api/trends/elections","/api/trends/affiliations/summary","/api/trends/states/summary","/api/trends/sectors"]
+  },
+  {
+    name: "Sector Targets Modal",
+    icon: "🏗️",
+    desc: "Sector-specific organizing targets — filter by tier, city, size. 21 sectors available.",
+    endpoints: ["/api/sectors/{sector}/summary","/api/sectors/{sector}/targets","/api/sectors/{sector}/targets/cities"]
+  },
+];
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let currentView = 'modules';
+let currentModule = 'health';
+let currentFilter = 'all';
+let searchQuery = '';
+let apiOnline = false;
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function getAllEndpoints() {
+  return MODULES.flatMap(m => m.endpoints.map(e => ({...e, module: m.name, moduleId: m.id})));
+}
+function isConnected(ep) { return ep.fe && ep.fe.length > 0; }
+function formatPath(path) {
+  return path.replace(/\{([^}]+)\}/g, '<span class="param">{$1}</span>');
+}
+function matchesSearch(ep, q) {
+  if (!q) return true;
+  q = q.toLowerCase();
+  return ep.path.toLowerCase().includes(q) ||
+    ep.desc.toLowerCase().includes(q) ||
+    (ep.fe || []).some(f => f.toLowerCase().includes(q)) ||
+    ep.module.toLowerCase().includes(q);
+}
+function matchesFilter(ep) {
+  if (currentFilter === 'all') return true;
+  if (currentFilter === 'connected') return isConnected(ep);
+  if (currentFilter === 'orphaned') return !isConnected(ep);
+  return true;
+}
+
+// ─── RENDER ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  const all = getAllEndpoints();
+  const connected = all.filter(isConnected).length;
+  const orphaned = all.length - connected;
+  document.getElementById('stat-connected').textContent = connected;
+  document.getElementById('stat-partial').textContent = '0';
+  document.getElementById('stat-orphaned').textContent = orphaned;
+  document.getElementById('stat-total').textContent = all.length;
+}
+
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  if (currentView === 'frontend' || currentView === 'coverage') {
+    sb.classList.add('hidden');
+    return;
+  }
+  sb.classList.remove('hidden');
+  sb.innerHTML = MODULES.map(m => {
+    const conn = m.endpoints.filter(isConnected).length;
+    const orph = m.endpoints.length - conn;
+    const active = m.id === currentModule ? 'active' : '';
+    return `<div class="module-card ${active}" onclick="selectModule('${m.id}')">
+      <span class="module-name">${m.name}</span>
+      <span class="module-counts">
+        <span class="connected">${conn}</span>/<span class="orphaned">${m.endpoints.length}</span>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+function renderContent() {
+  const content = document.getElementById('content');
+  if (currentView === 'modules') renderModuleView(content);
+  else if (currentView === 'frontend') renderFrontendView(content);
+  else if (currentView === 'coverage') renderCoverageView(content);
+}
+
+function renderModuleView(el) {
+  const mod = MODULES.find(m => m.id === currentModule);
+  if (!mod) return;
+  const eps = mod.endpoints.filter(e => matchesSearch(e, searchQuery) && matchesFilter(e));
+  el.innerHTML = `
+    <div class="content-header">
+      <h2>${mod.name} <span style="color:var(--text2);font-weight:400;font-size:13px">${eps.length} endpoint${eps.length!==1?'s':''}</span></h2>
+    </div>
+    <div class="endpoint-grid">${eps.map((ep, i) => renderEndpointRow(ep, `${mod.id}-${i}`)).join('')}</div>
+  `;
+}
+
+function renderEndpointRow(ep, id) {
+  const status = isConnected(ep) ? 'connected' : 'orphaned';
+  const feTags = (ep.fe && ep.fe.length) ?
+    ep.fe.map(f => `<span class="fe-tag">${f}</span>`).join('') :
+    `<span class="fe-tag none">no frontend</span>`;
+  return `<div class="endpoint-row" onclick="toggleDetail('${id}')">
+    <span class="method-badge method-${ep.method}">${ep.method}</span>
+    <span class="ep-path">${formatPath(ep.path)}</span>
+    <span class="ep-frontend-tag">${feTags}</span>
+    <span><div class="status-dot status-${status}"></div></span>
+    <div class="detail-panel" id="detail-${id}">
+      <div class="detail-section">
+        <div class="detail-label">Description</div>
+        <div class="detail-value">${ep.desc}</div>
+      </div>
+      ${ep.params.length ? `<div class="detail-section">
+        <div class="detail-label">Parameters</div>
+        <ul class="param-list">${ep.params.map(p => `<li><span class="param-name">${p}</span></li>`).join('')}</ul>
+      </div>` : ''}
+      ${apiOnline ? `<div class="detail-section">
+        <div class="detail-label">Live Test</div>
+        <div class="detail-value"><a href="http://localhost:8001${ep.path.replace(/\{[^}]+\}/g, '1')}" target="_blank">Open in browser →</a></div>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderFrontendView(el) {
+  const filtered = FE_SECTIONS.filter(s => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return s.name.toLowerCase().includes(q) ||
+      s.desc.toLowerCase().includes(q) ||
+      s.endpoints.some(e => e.toLowerCase().includes(q));
+  });
+  el.innerHTML = `
+    <div class="content-header"><h2>Frontend Sections <span style="color:var(--text2);font-weight:400;font-size:13px">${filtered.length} sections</span></h2></div>
+    ${filtered.map(s => `
+      <div class="fe-section-card">
+        <h3>${s.icon} ${s.name}</h3>
+        <div class="description">${s.desc}</div>
+        <div class="tag-row" style="margin-top:10px">
+          ${s.endpoints.map(ep => `<span class="ep-link" onclick="jumpToEndpoint('${ep}')">${ep.replace('/api/','')}</span>`).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderCoverageView(el) {
+  const all = getAllEndpoints();
+  const connected = all.filter(isConnected);
+  const orphaned = all.filter(e => !isConnected(e));
+  const pct = Math.round(connected.length / all.length * 100);
+
+  const modStats = MODULES.map(m => {
+    const c = m.endpoints.filter(isConnected).length;
+    return { name: m.name, total: m.endpoints.length, connected: c, pct: m.endpoints.length ? Math.round(c/m.endpoints.length*100) : 0 };
+  }).sort((a,b) => b.pct - a.pct);
+
+  el.innerHTML = `
+    <div class="content-header"><h2>Coverage Summary</h2></div>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="big purple">${all.length}</div><div class="label">Total Endpoints</div></div>
+      <div class="summary-card"><div class="big green">${connected.length}</div><div class="label">Connected to Frontend</div></div>
+      <div class="summary-card"><div class="big red">${orphaned.length}</div><div class="label">Backend-Only</div></div>
+      <div class="summary-card"><div class="big yellow">${pct}%</div><div class="label">Frontend Coverage</div></div>
+    </div>
+    <h3 style="margin-bottom:12px;font-size:14px">Coverage by Module</h3>
+    <div class="endpoint-grid">
+      ${modStats.map(m => `
+        <div class="endpoint-row" style="grid-template-columns:1fr 120px 80px;cursor:default">
+          <span style="font-size:13px">${m.name}</span>
+          <span style="font-size:12px">
+            <span style="display:inline-block;width:${Math.max(m.pct, 4)}%;height:6px;background:${m.pct>50?'var(--green)':m.pct>0?'var(--yellow)':'var(--red)'};border-radius:3px;margin-right:8px;vertical-align:middle"></span>
+          </span>
+          <span style="font-size:12px;color:var(--text2);text-align:right">${m.connected}/${m.total} (${m.pct}%)</span>
+        </div>
+      `).join('')}
+    </div>
+    <h3 style="margin:20px 0 12px;font-size:14px;color:var(--red)">Backend-Only Endpoints (${orphaned.length})</h3>
+    <div class="endpoint-grid">
+      ${orphaned.map((ep,i) => `
+        <div class="endpoint-row" style="grid-template-columns:64px 1fr 180px;opacity:0.7;cursor:default">
+          <span class="method-badge method-${ep.method}">${ep.method}</span>
+          <span class="ep-path">${formatPath(ep.path)}</span>
+          <span style="font-size:11px;color:var(--text2)">${ep.module}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ─── INTERACTIONS ───────────────────────────────────────────────────────────
+function selectModule(id) {
+  currentModule = id;
+  renderSidebar();
+  renderContent();
+}
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.view-toggle button[onclick="setView('${v}')"]`).classList.add('active');
+  renderSidebar();
+  renderContent();
+}
+
+function setFilter(btn) {
+  currentFilter = btn.dataset.filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderContent();
+}
+
+function onSearch(q) {
+  searchQuery = q;
+  renderContent();
+}
+
+function toggleDetail(id) {
+  const panel = document.getElementById('detail-' + id);
+  if (panel) panel.classList.toggle('visible');
+}
+
+function jumpToEndpoint(path) {
+  // Find which module contains this endpoint
+  for (const m of MODULES) {
+    const found = m.endpoints.find(e => e.path === path);
+    if (found) {
+      currentView = 'modules';
+      currentModule = m.id;
+      searchQuery = path.replace('/api/','');
+      document.querySelector('.search-input').value = searchQuery;
+      document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+      document.querySelector('.view-toggle button[onclick="setView(\'modules\')"]').classList.add('active');
+      renderSidebar();
+      renderContent();
+      return;
+    }
+  }
+}
+
+async function runLiveTests() {
+  const btn = document.getElementById('liveTestBtn');
+  btn.textContent = 'Testing…';
+  btn.disabled = true;
+  try {
+    const r = await fetch('http://localhost:8001/api/health');
+    if (r.ok) {
+      apiOnline = true;
+      btn.textContent = 'API Online ✓';
+      btn.style.background = 'var(--green)';
+      renderContent();
+    } else {
+      btn.textContent = 'API Error';
+      btn.style.background = 'var(--red)';
+    }
+  } catch(e) {
+    btn.textContent = 'API Offline';
+    btn.style.background = 'var(--red)';
+  }
+  setTimeout(() => { btn.disabled = false; }, 2000);
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+function init() {
+  updateStats();
+  renderSidebar();
+  renderContent();
+  // Auto-check API
+  document.getElementById('liveTestBtn').disabled = false;
+  fetch('http://localhost:8001/api/health').then(r => {
+    if (r.ok) {
+      apiOnline = true;
+      const btn = document.getElementById('liveTestBtn');
+      btn.textContent = 'API Online ✓';
+      btn.style.background = 'var(--green)';
+      renderContent();
+    }
+  }).catch(() => {});
+}
+init();
+</script>
+</body>
+</html>

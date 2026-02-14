@@ -1,0 +1,158 @@
+[
+    {
+        "profile_id": 235,
+        "union_name": "AFSCME District Council 47 (Philadelphia)",
+        "employers": [
+            {"employer_name": "City of Philadelphia", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "evidence": "Health & Welfare Fund: City of Phila. & FJD; First Level Supervisors of City of Phila."},
+            {"employer_name": "First Judicial District of Pennsylvania", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 810 - First Judicial District; Health & Welfare Fund references FJD"},
+            {"employer_name": "Philadelphia Parking Authority", "sector": "PUBLIC_LOCAL", "confidence": 0.90, "method": "ai_extract", "evidence": "First Level Supervisors of City of Phila., PPA, PHA, & FJD"},
+            {"employer_name": "Philadelphia Housing Authority", "sector": "PUBLIC_LOCAL", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 2186/2187 references PHA"},
+            {"employer_name": "University of Pennsylvania", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract", "evidence": "Local 54 - UPenn Dining Services; Local 590 - UPenn Libraries & Archives"},
+            {"employer_name": "Temple University", "sector": "PUBLIC_EDUCATION", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 1723 - Temple University & Merakey"},
+            {"employer_name": "Merakey", "sector": "NONPROFIT", "confidence": 0.85, "method": "ai_extract", "evidence": "Local 1723 - Temple University & Merakey"},
+            {"employer_name": "Philadelphia Museum of Art", "sector": "NONPROFIT", "confidence": 0.95, "method": "ai_extract", "evidence": "Local 397 - Philadelphia Museum of Art"},
+            {"employer_name": "Penn Museum", "sector": "NONPROFIT", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 397 - Penn Museum"},
+            {"employer_name": "Please Touch Museum", "sector": "NONPROFIT", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 397 - Please Touch Museum"},
+            {"employer_name": "Philadelphia Zoo", "sector": "NONPROFIT", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 752 - Philadelphia Zoo"}
+        ]
+    },
+    {
+        "profile_id": 231,
+        "union_name": "AFSCME District Council 47 Chapter 47 (Philadelphia)",
+        "employers": [
+            {"employer_name": "City of Philadelphia", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "evidence": "Same DC47 site; Health & Welfare Fund: City of Phila. & FJD"},
+            {"employer_name": "First Judicial District of Pennsylvania", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 810 - First Judicial District"},
+            {"employer_name": "Philadelphia Parking Authority", "sector": "PUBLIC_LOCAL", "confidence": 0.90, "method": "ai_extract", "evidence": "PPA referenced in Local 2186/2187"},
+            {"employer_name": "Philadelphia Housing Authority", "sector": "PUBLIC_LOCAL", "confidence": 0.90, "method": "ai_extract", "evidence": "PHA referenced in Local 2186/2187"},
+            {"employer_name": "University of Pennsylvania", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract", "evidence": "Local 54 - UPenn Dining Services; Local 590 - UPenn Libraries & Archives"},
+            {"employer_name": "Temple University", "sector": "PUBLIC_EDUCATION", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 1723 - Temple University & Merakey"},
+            {"employer_name": "Philadelphia Museum of Art", "sector": "NONPROFIT", "confidence": 0.95, "method": "ai_extract", "evidence": "Local 397 - Philadelphia Museum of Art"},
+            {"employer_name": "Penn Museum", "sector": "NONPROFIT", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 397 - Penn Museum"},
+            {"employer_name": "Please Touch Museum", "sector": "NONPROFIT", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 397 - Please Touch Museum"},
+            {"employer_name": "Philadelphia Zoo", "sector": "NONPROFIT", "confidence": 0.90, "method": "ai_extract", "evidence": "Local 752 - Philadelphia Zoo"}
+        ]
+    },
+    {
+        "profile_id": 179,
+        "union_name": "AFSCME District Council 37 (New York City)",
+        "employers": [
+            {"employer_name": "City of New York", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "evidence": "DC37 is NYC municipal employees union; Citywide Contract; Civil Service Exams link to nyc.gov"},
+            {"employer_name": "City University of New York (CUNY)", "sector": "PUBLIC_EDUCATION", "confidence": 0.90, "method": "ai_extract", "evidence": "CUNY Contract section explicitly listed in navigation"}
+        ]
+    },
+    {
+        "profile_id": 180,
+        "union_name": "AFSCME Council 66 (Rochester/Upstate NY)",
+        "employers": [
+            {"employer_name": "Erie County", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "evidence": "Local 1095 (Erie County employees) - described as one of three biggest affiliates with 1,000+ members"},
+            {"employer_name": "City of Rochester", "sector": "PUBLIC_LOCAL", "confidence": 0.95, "method": "ai_extract", "evidence": "Local 1635 (Rochester City employees) - one of three biggest affiliates with 1,000+ members"},
+            {"employer_name": "Rochester City School District", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract", "evidence": "BENTE Local 2419 (Rochester City School District support staff) - one of three biggest affiliates with 1,000+ members"}
+        ]
+    },
+    {
+        "profile_id": 249,
+        "union_name": "SPUPR Council 95 (Puerto Rico)",
+        "employers": [
+            {"employer_name": "Departamento de la Familia", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract", "evidence": "Press release about Administracion de Familia y Ninos del Departamento de la Familia staffing crisis"},
+            {"employer_name": "Departamento de Recursos Naturales y Ambientales (DRNA)", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract", "evidence": "Press release demanding resignation of DRNA commissioner; Vigilantes del DRNA marching for salary increases"},
+            {"employer_name": "Departamento de Asuntos del Consumidor (DACO)", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract", "evidence": "Local 3986 supports designation of new DACO Secretary"},
+            {"employer_name": "Departamento de Correccion y Rehabilitacion", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract", "evidence": "Correctional officers (oficiales correccionales) marching to Fortaleza for salary increases"},
+            {"employer_name": "Policia de Seguridad y Administracion de Justicia (PSAJ)", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract", "evidence": "Agentes de PSAJ marching alongside correctional officers and DRNA vigilantes"},
+            {"employer_name": "Government of Puerto Rico", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract", "evidence": "Servidores Publicos Unidos - represents public employees across multiple PR agencies; press releases about empleados publicos"}
+        ]
+    },
+    {
+        "profile_id": 252,
+        "union_name": "AFSCME RI Council 94 (Rhode Island)",
+        "employers": [
+            {"employer_name": "State of Rhode Island", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract", "evidence": "State Employee Unions Demand Accountability; State Jobs link; State Employees Classification & Compensation Studies; RI Office of Employee Benefits (State Workers)"},
+            {"employer_name": "Eleanor Slater Hospital", "sector": "HEALTHCARE", "confidence": 0.85, "method": "ai_extract", "evidence": "Multiple press articles and action items about Eleanor Slater Hospital; Fight the BHDDH Budget Cuts - Save Eleanor Slater Hospital"},
+            {"employer_name": "University of Rhode Island (URI)", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "evidence": "URI Dining Spotlight; Maintenance Workers Keep Campus Safe at URI"},
+            {"employer_name": "Rhode Island College (RIC)", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "evidence": "Staff layoffs at RIC jeopardize its mission; RIC Officer has COVID-19"},
+            {"employer_name": "Rhode Island Airport Corporation", "sector": "PUBLIC_STATE", "confidence": 0.80, "method": "ai_extract", "evidence": "Fight for a Fair Contract for RI Airport Corporation Employees action item"},
+            {"employer_name": "Middletown School Department", "sector": "PUBLIC_EDUCATION", "confidence": 0.80, "method": "ai_extract", "evidence": "Labor Board Rules Middletown School Department Committed Unfair Practices"},
+            {"employer_name": "Rhode Island Department of Human Services (DHS)", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract", "evidence": "Call To Action to Immediately Fill 78 DHS (already funded) Vacancies"},
+            {"employer_name": "Rhode Island Department of Behavioral Healthcare, Developmental Disabilities and Hospitals (BHDDH)", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract", "evidence": "Fight the BHDDH Budget Cuts - Save Eleanor Slater Hospital and RICLAS"},
+            {"employer_name": "RI Community Living and Supports (RICLAS)", "sector": "PUBLIC_STATE", "confidence": 0.70, "method": "ai_extract", "evidence": "Save Eleanor Slater Hospital and RICLAS action item"},
+            {"employer_name": "Rhode Island Training School", "sector": "PUBLIC_STATE", "confidence": 0.75, "method": "ai_extract", "evidence": "RI Training School Brawl Leaves Multiple Injured news article"}
+        ]
+    },
+    {
+        "profile_id": 284,
+        "union_name": "Washington Federation of State Employees (WFSE) Council 28",
+        "employers": [
+            {"employer_name": "State of Washington", "sector": "PUBLIC_STATE", "confidence": 0.95, "method": "ai_extract", "evidence": "General Government (Most State Agencies) Bargaining Updates; Washington Federation of STATE Employees"},
+            {"employer_name": "University of Washington", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract", "evidence": "University of Washington (UW) Bargaining Updates; UW Police Management Bargaining Updates"},
+            {"employer_name": "Washington State University", "sector": "PUBLIC_EDUCATION", "confidence": 0.95, "method": "ai_extract", "evidence": "Washington State University (WSU) Bargaining Updates"},
+            {"employer_name": "Central Washington University", "sector": "PUBLIC_EDUCATION", "confidence": 0.90, "method": "ai_extract", "evidence": "Central Washington University (CWU) Bargaining Updates"},
+            {"employer_name": "Eastern Washington University", "sector": "PUBLIC_EDUCATION", "confidence": 0.90, "method": "ai_extract", "evidence": "Eastern Washington University (EWU) Bargaining Updates; EWU Uniformed Personnel Bargaining Updates"},
+            {"employer_name": "Western Washington University", "sector": "PUBLIC_EDUCATION", "confidence": 0.90, "method": "ai_extract", "evidence": "Western Washington University (WWU) Bargaining Updates"},
+            {"employer_name": "The Evergreen State College", "sector": "PUBLIC_EDUCATION", "confidence": 0.90, "method": "ai_extract", "evidence": "TESC Bargaining Updates; TESC Police Unit; TESC Student Support Service Staff Union"},
+            {"employer_name": "Renton Technical College", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "evidence": "Renton Technical College (RTC) Bargaining Updates"},
+            {"employer_name": "South Puget Sound Community College", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "evidence": "South Puget Sound Community College (SPSCC) (Exempt) Bargaining Updates"},
+            {"employer_name": "Tacoma Community College", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "evidence": "Tacoma Community College (TCC) Exempt Staff Bargaining Updates"},
+            {"employer_name": "Washington State Department of Corrections", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract", "evidence": "Department of Corrections Supplemental Bargaining Table"},
+            {"employer_name": "Pierce County Prosecuting Attorney's Office", "sector": "PUBLIC_LOCAL", "confidence": 0.80, "method": "ai_extract", "evidence": "Pierce County Prosecuting Attorney's Office (PAO) Bargaining Updates"},
+            {"employer_name": "American Behavioral Health Systems", "sector": "HEALTHCARE", "confidence": 0.80, "method": "ai_extract", "evidence": "American Behavioral Health Systems (ABHS) Bargaining Updates"},
+            {"employer_name": "Tacoma Art Museum", "sector": "NONPROFIT", "confidence": 0.80, "method": "ai_extract", "evidence": "Tacoma Art Museum Workers United (TAMWU) Bargaining Updates"}
+        ]
+    },
+    {
+        "profile_id": 130,
+        "union_name": "Harvard Union of Clerical and Technical Workers (HUCTW) Local 3650",
+        "employers": [
+            {"employer_name": "Harvard University", "sector": "PUBLIC_EDUCATION", "confidence": 0.99, "method": "ai_extract", "evidence": "HUCTW is a labor union made up of more than 5,000 staff working in every corner of the University; Harvard-HUCTW Joint Committees; negotiating with Harvard for 30+ years"}
+        ]
+    },
+    {
+        "profile_id": 73,
+        "union_name": "AFSCME Florida Council 79",
+        "employers": [
+            {"employer_name": "Miami-Dade County", "sector": "PUBLIC_LOCAL", "confidence": 0.85, "method": "ai_extract", "evidence": "AFSCME Local 199 Recertification Win for Miami-Dade County Supervisor of Elections Employees"},
+            {"employer_name": "Orange County, Florida", "sector": "PUBLIC_LOCAL", "confidence": 0.85, "method": "ai_extract", "evidence": "Recertification Win for Orange County Department of Corrections Medical Staff"},
+            {"employer_name": "City of Naples", "sector": "PUBLIC_LOCAL", "confidence": 0.80, "method": "ai_extract", "evidence": "AFSCME Florida Statement on Recertification Win for City of Naples"}
+        ]
+    },
+    {
+        "profile_id": 120,
+        "union_name": "AFSCME Maryland Council 3",
+        "employers": [
+            {"employer_name": "State of Maryland", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract", "evidence": "We Make Maryland Happen; For State Supervisors link; State employee focus"},
+            {"employer_name": "Howard County Public School System", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "evidence": "AFSCME Local 1899 Holds Howard County Schools Accountable for Stolen Wages"},
+            {"employer_name": "Bowie State University", "sector": "PUBLIC_EDUCATION", "confidence": 0.85, "method": "ai_extract", "evidence": "Local 1297 Saves Bowie State University Over $100K in Renovation Costs"}
+        ]
+    },
+    {
+        "profile_id": 31,
+        "union_name": "AFSCME Council 57 (Northern California)",
+        "employers": [
+            {"employer_name": "State of California", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract", "evidence": "Health and social service professionals in corrections facilities across California; 35,000 members in Northern CA"},
+            {"employer_name": "Northern Inyo Healthcare District", "sector": "HEALTHCARE", "confidence": 0.80, "method": "ai_extract", "evidence": "Union Members Ratify Agreement with NIHD - news article on homepage"}
+        ]
+    },
+    {
+        "profile_id": 104,
+        "union_name": "AFSCME Council 61 (Iowa/Missouri/Kansas)",
+        "employers": [
+            {"employer_name": "State of Iowa", "sector": "PUBLIC_STATE", "confidence": 0.85, "method": "ai_extract", "evidence": "Iowa Chapter 20 (public employment relations law); Iowa Locals; Iowa Membership; Recertification Elections (Iowa public-sector requirement)"}
+        ]
+    },
+    {
+        "profile_id": 83,
+        "union_name": "United Public Workers (UPW) Local 646 (Hawaii)",
+        "employers": [
+            {"employer_name": "State of Hawaii", "sector": "PUBLIC_STATE", "confidence": 0.90, "method": "ai_extract", "evidence": "United Public Workers represents approximately 12,000 blue-collar, institutional, and healthcare workers in public and private sectors delivering core services to Hawaii communities"},
+            {"employer_name": "County of Hawaii", "sector": "PUBLIC_LOCAL", "confidence": 0.80, "method": "ai_extract", "evidence": "UPW represents workers on the islands of Hawaii, Maui, Oahu, Kauai; Hawaii office phone listed"},
+            {"employer_name": "County of Maui", "sector": "PUBLIC_LOCAL", "confidence": 0.80, "method": "ai_extract", "evidence": "Maui office phone listed; workers on island of Maui"},
+            {"employer_name": "City and County of Honolulu", "sector": "PUBLIC_LOCAL", "confidence": 0.85, "method": "ai_extract", "evidence": "Headquartered in Honolulu; Oahu office; blue-collar municipal workers"},
+            {"employer_name": "County of Kauai", "sector": "PUBLIC_LOCAL", "confidence": 0.75, "method": "ai_extract", "evidence": "Kauai office phone listed; workers on island of Kauai"}
+        ]
+    },
+    {
+        "profile_id": 44,
+        "union_name": "Employees Association of the Metropolitan Water District, Local 1902",
+        "employers": [
+            {"employer_name": "Metropolitan Water District of Southern California", "sector": "PUBLIC_LOCAL", "confidence": 0.99, "method": "ai_extract", "evidence": "Union name is Employees Association of the Metropolitan Water District; AB2561 to MWD Board of Directors; MWD Reports; Class Comp Materials reference MOU with MWD"}
+        ]
+    }
+]
