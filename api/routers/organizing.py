@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Request
 from typing import Optional
 from ..database import get_db
 from ..helpers import safe_sort_col, safe_order_dir
@@ -95,6 +95,150 @@ def _score_geographic(site_state, rtw_set, nlrb_rates, state_members):
 
 
 # ---------------------------------------------------------------------------
+# Score explanation helpers (plain-language reasons for each score component)
+# ---------------------------------------------------------------------------
+
+def _explain_size(emp_count):
+    """Human-readable explanation for the size score."""
+    if not emp_count or emp_count <= 0:
+        return "No employee data available"
+    if 50 <= emp_count <= 250:
+        return f"{emp_count:,} employees -- in the 50-250 organizing sweet spot"
+    elif 250 < emp_count <= 500:
+        return f"{emp_count:,} employees -- mid-size, feasible target"
+    elif 25 <= emp_count < 50:
+        return f"{emp_count:,} employees -- small but organizable"
+    elif 500 < emp_count <= 1000:
+        return f"{emp_count:,} employees -- large, requires more resources"
+    else:
+        return f"{emp_count:,} employees -- very {'large' if emp_count > 1000 else 'small'} unit"
+
+
+def _explain_osha(total_violations, osha_ratio):
+    """Human-readable explanation for the OSHA score."""
+    total_violations = total_violations or 0
+    if total_violations == 0:
+        return "No OSHA violations on record"
+    ratio_str = ""
+    if osha_ratio and osha_ratio > 0:
+        ratio_str = f" ({osha_ratio:.1f}x industry average)"
+    return f"{total_violations} violations{ratio_str}"
+
+
+def _explain_geographic(state, is_rtw, win_rate):
+    """Human-readable explanation for the geographic score."""
+    parts = []
+    if state:
+        parts.append(state)
+    if is_rtw is not None:
+        parts.append("right-to-work state" if is_rtw else "non-RTW state")
+    if win_rate is not None:
+        parts.append(f"{win_rate:.0f}% NLRB win rate")
+    return ", ".join(parts) if parts else "Geographic data unavailable"
+
+
+def _explain_contracts(federal_amt, count):
+    """Human-readable explanation for the contracts score."""
+    federal_amt = federal_amt or 0
+    count = count or 0
+    if federal_amt <= 0:
+        return "No federal contracts on record"
+    if federal_amt >= 1_000_000:
+        return f"${federal_amt / 1_000_000:.1f}M across {count} federal contract{'s' if count != 1 else ''}"
+    elif federal_amt >= 1_000:
+        return f"${federal_amt / 1_000:.0f}K across {count} federal contract{'s' if count != 1 else ''}"
+    return f"${federal_amt:,.0f} in {count} federal contract{'s' if count != 1 else ''}"
+
+
+def _explain_nlrb(predicted_pct):
+    """Human-readable explanation for the NLRB score."""
+    if predicted_pct is None:
+        return "No NLRB prediction available (using blended rate)"
+    return f"{predicted_pct:.0f}% predicted win rate"
+
+
+def _explain_industry_density(score):
+    """Human-readable explanation for industry density score."""
+    if score is None:
+        score = 0
+    if score >= 10:
+        return "15%+ union density in sector (very high)"
+    elif score >= 8:
+        return "10-15% union density in sector (high)"
+    elif score >= 6:
+        return "5-10% union density in sector (moderate)"
+    elif score >= 4:
+        return "2-5% union density in sector (low)"
+    elif score >= 2:
+        return "Under 2% union density (very low)"
+    return "Density data unavailable"
+
+
+def _explain_company_unions(score):
+    """Human-readable explanation for company unions score."""
+    if score is None:
+        score = 0
+    if score >= 15:
+        return "Multiple related locations with union presence"
+    elif score >= 10:
+        return "Related location has union representation"
+    elif score >= 5:
+        return "Same-sector employer has nearby union"
+    return "No related union presence detected"
+
+
+def _explain_projections(score):
+    """Human-readable explanation for BLS projections score."""
+    if score is None:
+        score = 0
+    if score >= 8:
+        return "Industry projected for strong growth (BLS)"
+    elif score >= 5:
+        return "Industry projected for moderate growth (BLS)"
+    elif score >= 3:
+        return "Industry projected for slow growth (BLS)"
+    return "Industry growth data unavailable"
+
+
+def _explain_similarity(score):
+    """Human-readable explanation for employer similarity score."""
+    if score is None:
+        score = 0
+    if score >= 8:
+        return "Very similar to successfully organized employers"
+    elif score >= 5:
+        return "Moderately similar to organized employers"
+    elif score >= 3:
+        return "Some similarity to organized employers"
+    return "Low similarity to organized employers"
+
+
+def _build_explanations(row, is_rtw=None, win_rate=None):
+    """Build the full score_explanations dict from a row."""
+    return {
+        'size': _explain_size(row.get('employee_count')),
+        'osha': _explain_osha(
+            row.get('total_violations'),
+            float(row['osha_industry_ratio']) if row.get('osha_industry_ratio') is not None else None
+        ),
+        'geographic': _explain_geographic(
+            row.get('site_state'), is_rtw, win_rate
+        ),
+        'contracts': _explain_contracts(
+            float(row['federal_obligations']) if row.get('federal_obligations') else 0,
+            row.get('federal_contract_count', 0)
+        ),
+        'nlrb': _explain_nlrb(
+            float(row['nlrb_predicted_win_pct']) if row.get('nlrb_predicted_win_pct') else None
+        ),
+        'industry_density': _explain_industry_density(row.get('score_industry_density')),
+        'company_unions': _explain_company_unions(row.get('score_company_unions')),
+        'projections': _explain_projections(row.get('score_projections')),
+        'similarity': _explain_similarity(row.get('score_similarity')),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -131,18 +275,19 @@ def get_organizing_scorecard(
     offset: int = 0
 ):
     """
-    Get scored organizing targets based on 8-factor system (0-100 points):
+    Get scored organizing targets from pre-computed materialized view (0-90 points):
     - Company union shops (20): Related locations with union presence
-    - Industry density (10): Union density in NAICS sector (hierarchical NAICS)
-    - Geographic favorability (10): NLRB win rate + state density + RTW adjustment
+    - Industry density (10): Union density in NAICS sector
+    - Geographic favorability (10): NLRB win rate + state density + RTW
     - Size (10): Sweet spot 50-250 employees
     - OSHA (10): Violations normalized to industry average + severity
-    - NLRB (10): Past election activity
-    - Contracts (10): Government contract funding
+    - NLRB (10): Predicted win % or blended state/industry rate
+    - Contracts (10): Federal contract funding
     - Projections (10): BLS industry growth outlook
+    - Similarity (10): Gower distance to union employers
     """
     conditions = ["employee_count >= %s", "employee_count <= %s"]
-    params = [min_employees, max_employees]
+    params: list = [min_employees, max_employees]
 
     if state:
         conditions.append("site_state = %s")
@@ -150,201 +295,77 @@ def get_organizing_scorecard(
     if naics_2digit:
         conditions.append("naics_code LIKE %s")
         params.append(f"{naics_2digit}%")
+    if min_score > 0:
+        conditions.append("organizing_score >= %s")
+        params.append(min_score)
+    if has_contracts and has_contracts.lower() in ('true', '1', 'yes'):
+        conditions.append("has_federal_contracts = TRUE")
 
     where_clause = " AND ".join(conditions)
 
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Pre-fetch lookup data for efficiency
-            cur.execute("SELECT naics_2digit, union_density_pct FROM v_naics_union_density")
-            industry_density = {r['naics_2digit']: float(r['union_density_pct'] or 0) for r in cur.fetchall()}
-
-            cur.execute("SELECT state, members_total FROM epi_state_benchmarks")
-            state_members = {r['state']: float(r['members_total'] or 0) for r in cur.fetchall()}
-
-            cur.execute("SELECT matrix_code, employment_change_pct FROM bls_industry_projections")
-            projections = {r['matrix_code']: float(r['employment_change_pct'] or 0) for r in cur.fetchall()}
-            # Map 2-digit NAICS to BLS composite codes (31-33->Manufacturing, etc.)
-            _BLS_ALIASES = {
-                '310000': '31-330', '320000': '31-330', '330000': '31-330',
-                '440000': '44-450', '450000': '44-450',
-                '480000': '48-490', '490000': '48-490',
-            }
-            for alias, real in _BLS_ALIASES.items():
-                if real in projections and alias not in projections:
-                    projections[alias] = projections[real]
-
-            # New reference data for Phase 2 scoring upgrades
-            cur.execute("SELECT naics_prefix, avg_violations_per_estab FROM ref_osha_industry_averages")
-            osha_avgs = {r['naics_prefix']: float(r['avg_violations_per_estab']) for r in cur.fetchall()}
-
-            cur.execute("SELECT state FROM ref_rtw_states")
-            rtw_set = {r['state'].strip() for r in cur.fetchall()}
-
-            cur.execute("SELECT state, win_rate_pct FROM ref_nlrb_state_win_rates")
-            nlrb_rates = {r['state'].strip(): float(r['win_rate_pct']) for r in cur.fetchall()}
-
-            # Pre-fetch F7 matches (powers score_company_unions)
-            cur.execute("SELECT establishment_id, f7_employer_id FROM osha_f7_matches")
-            f7_match_set = {r['establishment_id'] for r in cur.fetchall()}
-
-            # Pre-fetch federal contractor data (powers score_contracts)
-            cur.execute("""
-                SELECT DISTINCT m.establishment_id,
-                       c.federal_obligations, c.federal_contract_count
-                FROM osha_f7_matches m
-                JOIN corporate_identifier_crosswalk c ON c.f7_employer_id = m.f7_employer_id
-                WHERE c.is_federal_contractor = TRUE
-            """)
-            federal_contracts = {r['establishment_id']: {
-                'obligations': float(r['federal_obligations'] or 0),
-                'count': r['federal_contract_count'] or 0
-            } for r in cur.fetchall()}
-
-            # Pre-fetch similarity scores (powers score_similarity)
-            cur.execute("""
-                SELECT m.establishment_id, me.similarity_score, me.nlrb_predicted_win_pct
-                FROM osha_f7_matches m
-                JOIN mergent_employers me ON me.matched_f7_employer_id = m.f7_employer_id
-                WHERE me.similarity_score IS NOT NULL OR me.nlrb_predicted_win_pct IS NOT NULL
-            """)
-            similarity_scores = {}
-            nlrb_predicted = {}
-            for r in cur.fetchall():
-                if r['similarity_score'] is not None:
-                    similarity_scores[r['establishment_id']] = float(r['similarity_score'])
-                if r['nlrb_predicted_win_pct'] is not None:
-                    nlrb_predicted[r['establishment_id']] = float(r['nlrb_predicted_win_pct'])
-
-            # Load NLRB industry win rates for enhanced scoring
-            cur.execute("SELECT naics_2, win_rate_pct FROM ref_nlrb_industry_win_rates")
-            nlrb_industry_rates = {r['naics_2']: float(r['win_rate_pct']) for r in cur.fetchall()}
-
-            # Get base results
+            # Count matching rows (before pagination)
             cur.execute(f"""
-                SELECT * FROM v_osha_organizing_targets
-                WHERE {where_clause}
-                ORDER BY total_penalties DESC NULLS LAST
-                LIMIT 500
-            """, params)
-            base_results = cur.fetchall()
-
-            # Calculate scores in Python
-            scored_results = []
-            for r in base_results:
-                naics_code = r.get('naics_code') or ''
-                naics_2 = naics_code[:2]
-                site_state = r.get('site_state', '')
-                emp_count = r.get('employee_count', 0) or 0
-
-                # 1. Company union shops (check if matched to F7 employer via osha_f7_matches)
-                estab_id = r.get('establishment_id', '')
-                score_company_unions = 20 if estab_id in f7_match_set else 0
-
-                # 2. Industry density (hierarchical NAICS lookup)
-                ind_pct = industry_density.get(naics_2, 0)
-                score_industry_density = 10 if ind_pct > 20 else 8 if ind_pct > 10 else 5 if ind_pct > 5 else 2
-
-                # 3. Geographic favorability (RTW + NLRB win rate + state density)
-                score_geographic = _score_geographic(site_state, rtw_set, nlrb_rates, state_members)
-
-                # 4. Size (sweet spot 50-250)
-                score_size = _score_size(emp_count)
-
-                # 5. OSHA violations (normalized to industry average)
-                total_viols = r.get('total_violations', 0) or 0
-                willful = r.get('willful_count', 0) or 0
-                repeat = r.get('repeat_count', 0) or 0
-                score_osha, osha_ratio = _score_osha_normalized(total_viols, willful, repeat, naics_code, osha_avgs)
-
-                # 6. NLRB (enhanced: predicted win % from state + industry + size patterns)
-                predicted_pct = nlrb_predicted.get(estab_id)
-                if predicted_pct is not None:
-                    score_nlrb = 10 if predicted_pct >= 82 else 8 if predicted_pct >= 78 else 5 if predicted_pct >= 74 else 3 if predicted_pct >= 70 else 1
-                else:
-                    # Fallback: state win rate + industry bonus
-                    win_rate = nlrb_rates.get(site_state, nlrb_rates.get('US', 75.0))
-                    ind_rate = nlrb_industry_rates.get(naics_2, nlrb_industry_rates.get('US', 68.0))
-                    blended = win_rate * 0.6 + ind_rate * 0.4
-                    score_nlrb = 10 if blended >= 82 else 8 if blended >= 78 else 5 if blended >= 74 else 3 if blended >= 70 else 1
-
-                # 7. Contracts (federal contractor data via crosswalk)
-                fed = federal_contracts.get(estab_id)
-                if fed:
-                    oblig = fed['obligations']
-                    score_contracts = 10 if oblig > 5_000_000 else 7 if oblig > 1_000_000 else 4 if oblig > 100_000 else 2
-                else:
-                    score_contracts = 0
-
-                # 8. Projections
-                proj_pct = projections.get(f"{naics_2}0000", 0)
-                score_projections = 10 if proj_pct > 10 else 7 if proj_pct > 5 else 4 if proj_pct > 0 else 2
-
-                # 9. Similarity (Gower distance to union employers)
-                sim = similarity_scores.get(estab_id)
-                if sim is not None:
-                    score_similarity = 10 if sim >= 0.80 else 7 if sim >= 0.60 else 4 if sim >= 0.40 else 1
-                else:
-                    score_similarity = 0
-
-                organizing_score = (score_company_unions + score_industry_density + score_geographic +
-                                   score_size + score_osha + score_nlrb + score_contracts + score_projections +
-                                   score_similarity)
-
-                if organizing_score >= min_score:
-                    result = {
-                        'establishment_id': r.get('establishment_id'),
-                        'estab_name': r.get('estab_name'),
-                        'site_address': r.get('site_address'),
-                        'site_city': r.get('site_city'),
-                        'site_state': r.get('site_state'),
-                        'site_zip': r.get('site_zip'),
-                        'naics_code': r.get('naics_code'),
-                        'employee_count': r.get('employee_count'),
-                        'total_inspections': r.get('total_inspections'),
-                        'last_inspection_date': str(r.get('last_inspection_date')) if r.get('last_inspection_date') else None,
-                        'willful_count': r.get('willful_count'),
-                        'repeat_count': r.get('repeat_count'),
-                        'serious_count': r.get('serious_count'),
-                        'total_violations': r.get('total_violations'),
-                        'total_penalties': float(r.get('total_penalties')) if r.get('total_penalties') else None,
-                        'accident_count': r.get('accident_count'),
-                        'fatality_count': r.get('fatality_count'),
-                        'risk_level': r.get('risk_level'),
-                        'has_f7_match': estab_id in f7_match_set,
-                        'has_federal_contracts': estab_id in federal_contracts,
-                        'federal_obligations': fed['obligations'] if fed else None,
-                        'organizing_score': organizing_score,
-                        'osha_industry_ratio': osha_ratio,
-                        'score_breakdown': {
-                            'company_unions': score_company_unions,
-                            'industry_density': score_industry_density,
-                            'geographic': score_geographic,
-                            'size': score_size,
-                            'osha': score_osha,
-                            'nlrb': score_nlrb,
-                            'contracts': score_contracts,
-                            'projections': score_projections,
-                            'similarity': score_similarity
-                        },
-                        'nlrb_predicted_win_pct': predicted_pct or nlrb_rates.get(site_state, nlrb_rates.get('US', 75.0))
-                    }
-                    scored_results.append(result)
-
-            # Sort by score and apply pagination
-            scored_results.sort(key=lambda x: x['organizing_score'], reverse=True)
-            paginated = scored_results[offset:offset + limit]
-
-            cur.execute(f"""
-                SELECT COUNT(*) as cnt FROM v_osha_organizing_targets
+                SELECT COUNT(*) as cnt FROM v_organizing_scorecard
                 WHERE {where_clause}
             """, params)
             total = cur.fetchone()['cnt']
 
+            # Fetch paginated results sorted by score
+            cur.execute(f"""
+                SELECT * FROM v_organizing_scorecard
+                WHERE {where_clause}
+                ORDER BY organizing_score DESC, total_penalties DESC NULLS LAST
+                LIMIT %s OFFSET %s
+            """, params + [limit, offset])
+            rows = cur.fetchall()
+
+            results = []
+            for r in rows:
+                results.append({
+                    'establishment_id': r['establishment_id'],
+                    'estab_name': r['estab_name'],
+                    'site_address': r['site_address'],
+                    'site_city': r['site_city'],
+                    'site_state': r['site_state'],
+                    'site_zip': r['site_zip'],
+                    'naics_code': r['naics_code'],
+                    'employee_count': r['employee_count'],
+                    'total_inspections': r['total_inspections'],
+                    'last_inspection_date': str(r['last_inspection_date']) if r['last_inspection_date'] else None,
+                    'willful_count': r['willful_count'],
+                    'repeat_count': r['repeat_count'],
+                    'serious_count': r['serious_count'],
+                    'total_violations': r['total_violations'],
+                    'total_penalties': float(r['total_penalties']) if r['total_penalties'] else None,
+                    'accident_count': r['accident_count'],
+                    'fatality_count': r['fatality_count'],
+                    'risk_level': r['risk_level'],
+                    'has_f7_match': r['has_f7_match'],
+                    'has_federal_contracts': r['has_federal_contracts'],
+                    'federal_obligations': float(r['federal_obligations']) if r['federal_obligations'] else None,
+                    'organizing_score': r['organizing_score'],
+                    'osha_industry_ratio': float(r['osha_industry_ratio']) if r['osha_industry_ratio'] is not None else None,
+                    'score_breakdown': {
+                        'company_unions': r['score_company_unions'],
+                        'industry_density': r['score_industry_density'],
+                        'geographic': r['score_geographic'],
+                        'size': r['score_size'],
+                        'osha': r['score_osha'],
+                        'nlrb': r['score_nlrb'],
+                        'contracts': r['score_contracts'],
+                        'projections': r['score_projections'],
+                        'similarity': r['score_similarity'],
+                    },
+                    'nlrb_predicted_win_pct': float(r['nlrb_predicted_win_pct']) if r['nlrb_predicted_win_pct'] else None,
+                    'score_explanations': _build_explanations(r),
+                })
+
             return {
-                "results": paginated,
+                "results": results,
                 "total": total,
-                "scored_count": len(scored_results),
+                "scored_count": total,
                 "limit": limit,
                 "offset": offset
             }
@@ -352,89 +373,44 @@ def get_organizing_scorecard(
 
 @router.get("/api/organizing/scorecard/{estab_id}")
 def get_scorecard_detail(estab_id: str):
-    """Get detailed scorecard for a specific establishment with 8-factor breakdown.
-    Phase 2 upgrades: OSHA normalization, geographic favorability, refined size scoring."""
+    """Get detailed scorecard for a specific establishment.
+    Base scores come from the materialized view (consistent with list endpoint).
+    Detail-only context (NY/NYC contracts, NLRB participants, etc.) added on top."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Get base establishment data
+            # Read base scores from MV -- guarantees list/detail consistency
             cur.execute("""
-                SELECT * FROM v_osha_organizing_targets WHERE establishment_id = %s
+                SELECT * FROM v_organizing_scorecard WHERE establishment_id = %s
             """, [estab_id])
-            base = cur.fetchone()
-            if not base:
+            mv = cur.fetchone()
+            if not mv:
                 raise HTTPException(status_code=404, detail="Establishment not found")
 
-            naics_code = base.get('naics_code') or ''
-            naics_2 = naics_code[:2] if naics_code else None
-            est_state = base.get('site_state')
-            emp_count = base.get('employee_count', 0) or 0
-            estab_name = base.get('estab_name', '')
+            estab_name = mv['estab_name'] or ''
+            est_state = mv['site_state'] or ''
+            naics_2 = (mv['naics_code'] or '')[:2] or None
 
-            # Load reference data
-            cur.execute("SELECT naics_prefix, avg_violations_per_estab FROM ref_osha_industry_averages")
-            osha_avgs = {r['naics_prefix']: float(r['avg_violations_per_estab']) for r in cur.fetchall()}
+            # --- Detail-only context queries (not in MV) ---
 
-            cur.execute("SELECT state FROM ref_rtw_states")
-            rtw_set = {r['state'].strip() for r in cur.fetchall()}
+            # RTW status for geographic context
+            cur.execute("SELECT 1 FROM ref_rtw_states WHERE state = %s", [est_state])
+            is_rtw = cur.fetchone() is not None
 
-            cur.execute("SELECT state, win_rate_pct FROM ref_nlrb_state_win_rates")
-            nlrb_rates = {r['state'].strip(): float(r['win_rate_pct']) for r in cur.fetchall()}
+            # State NLRB win rate for context display
+            cur.execute("SELECT win_rate_pct FROM ref_nlrb_state_win_rates WHERE state = %s", [est_state])
+            wr = cur.fetchone()
+            state_win_rate = float(wr['win_rate_pct']) if wr else None
 
-            cur.execute("SELECT state, members_total FROM epi_state_benchmarks")
-            state_members_map = {r['state']: float(r['members_total'] or 0) for r in cur.fetchall()}
-
-            # 1. Company union shops (check osha_f7_matches first, then fuzzy fallback)
-            cur.execute("""
-                SELECT f7_employer_id FROM osha_f7_matches WHERE establishment_id = %s
-            """, [estab_id])
-            f7_match = cur.fetchone()
-            if f7_match:
-                has_related_union = True
-            else:
-                cur.execute("""
-                    SELECT COUNT(*) > 0 as has_union FROM f7_employers_deduped
-                    WHERE similarity(employer_name_aggressive, %s) > 0.5
-                """, [estab_name])
-                has_related_union = cur.fetchone()['has_union']
-            score_company_unions = 20 if has_related_union else 0
-
-            # 2. Industry density (hierarchical NAICS)
-            score_industry_density = 2
-            if naics_2:
-                cur.execute("""
-                    SELECT union_density_pct FROM v_naics_union_density WHERE naics_2digit = %s
-                """, [naics_2])
-                density_row = cur.fetchone()
-                if density_row and density_row['union_density_pct']:
-                    pct = float(density_row['union_density_pct'])
-                    score_industry_density = 10 if pct > 20 else 8 if pct > 10 else 5 if pct > 5 else 2
-
-            # 3. Geographic favorability (RTW + NLRB win rate + state density)
-            score_geographic = _score_geographic(est_state or '', rtw_set, nlrb_rates, state_members_map)
-            is_rtw = est_state in rtw_set if est_state else False
-            state_win_rate = nlrb_rates.get(est_state, nlrb_rates.get('US', 75.0)) if est_state else None
-
-            # 4. Size score (refined sweet spot)
-            score_size = _score_size(emp_count)
-
-            # 5. OSHA score (normalized to industry average)
-            total_viols = base.get('total_violations', 0) or 0
-            willful = base.get('willful_count', 0) or 0
-            repeat = base.get('repeat_count', 0) or 0
-            score_osha, osha_ratio = _score_osha_normalized(total_viols, willful, repeat, naics_code, osha_avgs)
-
-            # 6. NLRB score (enhanced: predicted win % + direct case count)
+            # NLRB direct case count + success factors
             cur.execute("""
                 SELECT COUNT(*) as cnt FROM nlrb_participants
                 WHERE participant_name ILIKE %s AND participant_type = 'Employer'
             """, [f"%{estab_name[:20]}%"])
             nlrb_count = cur.fetchone()['cnt']
 
-            # Get predicted win pct from mergent_employers via osha_f7_matches
-            nlrb_predicted_pct = None
             nlrb_factors = None
             cur.execute("""
-                SELECT me.nlrb_predicted_win_pct, me.nlrb_success_factors
+                SELECT me.nlrb_success_factors
                 FROM osha_f7_matches m
                 JOIN mergent_employers me ON me.matched_f7_employer_id = m.f7_employer_id
                 WHERE m.establishment_id = %s AND me.nlrb_predicted_win_pct IS NOT NULL
@@ -442,10 +418,9 @@ def get_scorecard_detail(estab_id: str):
             """, [estab_id])
             nlrb_row = cur.fetchone()
             if nlrb_row:
-                nlrb_predicted_pct = float(nlrb_row['nlrb_predicted_win_pct'])
                 nlrb_factors = nlrb_row['nlrb_success_factors']
 
-            # Load NLRB industry win rate for this employer's industry
+            # NLRB industry win rate
             nlrb_industry_rate = None
             if naics_2:
                 cur.execute("SELECT win_rate_pct FROM ref_nlrb_industry_win_rates WHERE naics_2 = %s", [naics_2])
@@ -453,95 +428,58 @@ def get_scorecard_detail(estab_id: str):
                 if ir:
                     nlrb_industry_rate = float(ir['win_rate_pct'])
 
-            # Score: use predicted pct if available, else case count
-            if nlrb_predicted_pct is not None:
-                score_nlrb = 10 if nlrb_predicted_pct >= 82 else 8 if nlrb_predicted_pct >= 78 else 5 if nlrb_predicted_pct >= 74 else 3 if nlrb_predicted_pct >= 70 else 1
-            else:
-                score_nlrb = min(10, nlrb_count * 5)
-
-            # 7. Contracts score (NY/NYC state contracts + federal via crosswalk)
+            # NY/NYC state contracts (detail-only, not in MV contract score)
             cur.execute("""
                 SELECT COALESCE(SUM(current_amount), 0) as total FROM ny_state_contracts
                 WHERE vendor_name ILIKE %s
             """, [f"%{estab_name[:15]}%"])
-            ny_funding = cur.fetchone()['total'] or 0
+            ny_funding = float(cur.fetchone()['total'] or 0)
             cur.execute("""
                 SELECT COALESCE(SUM(current_amount), 0) as total FROM nyc_contracts
                 WHERE vendor_name ILIKE %s
             """, [f"%{estab_name[:15]}%"])
-            nyc_funding = cur.fetchone()['total'] or 0
+            nyc_funding = float(cur.fetchone()['total'] or 0)
 
-            # Federal contracts via osha_f7_matches -> crosswalk
-            federal_funding = 0
-            federal_count = 0
-            cur.execute("""
-                SELECT c.federal_obligations, c.federal_contract_count
-                FROM osha_f7_matches m
-                JOIN corporate_identifier_crosswalk c ON c.f7_employer_id = m.f7_employer_id
-                WHERE m.establishment_id = %s AND c.is_federal_contractor = TRUE
-            """, [estab_id])
-            fed_row = cur.fetchone()
-            if fed_row:
-                federal_funding = float(fed_row['federal_obligations'] or 0)
-                federal_count = fed_row['federal_contract_count'] or 0
+            federal_funding = float(mv['federal_obligations'] or 0)
+            federal_count = mv['federal_contract_count'] or 0
 
-            total_funding = ny_funding + nyc_funding + federal_funding
-            score_contracts = 10 if total_funding > 5000000 else 7 if total_funding > 1000000 else 4 if total_funding > 100000 else 2 if total_funding > 0 else 0
-
-            # 8. Projections score
-            score_projections = 4
-            if naics_2:
-                # Try direct lookup, then BLS composite code alias
-                _DETAIL_BLS_ALIASES = {
-                    '31': '31-330', '32': '31-330', '33': '31-330',
-                    '44': '44-450', '45': '44-450',
-                    '48': '48-490', '49': '48-490',
-                }
-                cur.execute("""
-                    SELECT employment_change_pct FROM bls_industry_projections WHERE matrix_code = %s
-                """, [f"{naics_2}0000"])
-                proj_row = cur.fetchone()
-                if not proj_row and naics_2 in _DETAIL_BLS_ALIASES:
-                    cur.execute("""
-                        SELECT employment_change_pct FROM bls_industry_projections WHERE matrix_code = %s
-                    """, [_DETAIL_BLS_ALIASES[naics_2]])
-                    proj_row = cur.fetchone()
-                if proj_row and proj_row['employment_change_pct'] is not None:
-                    change = float(proj_row['employment_change_pct'])
-                    score_projections = 10 if change > 10 else 7 if change > 5 else 4 if change > 0 else 2
-
-            # 9. Similarity score (via osha_f7_matches -> mergent_employers)
-            score_similarity = 0
-            similarity_score_val = None
-            cur.execute("""
-                SELECT me.similarity_score
-                FROM osha_f7_matches m
-                JOIN mergent_employers me ON me.matched_f7_employer_id = m.f7_employer_id
-                WHERE m.establishment_id = %s AND me.similarity_score IS NOT NULL
-                LIMIT 1
-            """, [estab_id])
-            sim_row = cur.fetchone()
-            if sim_row and sim_row['similarity_score'] is not None:
-                similarity_score_val = float(sim_row['similarity_score'])
-                score_similarity = 10 if similarity_score_val >= 0.80 else 7 if similarity_score_val >= 0.60 else 4 if similarity_score_val >= 0.40 else 1
-
-            organizing_score = (score_company_unions + score_industry_density + score_geographic +
-                              score_size + score_osha + score_nlrb + score_contracts + score_projections +
-                              score_similarity)
+            # MV scores are the single source of truth
+            similarity_score_val = float(mv['similarity_score']) if mv['similarity_score'] is not None else None
+            nlrb_predicted_pct = float(mv['nlrb_predicted_win_pct']) if mv['nlrb_predicted_win_pct'] is not None else None
+            osha_ratio = float(mv['osha_industry_ratio']) if mv['osha_industry_ratio'] is not None else None
 
             return {
-                "establishment": base,
-                "organizing_score": organizing_score,
+                "establishment": {
+                    'establishment_id': mv['establishment_id'],
+                    'estab_name': mv['estab_name'],
+                    'site_address': mv['site_address'],
+                    'site_city': mv['site_city'],
+                    'site_state': mv['site_state'],
+                    'site_zip': mv['site_zip'],
+                    'naics_code': mv['naics_code'],
+                    'employee_count': mv['employee_count'],
+                    'total_inspections': mv['total_inspections'],
+                    'last_inspection_date': str(mv['last_inspection_date']) if mv['last_inspection_date'] else None,
+                    'willful_count': mv['willful_count'],
+                    'repeat_count': mv['repeat_count'],
+                    'serious_count': mv['serious_count'],
+                    'total_violations': mv['total_violations'],
+                    'total_penalties': float(mv['total_penalties']) if mv['total_penalties'] else None,
+                    'accident_count': mv['accident_count'],
+                    'fatality_count': mv['fatality_count'],
+                    'risk_level': mv['risk_level'],
+                },
+                "organizing_score": mv['organizing_score'],
                 "score_breakdown": {
-                    "company_unions": score_company_unions,
-                    "industry_density": score_industry_density,
-                    "geographic": score_geographic,
-                    "size": score_size,
-                    "osha": score_osha,
-                    "nlrb": score_nlrb,
-                    "contracts": score_contracts,
-                    "projections": score_projections,
-                    "similarity": score_similarity
+                    "company_unions": mv['score_company_unions'],
+                    "industry_density": mv['score_industry_density'],
+                    "geographic": mv['score_geographic'],
+                    "size": mv['score_size'],
+                    "osha": mv['score_osha'],
+                    "nlrb": mv['score_nlrb'],
+                    "contracts": mv['score_contracts'],
+                    "projections": mv['score_projections'],
+                    "similarity": mv['score_similarity'],
                 },
                 "similarity_context": {
                     "similarity_score": similarity_score_val,
@@ -549,9 +487,9 @@ def get_scorecard_detail(estab_id: str):
                 },
                 "osha_context": {
                     "industry_ratio": osha_ratio,
-                    "total_violations": total_viols,
-                    "willful": willful,
-                    "repeat": repeat
+                    "total_violations": mv['total_violations'] or 0,
+                    "willful": mv['willful_count'] or 0,
+                    "repeat": mv['repeat_count'] or 0
                 },
                 "geographic_context": {
                     "is_rtw_state": is_rtw,
@@ -562,7 +500,7 @@ def get_scorecard_detail(estab_id: str):
                     "nyc_funding": nyc_funding,
                     "federal_funding": federal_funding,
                     "federal_contract_count": federal_count,
-                    "total_funding": total_funding
+                    "total_funding": ny_funding + nyc_funding + federal_funding
                 },
                 "nlrb_context": {
                     "predicted_win_pct": nlrb_predicted_pct,
@@ -572,9 +510,12 @@ def get_scorecard_detail(estab_id: str):
                     "factors": nlrb_factors
                 },
                 "context": {
-                    "has_related_union": has_related_union,
+                    "has_related_union": mv['has_f7_match'],
                     "nlrb_count": nlrb_count
-                }
+                },
+                "score_explanations": _build_explanations(
+                    mv, is_rtw=is_rtw, win_rate=state_win_rate
+                )
             }
 
 
@@ -706,3 +647,36 @@ def get_sibling_employers(estab_id: str, limit: int = Query(default=5, le=20)):
                 "siblings": results,
                 "total_found": len(results)
             }
+
+
+@router.post("/api/admin/refresh-scorecard")
+def refresh_scorecard(request: Request):
+    """Refresh the mv_organizing_scorecard materialized view.
+    Requires admin role when auth is enabled.
+    Call after data pipeline updates (new matches, new OSHA data, etc.)."""
+    # Admin-only when auth is enabled
+    from ..config import JWT_SECRET
+    if JWT_SECRET:
+        user = getattr(request.state, "user", None)
+        role = getattr(request.state, "role", None)
+        if not user or user == "anonymous" or role != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required")
+
+    import time
+    from ..database import get_raw_connection
+    conn = get_raw_connection()
+    conn.autocommit = True
+    try:
+        cur = conn.cursor()
+        t0 = time.time()
+        cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_organizing_scorecard")
+        elapsed = time.time() - t0
+        cur.execute("SELECT COUNT(*) FROM mv_organizing_scorecard")
+        count = cur.fetchone()[0]
+    finally:
+        conn.close()
+    return {
+        "status": "ok",
+        "rows": count,
+        "elapsed_seconds": round(elapsed, 1)
+    }
