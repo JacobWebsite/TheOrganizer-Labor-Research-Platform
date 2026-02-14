@@ -1,9 +1,11 @@
 # Environment
 .env
 
-# Backups
+# Backups & archives
 *.sql.gz
 *.dump
+*.dump.7z
+*.7z
 
 # Python
 __pycache__/
@@ -37,6 +39,14 @@ nul
 cd
 py
 *temp_openapi*
+desktop.ini
+screenshot.png
+screenshot.ps1
+
+# Empty temp files
+20
+25
+30
 
 # Claude artifacts
 .claude/
@@ -46,6 +56,7 @@ archive/
 2024organizing_files/
 
 # Large data directories
+lm-2 2000_2025/
 990 2025/
 02_1_files/
 990 employer files/
@@ -53,3 +64,4 @@ AFSCME case example NY/
 BLS industry and occupation projections/
 New York all companies above 1 m/
 whd_whisard_20260116.csv/
+Every Method for Classifying Busine.txt
