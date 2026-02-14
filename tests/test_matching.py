@@ -43,12 +43,13 @@ class TestNormalizerStandard:
         result = normalize_employer_name("The Kroger Company, Inc.")
         assert "inc" not in result
         assert "company" not in result
-        assert "kroger" in result
+        # Standard keeps "the" (stopword removal is aggressive-only)
+        assert result in ("kroger", "the kroger")
 
     def test_strips_llc_suffix(self):
         result = normalize_employer_name("WALMART STORES LLC")
         assert "llc" not in result
-        assert "walmart" in result
+        assert result == "walmart stores"
 
     def test_lowercases(self):
         result = normalize_employer_name("ACME CORPORATION")
@@ -69,9 +70,11 @@ class TestNormalizerAggressive:
 
     def test_expands_hospital_abbreviation(self):
         result = normalize_employer_name("St. Mary's Hosp. Med. Ctr.", "aggressive")
-        # Should expand abbreviations -- exact output depends on which normalizer is loaded
-        # but should be longer than standard and contain expanded words
-        assert len(result) > 5
+        # Should expand abbreviations; exact form depends on normalizer loaded
+        # but expanded words should appear and legal suffixes stripped
+        assert "mary" in result
+        standard = normalize_employer_name("St. Mary's Hosp. Med. Ctr.", "standard")
+        assert len(result) >= len(standard), "Aggressive should not be shorter than standard"
 
     def test_strips_dba_prefix(self):
         result = normalize_employer_name("D/B/A Quick Mart", "aggressive")
@@ -151,6 +154,7 @@ class TestGenerateNameVariants:
         levels = [v[0] for v in variants]
         # With abbreviations, aggressive should differ from standard
         assert len(variants) >= 2
+        assert "aggressive" in levels, "Expected aggressive variant for abbreviated name"
 
 
 class TestNormalizeForSql:
@@ -158,15 +162,23 @@ class TestNormalizeForSql:
 
     def test_escapes_percent(self):
         result = normalize_for_sql("100% Pure Inc.")
-        assert r"\%" in result or "%" not in result
+        # Raw % must not appear unescaped
+        assert "%" not in result or r"\%" in result
 
     def test_escapes_underscore(self):
         result = normalize_for_sql("A_B Corporation")
-        assert r"\_" in result or "_" not in result
+        # Raw _ must not appear unescaped
+        assert "_" not in result or r"\_" in result
 
     def test_normal_name_unchanged_except_normalization(self):
         result = normalize_for_sql("Acme Corp")
-        assert "acme" in result
+        assert result == "acme"
+
+    def test_backslash_passthrough(self):
+        # Backslash in input should not corrupt the output
+        result = normalize_for_sql("O\\Brien Inc.")
+        assert isinstance(result, str)
+        assert len(result) > 0
 
 
 # ============================================================================
@@ -236,7 +248,12 @@ class TestCompositeScore:
 
     def test_different_companies(self):
         score = _composite_score("walmart", "walgreens")
-        assert score < 0.85, f"Different companies should score low, got {score}"
+        assert score < 0.70, f"Different companies should score below 0.70, got {score}"
+
+    def test_confusable_but_different(self):
+        """Names that look similar but are different companies."""
+        score = _composite_score("general motors", "general mills")
+        assert score < 0.80, f"Confusable names should not score too high, got {score}"
 
     def test_abbreviation_variants(self):
         score = _composite_score("saint marys hospital", "st mary hospital")

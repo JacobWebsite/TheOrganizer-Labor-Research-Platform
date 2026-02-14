@@ -233,13 +233,17 @@ class TestScorecardMV:
             assert nulls == 0, f"{col} has {nulls} NULL values"
 
     def test_unique_index_on_establishment_id(self, db):
-        """MV should have a unique index on establishment_id (needed for REFRESH CONCURRENTLY)."""
+        """MV should have a unique index specifically on establishment_id (needed for REFRESH CONCURRENTLY)."""
         idx_count = query_one(db, """
             SELECT COUNT(*) FROM pg_indexes
             WHERE tablename = 'mv_organizing_scorecard'
               AND indexdef ILIKE '%%unique%%'
+              AND indexdef ILIKE '%%establishment_id%%'
         """)
-        assert idx_count >= 1, "No UNIQUE index on mv_organizing_scorecard (required for REFRESH CONCURRENTLY)"
+        assert idx_count >= 1, (
+            "No UNIQUE index on establishment_id in mv_organizing_scorecard "
+            "(required for REFRESH CONCURRENTLY)"
+        )
 
 
 # ============================================================================
@@ -248,12 +252,15 @@ class TestScorecardMV:
 
 @pytest.fixture(scope="module")
 def client():
-    """Create a test client with auth disabled."""
-    os.environ.pop("LABOR_JWT_SECRET", None)
+    """Create a test client with auth disabled. Restores env on teardown."""
+    prev = os.environ.pop("LABOR_JWT_SECRET", None)
     from starlette.testclient import TestClient
     from api.main import app
     with TestClient(app) as c:
         yield c
+    # Restore previous value (or keep absent)
+    if prev is not None:
+        os.environ["LABOR_JWT_SECRET"] = prev
 
 
 class TestScorecardAPI:
