@@ -19,6 +19,8 @@ from ..config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_HOURS
 PUBLIC_PATHS = frozenset({
     "/",
     "/api/health",
+    "/api/auth/login",
+    "/api/auth/register",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -43,27 +45,26 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not JWT_SECRET:
             return await call_next(request)
 
-        if _is_public(request.url.path):
-            return await call_next(request)
+        is_public = _is_public(request.url.path)
 
         auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            try:
+                import jwt
+                payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                request.state.user = payload.get("sub", "anonymous")
+                request.state.role = payload.get("role", "read")
+            except Exception:
+                if not is_public:
+                    return JSONResponse(
+                        status_code=401,
+                        content={"detail": "Invalid or expired token"},
+                    )
+        elif not is_public:
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Missing or invalid Authorization header"},
-            )
-
-        token = auth_header[7:]
-        try:
-            import jwt
-
-            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-            request.state.user = payload.get("sub", "anonymous")
-            request.state.role = payload.get("role", "read")
-        except Exception as exc:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": f"Invalid token: {exc}"},
             )
 
         return await call_next(request)

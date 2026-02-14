@@ -4,16 +4,12 @@ Explores nlrb_elections and nlrb_participants tables, then calculates
 union win rates by state for elections since 2020.
 """
 import psycopg2
+import sys
 import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
 
-DB_PASSWORD = os.environ.get('DB_PASSWORD', 'Juniordog33!')
-
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=DB_PASSWORD
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # ---- 1. NLRB tables ----

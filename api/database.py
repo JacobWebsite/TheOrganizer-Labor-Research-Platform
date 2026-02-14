@@ -44,3 +44,10 @@ def release_db(conn):
         _get_pool().putconn(conn)
     except Exception:
         pass
+
+
+def get_raw_connection():
+    """Get a raw psycopg2 connection (not from pool, no RealDictCursor).
+    Caller must close it. Useful for operations needing autocommit mode."""
+    import psycopg2
+    return psycopg2.connect(**DB_CONFIG)

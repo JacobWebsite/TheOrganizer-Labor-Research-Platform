@@ -11,7 +11,7 @@
 
 ```cmd
 cd C:\Users\jakew\Downloads\labor-data-project
-py -m uvicorn api.labor_api_v6:app --reload --port 8001
+py -m uvicorn api.main:app --reload --port 8001
 ```
 
 Open `files/organizer_v5.html` in your browser.
@@ -159,13 +159,8 @@ labor-data-project/
 ## Database Connection
 
 ```python
-import psycopg2
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password='<password in .env file>'
-)
+from db_config import get_connection
+conn = get_connection()
 ```
 
 ---

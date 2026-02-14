@@ -28,7 +28,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | Federal Sector | 1.28M | 1.1M | 116% |
 | State/Local Public | 6.9M | 7.0M (EPI) | 98.3% |
 | States Reconciled | 50/51 | - | 98% |
-| F7 Employers | 60,953 | - | 51,337 counted |
+| F7 Employers | 113,713 | - | 60,953 post-2020 + 52,760 historical |
 
 ---
 
@@ -38,7 +38,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | Table | Records | Description |
 |-------|---------|-------------|
 | `unions_master` | 26,665 | OLMS union filings (has local_number field) |
-| `f7_employers_deduped` | 60,953 | Private sector employers (PK: employer_id) |
+| `f7_employers_deduped` | 113,713 | Private sector employers (60,953 post-2020 + 52,760 historical pre-2020) |
 | `nlrb_elections` | 33,096 | NLRB election records |
 | `nlrb_participants` | 1,906,542 | Union petitioners (95.7% matched to OLMS) |
 | `lm_data` | 331,238 | Historical filings (2010-2024) |
@@ -175,7 +175,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | SEC | 1,948 | 517,403 | 0.4% |
 | GLEIF | 3,264 | 379,192 | 0.9% |
 | Mergent | 3,361 | 56,426 | 6.0% |
-| F7 | ~12,000 | 60,953 | 19.7% |
+| F7 | ~12,000 | 113,713 | 10.6% |
 | Federal contractors | 9,305 | 47,193 | 19.7% |
 | Public companies | 358 | - | - |
 
@@ -622,7 +622,7 @@ When matching records between tables/datasets, always verify the join key exists
 - `osha_f7_matches.low_confidence` — TRUE for 32,243 matches (23.3%) with match_confidence < 0.6
 - `whd_f7_matches.low_confidence` — TRUE for 6,657 matches (27.0%) with match_confidence < 0.6
 
-**f7_union_employer_relations note:** 60,373 rows (50.4%) reference pre-2020 employer_ids excluded by the dedup date filter (`WHERE latest_notice_date >= '2020-01-01'`). These are real historical relationships, not errors. JOINs to `f7_employers_deduped` will only show post-2020 active relationships (~59K rows).
+**f7_union_employer_relations note:** Orphan issue FIXED (Feb 14 2026). Previously 60,373 rows (50.4%) were orphaned. Fix: 3,531 repointed to existing deduped employers, 52,760 historical pre-2020 employers inserted into f7_employers_deduped. Orphan rate now 0%. All 119,832 relations resolve via JOIN.
 
 **Common gotchas:**
 - Contract tables (`ny_state_contracts`, `nyc_contracts`) have NO EIN values - use `vendor_name_normalized` for matching

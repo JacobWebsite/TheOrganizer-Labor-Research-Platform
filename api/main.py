@@ -4,17 +4,21 @@ Labor Relations Platform API - Main application entry point.
 Run with: py -m uvicorn api.main:app --reload --port 8001
 """
 import os
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from .config import PROJECT_ROOT, FILES_DIR
+from .config import PROJECT_ROOT, FILES_DIR, ALLOWED_ORIGINS, JWT_SECRET
 from .middleware.auth import AuthMiddleware
+
+_log = logging.getLogger("labor_api")
 from .middleware.rate_limit import RateLimitMiddleware
 from .middleware.logging import LoggingMiddleware
 from .routers import (
+    auth,
     health,
     lookups,
     density,
@@ -41,9 +45,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 app.add_middleware(AuthMiddleware)
 app.add_middleware(RateLimitMiddleware)
@@ -60,6 +64,7 @@ app.mount("/files", StaticFiles(directory=str(FILES_DIR)), name="files")
 
 
 # ---------- Routers ----------
+app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(lookups.router)
 app.include_router(density.router)
@@ -76,6 +81,15 @@ app.include_router(vr.router)
 app.include_router(public_sector.router)
 app.include_router(museums.router)
 app.include_router(sectors.router)
+
+
+# Startup warning for fail-open auth (Codex #2)
+if not JWT_SECRET:
+    _log.warning(
+        "LABOR_JWT_SECRET is not set -- authentication is DISABLED. "
+        "All API endpoints are publicly accessible. "
+        "Set LABOR_JWT_SECRET in .env to enable auth."
+    )
 
 
 if __name__ == "__main__":

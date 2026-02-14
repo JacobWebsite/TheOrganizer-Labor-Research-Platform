@@ -1,0 +1,32 @@
+# Labor Relations Research Platform - Python dependencies
+# Install: pip install -r requirements.txt
+# See also: pyproject.toml for the canonical dependency list
+
+# Core API
+fastapi>=0.128.0
+uvicorn[standard]>=0.40.0
+psycopg2-binary>=2.9.11
+pydantic>=2.12.0
+pydantic-settings>=2.0.0
+
+# Authentication
+PyJWT>=2.8.0
+bcrypt>=4.0.0
+
+# Data processing
+pandas>=2.3.0
+numpy>=2.4.0
+openpyxl>=3.1.5
+
+# Matching & dedup
+splink>=4.0.12
+rapidfuzz>=3.14.0
+cleanco>=2.3
+
+# ETL & scraping
+requests>=2.32.0
+beautifulsoup4>=4.14.0
+
+# Dev / testing
+pytest>=8.0.0
+httpx>=0.27.0
