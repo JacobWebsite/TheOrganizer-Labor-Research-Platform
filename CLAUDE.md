@@ -1,7 +1,7 @@
 # Labor Relations Research Platform - Claude Context
 
 ## Quick Reference
-**Last Updated:** 2026-02-13 (post-audit resolution)
+**Last Updated:** 2026-02-14 (audit remediation committed, 990 XML archived)
 
 ### Database Connection
 ```python
@@ -584,6 +584,9 @@ scripts/matching/
 ## Data Operations
 
 When matching records between tables/datasets, always verify the join key exists in both sources before implementing. Check for null/empty values in join columns first.
+
+**Archived source data:**
+- `990_2025_archive.7z` — 650K IRS Form 990 XML files (1.2 GB compressed, was 20 GB). Already parsed and loaded into `national_990_filers` and `employers_990_deduped`. Extract with 7-Zip if re-import needed.
 
 **Common gotchas:**
 - Contract tables (`ny_state_contracts`, `nyc_contracts`) have NO EIN values - use `vendor_name_normalized` for matching

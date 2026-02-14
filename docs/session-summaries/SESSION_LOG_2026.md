@@ -2,6 +2,31 @@
 
 Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
+### 2026-02-14 (Audit Remediation + Disk Cleanup)
+**Tasks:** Commit audit fixes, compress and archive 990 XML data
+
+**Committed (d543273):** 290 files changed, 5,196 insertions, 8,954 deletions
+- **CLAUDE.md:** Fixed 24 inaccuracies — startup command, 13 wrong row counts, added 9 missing table sections, corrected scoring tiers (MEDIUM>=20), removed 2 nonexistent table refs, updated scorecard to 9-factor
+- **corporate.py:** Rewrote 5 broken endpoints to use `corporate_identifier_crosswalk` instead of nonexistent columns (`corporate_family_id`, `sec_cik` on `f7_employers_deduped`)
+- **258 scripts:** Fixed broken password pattern (`password='os.environ.get(...)'` string literal -> actual function call)
+- **organizer_v5.html:** Fixed duplicate HTML IDs, 5 API response shape mismatches, undefined function ref, NLRB search param
+- **Deleted dead code:** `api/labor_api_v3.py`, `v4_fixed.py`, `v6.py.bak` (8.4K lines), 2 scripts importing deleted modules
+
+**Disk cleanup:**
+- Compressed `990 2025/` (650K XML files, 20 GB) to `990_2025_archive.7z` (1.2 GB, 94% reduction)
+- Deleted original directory — **~19 GB recovered**
+
+**Remaining audit issues (not yet addressed):**
+1. 60,373 orphaned `f7_union_employer_relations` rows (50.4% of bargaining links)
+2. Dead score factors (4/9 always zero for 98.5% of Mergent employers)
+3. 14,150 orphaned NLRB xref rows
+4. No primary key on `f7_employers_deduped`
+5. ~40K low-confidence matches (<0.6)
+6. 222 MB duplicate indexes
+7. ~37.9 GB additional disk recovery possible (archive/, free_company_dataset.csv, etc.)
+
+---
+
 ### 2026-02-13 (Comprehensive Platform Audit)
 **Tasks:** Full 8-section audit of the entire platform — database, API, scripts, documentation
 
