@@ -136,13 +136,14 @@ def test_no_crosswalk_orphans(db):
 # ============================================================================
 
 def test_f7_employer_count_stable(db):
-    """F7 employer count should be approximately 60,953 +/- 500.
+    """F7 employer count should be approximately 113,713 +/- 500.
 
-    After the Data Integrity Sprint (Feb 8 2026): 60,953 employers.
+    After Data Integrity Sprint (Feb 8 2026): 60,953 employers.
+    After orphan fix (Feb 14 2026): 113,713 (added 52,760 historical pre-2020 employers).
     """
     count = query_one(db, "SELECT COUNT(*) FROM f7_employers_deduped")
 
-    EXPECTED = 60_953
+    EXPECTED = 113_713
     TOLERANCE = 500
 
     assert abs(count - EXPECTED) <= TOLERANCE, (
@@ -470,3 +471,157 @@ def test_990_match_rate(db):
     assert rate >= 0.02, (
         f"990 match rate is {rate:.1%} ({matched:,}/{total:,}). Need >= 2%."
     )
+
+
+# ============================================================================
+# CHECK 18: Zero Orphaned Union-Employer Relations (Sprint 1 fix)
+# ============================================================================
+
+def test_zero_orphaned_relations(db):
+    """After Sprint 1 orphan fix, there should be 0 orphaned union-employer relations.
+
+    An orphan is a row in f7_union_employer_relations whose employer_id
+    does not exist in f7_employers_deduped.
+    """
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_name = 'f7_union_employer_relations'
+    """)
+    if not exists:
+        pytest.skip("f7_union_employer_relations table not found")
+
+    orphans = query_one(db, """
+        SELECT COUNT(*)
+        FROM f7_union_employer_relations r
+        LEFT JOIN f7_employers_deduped f ON r.employer_id = f.employer_id
+        WHERE f.employer_id IS NULL
+    """)
+    assert orphans == 0, (
+        f"Found {orphans:,} orphaned union-employer relations. Sprint 1 fix should have reduced to 0."
+    )
+
+
+# ============================================================================
+# CHECK 19: is_historical column on f7_employers_deduped
+# ============================================================================
+
+def test_is_historical_column_exists(db):
+    """f7_employers_deduped should have an is_historical column (added Sprint 1)."""
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_name = 'f7_employers_deduped' AND column_name = 'is_historical'
+    """)
+    assert exists > 0, "is_historical column missing from f7_employers_deduped"
+
+
+# ============================================================================
+# CHECK 20: v_f7_employers_current view
+# ============================================================================
+
+def test_current_employers_view(db):
+    """v_f7_employers_current should exist and have ~60,953 rows (+/- 500)."""
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.views
+        WHERE table_name = 'v_f7_employers_current' AND table_schema = 'public'
+    """)
+    assert exists > 0, "v_f7_employers_current view does not exist"
+
+    count = query_one(db, "SELECT COUNT(*) FROM v_f7_employers_current")
+    EXPECTED = 60_953
+    TOLERANCE = 500
+    assert abs(count - EXPECTED) <= TOLERANCE, (
+        f"v_f7_employers_current has {count:,} rows, expected ~{EXPECTED:,} (+/- {TOLERANCE})"
+    )
+
+
+# ============================================================================
+# CHECK 21: platform_users table auto-creates (Sprint 2 auth)
+# ============================================================================
+
+def test_platform_users_table_exists(db):
+    """platform_users table should exist (auto-created by auth module on startup)."""
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_name = 'platform_users' AND table_schema = 'public'
+    """)
+    assert exists > 0, "platform_users table does not exist (auth module may not have run)"
+
+
+# ============================================================================
+# CHECK 22: No orphaned f7_employer_id in osha_f7_matches
+# ============================================================================
+
+def test_no_orphaned_osha_matches(db):
+    """Every f7_employer_id in osha_f7_matches should exist in f7_employers_deduped."""
+    exists = query_one(db, """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_name = 'osha_f7_matches'
+    """)
+    if not exists:
+        pytest.skip("osha_f7_matches not created")
+
+    orphans = query_one(db, """
+        SELECT COUNT(*)
+        FROM osha_f7_matches m
+        LEFT JOIN f7_employers_deduped f ON m.f7_employer_id = f.employer_id
+        WHERE f.employer_id IS NULL
+    """)
+    assert orphans == 0, (
+        f"Found {orphans:,} orphaned f7_employer_id in osha_f7_matches"
+    )
+
+
+# ============================================================================
+# CHECK 23: Match table FK integrity (all match tables)
+# ============================================================================
+
+def test_match_table_fk_integrity(db):
+    """Every f7_employer_id in match tables should exist in f7_employers_deduped."""
+    match_tables = ["osha_f7_matches", "whd_f7_matches", "national_990_f7_matches"]
+    failures = []
+
+    for table in match_tables:
+        exists = query_one(db, """
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_name = %s AND table_schema = 'public'
+        """, (table,))
+        if not exists:
+            continue
+
+        orphans = query_one(db, f"""
+            SELECT COUNT(*)
+            FROM {table} m
+            LEFT JOIN f7_employers_deduped f ON m.f7_employer_id = f.employer_id
+            WHERE f.employer_id IS NULL
+        """)
+        if orphans and orphans > 0:
+            failures.append(f"{table}: {orphans:,} orphaned f7_employer_id values")
+
+    assert len(failures) == 0, (
+        "FK integrity violations:\n" + "\n".join(failures)
+    )
+
+
+# ============================================================================
+# CHECK 24: Scorecard MV refresh works (admin endpoint)
+# ============================================================================
+
+def test_scorecard_mv_refresh(db):
+    """Scorecard MV should be refreshable without errors."""
+    # Use direct SQL instead of the API endpoint (avoids auth complexity)
+    try:
+        conn2 = None
+        from db_config import DB_CONFIG
+        import psycopg2
+        conn2 = psycopg2.connect(**DB_CONFIG)
+        conn2.autocommit = True
+        cur = conn2.cursor()
+        cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_organizing_scorecard")
+        cur.execute("SELECT COUNT(*) FROM mv_organizing_scorecard")
+        count = cur.fetchone()[0]
+        assert count > 0, "MV has 0 rows after refresh"
+    except Exception as e:
+        pytest.fail(f"Scorecard MV refresh failed: {e}")
+    finally:
+        if conn2:
+            conn2.close()
