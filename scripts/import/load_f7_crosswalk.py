@@ -14,7 +14,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'os.environ.get('DB_PASSWORD', '')'
+    'password': os.environ.get('DB_PASSWORD', '')
 }
 
 F7_DB = r'C:\Users\jakew\Downloads\labor-data-project\data\f7\employers_deduped.db'

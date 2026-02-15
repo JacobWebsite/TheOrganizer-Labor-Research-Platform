@@ -75,7 +75,7 @@ def fix_python_file(filepath):
 
     # Case 2: Still has password somewhere (inline connect, comments, etc.)
     if PASSWORD in content:
-        content = content.replace(PASSWORD, "os.environ.get('DB_PASSWORD', '')")
+        content = content.replace(PASSWORD, os.environ.get('DB_PASSWORD', ''))
         if 'import os' not in content:
             content = 'import os\n' + content
         stats["py_password_replaced"] += 1

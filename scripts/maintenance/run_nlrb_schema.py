@@ -6,7 +6,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'os.environ.get('DB_PASSWORD', '')'
+    'password': os.environ.get('DB_PASSWORD', '')
 }
 
 schema_file = r'C:\Users\jakew\Downloads\labor-data-project\src\sql\nlrb_schema.sql'

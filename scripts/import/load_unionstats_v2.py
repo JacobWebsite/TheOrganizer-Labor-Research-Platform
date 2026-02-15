@@ -16,7 +16,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'os.environ.get('DB_PASSWORD', '')'
+    'password': os.environ.get('DB_PASSWORD', '')
 }
 
 STATE_DIR = r'C:\Users\jakew\Downloads\labor-data-project\data\unionstats\state'
