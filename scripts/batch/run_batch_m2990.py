@@ -8,8 +8,6 @@ import sys
 import os
 import time
 import logging
-import psycopg2
-
 # Force unbuffered output
 os.environ["PYTHONUNBUFFERED"] = "1"
 if hasattr(sys.stdout, 'reconfigure'):
@@ -24,6 +22,7 @@ def print(*args, **kwargs):
 # Add project root to path
 sys.path.insert(0, r"C:\Users\jakew\Downloads\labor-data-project")
 
+from db_config import get_connection
 from scripts.matching.pipeline import MatchPipeline
 from scripts.matching.config import TIER_NAMES, get_scenario
 from scripts.matching.matchers.exact import EINMatcher, NormalizedMatcher, AggressiveMatcher
@@ -92,12 +91,7 @@ def run_one(conn, scenario_name, skip_aggressive=False):
 
 def main():
     print("Connecting to database...")
-    conn = psycopg2.connect(
-        host="localhost",
-        dbname="olms_multiyear",
-        user="postgres",
-        password="os.environ.get('DB_PASSWORD', '')"
-    )
+    conn = get_connection()
     print("Connected.")
 
     # Skip aggressive tier for both: target tables are large (37K for 990, ~16K employers in NLRB)

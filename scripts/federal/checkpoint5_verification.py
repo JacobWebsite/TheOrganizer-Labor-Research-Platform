@@ -1,17 +1,14 @@
 import os
+import sys
 """
 CHECKPOINT 5: Verification and Documentation
 Final validation and summary report for federal integration
 """
 
-import psycopg2
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')"
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 80)

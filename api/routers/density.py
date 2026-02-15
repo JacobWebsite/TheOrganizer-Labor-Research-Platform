@@ -209,12 +209,12 @@ def get_density_by_govt_level():
                     "formula": "state_density = k x national_baseline"
                 },
                 "summary": {
-                    "avg_federal_density": stats[0],
-                    "avg_state_density": stats[1],
-                    "avg_local_density": stats[2],
-                    "avg_multiplier": stats[3],
-                    "high_union_states": stats[4],
-                    "low_union_states": stats[5]
+                    "avg_federal_density": stats['avg_federal'],
+                    "avg_state_density": stats['avg_state'],
+                    "avg_local_density": stats['avg_local'],
+                    "avg_multiplier": stats['avg_multiplier'],
+                    "high_union_states": stats['high_union_states'],
+                    "low_union_states": stats['low_union_states']
                 },
                 "states": results
             }
@@ -264,37 +264,37 @@ def get_state_density_by_govt_level(state: str):
                 raise HTTPException(status_code=404, detail=f"State not found: {state}")
 
             # Calculate contribution breakdown
-            fed_contribution = result[8] * result[5]  # fed_share_of_public * est_fed_density
-            state_contribution = result[9] * result[6]
-            local_contribution = result[10] * result[7]
+            fed_contribution = result['fed_share_of_public'] * result['est_federal_density']
+            state_contribution = result['state_share_of_public'] * result['est_state_density']
+            local_contribution = result['local_share_of_public'] * result['est_local_density']
 
             return {
-                "state": result[0],
-                "state_name": result[1],
+                "state": result['state'],
+                "state_name": result['state_name'],
                 "densities": {
-                    "private": result[16],
-                    "public_combined": result[2],
-                    "public_is_estimated": result[3],
-                    "federal_estimated": result[5],
-                    "state_estimated": result[6],
-                    "local_estimated": result[7],
-                    "total": result[17]
+                    "private": result['private_density_pct'],
+                    "public_combined": result['public_density_pct'],
+                    "public_is_estimated": result['public_is_estimated'],
+                    "federal_estimated": result['est_federal_density'],
+                    "state_estimated": result['est_state_density'],
+                    "local_estimated": result['est_local_density'],
+                    "total": result['total_density_pct']
                 },
                 "multiplier": {
-                    "value": result[4],
-                    "interpretation": "above national average" if result[4] > 1 else "below national average"
+                    "value": result['multiplier'],
+                    "interpretation": "above national average" if result['multiplier'] > 1 else "below national average"
                 },
                 "workforce_composition": {
-                    "federal_pct": result[11],
-                    "state_pct": result[12],
-                    "local_pct": result[13],
-                    "public_total_pct": result[14],
-                    "private_pct": result[15]
+                    "federal_pct": result['federal_workforce_pct'],
+                    "state_pct": result['state_workforce_pct'],
+                    "local_pct": result['local_workforce_pct'],
+                    "public_total_pct": result['public_workforce_pct'],
+                    "private_pct": result['private_workforce_pct']
                 },
                 "public_sector_composition": {
-                    "federal_share": round(result[8] * 100, 1),
-                    "state_share": round(result[9] * 100, 1),
-                    "local_share": round(result[10] * 100, 1)
+                    "federal_share": round(result['fed_share_of_public'] * 100, 1),
+                    "state_share": round(result['state_share_of_public'] * 100, 1),
+                    "local_share": round(result['local_share_of_public'] * 100, 1)
                 },
                 "contribution_to_public_density": {
                     "federal": round(fed_contribution, 1),
@@ -303,9 +303,9 @@ def get_state_density_by_govt_level(state: str):
                     "total": round(fed_contribution + state_contribution + local_contribution, 1)
                 },
                 "comparison_to_national": {
-                    "federal": {"state": result[5], "national": 25.3, "premium": round(result[5] - 25.3, 1)},
-                    "state": {"state": result[6], "national": 27.8, "premium": round(result[6] - 27.8, 1)},
-                    "local": {"state": result[7], "national": 38.2, "premium": round(result[7] - 38.2, 1)}
+                    "federal": {"state": result['est_federal_density'], "national": 25.3, "premium": round(result['est_federal_density'] - 25.3, 1)},
+                    "state": {"state": result['est_state_density'], "national": 27.8, "premium": round(result['est_state_density'] - 27.8, 1)},
+                    "local": {"state": result['est_local_density'], "national": 38.2, "premium": round(result['est_local_density'] - 38.2, 1)}
                 }
             }
 
@@ -360,7 +360,7 @@ def get_density_by_county(
                 FROM county_union_density_estimates e
                 {where_clause}
             """, params)
-            total = cur.fetchone()[0]
+            total = cur.fetchone()['count']
 
             # Get results
             query_params = params + [limit, offset]
@@ -437,33 +437,33 @@ def get_county_density_detail(fips: str):
                 raise HTTPException(status_code=404, detail=f"County not found: {fips}")
 
             return {
-                "fips": result[0],
-                "state": result[1],
-                "county_name": result[2],
+                "fips": result['fips'],
+                "state": result['state'],
+                "county_name": result['county_name'],
                 "estimated_densities": {
-                    "total": result[3],
-                    "private": result[4],
-                    "public": result[5],
-                    "federal": result[6],
-                    "state_gov": result[7],
-                    "local": result[8]
+                    "total": result['estimated_total_density'],
+                    "private": result['estimated_private_density'],
+                    "public": result['estimated_public_density'],
+                    "federal": result['estimated_federal_density'],
+                    "state_gov": result['estimated_state_density'],
+                    "local": result['estimated_local_density']
                 },
                 "workforce_composition": {
-                    "private_pct": round(float(result[9]) * 100, 1) if result[9] else 0,
-                    "federal_pct": round(float(result[10]) * 100, 1) if result[10] else 0,
-                    "state_pct": round(float(result[11]) * 100, 1) if result[11] else 0,
-                    "local_pct": round(float(result[12]) * 100, 1) if result[12] else 0,
-                    "public_pct": round(float(result[13]) * 100, 1) if result[13] else 0,
-                    "self_employed_pct": round(float(result[20]) * 100, 1) if result[20] else 0
+                    "private_pct": round(float(result['private_share']) * 100, 1) if result['private_share'] else 0,
+                    "federal_pct": round(float(result['federal_share']) * 100, 1) if result['federal_share'] else 0,
+                    "state_pct": round(float(result['state_share']) * 100, 1) if result['state_share'] else 0,
+                    "local_pct": round(float(result['local_share']) * 100, 1) if result['local_share'] else 0,
+                    "public_pct": round(float(result['public_share']) * 100, 1) if result['public_share'] else 0,
+                    "self_employed_pct": round(float(result['self_employed_share']) * 100, 1) if result['self_employed_share'] else 0
                 },
                 "state_density_rates_used": {
-                    "private": result[14],
-                    "federal": result[15],
-                    "state_gov": result[16],
-                    "local": result[17]
+                    "private": result['state_private_rate'],
+                    "federal": result['state_federal_rate'],
+                    "state_gov": result['state_state_rate'],
+                    "local": result['state_local_rate']
                 },
-                "confidence_level": result[18],
-                "state_union_multiplier": result[19],
+                "confidence_level": result['confidence_level'],
+                "state_union_multiplier": result['state_multiplier'],
                 "methodology": {
                     "description": "State density rates applied to county workforce composition",
                     "formula": "Total = (Private% x State_Private_Rate) + (Fed% x State_Fed_Rate) + (State% x State_State_Rate) + (Local% x State_Local_Rate)",
@@ -524,11 +524,11 @@ def get_state_counties_density(state: str):
             return {
                 "state": state.upper(),
                 "summary": {
-                    "county_count": summary[0],
-                    "avg_county_density": summary[1],
-                    "min_county_density": summary[2],
-                    "max_county_density": summary[3],
-                    "state_total_density": state_density[0] if state_density else None
+                    "county_count": summary['county_count'],
+                    "avg_county_density": summary['avg_density'],
+                    "min_county_density": summary['min_density'],
+                    "max_county_density": summary['max_density'],
+                    "state_total_density": state_density['total_density_pct'] if state_density else None
                 },
                 "counties": counties
             }
@@ -590,13 +590,13 @@ def get_county_density_summary():
 
             return {
                 "national_summary": {
-                    "total_counties": national[0],
-                    "avg_density": national[1],
-                    "min_density": national[2],
-                    "max_density": national[3],
-                    "stddev_density": national[4],
-                    "high_confidence_count": national[5],
-                    "medium_confidence_count": national[6]
+                    "total_counties": national['total_counties'],
+                    "avg_density": national['avg_density'],
+                    "min_density": national['min_density'],
+                    "max_density": national['max_density'],
+                    "stddev_density": national['stddev_density'],
+                    "high_confidence_count": national['high_confidence'],
+                    "medium_confidence_count": national['medium_confidence']
                 },
                 "top_density_counties": top_counties,
                 "bottom_density_counties": bottom_counties,

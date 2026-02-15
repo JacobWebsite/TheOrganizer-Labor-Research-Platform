@@ -1,15 +1,13 @@
 import os
+import sys
 """
 Fix unified view to use cleaned private sector data
 """
-import psycopg2
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')"
-)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
+
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

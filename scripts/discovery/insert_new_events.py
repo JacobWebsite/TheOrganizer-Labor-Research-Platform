@@ -16,10 +16,8 @@ import os
 import sys
 from datetime import datetime
 
-import psycopg2
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection as _get_connection
 from scripts.matching.normalizer import normalize_employer_name
 
 INPUT_CSV = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -27,12 +25,7 @@ INPUT_CSV = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 
 def get_connection():
-    return psycopg2.connect(
-        host="localhost",
-        dbname="olms_multiyear",
-        user="postgres",
-        password="os.environ.get('DB_PASSWORD', '')"
-    )
+    return _get_connection()
 
 
 def load_new_records(path):

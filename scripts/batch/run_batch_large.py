@@ -10,10 +10,10 @@ import sys
 os.environ["PYTHONUNBUFFERED"] = "1"
 import time
 import logging
-import psycopg2
 from datetime import datetime
 
 sys.path.insert(0, r"C:\Users\jakew\Downloads\labor-data-project")
+from db_config import get_connection
 from scripts.matching import MatchPipeline
 from scripts.matching.config import TIER_NAMES
 
@@ -22,12 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def connect():
-    return psycopg2.connect(
-        host="localhost",
-        dbname="olms_multiyear",
-        user="postgres",
-        password="os.environ.get('DB_PASSWORD', '')"
-    )
+    return get_connection()
 
 
 def progress_fn(processed, total, matched):

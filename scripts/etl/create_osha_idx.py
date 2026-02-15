@@ -1,12 +1,10 @@
 import os
-import psycopg2
+import sys
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')",
-)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
+
+conn = get_connection()
 cur = conn.cursor()
 
 print("Creating btree index on LOWER(estab_name_normalized) ...", flush=True)

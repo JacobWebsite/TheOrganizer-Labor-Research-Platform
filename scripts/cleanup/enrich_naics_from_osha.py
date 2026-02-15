@@ -1,19 +1,17 @@
-import os
 """
 NAICS Enrichment from OSHA Matches
 Fills in missing NAICS codes for f7_employers_deduped using osha_f7_matches -> osha_establishments
 """
 
-import psycopg2
+import sys
+import os
 from psycopg2.extras import RealDictCursor
 from collections import Counter
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
+
+conn = get_connection(cursor_factory=RealDictCursor)
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 70)

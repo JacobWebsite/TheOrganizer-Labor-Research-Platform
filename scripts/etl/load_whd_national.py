@@ -1,4 +1,5 @@
 import os
+import sys
 """
 Load national WHD WHISARD dataset into PostgreSQL.
 
@@ -10,25 +11,20 @@ Usage:
 """
 
 import re
-import sys
 import time
 import math
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import DB_CONFIG as DB_PARAMS
+
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 CSV_PATH = r"C:\Users\jakew\Downloads\labor-data-project\whd_whisard_20260116.csv\whd_whisard.csv"
 BATCH_SIZE = 5000
-
-DB_PARAMS = dict(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')",
-)
 
 # ---------------------------------------------------------------------------
 # Column mapping: csv_col -> db_col

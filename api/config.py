@@ -14,8 +14,11 @@ from db_config import DB_CONFIG  # noqa: E402
 PROJECT_ROOT = _project_root
 FILES_DIR = _project_root / "files"
 
-# JWT auth (disabled when empty)
-JWT_SECRET = os.environ.get("LABOR_JWT_SECRET", "")
+# JWT auth -- requires LABOR_JWT_SECRET in .env (32+ chars).
+# Set DISABLE_AUTH=true to bypass auth in development.
+_disable_auth = os.environ.get("DISABLE_AUTH", "").lower() == "true"
+_jwt_from_env = os.environ.get("LABOR_JWT_SECRET") or ""
+JWT_SECRET = "" if _disable_auth else _jwt_from_env
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 8
 

@@ -1,16 +1,13 @@
 import os
+import sys
 """
 CHECKPOINT 3: Create OLMS Linkage - Fixed all type issues
 """
 
-import psycopg2
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')"
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

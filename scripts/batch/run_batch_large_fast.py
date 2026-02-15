@@ -8,8 +8,6 @@ import sys
 import os
 import re
 import time
-import psycopg2
-
 # Force unbuffered output
 os.environ["PYTHONUNBUFFERED"] = "1"
 if hasattr(sys.stdout, 'reconfigure'):
@@ -22,6 +20,7 @@ def print(*args, **kwargs):
     _orig_print(*args, **kwargs)
 
 sys.path.insert(0, r"C:\Users\jakew\Downloads\labor-data-project")
+from db_config import get_connection
 from scripts.matching.normalizer import normalize_employer_name
 
 
@@ -326,12 +325,7 @@ def run_osha_to_f7(conn, norm_index, agg_index, addr_index):
 
 def main():
     print("Connecting to database...")
-    conn = psycopg2.connect(
-        host="localhost",
-        dbname="olms_multiyear",
-        user="postgres",
-        password="os.environ.get('DB_PASSWORD', '')"
-    )
+    conn = get_connection()
     print("Connected.")
 
     # Build F7 indexes (shared between both scenarios)

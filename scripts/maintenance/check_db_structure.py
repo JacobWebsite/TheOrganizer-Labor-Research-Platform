@@ -1,16 +1,14 @@
 import os
+import sys
 """
 Check available F-7 data sources - fixed
 """
-import psycopg2
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')"
-)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
+
+conn = get_connection()
 conn.autocommit = True  # Prevent transaction issues
 cur = conn.cursor()
 

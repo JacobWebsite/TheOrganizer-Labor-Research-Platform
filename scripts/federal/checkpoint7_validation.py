@@ -1,19 +1,17 @@
 import os
+import sys
 """
 CHECKPOINT 7: Validation and Final Verification
 Validates all federal sector integration components
 """
 
-import psycopg2
 from psycopg2.extras import RealDictCursor
 import json
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')"
-)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
+
+conn = get_connection(cursor_factory=RealDictCursor)
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 80)

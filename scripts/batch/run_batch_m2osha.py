@@ -10,9 +10,9 @@ import time
 # Force unbuffered output
 os.environ["PYTHONUNBUFFERED"] = "1"
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-import psycopg2
+from db_config import get_connection
 from scripts.matching.pipeline import MatchPipeline
 from scripts.matching.config import TIER_NAMES
 
@@ -34,12 +34,7 @@ if __name__ == "__main__":
     print("MERGENT -> OSHA MATCHING (FULL RUN, SKIP FUZZY)")
     print("=" * 60)
 
-    conn = psycopg2.connect(
-        host="localhost",
-        dbname="olms_multiyear",
-        user="postgres",
-        password="os.environ.get('DB_PASSWORD', '')",
-    )
+    conn = get_connection()
 
     # Quick count of source and target
     cur = conn.cursor()

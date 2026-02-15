@@ -622,3 +622,28 @@ def test_scorecard_mv_refreshable(db):
     assert has_unique >= 1, (
         "No UNIQUE index on establishment_id -- REFRESH CONCURRENTLY will fail"
     )
+
+
+# ============================================================================
+# CHECK 25: Union File Number Orphans (Phase 1)
+# ============================================================================
+
+def test_union_file_number_orphans_bounded(db):
+    """Union file number orphans should stay below 1000.
+
+    824 records in f7_union_employer_relations reference union_file_number
+    values not found in unions_master.f_num. Root cause: 195 distinct
+    file numbers from defunct/removed unions with no LM filing history.
+    Type mismatch (INTEGER vs VARCHAR) is handled via cast.
+    These are tracked but not deleted -- they contain valid employer data.
+    """
+    orphans = query_one(db, """
+        SELECT COUNT(*)
+        FROM f7_union_employer_relations r
+        LEFT JOIN unions_master u ON r.union_file_number::text = u.f_num
+        WHERE u.f_num IS NULL
+    """)
+    assert orphans <= 1000, (
+        f"Found {orphans:,} union file number orphans. Expected <= 1000 "
+        f"(195 defunct union file numbers producing ~824 records)."
+    )

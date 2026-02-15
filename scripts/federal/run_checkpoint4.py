@@ -1,17 +1,14 @@
 import os
+import sys
 """
 CHECKPOINT 4: Create Unified Public Sector Views
 Enables sector toggle (private vs public) in the platform
 """
 
-import psycopg2
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
 
-conn = psycopg2.connect(
-    host="localhost",
-    dbname="olms_multiyear",
-    user="postgres",
-    password="os.environ.get('DB_PASSWORD', '')"
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 
