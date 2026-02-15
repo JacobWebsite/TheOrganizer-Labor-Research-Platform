@@ -18,7 +18,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from db_config import DB_CONFIG as DB_PARAMS
+from db_config import DB_CONFIG as DB_PARAMS, get_connection
 
 # ---------------------------------------------------------------------------
 # Config
@@ -352,7 +352,7 @@ def main():
 
     # --- Database load ---
     print("Connecting to database ...")
-    conn = psycopg2.connect(**DB_PARAMS)
+    conn = get_connection()
     conn.autocommit = False
     cur = conn.cursor()
 

@@ -1,13 +1,9 @@
 import os
+from db_config import get_connection
 """Create OSHA schema tables in PostgreSQL"""
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

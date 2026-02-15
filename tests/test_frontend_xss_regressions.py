@@ -24,14 +24,14 @@ def test_detail_projection_toggle_uses_numeric_occupation_count():
 
 
 def test_modals_corporate_summary_uses_precomputed_numeric_displays():
-    text = _read("files/js/modals.js")
+    text = _read("files/js/modal-corporate.js")
     assert "const totalFamilyDisplay = Number(data.total_family) || 0;" in text
     assert "const totalWorkersDisplay = formatNumber(Number(data.total_workers) || 0);" in text
     assert "const statesCountDisplay = Array.isArray(data.states) ? data.states.length : 0;" in text
 
 
 def test_modals_unified_detail_uses_safe_source_fields():
-    text = _read("files/js/modals.js")
+    text = _read("files/js/modal-unified.js")
     assert "const safeSourceType = escapeHtml(String(detail.source_type || 'N/A'));" in text
     assert "const safeSourceId = escapeHtml(String(detail.source_id || 'N/A'));" in text
     assert "${safeSourceType}" in text

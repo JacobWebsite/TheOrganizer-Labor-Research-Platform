@@ -240,14 +240,15 @@ async function loadSectorResults(sector) {
             debarred: t.nyc_debarred || false
         },
         score_breakdown: {
-            geographic: t.score_geographic,
-            size: t.score_size,
-            industry_density: t.score_industry_density,
-            nlrb: t.score_nlrb_momentum,
-            osha: t.score_osha_violations,
-            contracts: t.score_govt_contracts,
-            labor: t.score_labor_violations || 0,
-            sibling: t.sibling_union_bonus
+            company_unions: t.score_company_unions || 0,
+            industry_density: t.score_industry_density || 0,
+            geographic: t.score_geographic || 0,
+            size: t.score_size || 0,
+            osha: t.score_osha_violations || 0,
+            nlrb: t.score_nlrb_momentum || 0,
+            contracts: t.score_govt_contracts || 0,
+            projections: t.score_projections || 0,
+            similarity: t.score_similarity || 0
         },
         _source: 'sector',
         _sector: sector
@@ -287,19 +288,19 @@ function renderScorecardResults(data, source = 'osha') {
                         ${tierBadge}
                         ${item.ulp_case_count > 0 ? `<span class="badge bg-yellow-100 text-yellow-800">ULP (${item.ulp_case_count})</span>` : ''}
                         ${item.contract_info?.contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Contracts</span>' : ''}
-                        ${item.score_breakdown?.labor > 0 ? '<span class="badge bg-pink-100 text-pink-700">Labor Viol</span>' : ''}
+                        ${item.labor_violations?.wage_theft_cases > 0 ? '<span class="badge bg-pink-100 text-pink-700">Labor Viol</span>' : ''}
                     </div>
                     <div class="text-sm text-warmgray-500 truncate">
                         ${escapeHtml(item.site_city || '')}, ${item.site_state || ''} \u00B7 ${item.industry || 'NAICS ' + (item.naics_code || 'N/A')}
                     </div>
                 </div>
                 <div class="text-right ml-3">
-                    <div class="text-2xl font-bold ${getScoreColor(item.organizing_score, source)}">${item.organizing_score || 0}</div>
+                    <div class="text-2xl font-bold ${getScoreColor(item.organizing_score)}">${item.organizing_score || 0}</div>
                     <div class="text-xs text-warmgray-400">score</div>
                 </div>
             </div>
             <div class="flex gap-1">
-                ${renderMiniScoreBar(item.score_breakdown, source)}
+                ${renderMiniScoreBar(item.score_breakdown)}
             </div>
             <div class="flex justify-between text-xs text-warmgray-400 mt-2">
                 <span>${formatNumber(item.employee_count || 0)} employees</span>
@@ -311,43 +312,14 @@ function renderScorecardResults(data, source = 'osha') {
     `}).join('');
 }
 
-function renderMiniScoreBar(breakdown, source = 'osha') {
+function renderMiniScoreBar(breakdown) {
     if (!breakdown) return '';
-
-    let segments;
-    if (source === 'sector') {
-        // Sector scoring (0-62 total)
-        segments = [
-            { value: breakdown.size || 0, max: 5, color: 'bg-yellow-500', label: 'Size' },
-            { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry Density' },
-            { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB Patterns' },
-            { value: breakdown.osha || 0, max: 4, color: 'bg-red-500', label: 'OSHA' },
-            { value: breakdown.contracts || 0, max: 15, color: 'bg-orange-500', label: 'Contracts' },
-            { value: breakdown.labor || 0, max: 10, color: 'bg-pink-500', label: 'Labor Violations' },
-            { value: breakdown.sibling || 0, max: 8, color: 'bg-indigo-500', label: 'Sibling Union' }
-        ];
-        const total = 62;
-        return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
-            ${segments.map(s => `<div class="${s.color}" style="width: ${(s.value / total * 100).toFixed(1)}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
-        </div>`;
-    } else {
-        // OSHA scoring (0-100 total)
-        segments = [
-            { value: breakdown.company_unions || 0, max: 20, color: 'bg-indigo-500', label: 'Union Shops' },
-            { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry' },
-            { value: breakdown.geographic || 0, max: 10, color: 'bg-purple-500', label: 'Geographic' },
-            { value: breakdown.size || 0, max: 10, color: 'bg-yellow-500', label: 'Size' },
-            { value: breakdown.osha || 0, max: 10, color: 'bg-red-500', label: 'OSHA' },
-            { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB' },
-            { value: breakdown.contracts || 0, max: 10, color: 'bg-orange-500', label: 'Contracts' },
-            { value: breakdown.projections || 0, max: 10, color: 'bg-teal-500', label: 'Growth' },
-            { value: breakdown.similarity || 0, max: 10, color: 'bg-cyan-500', label: 'Similarity' }
-        ];
-        const oshaTotal = 100;
-        return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
-            ${segments.map(s => `<div class="${s.color}" style="width: ${(s.value / oshaTotal * 100).toFixed(1)}%" title="${s.label}: ${s.value}/${s.max}"></div>`).join('')}
-        </div>`;
-    }
+    return `<div class="flex-1 h-2 bg-warmgray-200 rounded-full overflow-hidden flex">
+        ${SCORE_FACTORS.map(f => {
+            const val = breakdown[f.key] || 0;
+            return `<div class="${f.color}" style="width: ${(val / SCORE_MAX * 100).toFixed(1)}%" title="${f.label}: ${val}/${f.max}"></div>`;
+        }).join('')}
+    </div>`;
 }
 
 async function selectScorecardItem(estabId, source = 'osha') {
@@ -406,17 +378,11 @@ function renderSectorDetail(item) {
         <div class="bg-gradient-to-r from-green-50 to-warmgray-50 rounded-lg p-4 mb-6">
             <div class="flex items-center justify-between mb-4">
                 <span class="text-sm font-semibold text-warmgray-700">Organizing Score</span>
-                <span class="text-4xl font-bold ${getScoreColor(item.organizing_score, 'sector')}">${item.organizing_score || 0}</span>
+                <span class="text-4xl font-bold ${getScoreColor(item.organizing_score)}">${item.organizing_score || 0}</span>
             </div>
 
             <div class="space-y-3">
-                ${renderScoreRow('Size Sweet Spot', breakdown.size, 5, 'bg-yellow-500', '100-500 employees = optimal', getScoreReason('size', item))}
-                ${renderScoreRow('Industry Density', breakdown.industry_density, 10, 'bg-blue-500', 'BLS NAICS unionization rate', getScoreReason('industry_density', item))}
-                ${renderScoreRow('NLRB Patterns', breakdown.nlrb, 10, 'bg-green-500', item.nlrb_predicted_win_pct ? `${item.nlrb_predicted_win_pct.toFixed(0)}% predicted win rate` : 'Historical win patterns', getScoreReason('nlrb', item))}
-                ${renderScoreRow('OSHA Violations', breakdown.osha, 4, 'bg-red-500', 'Safety violations on record', getScoreReason('osha', item))}
-                ${renderScoreRow('Govt Contracts', breakdown.contracts, 15, 'bg-orange-500', 'NY State + NYC contract value', getScoreReason('contracts', item))}
-                ${renderScoreRow('Labor Violations', breakdown.labor, 10, 'bg-pink-500', 'Wage theft, ULP, PSSL/FWW', getScoreReason('labor', item))}
-                ${renderScoreRow('Sibling Union Bonus', breakdown.sibling, 8, 'bg-indigo-500', 'Parent company has union', getScoreReason('sibling', item))}
+                ${SCORE_FACTORS.map(f => renderScoreRow(f.label, breakdown[f.key], f.max, f.color, f.desc, getScoreReason(f.key, item))).join('\n                ')}
             </div>
         </div>
 
@@ -541,6 +507,9 @@ function renderScorecardDetail(detail) {
         </div>
 
         ${getScorecardFlagHTML()}
+
+        <!-- Data Quality -->
+        ${renderScorecardDataQuality(detail)}
 
         <!-- Score breakdown -->
         <div class="bg-gradient-to-r from-green-50 to-warmgray-50 rounded-lg p-4 mb-6">
@@ -755,6 +724,39 @@ function renderScorecardDetail(detail) {
     if (oshaSourceId) {
         loadScorecardFlags('OSHA', oshaSourceId);
     }
+}
+
+function renderScorecardDataQuality(detail) {
+    const estab = detail.establishment || {};
+    const osha = detail.osha_context || {};
+    const geo = detail.geographic_context || {};
+
+    // Count how many non-zero score factors exist
+    const breakdown = detail.score_breakdown || {};
+    const factorsWithData = SCORE_FACTORS.filter(f => (breakdown[f.key] || 0) > 0).length;
+    const coverageLabel = factorsWithData >= 7 ? 'HIGH' : factorsWithData >= 4 ? 'MEDIUM' : 'LOW';
+    const coverageColor = factorsWithData >= 7 ? 'bg-green-100 text-green-700'
+        : factorsWithData >= 4 ? 'bg-yellow-100 text-yellow-700'
+        : 'bg-orange-100 text-orange-700';
+
+    // Source freshness
+    let freshnessInfo = '';
+    if (typeof freshnessData !== 'undefined' && freshnessData && freshnessData.sources) {
+        const oshaSrc = freshnessData.sources.find(s => s.source_name === 'osha_inspections');
+        if (oshaSrc && oshaSrc.last_updated) {
+            const updated = new Date(oshaSrc.last_updated);
+            const daysSince = Math.floor((Date.now() - updated.getTime()) / 86400000);
+            freshnessInfo = `<span class="text-xs text-warmgray-400">OSHA data: ${daysSince}d old</span>`;
+        }
+    }
+
+    return `
+        <div class="flex items-center gap-2 mb-4 flex-wrap">
+            <span class="text-xs px-2 py-0.5 rounded font-medium ${coverageColor}">${coverageLabel} coverage</span>
+            <span class="text-xs text-warmgray-400">${factorsWithData}/${SCORE_FACTORS.length} factors with data</span>
+            ${freshnessInfo}
+        </div>
+    `;
 }
 
 function renderScoreRow(label, score, max, colorClass, description, reason) {

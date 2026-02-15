@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Establishment Extraction - Phase 2.3 (Fixed)
 Extracts unique establishments from SQLite by year and loads to PostgreSQL
@@ -130,7 +131,7 @@ def main():
     
     # Connect to databases
     sqlite_conn = sqlite3.connect(SQLITE_PATH)
-    pg_conn = psycopg2.connect(**PG_CONFIG)
+    pg_conn = get_connection()
     
     years = list(range(2012, 2027))
     total_loaded = 0

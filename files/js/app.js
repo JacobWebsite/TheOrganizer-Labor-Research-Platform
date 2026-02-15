@@ -6,11 +6,13 @@
 function setAppMode(mode) {
     currentAppMode = mode;
 
-    const modes = ['territory', 'search', 'deepdive'];
+    const modes = ['territory', 'search', 'deepdive', 'uniondive', 'admin'];
     const containers = {
         territory: document.getElementById('territoryMode'),
         search: document.getElementById('searchMode'),
-        deepdive: document.getElementById('deepDiveMode')
+        deepdive: document.getElementById('deepDiveMode'),
+        uniondive: document.getElementById('unionDiveMode'),
+        admin: document.getElementById('adminMode')
     };
 
     // Hide inactive, show + animate active
@@ -28,16 +30,10 @@ function setAppMode(mode) {
     });
 
     // Update header toggle
-    document.getElementById('modeTerritory').className = mode === 'territory'
-        ? 'app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
-        : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
-    document.getElementById('modeSearch').className = (mode === 'search' || mode === 'deepdive')
-        ? 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
-        : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
-    // Search button only active in search mode
-    document.getElementById('modeSearch').className = mode === 'search'
-        ? 'app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all'
-        : 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+    const activeClass = 'app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+    const inactiveClass = 'app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all';
+    document.getElementById('modeTerritory').className = mode === 'territory' ? activeClass : inactiveClass;
+    document.getElementById('modeSearch').className = (mode === 'search' || mode === 'deepdive' || mode === 'uniondive') ? activeClass : inactiveClass;
 
     // Invalidate maps when switching to avoid stale tiles
     if (mode === 'search' && fullMap) {
@@ -50,8 +46,8 @@ function setAppMode(mode) {
 
 function openDeepDive(employerId, returnTo) {
     deepDiveReturnMode = returnTo || currentAppMode;
-    document.getElementById('deepDiveBackLabel').textContent =
-        deepDiveReturnMode === 'territory' ? 'Back to Territory' : 'Back to Search';
+    const labels = { territory: 'Back to Territory', uniondive: 'Back to Union Profile' };
+    document.getElementById('deepDiveBackLabel').textContent = labels[deepDiveReturnMode] || 'Back to Search';
     setAppMode('deepdive');
     loadDeepDiveData(employerId);
 }
@@ -201,17 +197,7 @@ function exportEmployerReport() {
     const tier = score >= 30 ? 'TOP' : score >= 25 ? 'HIGH' : score >= 20 ? 'MEDIUM' : 'LOW';
     const date = new Date().toLocaleDateString();
 
-    const factors = [
-        ['Existing Unions', breakdown.company_unions, 20],
-        ['Industry Density', breakdown.industry_density, 10],
-        ['Geographic', breakdown.geographic, 15],
-        ['Employer Size', breakdown.size, 10],
-        ['OSHA Violations', breakdown.osha, 10],
-        ['NLRB Patterns', breakdown.nlrb, 10],
-        ['Govt Contracts', breakdown.contracts, 15],
-        ['Industry Growth', breakdown.projections, 5],
-        ['Similarity', breakdown.similarity, 5]
-    ];
+    const factors = SCORE_FACTORS.map(f => [f.label, breakdown[f.key], f.max]);
 
     const siblings = deepDiveData.siblings?.siblings || [];
 
@@ -357,7 +343,35 @@ function exportTerritoryElectionsCSV() {
 // ==========================================
 // INITIALIZATION
 // ==========================================
+function initEventListeners() {
+    // Delegated click handler for data-action attributes
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+        // data-action-self: only fire if clicked element IS the target (backdrop clicks)
+        if (target.dataset.actionSelf && e.target !== target) return;
+        const action = target.dataset.action;
+        const arg = target.dataset.actionArg;
+        const fn = window[action];
+        if (typeof fn === 'function') {
+            arg !== undefined ? fn(arg) : fn();
+        }
+    });
+
+    // Delegated change handler for data-change attributes
+    document.addEventListener('change', function(e) {
+        const target = e.target.closest('[data-change]');
+        if (!target) return;
+        const action = target.dataset.change;
+        const fn = window[action];
+        if (typeof fn === 'function') {
+            target.dataset.changeValue ? fn(target.value) : fn();
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    initEventListeners();
     initMap();
     setupTypeahead();
     setupGeoChangeListeners();
@@ -450,6 +464,25 @@ async function runDebugCheck() {
     output.innerHTML = html;
 }
 
+
+async function adminRefreshScorecard() {
+    const btn = document.getElementById('adminRefreshBtn');
+    const status = document.getElementById('adminRefreshStatus');
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = 'Refreshing...';
+    try {
+        const resp = await fetch(`${API_BASE}/admin/refresh-scorecard`, { method: 'POST' });
+        if (resp.ok) {
+            const data = await resp.json();
+            if (status) status.textContent = 'Done! ' + (data.message || '');
+        } else {
+            if (status) status.textContent = 'Error: ' + resp.status;
+        }
+    } catch (e) {
+        if (status) status.textContent = 'Failed: ' + e.message;
+    }
+    if (btn) btn.disabled = false;
+}
 
 function setupKeyboardShortcuts() {
     // Enter to search in main input
@@ -847,6 +880,8 @@ document.addEventListener('keydown', (e) => {
         closeComparison();
         closeAnalyticsDashboard();
         closeCorporateFamily();
+        closeFreshnessModal();
+        if (typeof closeGlossary === 'function') closeGlossary();
         return;
     }
     

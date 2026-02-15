@@ -18,6 +18,7 @@ import io
 import zipfile
 from pathlib import Path
 
+from db_config import get_connection
 API_BASE = "https://api.usaspending.gov/api/v2"
 
 DB_CONFIG = {
@@ -241,7 +242,7 @@ def fetch_via_bulk_api(fiscal_year):
 
 
 def main():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = False
     create_table(conn)
 

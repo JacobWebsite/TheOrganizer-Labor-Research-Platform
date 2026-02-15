@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Verify NY public sector union findings against the database.
 Checks existing coverage and identifies gaps.
@@ -9,12 +10,7 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     cur = conn.cursor()
 
     print("=" * 80)

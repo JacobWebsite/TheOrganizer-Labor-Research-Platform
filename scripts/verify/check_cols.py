@@ -1,7 +1,8 @@
 import os
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+from db_config import get_connection
+conn = get_connection()
 cur = conn.cursor()
 
 for table in ['ny_990_filers', 'employers_990', 'nyc_wage_theft_nys']:

@@ -11,7 +11,7 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+conn = get_connection(cursor_factory=RealDictCursor)
 cur = conn.cursor()
 
 f_num = '137'
@@ -21,6 +21,7 @@ offset = 0
 print("Testing elections query...")
 try:
     cur.execute("""
+from db_config import get_connection
         SELECT 
             e.election_id,
             e.case_number,

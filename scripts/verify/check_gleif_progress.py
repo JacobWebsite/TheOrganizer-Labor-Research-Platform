@@ -1,6 +1,7 @@
 """Check GLEIF restore progress by querying table counts."""
 import psycopg2
 import os
+from db_config import get_connection
 
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
@@ -10,7 +11,7 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG)
+conn = get_connection()
 cur = conn.cursor()
 
 # Check if gleif schema exists

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Phase 6.6: Fuzzy Trigram Matching by State
 Processes Union=Y and Union=N establishments in small batches
@@ -18,7 +19,7 @@ def main():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Phase 6.6: Fuzzy Trigram Matching")
     print("=" * 60)
     
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = get_connection()
     cursor = conn.cursor()
     
     # Get states with unmatched union establishments

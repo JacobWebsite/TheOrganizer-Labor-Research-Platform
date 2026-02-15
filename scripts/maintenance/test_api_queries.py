@@ -5,6 +5,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -13,7 +14,7 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+conn = get_connection(cursor_factory=RealDictCursor)
 cur = conn.cursor()
 
 print("=" * 70)

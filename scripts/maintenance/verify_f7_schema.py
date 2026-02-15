@@ -10,11 +10,12 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG)
+conn = get_connection()
 cursor = conn.cursor()
 
 # Check tables
 cursor.execute("""
+from db_config import get_connection
     SELECT table_name 
     FROM information_schema.tables 
     WHERE table_schema = 'public' 

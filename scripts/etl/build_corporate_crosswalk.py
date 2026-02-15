@@ -21,6 +21,7 @@ import time
 import psycopg2
 import psycopg2.extras
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -314,7 +315,7 @@ def main():
                 if idx + 1 < len(sys.argv):
                     step_filter = sys.argv[idx + 1].upper()
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = False
 
     try:

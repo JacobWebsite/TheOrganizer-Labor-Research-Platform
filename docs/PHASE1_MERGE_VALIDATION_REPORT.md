@@ -1,6 +1,6 @@
 # Phase 1 Merge Validation Report
 
-- Generated: 2026-02-15T11:24:27
+- Generated: 2026-02-15T12:50:51
 - Passed: 7/7
 
 ## Check Results
@@ -69,14 +69,14 @@ Wrote: C:\Users\jakew\Downloads\labor-data-project\docs\PARALLEL_FRONTEND_API_AU
   - Output:
 ```text
 Wrote: C:\Users\jakew\Downloads\labor-data-project\docs\PARALLEL_PHASE1_PASSWORD_AUDIT.md
-Findings: 19
+Findings: 0
 ```
 - **InnerHTML Risk Priority**: PASS
   - Command: `python scripts/analysis/prioritize_innerhtml_api_risk.py`
   - Output:
 ```text
 Wrote: C:\Users\jakew\Downloads\labor-data-project\docs\PARALLEL_INNERHTML_API_RISK_PRIORITY.md
-Findings: 0
+Findings: 1
 ```
 - **Router Docs Drift**: PASS
   - Command: `python scripts/analysis/check_router_docs_drift.py`

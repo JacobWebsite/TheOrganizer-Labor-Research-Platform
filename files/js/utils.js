@@ -181,16 +181,9 @@ function getTierBadgeClass(tier) {
     }
 }
 
-function getScoreColor(score, source = 'osha') {
-    // Sector scores max out around 52, OSHA around 100
-    if (source === 'sector') {
-        if (score >= 40) return 'text-green-600';
-        if (score >= 30) return 'text-yellow-600';
-        if (score >= 20) return 'text-orange-500';
-        return 'text-warmgray-400';
-    }
-    if (score >= 70) return 'text-green-600';
-    if (score >= 50) return 'text-yellow-600';
-    if (score >= 30) return 'text-orange-500';
-    return 'text-warmgray-400';
+function getScoreColor(score) {
+    if (score >= 30) return 'text-green-600';   // TOP
+    if (score >= 25) return 'text-blue-600';    // HIGH
+    if (score >= 20) return 'text-yellow-600';  // MEDIUM
+    return 'text-warmgray-400';                 // LOW
 }

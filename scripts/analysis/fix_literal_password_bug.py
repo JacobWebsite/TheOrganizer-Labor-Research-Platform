@@ -15,7 +15,7 @@ import shutil
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_REPORT = ROOT / "docs" / "PARALLEL_PASSWORD_AUTOFIX_REPORT.md"
 
-SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", ".claude", "archive", "logs", "output", "reports"}
+SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", ".claude", "archive", "logs", "output", "reports", "password_fix_backups"}
 
 REPLACEMENTS = [
     ('"os.environ.get(\'DB_PASSWORD\', \'\')"', "os.environ.get('DB_PASSWORD', '')"),
@@ -26,7 +26,12 @@ REPLACEMENTS = [
 
 
 def should_scan(path: Path) -> bool:
-    return path.suffix.lower() == ".py" and not any(part in SKIP_DIRS for part in path.parts)
+    if path.suffix.lower() != ".py":
+        return False
+    rel_parts = path.relative_to(ROOT).parts
+    if rel_parts[:2] == ("scripts", "analysis"):
+        return False
+    return not any(part in SKIP_DIRS for part in path.parts)
 
 
 def fix_file(path: Path) -> tuple[int, str]:

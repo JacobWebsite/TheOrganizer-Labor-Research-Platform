@@ -73,18 +73,8 @@ async function loadDeepDiveData(employerId) {
 function renderDeepDive(est, score, tier, tierColor, breakdown, osha, geo, contracts, nlrb, ctx, siblings, elections) {
     const content = document.getElementById('deepDiveContent');
 
-    // Score factor labels and max points
-    const scoreFactors = [
-        { key: 'company_unions', label: 'Existing Unions', max: 20 },
-        { key: 'industry_density', label: 'Industry Density', max: 10 },
-        { key: 'geographic', label: 'Geographic Favorability', max: 15 },
-        { key: 'size', label: 'Employer Size', max: 10 },
-        { key: 'osha', label: 'OSHA Violations', max: 10 },
-        { key: 'nlrb', label: 'NLRB Patterns', max: 10 },
-        { key: 'contracts', label: 'Govt Contracts', max: 15 },
-        { key: 'projections', label: 'Industry Growth', max: 5 },
-        { key: 'similarity', label: 'Similar Employers', max: 5 }
-    ];
+    // Use canonical scoring factors from config.js
+    const scoreFactors = SCORE_FACTORS;
 
     content.innerHTML = `
         <!-- Header -->
@@ -117,7 +107,7 @@ function renderDeepDive(est, score, tier, tierColor, breakdown, osha, geo, contr
         </div>
 
         <!-- KPI Row -->
-        <div class="grid grid-cols-4 gap-4 mb-4">
+        <div class="grid grid-cols-5 gap-4 mb-4">
             <div class="territory-kpi text-center">
                 <div class="text-xs font-semibold text-warmgray-500 uppercase">Employees</div>
                 <div class="text-2xl font-bold text-warmgray-900 mt-1">${formatNumber(est.employee_count || 0)}</div>
@@ -136,6 +126,7 @@ function renderDeepDive(est, score, tier, tierColor, breakdown, osha, geo, contr
                 <div class="text-2xl font-bold text-warmgray-900 mt-1">${contracts.total_funding ? '$' + formatCompact(contracts.total_funding) : 'None'}</div>
                 <div class="text-xs text-warmgray-400">${contracts.federal_contract_count ? contracts.federal_contract_count + ' contracts' : ''}</div>
             </div>
+            ${renderDeepDiveDataQuality(breakdown)}
         </div>
 
         <!-- Score Breakdown + OSHA Detail -->
@@ -282,6 +273,30 @@ function renderDeepDive(est, score, tier, tierColor, breakdown, osha, geo, contr
                 <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Similar Unionized Employers</div>
                 <div id="deepDiveSiblings">${renderDeepDiveSiblings(siblings)}</div>
             </div>
+        </div>
+    `;
+}
+
+function renderDeepDiveDataQuality(breakdown) {
+    const factorCount = SCORE_FACTORS.filter(f => (breakdown[f.key] || 0) > 0).length;
+    const total = SCORE_FACTORS.length;
+    const level = factorCount >= 7 ? 'HIGH' : factorCount >= 4 ? 'MEDIUM' : 'LOW';
+    const levelColor = level === 'HIGH' ? 'text-green-600' : level === 'MEDIUM' ? 'text-yellow-600' : 'text-warmgray-400';
+    const badgeColor = level === 'HIGH' ? 'bg-green-50 text-green-700' : level === 'MEDIUM' ? 'bg-yellow-50 text-yellow-700' : 'bg-warmgray-100 text-warmgray-600';
+    // OSHA freshness from global freshnessData
+    let oshaAge = '';
+    if (typeof freshnessData !== 'undefined' && freshnessData?.sources) {
+        const osha = freshnessData.sources.find(s => s.source_name === 'osha_inspections');
+        if (osha && osha.last_updated) {
+            const days = Math.floor((Date.now() - new Date(osha.last_updated).getTime()) / 86400000);
+            oshaAge = days <= 30 ? 'Current' : days <= 90 ? days + 'd old' : Math.floor(days / 30) + 'mo old';
+        }
+    }
+    return `
+        <div class="territory-kpi text-center">
+            <div class="text-xs font-semibold text-warmgray-500 uppercase">Data Quality</div>
+            <div class="text-2xl font-bold ${levelColor} mt-1">${factorCount}/${total}</div>
+            <div class="text-xs text-warmgray-400">factors with data${oshaAge ? ' &middot; OSHA ' + oshaAge : ''}</div>
         </div>
     `;
 }

@@ -10,7 +10,7 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG)
+conn = get_connection()
 cur = conn.cursor()
 
 # Check existing schemas
@@ -20,6 +20,7 @@ print(f"Existing schemas: {schemas}")
 
 # Check existing tables
 cur.execute("""
+from db_config import get_connection
     SELECT table_schema, table_name
     FROM information_schema.tables
     WHERE table_name IN ('sec_companies','gleif_us_entities','gleif_ownership_links',

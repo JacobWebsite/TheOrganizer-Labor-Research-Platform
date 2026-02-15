@@ -11,11 +11,12 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+conn = get_connection(cursor_factory=RealDictCursor)
 cur = conn.cursor()
 
 print("--- unions_master columns ---")
 cur.execute("""
+from db_config import get_connection
     SELECT column_name FROM information_schema.columns
     WHERE table_name = 'unions_master' ORDER BY ordinal_position
 """)

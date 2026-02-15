@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Phase 6.6: Fuzzy Trigram Matching - Micro Batches
 Processes 200 establishments at a time to avoid timeouts
@@ -67,7 +68,7 @@ def main():
     print(f"Batch size: {BATCH_SIZE}")
     print("=" * 60)
     
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = get_connection()
     cursor = conn.cursor()
     
     # Process Union=Y first (higher priority)

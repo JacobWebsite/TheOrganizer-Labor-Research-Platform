@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Extract ONLY locals and councils (not federations/internationals that aggregate)
 Plus add Form 990 public sector organizations
@@ -6,7 +7,7 @@ Plus add Form 990 public sector organizations
 import psycopg2
 import csv
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 80)

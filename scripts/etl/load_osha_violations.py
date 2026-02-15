@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Phase 4: Load Violation Details (2012+)
 Extracts 2.2M violations from SQLite and loads into PostgreSQL
@@ -43,7 +44,7 @@ def main():
     sqlite_conn.row_factory = sqlite3.Row
     sqlite_cursor = sqlite_conn.cursor()
     
-    pg_conn = psycopg2.connect(**PG_CONFIG)
+    pg_conn = get_connection()
     pg_cursor = pg_conn.cursor()
     
     # Get count first

@@ -21,6 +21,7 @@ SKIP_DIRS = {
     "logs",
     "output",
     "reports",
+    "password_fix_backups",
 }
 EXTENSIONS = {".py"}
 
@@ -33,6 +34,9 @@ BROKEN_PATTERNS = [
 
 
 def should_scan(path: Path) -> bool:
+    rel_parts = path.relative_to(ROOT).parts
+    if rel_parts[:2] == ("scripts", "analysis"):
+        return False
     if any(part in SKIP_DIRS for part in path.parts):
         return False
     if path.suffix.lower() not in EXTENSIONS:

@@ -1,14 +1,10 @@
 import os
+from db_config import get_connection
 """Test the government-level density API queries"""
 import psycopg2
 import json
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 80)

@@ -5,6 +5,7 @@ Debug designation field values
 import psycopg2
 import os
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -13,7 +14,7 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG)
+conn = get_connection()
 cursor = conn.cursor()
 
 print("1. Sample of designation fields:")

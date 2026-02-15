@@ -518,3 +518,139 @@ Outputs generated/updated:
 - `docs/PARALLEL_QUERY_PLAN_BASELINE.md`
 - `docs/PHASE1_MERGE_VALIDATION_REPORT.md`
 - test runs successful for newly added suites
+
+## Continuation Pass: Additional Parallel Work (Post-Expansion)
+
+### Objective
+- Continue Phase 1 parallel support by applying remaining quoted-literal password fixes and re-validating.
+
+### Actions Taken
+1. Attempted bulk apply with backups:
+   - `python scripts/analysis/fix_literal_password_bug.py --apply --backup-dir docs/password_fix_backups`
+2. Discovered fixer/scanner self-targeting issue:
+   - tool scripts under `scripts/analysis` were eligible for replacement and got modified by their own pattern rules.
+3. Repaired tooling and hardened behavior:
+   - `scripts/analysis/find_literal_password_bug.py`
+   - `scripts/analysis/fix_literal_password_bug.py`
+   - Added skip guard for:
+     - `scripts/analysis/*` (avoid self-targeting)
+     - `password_fix_backups` directories (avoid scanning backups)
+4. Re-ran scanner/fixer/validator:
+   - `python scripts/analysis/find_literal_password_bug.py`
+   - `python scripts/analysis/fix_literal_password_bug.py --dry-run`
+   - `python scripts/analysis/phase1_merge_validator.py`
+
+### Final Continuation Results
+- `docs/PARALLEL_PHASE1_PASSWORD_AUDIT.md` -> **Findings: 0**
+- `docs/PARALLEL_PASSWORD_AUTOFIX_REPORT.md` (dry-run) -> **Files changed: 0**, **Total replacements: 0**
+- `docs/PHASE1_MERGE_VALIDATION_REPORT.md` -> **Passed: 7/7**
+
+### Files Modified In Continuation Pass
+- `scripts/analysis/find_literal_password_bug.py`
+  - restored quoted-literal-only semantics
+  - excluded `scripts/analysis` and backup directories from scan scope
+- `scripts/analysis/fix_literal_password_bug.py`
+  - restored literal replacement table (string-to-string)
+  - excluded `scripts/analysis` and backup directories from fix scope
+- `docs/CHECKPOINT_PARALLEL_CODEX_PHASE1_2026-02-15.md` (this continuation update)
+
+### Notes For Claude
+- Password literal-bug track is now effectively closed for the quoted-literal pattern scanner used in this parallel workflow.
+- If you need to enforce migration from direct `os.environ.get(...)` to `db_config.get_connection()`, that is a separate standardization pass and should use a different scanner/fixer rule set (not the quoted-literal bug scanner).
+
+## Continuation Pass 2: `get_connection()` Standardization Pilot
+
+### Objective
+- Begin controlled migration from direct `psycopg2.connect(...)` usage to shared `db_config.get_connection(...)` with rollback support.
+
+### Tool Added
+- `scripts/analysis/migrate_to_db_config_connection.py`
+
+Features:
+- dry-run mode (default)
+- apply mode
+- backup directory support (`--backup-dir`)
+- prefix scoping (`--include-prefix`)
+- rollout cap (`--limit`) for pilot migrations
+
+### Pilot Execution
+
+Discovery dry-run:
+- `python scripts/analysis/migrate_to_db_config_connection.py --dry-run --include-prefix scripts/verify --include-prefix scripts/maintenance --include-prefix scripts/export`
+- Candidate result: 108 files across scoped prefixes.
+
+Pilot apply (batch 1):
+- `python scripts/analysis/migrate_to_db_config_connection.py --apply --include-prefix scripts/verify --limit 20 --backup-dir docs/db_config_migration_backups`
+- Result: 20 files changed.
+
+Pilot validation:
+- `python -m py_compile <changed scripts/verify/*.py>`
+- Result: pass.
+
+Pilot apply (batch 2, remaining verify files):
+- `python scripts/analysis/migrate_to_db_config_connection.py --apply --include-prefix scripts/verify --backup-dir docs/db_config_migration_backups`
+- Result: 6 additional files changed.
+
+Post-pilot no-op check:
+- `python scripts/analysis/migrate_to_db_config_connection.py --dry-run --include-prefix scripts/verify`
+- Result: 0 files remaining in `scripts/verify`.
+
+System validation:
+- `python scripts/analysis/phase1_merge_validator.py`
+- Result: 7/7 passed.
+
+### Files Migrated In `scripts/verify` (26 total)
+
+- `scripts/verify/_check_cols.py`
+- `scripts/verify/_check_crosswalk_schema.py`
+- `scripts/verify/_check_mv_cols.py`
+- `scripts/verify/_project_stats.py`
+- `scripts/verify/cancel_and_check.py`
+- `scripts/verify/check_active_queries.py`
+- `scripts/verify/check_bls_tables.py`
+- `scripts/verify/check_col_lengths.py`
+- `scripts/verify/check_cols.py`
+- `scripts/verify/check_columns.py`
+- `scripts/verify/check_db_projections.py`
+- `scripts/verify/check_f7_indexes.py`
+- `scripts/verify/check_gleif_progress.py`
+- `scripts/verify/check_national_discoveries.py`
+- `scripts/verify/check_nlrb_cols.py`
+- `scripts/verify/check_nlrb_cols2.py`
+- `scripts/verify/check_schema.py`
+- `scripts/verify/check_state_detail.py`
+- `scripts/verify/check_union_priority.py`
+- `scripts/verify/check_violations.py`
+- `scripts/verify/insert_national_discoveries.py`
+- `scripts/verify/test_govt_level_api.py`
+- `scripts/verify/test_targets.py`
+- `scripts/verify/verify_bls_data.py`
+- `scripts/verify/verify_load.py`
+- `scripts/verify/verify_ny_public_sector.py`
+
+### Quality Fix Applied During Pilot
+- Adjusted import insertion behavior in migrator to preserve module docstrings (avoid placing `from db_config import get_connection` above top-level docstring).
+- Corrected two pilot-affected files:
+  - `scripts/verify/check_gleif_progress.py`
+  - `scripts/verify/test_targets.py`
+
+### Backup / Rollback Instructions
+
+Backup root:
+- `docs/db_config_migration_backups`
+
+Rollback a single file:
+- copy corresponding backup file from `docs/db_config_migration_backups/<path>` to original `<path>`.
+
+Rollback all verify pilot files (PowerShell example):
+```powershell
+Get-ChildItem -Recurse docs\db_config_migration_backups\scripts\verify\*.py |
+  ForEach-Object {
+    $rel = $_.FullName.Substring((Resolve-Path docs\db_config_migration_backups).Path.Length + 1)
+    Copy-Item $_.FullName -Destination $rel -Force
+  }
+```
+
+### Generated Reports Updated In This Pass
+- `docs/PARALLEL_DB_CONFIG_MIGRATION_REPORT.md`
+- `docs/PHASE1_MERGE_VALIDATION_REPORT.md`

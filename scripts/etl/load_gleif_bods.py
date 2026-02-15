@@ -23,6 +23,7 @@ import time
 import psycopg2
 import psycopg2.extras
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -347,7 +348,7 @@ def main():
     else:
         print("Skipping pgdump restore (--skip-restore)")
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = False
     psycopg2.extras.register_default_jsonb(conn)
 

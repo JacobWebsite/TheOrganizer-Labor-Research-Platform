@@ -27,6 +27,7 @@ from datetime import datetime
 import psycopg2
 import psycopg2.extras
 
+from db_config import get_connection
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -516,7 +517,7 @@ def main():
     print(f"CSV path: {csv_path}")
     print(f"Connecting to database...")
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
 
     try:
         # Step 1: Create table

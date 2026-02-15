@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Integration Views - Checkpoint 5A
 Core VR views with matched employer/union data
@@ -6,12 +7,7 @@ Core VR views with matched employer/union data
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

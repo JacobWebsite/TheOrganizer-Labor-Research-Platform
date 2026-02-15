@@ -1,16 +1,12 @@
 import os
+from db_config import get_connection
 """Generate output files for Union Discovery 2024"""
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import csv
 from datetime import datetime
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 cur.execute("SELECT * FROM discovered_employers WHERE source_type = 'DISCOVERY_2024' ORDER BY recognition_date")

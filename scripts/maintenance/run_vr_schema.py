@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Schema Execution Script
 Runs the vr_schema.sql file against the PostgreSQL database
@@ -6,12 +7,7 @@ Runs the vr_schema.sql file against the PostgreSQL database
 import psycopg2
 
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

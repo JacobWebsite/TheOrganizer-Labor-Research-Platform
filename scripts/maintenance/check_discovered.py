@@ -11,7 +11,7 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 # Get summary stats
@@ -67,3 +67,4 @@ for row in cur.fetchall():
 
 cur.close()
 conn.close()
+from db_config import get_connection

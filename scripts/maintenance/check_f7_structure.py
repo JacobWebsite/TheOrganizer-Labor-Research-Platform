@@ -1,10 +1,11 @@
 import os
+from db_config import get_connection
 """
 CHECKPOINT 4 FIX: Update unified view with correct column names
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

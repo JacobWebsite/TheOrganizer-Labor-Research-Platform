@@ -1,11 +1,12 @@
 import os
+from db_config import get_connection
 """
 990 vs OLMS Cross-Validation
 Use 990 dues revenue to validate deduplicated OLMS membership counts
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 90)

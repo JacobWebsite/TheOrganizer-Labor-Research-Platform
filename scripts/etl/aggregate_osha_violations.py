@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Violation Aggregation - Phase 3
 Aggregates violations by establishment and type, loads summaries
@@ -85,7 +86,7 @@ def main():
     print("="*60)
     
     sqlite_conn = sqlite3.connect(SQLITE_PATH)
-    pg_conn = psycopg2.connect(**PG_CONFIG)
+    pg_conn = get_connection()
     
     # Clear existing data
     pg_cur = pg_conn.cursor()

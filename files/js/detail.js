@@ -115,6 +115,9 @@ function renderEmployerDetail(item) {
         `;
     }
 
+    // Data Quality indicators
+    renderDataQuality(item, srcType);
+
     // BLS Projections - show loading then fetch data
     const naics2 = item.naics ? item.naics.substring(0, 2) : null;
     const naicsDetailed = item.naics_detailed || (item.naics && item.naics.length >= 4 ? item.naics : null);
@@ -189,6 +192,86 @@ function renderEmployerDetail(item) {
 
     // Load unified detail (cross-references + flags)
     loadUnifiedDetail(canonicalId);
+}
+
+// ==========================================
+// DATA QUALITY INDICATORS
+// ==========================================
+
+function renderDataQuality(item, srcType) {
+    const el = document.getElementById('detailDataQuality');
+
+    // NAICS confidence from employer search data
+    const naicsSource = item.naics_source || null;
+    const naicsConf = item.naics_confidence != null ? parseFloat(item.naics_confidence) : null;
+
+    // Determine NAICS quality level
+    let naicsBadge = '';
+    if (naicsSource) {
+        const confLabel = naicsConf >= 0.8 ? 'HIGH' : naicsConf >= 0.5 ? 'MEDIUM' : 'LOW';
+        const confColor = naicsConf >= 0.8 ? 'bg-green-100 text-green-700'
+            : naicsConf >= 0.5 ? 'bg-yellow-100 text-yellow-700'
+            : 'bg-orange-100 text-orange-700';
+        const sourceLabel = naicsSource === 'OSHA' ? 'OSHA match'
+            : naicsSource === 'BLS' ? 'BLS lookup'
+            : naicsSource === 'MANUAL' ? 'Manual entry'
+            : naicsSource;
+        naicsBadge = `
+            <div class="flex justify-between items-center">
+                <span class="text-warmgray-500">NAICS</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded font-medium ${confColor}">${confLabel}</span>
+                    <span class="text-xs text-warmgray-400">${sourceLabel}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Source freshness from global freshnessData
+    let freshnessBadge = '';
+    if (typeof freshnessData !== 'undefined' && freshnessData && freshnessData.sources) {
+        const sourceMap = {
+            'F7': 'f7_filings',
+            'NLRB': 'nlrb_cases',
+            'VR': 'voluntary_recognition',
+            'PUBLIC': 'public_sector_unions',
+            'MANUAL': null
+        };
+        const freshKey = sourceMap[srcType];
+        if (freshKey) {
+            const src = freshnessData.sources.find(s => s.source_name === freshKey);
+            if (src && src.last_updated) {
+                const updated = new Date(src.last_updated);
+                const daysSince = Math.floor((Date.now() - updated.getTime()) / 86400000);
+                const freshColor = daysSince <= 30 ? 'text-green-600' : daysSince <= 90 ? 'text-yellow-600' : 'text-orange-600';
+                freshnessBadge = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-warmgray-500">Source Updated</span>
+                        <span class="text-xs font-medium ${freshColor}">${updated.toLocaleDateString()} (${daysSince}d ago)</span>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // Only show section if we have something to display
+    if (!naicsBadge && !freshnessBadge) {
+        el.classList.add('hidden');
+        return;
+    }
+
+    el.classList.remove('hidden');
+    el.innerHTML = `
+        <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-3">Data Quality</div>
+        <div class="space-y-2 text-sm">
+            ${naicsBadge}
+            ${freshnessBadge}
+            <div class="flex justify-between items-center">
+                <span class="text-warmgray-500">Source Type</span>
+                <span class="text-xs font-medium text-warmgray-600">${getSourceLabel(srcType)}</span>
+            </div>
+        </div>
+    `;
 }
 
 // ==========================================

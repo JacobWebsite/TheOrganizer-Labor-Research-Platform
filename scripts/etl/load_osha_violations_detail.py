@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Detailed Violations - Phase 4
 Loads individual violation records with case numbers for external lookup
@@ -86,7 +87,7 @@ def main():
     print("="*60)
     
     sqlite_conn = sqlite3.connect(SQLITE_PATH)
-    pg_conn = psycopg2.connect(**PG_CONFIG)
+    pg_conn = get_connection()
     
     pg_cur = pg_conn.cursor()
     pg_cur.execute("TRUNCATE osha_violations_detail RESTART IDENTITY")

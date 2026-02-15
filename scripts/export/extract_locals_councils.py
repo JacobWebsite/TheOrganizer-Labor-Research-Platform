@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Extract complete list of union locals and councils with membership
 Covers both public and private sectors from OLMS data
@@ -6,7 +7,7 @@ Covers both public and private sectors from OLMS data
 import psycopg2
 import csv
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 80)

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """Final verification of F-7 data integration"""
 import psycopg2
 
@@ -9,7 +10,7 @@ PG_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', '')
 }
 
-conn = psycopg2.connect(**PG_CONFIG)
+conn = get_connection()
 cursor = conn.cursor()
 
 print("="*70)

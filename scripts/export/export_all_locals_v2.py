@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Export COMPLETE list of all union locals and councils with membership
 Includes both OLMS (private/mixed) and Form 990 (public sector) data
@@ -6,12 +7,7 @@ Includes both OLMS (private/mixed) and Form 990 (public sector) data
 import psycopg2
 import csv
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 90)

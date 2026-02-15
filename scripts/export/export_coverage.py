@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Export private sector coverage data to Excel
 """
@@ -6,12 +7,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import pandas as pd
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 # Improved classification with spelled-out names

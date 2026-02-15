@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Export ALL union locals from raw lm_data (not deduplicated)
 This shows the full granular breakdown of locals
@@ -6,12 +7,7 @@ This shows the full granular breakdown of locals
 import psycopg2
 import csv
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 90)

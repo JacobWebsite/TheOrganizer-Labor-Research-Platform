@@ -63,18 +63,30 @@
                     </div>
                     <!-- App Mode Toggle -->
                     <div class="inline-flex gap-1 p-1 bg-warmgray-800 rounded-full">
-                        <button id="modeTerritory" onclick="setAppMode('territory')"
+                        <button id="modeTerritory" data-action="setAppMode" data-action-arg="territory"
                             class="app-mode-active px-4 py-1.5 text-sm font-semibold rounded-full transition-all">
                             Territory
                         </button>
-                        <button id="modeSearch" onclick="setAppMode('search')"
+                        <button id="modeSearch" data-action="setAppMode" data-action-arg="search"
                             class="app-mode-inactive px-4 py-1.5 text-sm font-semibold rounded-full transition-all">
                             Search
                         </button>
                     </div>
                 </div>
                 <div class="flex items-center gap-8 text-sm">
-                    <button onclick="openAnalyticsDashboard()"
+                    <button data-action="openGlossary"
+                        class="w-6 h-6 rounded-full bg-warmgray-700 hover:bg-warmgray-600 text-warmgray-300 text-xs font-bold flex items-center justify-center transition-colors"
+                        title="Metrics Glossary">?</button>
+                    <button data-action="setAppMode" data-action-arg="admin"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-warmgray-400 hover:text-warmgray-200 text-xs rounded transition-colors"
+                        title="Admin">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Admin
+                    </button>
+                    <button data-action="openAnalyticsDashboard"
                         class="flex items-center gap-2 px-4 py-2 bg-warmgray-800 hover:bg-warmgray-700 rounded-lg transition-colors"
                         title="Analytics Dashboard">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,26 +125,26 @@
                 <div class="flex items-end gap-4">
                     <div class="flex-1">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">National Union</label>
-                        <select id="territoryUnion" onchange="onTerritoryUnionChange()"
+                        <select id="territoryUnion" data-change="onTerritoryUnionChange"
                             class="w-full px-3 py-2.5 border border-warmgray-300 rounded-md text-sm bg-white font-medium">
                             <option value="">All Unions</option>
                         </select>
                     </div>
                     <div class="w-44">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
-                        <select id="territoryState" onchange="onTerritoryStateChange()"
+                        <select id="territoryState" data-change="onTerritoryStateChange"
                             class="w-full px-3 py-2.5 border border-warmgray-300 rounded-md text-sm bg-white">
                             <option value="">All States</option>
                         </select>
                     </div>
                     <div class="w-52">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Metro Area</label>
-                        <select id="territoryMetro" onchange="onTerritoryMetroChange()"
+                        <select id="territoryMetro" data-change="onTerritoryMetroChange"
                             class="w-full px-3 py-2.5 border border-warmgray-300 rounded-md text-sm bg-white" disabled>
                             <option value="">Select state first</option>
                         </select>
                     </div>
-                    <button onclick="loadTerritoryDashboard()"
+                    <button data-action="loadTerritoryDashboard"
                         class="px-6 py-2.5 bg-accent-red text-white font-semibold rounded-md hover:bg-accent-redDark transition-colors whitespace-nowrap">
                         View Territory
                     </button>
@@ -182,7 +194,7 @@
                     <div class="territory-card animate-pulse"><div class="skeleton h-24"></div></div>
                 </div>
                 <div class="text-center mb-8">
-                    <button onclick="openNationalUnionsBrowser()" class="text-sm text-accent-red hover:text-accent-redDark font-medium">
+                    <button data-action="openNationalUnionsBrowser" class="text-sm text-accent-red hover:text-accent-redDark font-medium">
                         Browse all national unions &rarr;
                     </button>
                 </div>
@@ -206,7 +218,7 @@
         <!-- ============================================ -->
         <div id="deepDiveMode" class="hidden">
             <!-- Back button -->
-            <button onclick="returnFromDeepDive()" class="back-btn mb-5">
+            <button data-action="returnFromDeepDive" class="back-btn mb-5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                 </svg>
@@ -219,6 +231,75 @@
         </div>
 
         <!-- ============================================ -->
+        <!-- UNION DIVE MODE -->
+        <!-- ============================================ -->
+        <div id="unionDiveMode" class="hidden">
+            <button data-action="returnFromUnionDive" class="back-btn mb-5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span id="unionDiveBackLabel">Back to Search</span>
+            </button>
+            <div id="unionDiveContent">
+                <div class="text-center py-12 text-warmgray-400">Select a union to view profile</div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- ADMIN MODE -->
+        <!-- ============================================ -->
+        <div id="adminMode" class="hidden">
+            <div class="mb-6">
+                <h2 class="headline text-2xl font-bold text-warmgray-900 mb-1">Admin &amp; Review Queue</h2>
+                <p class="text-warmgray-500">Platform administration and data management tools</p>
+            </div>
+            <div class="grid grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl border border-warmgray-200 p-6">
+                    <h3 class="font-semibold text-warmgray-900 mb-3">Data Freshness</h3>
+                    <p class="text-sm text-warmgray-500 mb-4">View last-updated timestamps for all 15 data sources and ~7M records.</p>
+                    <button data-action="openFreshnessModal" class="px-4 py-2 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-sm font-medium rounded-lg transition-colors">
+                        View Freshness
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl border border-warmgray-200 p-6">
+                    <h3 class="font-semibold text-warmgray-900 mb-3">Scorecard Refresh</h3>
+                    <p class="text-sm text-warmgray-500 mb-4">Refresh the organizing scorecard materialized view (24,841 rows).</p>
+                    <button id="adminRefreshBtn" data-action="adminRefreshScorecard" class="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium rounded-lg transition-colors">
+                        Refresh Scorecard
+                    </button>
+                    <span id="adminRefreshStatus" class="text-xs text-warmgray-400 ml-2"></span>
+                </div>
+                <div class="bg-white rounded-xl border border-warmgray-200 p-6">
+                    <h3 class="font-semibold text-warmgray-900 mb-3">Debug Check</h3>
+                    <p class="text-sm text-warmgray-500 mb-4">Run diagnostics on API endpoints, modal elements, and function availability.</p>
+                    <button data-action="runDebugCheck" class="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium rounded-lg transition-colors">
+                        Run Debug
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl border border-warmgray-200 p-6">
+                    <h3 class="font-semibold text-warmgray-900 mb-3">Analytics Dashboard</h3>
+                    <p class="text-sm text-warmgray-500 mb-4">Platform-wide metrics: membership, elections, industries, and growth.</p>
+                    <button data-action="openAnalyticsDashboard" class="px-4 py-2 bg-warmgray-100 hover:bg-warmgray-200 text-warmgray-700 text-sm font-medium rounded-lg transition-colors">
+                        Open Analytics
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl border border-warmgray-200 p-6">
+                    <h3 class="font-semibold text-warmgray-900 mb-3">Trends</h3>
+                    <p class="text-sm text-warmgray-500 mb-4">Historical membership and election trends from 2010 to 2024.</p>
+                    <button data-action="openTrendsModal" class="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-sm font-medium rounded-lg transition-colors">
+                        View Trends
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl border border-warmgray-200 p-6">
+                    <h3 class="font-semibold text-warmgray-900 mb-3">Data Flagging</h3>
+                    <p class="text-sm text-warmgray-500 mb-4">Review and manage user-submitted data quality flags.</p>
+                    <span class="text-xs text-warmgray-400">Coming soon</span>
+                </div>
+            </div>
+            <div id="debugOutput" class="hidden bg-yellow-50 border border-yellow-300 rounded-lg p-4 mt-6 text-sm font-mono"></div>
+        </div>
+
+        <!-- ============================================ -->
         <!-- SEARCH MODE (existing content) -->
         <!-- ============================================ -->
         <div id="searchMode" class="hidden">
@@ -228,11 +309,11 @@
         <!-- ============================================ -->
         <div class="mb-5 flex justify-between items-center">
             <div class="inline-flex gap-1 p-1 bg-warmgray-200 rounded-full">
-                <button id="tabEmployers" onclick="setSearchMode('employers')" 
+                <button id="tabEmployers" data-action="setSearchMode" data-action-arg="employers"
                     class="tab-active px-6 py-2 text-sm font-semibold rounded-full transition-all">
                     Search Employers
                 </button>
-                <button id="tabUnions" onclick="setSearchMode('unions')" 
+                <button id="tabUnions" data-action="setSearchMode" data-action-arg="unions"
                     class="tab-inactive px-6 py-2 text-sm font-semibold rounded-full transition-all hover:text-warmgray-700">
                     Search Unions
                 </button>
@@ -240,7 +321,7 @@
             <div class="flex items-center gap-4">
                 <!-- Saved Searches Dropdown -->
                 <div class="relative">
-                    <button onclick="toggleSavedSearches()" 
+                    <button data-action="toggleSavedSearches"
                         class="text-sm text-warmgray-500 hover:text-warmgray-700 font-medium flex items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
@@ -252,7 +333,7 @@
                     </button>
                     <div id="savedSearchesDropdown" class="hidden absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-lg border border-warmgray-200 z-50">
                         <div class="p-3 border-b border-warmgray-100">
-                            <button onclick="saveCurrentSearch()" 
+                            <button data-action="saveCurrentSearch"
                                 class="w-full text-left text-sm text-warmgray-600 hover:text-warmgray-900 flex items-center gap-2 py-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -265,14 +346,14 @@
                         </div>
                     </div>
                 </div>
-                <button onclick="openOrganizingScorecard()" 
+                <button data-action="openOrganizingScorecard"
                     class="text-sm text-green-700 hover:text-green-800 font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                     </svg>
                     Organizing Targets
                 </button>
-                <button onclick="openNationalUnionsBrowser()"
+                <button data-action="openNationalUnionsBrowser"
                     class="text-sm text-accent-red hover:text-accent-redDark font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
@@ -280,28 +361,28 @@
                     Browse National Unions
                 </button>
                 <span class="text-warmgray-300">|</span>
-                <button onclick="openElectionsModal()"
+                <button data-action="openElectionsModal"
                     class="text-sm text-blue-700 hover:text-blue-800 font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                     </svg>
                     Elections
                 </button>
-                <button onclick="openUnifiedEmployersModal()"
+                <button data-action="openUnifiedEmployersModal"
                     class="text-sm text-purple-700 hover:text-purple-800 font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                     </svg>
                     All Employers
                 </button>
-                <button onclick="openTrendsModal()"
+                <button data-action="openTrendsModal"
                     class="text-sm text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
                     </svg>
                     Trends
                 </button>
-                <button onclick="openPublicSectorModal()"
+                <button data-action="openPublicSectorModal"
                     class="text-sm text-orange-700 hover:text-orange-800 font-medium flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
@@ -309,15 +390,12 @@
                     Public Sector
                 </button>
                 <span class="text-warmgray-300">|</span>
-                <button onclick="runDebugCheck()"
+                <button data-action="runDebugCheck"
                     class="text-sm text-red-600 hover:text-red-700 font-medium">
                     Debug
                 </button>
             </div>
         </div>
-
-        <!-- Debug Output -->
-        <div id="debugOutput" class="hidden bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4 text-sm font-mono"></div>
 
         <!-- ============================================ -->
         <!-- SEARCH & FILTERS -->
@@ -355,7 +433,7 @@
                     <!-- State -->
                     <div class="w-44">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">State</label>
-                        <select id="stateFilter" onchange="onStateChange()" 
+                        <select id="stateFilter" data-change="onStateChange"
                             class="w-full px-3 py-2 border border-warmgray-300 rounded-md text-sm bg-white">
                             <option value="">All States</option>
                             <!-- Populated by JS -->
@@ -365,7 +443,7 @@
                     <!-- Metro (depends on state) -->
                     <div class="w-52">
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Metro Area</label>
-                        <select id="metroFilter" onchange="onMetroChange()" 
+                        <select id="metroFilter" data-change="onMetroChange"
                             class="w-full px-3 py-2 border border-warmgray-300 rounded-md text-sm bg-white" disabled>
                             <option value="">Select state first</option>
                         </select>
@@ -411,7 +489,7 @@
                     <div class="flex-1"></div>
                     
                     <!-- Search button -->
-                    <button onclick="executeSearch()" 
+                    <button data-action="executeSearch"
                         class="px-6 py-2 bg-warmgray-900 text-white font-semibold rounded-md hover:bg-warmgray-800 transition-colors">
                         Search
                     </button>
@@ -438,7 +516,7 @@
                         <strong class="text-warmgray-900" id="resultLocals">0</strong> <span id="resultLocalsLabel">locals</span>
                     </span>
                 </div>
-                <button onclick="toggleStats()" class="text-sm text-warmgray-500 hover:text-warmgray-700 flex items-center gap-1">
+                <button data-action="toggleStats" class="text-sm text-warmgray-500 hover:text-warmgray-700 flex items-center gap-1">
                     <span id="statsToggleText">Show breakdown</span>
                     <svg id="statsToggleIcon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -490,7 +568,7 @@
                 <span id="mappableCount" class="text-warmgray-400 ml-2"></span>
             </div>
             <div class="flex items-center gap-3">
-                <button id="shareBtn" onclick="copyShareLink()" 
+                <button id="shareBtn" data-action="copyShareLink"
                     class="text-sm text-warmgray-500 hover:text-warmgray-700 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -498,7 +576,7 @@
                     </svg>
                     <span id="shareBtnText">Share</span>
                 </button>
-                <button id="exportBtn" onclick="exportResults()" 
+                <button id="exportBtn" data-action="exportResults"
                     class="text-sm text-warmgray-500 hover:text-warmgray-700 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
                     disabled>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -506,7 +584,7 @@
                     </svg>
                     Export CSV
                 </button>
-                <button id="compareBtn" onclick="openComparison()" 
+                <button id="compareBtn" data-action="openComparison"
                     class="text-sm text-warmgray-500 hover:text-warmgray-700 flex items-center gap-1 relative">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -515,13 +593,13 @@
                     <span id="comparisonBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-accent-red text-white text-xs rounded-full flex items-center justify-center">0</span>
                 </button>
                 <div class="view-toggle">
-                    <button id="listViewBtn" class="active" onclick="setView('list')">
+                    <button id="listViewBtn" class="active" data-action="setView" data-action-arg="list">
                         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
                         </svg>
                         List
                     </button>
-                    <button id="mapViewBtn" onclick="setView('map')">
+                    <button id="mapViewBtn" data-action="setView" data-action-arg="map">
                         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
                         </svg>
@@ -636,7 +714,7 @@
                                 <div id="detailBadges" class="flex gap-2">
                                     <span class="badge badge-private">Private</span>
                                 </div>
-                                <button onclick="printReport()" class="text-warmgray-400 hover:text-warmgray-600" title="Print Report">
+                                <button data-action="printReport" class="text-warmgray-400 hover:text-warmgray-600" title="Print Report">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                                     </svg>
@@ -666,7 +744,7 @@
                                 <input type="text" id="flagNotesInput" placeholder="Notes (optional)"
                                     class="w-full px-2 py-1.5 border border-warmgray-300 rounded text-sm">
                             </div>
-                            <button onclick="submitFlag()" class="px-3 py-1.5 bg-warmgray-900 text-white text-sm rounded hover:bg-warmgray-800">
+                            <button data-action="submitFlag" class="px-3 py-1.5 bg-warmgray-900 text-white text-sm rounded hover:bg-warmgray-800">
                                 Add
                             </button>
                         </div>
@@ -690,6 +768,11 @@
                         <!-- Populated by JS -->
                     </div>
                     
+                    <!-- Data Quality indicators (dynamic content) -->
+                    <div id="detailDataQuality" class="p-5 border-b border-warmgray-200 hidden">
+                        <!-- Populated by JS -->
+                    </div>
+
                     <!-- Industry/Projections (dynamic content) -->
                     <div id="detailProjections" class="p-5 border-b border-warmgray-200">
                         <!-- Populated by JS -->
@@ -795,7 +878,7 @@
                     <h3 class="headline text-xl font-bold text-warmgray-900">Find Similar Employers</h3>
                     <p class="text-sm text-warmgray-500 mt-0.5">Non-union employers from OSHA data with safety violations</p>
                 </div>
-                <button onclick="closeFindSimilar()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closeFindSimilar" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -855,11 +938,11 @@
                 
                 <!-- Action buttons -->
                 <div class="flex gap-3">
-                    <button onclick="executeFindSimilar()" id="findSimilarBtn"
+                    <button data-action="executeFindSimilar" id="findSimilarBtn"
                         class="flex-1 py-3 bg-warmgray-900 text-white font-semibold rounded-lg hover:bg-warmgray-800 transition-colors">
                         Find Similar Employers
                     </button>
-                    <button onclick="closeFindSimilar()" 
+                    <button data-action="closeFindSimilar"
                         class="px-6 py-3 border border-warmgray-300 text-warmgray-700 font-semibold rounded-lg hover:bg-warmgray-50 transition-colors">
                         Cancel
                     </button>
@@ -874,7 +957,7 @@
                         <span class="font-semibold text-warmgray-900" id="similarResultsCount">47 potential targets found</span>
                         <span class="text-sm text-warmgray-500 ml-2" id="similarResultsSource">from OSHA data</span>
                     </div>
-                    <button onclick="showFindSimilarForm()" class="text-sm text-accent-red hover:underline">
+                    <button data-action="showFindSimilarForm" class="text-sm text-accent-red hover:underline">
                         ← Modify Search
                     </button>
                 </div>
@@ -904,7 +987,7 @@
                     <h2 id="dashboardTitle" class="headline text-2xl font-bold text-warmgray-900">SEIU</h2>
                     <p class="text-sm text-warmgray-500">National Union Dashboard</p>
                 </div>
-                <button onclick="closeNationalDashboard()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closeNationalDashboard" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1003,14 +1086,14 @@
                     <!-- Sector badges -->
                 </div>
                 <div class="flex gap-3">
-                    <button id="searchLocalsBtn" onclick="searchLocalsForCurrentAffiliation()"
+                    <button id="searchLocalsBtn" data-action="searchLocalsForCurrentAffiliation"
                         class="px-4 py-2 bg-warmgray-100 text-warmgray-700 font-semibold rounded-lg hover:bg-warmgray-200 transition-colors flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
                         Search All Locals
                     </button>
-                    <button onclick="closeNationalDashboard()"
+                    <button data-action="closeNationalDashboard"
                         class="px-6 py-2 bg-warmgray-900 text-white font-semibold rounded-lg hover:bg-warmgray-800 transition-colors">
                         Close
                     </button>
@@ -1030,7 +1113,7 @@
                     <h2 class="headline text-xl font-bold text-warmgray-900">National Unions</h2>
                     <p class="text-sm text-warmgray-500">Select a union to view its dashboard</p>
                 </div>
-                <button onclick="closeNationalBrowser()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closeNationalBrowser" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1063,7 +1146,7 @@
                     <h2 class="headline text-xl font-bold text-warmgray-900">Compare</h2>
                     <p id="comparisonSubtitle" class="text-sm text-warmgray-500">Side-by-side comparison</p>
                 </div>
-                <button onclick="closeComparison()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closeComparison" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1090,10 +1173,10 @@
             
             <!-- Footer -->
             <div class="px-6 py-4 border-t border-warmgray-200 flex justify-between items-center flex-shrink-0">
-                <button onclick="clearComparison()" class="text-sm text-warmgray-500 hover:text-warmgray-700">
+                <button data-action="clearComparison" class="text-sm text-warmgray-500 hover:text-warmgray-700">
                     Clear comparison
                 </button>
-                <button onclick="closeComparison()" 
+                <button data-action="closeComparison"
                     class="px-6 py-2 bg-warmgray-900 text-white font-semibold rounded-lg hover:bg-warmgray-800 transition-colors">
                     Close
                 </button>
@@ -1117,7 +1200,7 @@
                     </h2>
                     <p class="text-sm text-warmgray-500">Non-union establishments scored by organizing potential</p>
                 </div>
-                <button onclick="closeOrganizingScorecard()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closeOrganizingScorecard" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1129,7 +1212,7 @@
                 <div class="flex gap-4 items-end flex-wrap">
                     <div>
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Union Preset</label>
-                        <select id="scorecardUnionPreset" onchange="loadUnionPreset(this.value)"
+                        <select id="scorecardUnionPreset" data-change="loadUnionPreset" data-change-value="true"
                             class="px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white min-w-[200px]">
                             <option value="">Select a Union...</option>
                             <option value="AFSCME_NY">AFSCME New York</option>
@@ -1140,7 +1223,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Data Source</label>
-                        <select id="scorecardDataSource" onchange="updateScorecardFilters()"
+                        <select id="scorecardDataSource" data-change="updateScorecardFilters"
                             class="px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white min-w-[180px]">
                             <option value="osha">OSHA Establishments</option>
                             <optgroup label="Mergent Sectors (NY)">
@@ -1246,7 +1329,7 @@
                             <option value="false">No Contracts</option>
                         </select>
                     </div>
-                    <button onclick="loadScorecardResults()"
+                    <button data-action="loadScorecardResults"
                         class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors">
                         Search
                     </button>
@@ -1316,7 +1399,7 @@
                     </h2>
                     <p class="text-warmgray-400 text-sm">Platform-wide metrics and trends</p>
                 </div>
-                <button onclick="closeAnalyticsDashboard()" class="text-warmgray-400 hover:text-white">
+                <button data-action="closeAnalyticsDashboard" class="text-warmgray-400 hover:text-white">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1477,7 +1560,7 @@
                     </h2>
                     <p class="text-warmgray-300 text-sm" id="corporateFamilySubtitle">Related employers and locations</p>
                 </div>
-                <button onclick="closeCorporateFamily()" class="text-warmgray-300 hover:text-white">
+                <button data-action="closeCorporateFamily" class="text-warmgray-300 hover:text-white">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1584,7 +1667,7 @@
                     </h2>
                     <p class="text-sm text-warmgray-500">Unified employer database from all sources</p>
                 </div>
-                <button onclick="closeUnifiedEmployersModal()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closeUnifiedEmployersModal" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1631,7 +1714,7 @@
                             <option value="false">No</option>
                         </select>
                     </div>
-                    <button onclick="loadUnifiedEmployers()"
+                    <button data-action="loadUnifiedEmployers"
                         class="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors">
                         Search
                     </button>
@@ -1699,7 +1782,7 @@
                     </h2>
                     <p class="text-sm text-warmgray-500">Union representation elections from NLRB</p>
                 </div>
-                <button onclick="closeElectionsModal()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closeElectionsModal" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1750,7 +1833,7 @@
                             class="w-4 h-4 rounded border-warmgray-300 text-blue-600 focus:ring-blue-500">
                         <label for="electionsExcludeLawFirms" class="text-xs text-warmgray-600">Exclude law firms</label>
                     </div>
-                    <button onclick="loadElections()"
+                    <button data-action="loadElections"
                         class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
                         Search
                     </button>
@@ -1817,7 +1900,7 @@
                     </h2>
                     <p class="text-sm text-warmgray-500">Public sector unions and employers</p>
                 </div>
-                <button onclick="closePublicSectorModal()" class="text-warmgray-400 hover:text-warmgray-600">
+                <button data-action="closePublicSectorModal" class="text-warmgray-400 hover:text-warmgray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1827,11 +1910,11 @@
             <!-- Sub-view toggle -->
             <div class="px-6 py-3 border-b border-warmgray-200 bg-warmgray-50">
                 <div class="inline-flex gap-1 p-1 bg-warmgray-200 rounded-full">
-                    <button id="psLocalsTab" onclick="setPublicSectorView('locals')"
+                    <button id="psLocalsTab" data-action="setPublicSectorView" data-action-arg="locals"
                         class="px-4 py-1.5 text-sm font-semibold rounded-full transition-all bg-warmgray-900 text-white">
                         Union Locals
                     </button>
-                    <button id="psEmployersTab" onclick="setPublicSectorView('employers')"
+                    <button id="psEmployersTab" data-action="setPublicSectorView" data-action-arg="employers"
                         class="px-4 py-1.5 text-sm font-semibold rounded-full transition-all text-warmgray-600 hover:text-warmgray-800">
                         Employers
                     </button>
@@ -1858,7 +1941,7 @@
                             <option value="">All Unions</option>
                         </select>
                     </div>
-                    <button onclick="loadPublicSectorLocals()"
+                    <button data-action="loadPublicSectorLocals"
                         class="px-6 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors">
                         Search
                     </button>
@@ -1885,7 +1968,7 @@
                             <option value="">All Types</option>
                         </select>
                     </div>
-                    <button onclick="loadPublicSectorEmployers()"
+                    <button data-action="loadPublicSectorEmployers"
                         class="px-6 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors">
                         Search
                     </button>
@@ -1954,7 +2037,7 @@
                     </h2>
                     <p class="text-emerald-200 text-sm">Historical membership and election trends (2010-2024)</p>
                 </div>
-                <button onclick="closeTrendsModal()" class="text-emerald-200 hover:text-white">
+                <button data-action="closeTrendsModal" class="text-emerald-200 hover:text-white">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -1964,23 +2047,23 @@
             <!-- Sub-tabs -->
             <div class="bg-white border-b border-warmgray-200 px-6 py-3">
                 <div class="flex gap-2">
-                    <button id="trendsTabOverview" onclick="setTrendsTab('overview')"
+                    <button id="trendsTabOverview" data-action="setTrendsTab" data-action-arg="overview"
                         class="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-100 text-emerald-700">
                         Overview
                     </button>
-                    <button id="trendsTabMembership" onclick="setTrendsTab('membership')"
+                    <button id="trendsTabMembership" data-action="setTrendsTab" data-action-arg="membership"
                         class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
                         Membership Trends
                     </button>
-                    <button id="trendsTabElections" onclick="setTrendsTab('elections')"
+                    <button id="trendsTabElections" data-action="setTrendsTab" data-action-arg="elections"
                         class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
                         Election Trends
                     </button>
-                    <button id="trendsTabByState" onclick="setTrendsTab('byState')"
+                    <button id="trendsTabByState" data-action="setTrendsTab" data-action-arg="byState"
                         class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
                         By State
                     </button>
-                    <button id="trendsTabByAffiliation" onclick="setTrendsTab('byAffiliation')"
+                    <button id="trendsTabByAffiliation" data-action="setTrendsTab" data-action-arg="byAffiliation"
                         class="px-4 py-2 text-sm font-semibold rounded-lg text-warmgray-600 hover:bg-warmgray-100">
                         By Affiliation
                     </button>
@@ -2082,7 +2165,7 @@
                     <div class="mb-4 flex gap-4 items-end">
                         <div>
                             <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Select State</label>
-                            <select id="trendsStateSelect" onchange="loadStateTrends()"
+                            <select id="trendsStateSelect" data-change="loadStateTrends"
                                 class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                                 <option value="">Choose a state...</option>
                             </select>
@@ -2104,7 +2187,7 @@
                     <div class="mb-4 flex gap-4 items-end">
                         <div>
                             <label class="block text-xs font-semibold text-warmgray-500 uppercase tracking-wide mb-1">Select Affiliation</label>
-                            <select id="trendsAffiliationSelect" onchange="loadAffiliationTrends()"
+                            <select id="trendsAffiliationSelect" data-change="loadAffiliationTrends"
                                 class="px-3 py-2 border border-warmgray-300 rounded-lg text-sm">
                                 <option value="">Choose an affiliation...</option>
                             </select>
@@ -2124,20 +2207,35 @@
         </div>
     </div>
 
+    <!-- ============================================ -->
+    <!-- GLOSSARY MODAL -->
+    <!-- ============================================ -->
+    <div id="glossaryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center" data-action="closeGlossary" data-action-self="true">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden mx-4 flex flex-col">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-warmgray-200">
+                <h2 class="text-lg font-bold text-warmgray-900">Metrics Glossary</h2>
+                <button data-action="closeGlossary" class="text-warmgray-400 hover:text-warmgray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div id="glossaryContent" class="p-6 overflow-y-auto flex-1">
+                <p class="text-warmgray-400">Loading...</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Data Freshness Footer -->
     <div id="freshnessFooter" class="hidden fixed bottom-0 left-0 right-0 bg-warmgray-800 text-warmgray-300 text-xs py-1.5 px-6 z-30">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <span id="freshnessFooterText">Loading data freshness...</span>
-            <button onclick="openFreshnessModal()" class="text-warmgray-400 hover:text-white underline ml-4">View Details</button>
+            <button data-action="openFreshnessModal" class="text-warmgray-400 hover:text-white underline ml-4">View Details</button>
         </div>
     </div>
 
     <!-- Data Freshness Modal -->
-    <div id="freshnessModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center" onclick="if(event.target===this)closeFreshnessModal()">
+    <div id="freshnessModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center" data-action="closeFreshnessModal" data-action-self="true">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden mx-4">
             <div class="flex justify-between items-center px-6 py-4 border-b border-warmgray-200">
                 <h2 class="text-lg font-bold text-warmgray-900">Data Source Freshness</h2>
-                <button onclick="closeFreshnessModal()" class="text-warmgray-400 hover:text-warmgray-700 text-2xl leading-none">&times;</button>
+                <button data-action="closeFreshnessModal" class="text-warmgray-400 hover:text-warmgray-700 text-2xl leading-none">&times;</button>
             </div>
             <div class="px-6 py-4 overflow-y-auto max-h-[65vh]">
                 <div id="freshnessModalContent">Loading...</div>
@@ -2154,7 +2252,16 @@
     <script src="/files/js/deepdive.js"></script>
     <script src="/files/js/detail.js"></script>
     <script src="/files/js/scorecard.js"></script>
-    <script src="/files/js/modals.js"></script>
+    <script src="/files/js/modal-similar.js"></script>
+    <script src="/files/js/modal-corporate.js"></script>
+    <script src="/files/js/modal-analytics.js"></script>
+    <script src="/files/js/modal-comparison.js"></script>
+    <script src="/files/js/modal-unified.js"></script>
+    <script src="/files/js/modal-elections.js"></script>
+    <script src="/files/js/modal-publicsector.js"></script>
+    <script src="/files/js/modal-trends.js"></script>
+    <script src="/files/js/uniondive.js"></script>
+    <script src="/files/js/glossary.js"></script>
     <script src="/files/js/app.js"></script>
 </body>
 </html>

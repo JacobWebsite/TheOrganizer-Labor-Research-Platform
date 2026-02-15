@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """Run NLRB schema creation"""
 import psycopg2
 
@@ -14,7 +15,7 @@ schema_file = r'C:\Users\jakew\Downloads\labor-data-project\src\sql\nlrb_schema.
 with open(schema_file, 'r') as f:
     schema_sql = f.read()
 
-conn = psycopg2.connect(**PG_CONFIG)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

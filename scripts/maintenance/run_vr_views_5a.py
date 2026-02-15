@@ -1,15 +1,11 @@
 import os
+from db_config import get_connection
 """
 Run VR Views 5A SQL
 """
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

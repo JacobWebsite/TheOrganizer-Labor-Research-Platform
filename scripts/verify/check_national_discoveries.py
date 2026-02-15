@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Check discovered union organizing events (2015-2025) against the labor relations database.
 Classifies each as EXACT_MATCH, PARTIAL_MATCH, or NOT_FOUND.
@@ -7,12 +8,7 @@ import psycopg2
 import re
 from collections import defaultdict
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # ============================================================

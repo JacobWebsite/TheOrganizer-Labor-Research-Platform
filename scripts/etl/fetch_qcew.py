@@ -21,6 +21,7 @@ import requests
 import psycopg2
 from psycopg2.extras import execute_values
 
+from db_config import get_connection
 DOWNLOAD_DIR = r"C:\Users\jakew\Downloads"
 
 DB_CONFIG = {
@@ -258,7 +259,7 @@ def print_summary(conn):
 
 
 def main():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = False
     create_table(conn)
 

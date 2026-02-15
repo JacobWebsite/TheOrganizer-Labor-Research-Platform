@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA-F7 Matching Potential Analysis
 ===================================
@@ -13,12 +14,7 @@ osha_conn = sqlite3.connect(r"C:\Users\jakew\Downloads\osha_enforcement.db")
 osha_conn.row_factory = sqlite3.Row
 osha_cur = osha_conn.cursor()
 
-pg_conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+pg_conn = get_connection()
 pg_cur = pg_conn.cursor(cursor_factory=RealDictCursor)
 
 print("="*70)

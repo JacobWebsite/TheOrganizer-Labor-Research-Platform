@@ -1,10 +1,11 @@
 import os
+from db_config import get_connection
 """
 Final cleanup - fix known affiliations and more exclusions
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

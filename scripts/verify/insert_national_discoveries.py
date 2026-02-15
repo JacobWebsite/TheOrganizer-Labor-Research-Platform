@@ -1,16 +1,12 @@
 import os
+from db_config import get_connection
 """
 Insert 11 newly discovered union organizing events into manual_employers.
 Source: Union Discovery Research (2015-2025 national scan)
 """
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # Get current max ID

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Establishment Extraction - Phase 2.3 (Resume from 2017)
 """
@@ -98,7 +99,7 @@ def main():
     print("="*60)
     
     sqlite_conn = sqlite3.connect(SQLITE_PATH)
-    pg_conn = psycopg2.connect(**PG_CONFIG)
+    pg_conn = get_connection()
     
     # Resume from 2017 onwards
     years = list(range(2017, 2027))

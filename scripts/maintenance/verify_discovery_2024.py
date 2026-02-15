@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Union Discovery 2024 - Verification and Import Script
 Verifies discovered 2024 organizing events against the Labor Relations Platform database.
@@ -10,12 +11,7 @@ import json
 from datetime import datetime
 
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 API_BASE = "http://localhost:8000/api"
