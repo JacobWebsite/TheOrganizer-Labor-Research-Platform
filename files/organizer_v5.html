@@ -2124,6 +2124,27 @@
         </div>
     </div>
 
+    <!-- Data Freshness Footer -->
+    <div id="freshnessFooter" class="hidden fixed bottom-0 left-0 right-0 bg-warmgray-800 text-warmgray-300 text-xs py-1.5 px-6 z-30">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <span id="freshnessFooterText">Loading data freshness...</span>
+            <button onclick="openFreshnessModal()" class="text-warmgray-400 hover:text-white underline ml-4">View Details</button>
+        </div>
+    </div>
+
+    <!-- Data Freshness Modal -->
+    <div id="freshnessModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center" onclick="if(event.target===this)closeFreshnessModal()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden mx-4">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-warmgray-200">
+                <h2 class="text-lg font-bold text-warmgray-900">Data Source Freshness</h2>
+                <button onclick="closeFreshnessModal()" class="text-warmgray-400 hover:text-warmgray-700 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-6 py-4 overflow-y-auto max-h-[65vh]">
+                <div id="freshnessModalContent">Loading...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- External JS files (load order matters) -->
     <script src="/files/js/config.js"></script>
     <script src="/files/js/utils.js"></script>

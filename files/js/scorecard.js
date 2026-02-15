@@ -281,6 +281,7 @@ function renderScorecardResults(data, source = 'osha') {
                         <span class="text-xs text-warmgray-400">#${idx + 1}</span>
                         <div class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.estab_name || 'Unknown')}</div>
                         ${tierBadge}
+                        ${item.ulp_case_count > 0 ? `<span class="badge bg-yellow-100 text-yellow-800">ULP (${item.ulp_case_count})</span>` : ''}
                         ${item.contract_info?.contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Contracts</span>' : ''}
                         ${item.score_breakdown?.labor > 0 ? '<span class="badge bg-pink-100 text-pink-700">Labor Viol</span>' : ''}
                     </div>
@@ -596,6 +597,47 @@ function renderScorecardDetail(detail) {
                 </div>
                 <p class="text-xs text-warmgray-500 mt-2">Based on 33K NLRB elections: state win rate, industry patterns, and unit size</p>
             </div>
+        </div>
+        ` : ''}
+
+        <!-- ULP History -->
+        ${detail.ulp_context ? `
+        <div class="mb-6">
+            <h4 class="text-sm font-semibold text-warmgray-700 uppercase tracking-wide mb-3">Unfair Labor Practice History</h4>
+            <div class="bg-yellow-50 rounded-lg p-3 mb-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-yellow-800">${detail.ulp_context.total_cases} ULP case${detail.ulp_context.total_cases !== 1 ? 's' : ''}</span>
+                    <span class="text-sm font-semibold text-yellow-800">${detail.ulp_context.employer_ulp_cases} employer-charged (CA)</span>
+                </div>
+                ${detail.ulp_context.date_range?.earliest ? `
+                <div class="text-xs text-warmgray-500 mt-1">
+                    Date range: ${detail.ulp_context.date_range.earliest} to ${detail.ulp_context.date_range.latest || 'present'}
+                </div>
+                ` : ''}
+            </div>
+            ${detail.ulp_context.section_breakdown?.length > 0 ? `
+            <div class="mb-3">
+                <div class="text-xs font-semibold text-warmgray-600 mb-1">Top Allegation Sections</div>
+                <div class="space-y-1">
+                    ${detail.ulp_context.section_breakdown.map(s => `
+                        <div class="flex justify-between text-xs">
+                            <span class="text-warmgray-700">${escapeHtml(s.section)}</span>
+                            <span class="text-yellow-700 font-semibold">${s.count} allegation${s.count !== 1 ? 's' : ''}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+            ${detail.ulp_context.recent_cases?.length > 0 ? `
+            <div class="space-y-2 max-h-40 overflow-y-auto">
+                ${detail.ulp_context.recent_cases.map(c => `
+                    <div class="text-sm border-l-2 border-yellow-400 pl-2">
+                        <div class="font-medium text-warmgray-700">${escapeHtml(c.case_number)}</div>
+                        <div class="text-xs text-warmgray-500">Type: ${c.case_type} | ${c.latest_date || c.earliest_date || 'Date unknown'}</div>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
         </div>
         ` : ''}
 

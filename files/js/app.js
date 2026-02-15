@@ -385,6 +385,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         setAppMode('territory');
     }
 
+    // Load data freshness footer
+    loadFreshnessFooter();
+
     console.log('=== INIT COMPLETE ===');
     console.log('App mode:', currentAppMode);
     console.log('API_BASE:', API_BASE);
@@ -1005,5 +1008,98 @@ async function applyPendingUrlParams() {
 function getShareableUrl() {
     updateUrl();
     return window.location.href;
+}
+
+
+// ==========================================
+// DATA FRESHNESS
+// ==========================================
+let freshnessData = null;
+
+async function loadFreshnessFooter() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/data-freshness`);
+        if (!response.ok) return;
+        freshnessData = await response.json();
+
+        const footer = document.getElementById('freshnessFooter');
+        const text = document.getElementById('freshnessFooterText');
+
+        if (freshnessData.sources && freshnessData.sources.length > 0) {
+            const totalFormatted = formatNumber(freshnessData.total_records);
+            const oldestDate = freshnessData.oldest_update
+                ? new Date(freshnessData.oldest_update).toLocaleDateString()
+                : 'unknown';
+            text.textContent = `${freshnessData.source_count} data sources | ${totalFormatted} total records | Last refresh: ${oldestDate}`;
+            footer.classList.remove('hidden');
+        }
+    } catch (e) {
+        // Silently fail -- freshness is informational
+        console.log('Freshness footer not available:', e.message);
+    }
+}
+
+function openFreshnessModal() {
+    const modal = document.getElementById('freshnessModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('modal-open');
+
+    const content = document.getElementById('freshnessModalContent');
+    if (!freshnessData || !freshnessData.sources) {
+        content.innerHTML = '<p class="text-warmgray-500">No freshness data available. Run the freshness script first.</p>';
+        return;
+    }
+
+    content.innerHTML = `
+        <div class="mb-4 flex gap-4 text-sm">
+            <div class="bg-warmgray-100 rounded-lg px-4 py-2">
+                <div class="text-warmgray-500">Sources</div>
+                <div class="font-bold text-warmgray-900">${freshnessData.source_count}</div>
+            </div>
+            <div class="bg-warmgray-100 rounded-lg px-4 py-2">
+                <div class="text-warmgray-500">Total Records</div>
+                <div class="font-bold text-warmgray-900">${formatNumber(freshnessData.total_records)}</div>
+            </div>
+        </div>
+        <table class="w-full text-sm border-collapse">
+            <thead>
+                <tr class="border-b border-warmgray-200 text-left text-xs text-warmgray-500 uppercase">
+                    <th class="py-2 pr-4">Source</th>
+                    <th class="py-2 pr-4 text-right">Records</th>
+                    <th class="py-2 pr-4">Date Range</th>
+                    <th class="py-2">Last Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${freshnessData.sources.map(s => {
+                    const dateRange = s.date_range_start
+                        ? `${s.date_range_start} to ${s.date_range_end}`
+                        : '--';
+                    const updated = s.last_updated
+                        ? new Date(s.last_updated).toLocaleDateString()
+                        : '--';
+                    return `
+                        <tr class="border-b border-warmgray-100 hover:bg-warmgray-50">
+                            <td class="py-2 pr-4">
+                                <div class="font-medium text-warmgray-800">${escapeHtml(s.display_name)}</div>
+                                <div class="text-xs text-warmgray-400">${escapeHtml(s.notes || '')}</div>
+                            </td>
+                            <td class="py-2 pr-4 text-right font-semibold text-warmgray-700">${formatNumber(s.record_count || 0)}</td>
+                            <td class="py-2 pr-4 text-warmgray-500">${dateRange}</td>
+                            <td class="py-2 text-warmgray-500">${updated}</td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function closeFreshnessModal() {
+    const modal = document.getElementById('freshnessModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.classList.remove('modal-open');
 }
 

@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Query, HTTPException, Request
 from typing import Optional
 from ..database import get_db
@@ -321,6 +322,40 @@ def get_organizing_scorecard(
             """, params + [limit, offset])
             rows = cur.fetchall()
 
+            # Batch ULP count: two fast queries instead of one complex CTE
+            ulp_counts = {}
+            if rows:
+                estab_ids = [r['establishment_id'] for r in rows]
+                # Step 1: Get NLRB employer names mapped to establishment IDs
+                cur.execute("""
+                    SELECT DISTINCT m.establishment_id, p.participant_name
+                    FROM osha_f7_matches m
+                    JOIN nlrb_participants p ON p.matched_employer_id = m.f7_employer_id
+                    WHERE m.establishment_id = ANY(%s)
+                      AND p.participant_type = 'Employer'
+                """, [estab_ids])
+                name_map = {}  # participant_name -> [establishment_ids]
+                for row in cur.fetchall():
+                    name_map.setdefault(row['participant_name'], []).append(row['establishment_id'])
+
+                if name_map:
+                    # Step 2: Count ULP cases for those employer names
+                    names_list = list(name_map.keys())
+                    cur.execute("""
+                        SELECT p.participant_name, COUNT(DISTINCT c.case_number) as ulp_count
+                        FROM nlrb_participants p
+                        JOIN nlrb_cases c ON c.case_number = p.case_number
+                        JOIN nlrb_case_types ct ON ct.case_type = c.case_type
+                        WHERE p.participant_name = ANY(%s)
+                          AND p.participant_type = 'Employer'
+                          AND ct.case_category = 'unfair_labor_practice'
+                        GROUP BY p.participant_name
+                    """, [names_list])
+                    for row in cur.fetchall():
+                        count = row['ulp_count']
+                        for eid in name_map.get(row['participant_name'], []):
+                            ulp_counts[eid] = ulp_counts.get(eid, 0) + count
+
             results = []
             for r in rows:
                 results.append({
@@ -360,6 +395,7 @@ def get_organizing_scorecard(
                     },
                     'nlrb_predicted_win_pct': float(r['nlrb_predicted_win_pct']) if r['nlrb_predicted_win_pct'] else None,
                     'score_explanations': _build_explanations(r),
+                    'ulp_case_count': ulp_counts.get(r['establishment_id'], 0),
                 })
 
             return {
@@ -401,12 +437,97 @@ def get_scorecard_detail(estab_id: str):
             wr = cur.fetchone()
             state_win_rate = float(wr['win_rate_pct']) if wr else None
 
-            # NLRB direct case count + success factors
+            # NLRB case count via proper join through matched_employer_id
+            # Step 1: Get employer names from matched representation cases
             cur.execute("""
-                SELECT COUNT(*) as cnt FROM nlrb_participants
-                WHERE participant_name ILIKE %s AND participant_type = 'Employer'
-            """, [f"%{estab_name[:20]}%"])
-            nlrb_count = cur.fetchone()['cnt']
+                SELECT DISTINCT p.participant_name
+                FROM osha_f7_matches m
+                JOIN nlrb_participants p ON p.matched_employer_id = m.f7_employer_id
+                WHERE m.establishment_id = %s AND p.participant_type = 'Employer'
+            """, [estab_id])
+            nlrb_employer_names = [r['participant_name'] for r in cur.fetchall()]
+
+            # Step 2: Count all NLRB cases for those employer names
+            nlrb_count = 0
+            if nlrb_employer_names:
+                cur.execute("""
+                    SELECT COUNT(DISTINCT p.case_number) as cnt
+                    FROM nlrb_participants p
+                    WHERE p.participant_name = ANY(%s) AND p.participant_type = 'Employer'
+                """, [nlrb_employer_names])
+                nlrb_count = cur.fetchone()['cnt']
+
+            # Step 3: ULP context -- cases where this employer is charged
+            ulp_context = None
+            if nlrb_employer_names:
+                cur.execute("""
+                    SELECT COUNT(DISTINCT c.case_number) as total_ulp,
+                           COUNT(DISTINCT CASE WHEN c.case_type = 'CA' THEN c.case_number END) as employer_ulp,
+                           MIN(c.earliest_date) as earliest,
+                           MAX(c.latest_date) as latest
+                    FROM nlrb_participants p
+                    JOIN nlrb_cases c ON c.case_number = p.case_number
+                    JOIN nlrb_case_types ct ON ct.case_type = c.case_type
+                    WHERE p.participant_name = ANY(%s)
+                      AND p.participant_type = 'Employer'
+                      AND ct.case_category = 'unfair_labor_practice'
+                """, [nlrb_employer_names])
+                ulp_row = cur.fetchone()
+                total_ulp = ulp_row['total_ulp'] or 0
+
+                if total_ulp > 0:
+                    # Get section breakdown from allegations
+                    cur.execute("""
+                        SELECT a.section, COUNT(*) as cnt
+                        FROM nlrb_allegations a
+                        JOIN nlrb_participants p ON p.case_number = a.case_number
+                        JOIN nlrb_cases c ON c.case_number = a.case_number
+                        JOIN nlrb_case_types ct ON ct.case_type = c.case_type
+                        WHERE p.participant_name = ANY(%s)
+                          AND p.participant_type = 'Employer'
+                          AND ct.case_category = 'unfair_labor_practice'
+                        GROUP BY a.section
+                        ORDER BY cnt DESC
+                        LIMIT 5
+                    """, [nlrb_employer_names])
+                    section_breakdown = [
+                        {'section': r['section'], 'count': r['cnt']}
+                        for r in cur.fetchall()
+                    ]
+
+                    # Get recent cases
+                    cur.execute("""
+                        SELECT DISTINCT c.case_number, c.case_type,
+                               c.earliest_date, c.latest_date
+                        FROM nlrb_participants p
+                        JOIN nlrb_cases c ON c.case_number = p.case_number
+                        JOIN nlrb_case_types ct ON ct.case_type = c.case_type
+                        WHERE p.participant_name = ANY(%s)
+                          AND p.participant_type = 'Employer'
+                          AND ct.case_category = 'unfair_labor_practice'
+                        ORDER BY c.latest_date DESC NULLS LAST
+                        LIMIT 5
+                    """, [nlrb_employer_names])
+                    recent_cases = [
+                        {
+                            'case_number': r['case_number'],
+                            'case_type': r['case_type'],
+                            'earliest_date': str(r['earliest_date']) if r['earliest_date'] else None,
+                            'latest_date': str(r['latest_date']) if r['latest_date'] else None,
+                        }
+                        for r in cur.fetchall()
+                    ]
+
+                    ulp_context = {
+                        'total_cases': total_ulp,
+                        'employer_ulp_cases': ulp_row['employer_ulp'] or 0,
+                        'date_range': {
+                            'earliest': str(ulp_row['earliest']) if ulp_row['earliest'] else None,
+                            'latest': str(ulp_row['latest']) if ulp_row['latest'] else None,
+                        },
+                        'section_breakdown': section_breakdown,
+                        'recent_cases': recent_cases,
+                    }
 
             nlrb_factors = None
             cur.execute("""
@@ -509,6 +630,7 @@ def get_scorecard_detail(estab_id: str):
                     "direct_case_count": nlrb_count,
                     "factors": nlrb_factors
                 },
+                "ulp_context": ulp_context,
                 "context": {
                     "has_related_union": mv['has_f7_match'],
                     "nlrb_count": nlrb_count
@@ -679,4 +801,76 @@ def refresh_scorecard(request: Request):
         "status": "ok",
         "rows": count,
         "elapsed_seconds": round(elapsed, 1)
+    }
+
+
+@router.get("/api/admin/data-freshness")
+def get_data_freshness():
+    """Return freshness info for all data sources."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT source_name, display_name, last_updated,
+                       record_count, date_range_start, date_range_end, notes
+                FROM data_source_freshness
+                ORDER BY display_name
+            """)
+            rows = cur.fetchall()
+            sources = []
+            total_records = 0
+            oldest_update = None
+            for r in rows:
+                updated = r['last_updated']
+                sources.append({
+                    'source_name': r['source_name'],
+                    'display_name': r['display_name'],
+                    'last_updated': str(updated) if updated else None,
+                    'record_count': r['record_count'],
+                    'date_range_start': str(r['date_range_start']) if r['date_range_start'] else None,
+                    'date_range_end': str(r['date_range_end']) if r['date_range_end'] else None,
+                    'notes': r['notes'],
+                })
+                total_records += r['record_count'] or 0
+                if updated and (oldest_update is None or updated < oldest_update):
+                    oldest_update = updated
+
+            return {
+                "sources": sources,
+                "source_count": len(sources),
+                "total_records": total_records,
+                "oldest_update": str(oldest_update) if oldest_update else None,
+            }
+
+
+@router.post("/api/admin/refresh-freshness")
+def refresh_freshness(request: Request):
+    """Re-query all data sources to update freshness counts and dates.
+    Requires admin role when auth is enabled."""
+    from ..config import JWT_SECRET
+    if JWT_SECRET:
+        user = getattr(request.state, "user", None)
+        role = getattr(request.state, "role", None)
+        if not user or user == "anonymous" or role != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required")
+
+    import time
+    import subprocess
+    t0 = time.time()
+    script = os.path.join(
+        os.path.dirname(__file__), '..', '..',
+        'scripts', 'maintenance', 'create_data_freshness.py'
+    )
+    result = subprocess.run(
+        ['py', script, '--refresh'],
+        capture_output=True, text=True, timeout=120
+    )
+    elapsed = time.time() - t0
+
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=f"Refresh failed: {result.stderr[:500]}")
+
+    return {
+        "status": "ok",
+        "elapsed_seconds": round(elapsed, 1),
+        "output": result.stdout[:1000],
     }

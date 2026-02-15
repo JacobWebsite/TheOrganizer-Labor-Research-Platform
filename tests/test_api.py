@@ -430,3 +430,64 @@ def test_invalid_sector_returns_404(client):
     """Invalid sector name returns 404."""
     r = client.get("/api/sectors/fakesector/summary")
     assert r.status_code == 404
+
+
+# ============================================================================
+# ULP INTEGRATION (Sprint 5)
+# ============================================================================
+
+def test_scorecard_list_has_ulp_count(client):
+    """Scorecard list results include ulp_case_count field."""
+    r = client.get("/api/organizing/scorecard?limit=5")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["results"]) > 0
+    for item in data["results"]:
+        assert "ulp_case_count" in item
+        assert isinstance(item["ulp_case_count"], int)
+        assert item["ulp_case_count"] >= 0
+
+
+def test_scorecard_detail_has_ulp_context(client):
+    """Scorecard detail includes ulp_context field (None or dict)."""
+    r = client.get("/api/organizing/scorecard?limit=1")
+    assert r.status_code == 200
+    results = r.json()["results"]
+    if not results:
+        pytest.skip("No scorecard results")
+    estab_id = results[0]["establishment_id"]
+
+    r2 = client.get(f"/api/organizing/scorecard/{estab_id}")
+    assert r2.status_code == 200
+    detail = r2.json()
+    assert "ulp_context" in detail
+    # ulp_context is None or a dict with expected keys
+    if detail["ulp_context"] is not None:
+        ctx = detail["ulp_context"]
+        assert "total_cases" in ctx
+        assert "employer_ulp_cases" in ctx
+        assert "date_range" in ctx
+        assert "section_breakdown" in ctx
+        assert "recent_cases" in ctx
+        assert ctx["total_cases"] > 0
+
+
+# ============================================================================
+# DATA FRESHNESS (Sprint 5)
+# ============================================================================
+
+def test_data_freshness_endpoint(client):
+    """Data freshness endpoint returns source list with counts."""
+    r = client.get("/api/admin/data-freshness")
+    assert r.status_code == 200
+    data = r.json()
+    assert "sources" in data
+    assert "source_count" in data
+    assert "total_records" in data
+    assert data["source_count"] > 0
+    assert data["total_records"] > 0
+    # Each source has expected fields
+    src = data["sources"][0]
+    assert "source_name" in src
+    assert "display_name" in src
+    assert "record_count" in src
