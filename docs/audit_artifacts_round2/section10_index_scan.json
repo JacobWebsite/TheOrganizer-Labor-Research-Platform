@@ -1,0 +1,301 @@
+{
+  "index_inventory_tables": 161,
+  "scan_stats_top40": [
+    {
+      "relname": "mv_whd_employer_agg",
+      "seq_scan": 105,
+      "idx_scan": 0,
+      "n_live_tup": 330419
+    },
+    {
+      "relname": "mv_employer_search",
+      "seq_scan": 67,
+      "idx_scan": 81,
+      "n_live_tup": 170775
+    },
+    {
+      "relname": "osha_f7_matches",
+      "seq_scan": 265,
+      "idx_scan": 184139,
+      "n_live_tup": 138340
+    },
+    {
+      "relname": "f7_employers_deduped",
+      "seq_scan": 57854,
+      "idx_scan": 1001214,
+      "n_live_tup": 113713
+    },
+    {
+      "relname": "mv_employer_features",
+      "seq_scan": 9,
+      "idx_scan": 30,
+      "n_live_tup": 54968
+    },
+    {
+      "relname": "mv_organizing_scorecard",
+      "seq_scan": 102,
+      "idx_scan": 1039,
+      "n_live_tup": 24841
+    },
+    {
+      "relname": "whd_f7_matches",
+      "seq_scan": 91,
+      "idx_scan": 93108,
+      "n_live_tup": 24610
+    },
+    {
+      "relname": "web_union_profiles",
+      "seq_scan": 60,
+      "idx_scan": 1738,
+      "n_live_tup": 295
+    },
+    {
+      "relname": "web_union_news",
+      "seq_scan": 17,
+      "idx_scan": 0,
+      "n_live_tup": 183
+    },
+    {
+      "relname": "web_union_employers",
+      "seq_scan": 488,
+      "idx_scan": 18,
+      "n_live_tup": 160
+    },
+    {
+      "relname": "web_union_contracts",
+      "seq_scan": 112,
+      "idx_scan": 0,
+      "n_live_tup": 120
+    },
+    {
+      "relname": "scrape_jobs",
+      "seq_scan": 100,
+      "idx_scan": 25,
+      "n_live_tup": 112
+    },
+    {
+      "relname": "web_union_membership",
+      "seq_scan": 173,
+      "idx_scan": 0,
+      "n_live_tup": 31
+    },
+    {
+      "relname": "data_source_freshness",
+      "seq_scan": 11,
+      "idx_scan": 27,
+      "n_live_tup": 15
+    },
+    {
+      "relname": "nyc_wage_theft_usdol",
+      "seq_scan": 5,
+      "idx_scan": 11,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "labor_orgs_990_deduped",
+      "seq_scan": 4,
+      "idx_scan": 10,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "state_industry_density_comparison",
+      "seq_scan": 13,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "ny_zip_density_estimates",
+      "seq_scan": 3,
+      "idx_scan": 11,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "ar_disbursements_emp_off",
+      "seq_scan": 0,
+      "idx_scan": 12,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "nlrb_case_types",
+      "seq_scan": 266,
+      "idx_scan": 550,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "nlrb_employer_xref",
+      "seq_scan": 10,
+      "idx_scan": 24508,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "osha_establishments",
+      "seq_scan": 55530,
+      "idx_scan": 1173971,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "state_sector_union_density",
+      "seq_scan": 210,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "nlrb_regions",
+      "seq_scan": 12,
+      "idx_scan": 2,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "f7_employers",
+      "seq_scan": 263,
+      "idx_scan": 4263,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "unified_employers_osha",
+      "seq_scan": 12,
+      "idx_scan": 32,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "bls_union_series",
+      "seq_scan": 14,
+      "idx_scan": 9529,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "bls_naics_sector_map",
+      "seq_scan": 10,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "match_status_lookup",
+      "seq_scan": 11,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "teamsters_official_locals",
+      "seq_scan": 13,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "ref_nlrb_size_win_rates",
+      "seq_scan": 57,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "contract_employer_matches",
+      "seq_scan": 0,
+      "idx_scan": 10,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "nlrb_docket",
+      "seq_scan": 1,
+      "idx_scan": 13,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "epi_state_benchmarks",
+      "seq_scan": 132,
+      "idx_scan": 10,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "match_run_results",
+      "seq_scan": 10,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "naics_sic_crosswalk",
+      "seq_scan": 0,
+      "idx_scan": 9,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "nyc_ulp_open",
+      "seq_scan": 7,
+      "idx_scan": 13,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "ar_membership",
+      "seq_scan": 0,
+      "idx_scan": 12,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "national_990_f7_matches",
+      "seq_scan": 82,
+      "idx_scan": 90090,
+      "n_live_tup": 0
+    },
+    {
+      "relname": "deduplication_methodology",
+      "seq_scan": 13,
+      "idx_scan": 0,
+      "n_live_tup": 0
+    }
+  ],
+  "candidate_index_presence": [
+    {
+      "table": "f7_employers_deduped",
+      "column": "employer_name",
+      "kind": "gin_trgm",
+      "present": true
+    },
+    {
+      "table": "f7_employers_deduped",
+      "column": "state",
+      "kind": "btree",
+      "present": true
+    },
+    {
+      "table": "osha_establishments",
+      "column": "site_state",
+      "kind": "btree",
+      "present": true
+    },
+    {
+      "table": "osha_establishments",
+      "column": "site_city",
+      "kind": "btree",
+      "present": true
+    },
+    {
+      "table": "osha_establishments",
+      "column": "estab_name",
+      "kind": "gin_trgm",
+      "present": true
+    },
+    {
+      "table": "nlrb_participants",
+      "column": "case_number",
+      "kind": "btree",
+      "present": true
+    },
+    {
+      "table": "nlrb_elections",
+      "column": "case_number",
+      "kind": "btree",
+      "present": true
+    },
+    {
+      "table": "corporate_identifier_crosswalk",
+      "column": "f7_employer_id",
+      "kind": "btree",
+      "present": true
+    },
+    {
+      "table": "whd_cases",
+      "column": "name_normalized",
+      "kind": "gin_trgm",
+      "present": false
+    }
+  ]
+}
