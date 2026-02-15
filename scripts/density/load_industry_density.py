@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Load BLS industry union density rates, state/county industry shares,
 and calculate industry-weighted expected density vs actual CPS density.
@@ -19,12 +20,7 @@ import sys
 from pathlib import Path
 
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 
 # BLS 2024 Industry Union Density Rates (from Table 3)
 BLS_INDUSTRY_RATES = {

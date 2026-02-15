@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Match WHD Tier 2 (name + state only) for F7 and Mergent employers.
 Runs AFTER match_whd_to_employers.py completed Tier 1 matching.
@@ -10,12 +11,7 @@ by using a temp table with proper indexes instead of a CTE.
 import psycopg2
 import time
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 70)

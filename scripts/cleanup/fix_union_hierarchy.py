@@ -10,6 +10,7 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from db_config import get_connection
 parser = argparse.ArgumentParser(description="Fix union_hierarchy issues")
 parser.add_argument("--apply", action="store_true", help="Apply changes (default is dry-run)")
 args = parser.parse_args()
@@ -18,12 +19,7 @@ DRY_RUN = not args.apply
 BLS_BENCHMARK = 14_300_000
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data")
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 mode_label = "DRY RUN" if DRY_RUN else "APPLY"

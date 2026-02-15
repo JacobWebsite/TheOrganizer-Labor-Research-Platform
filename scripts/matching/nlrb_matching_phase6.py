@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 NLRB Matching - Phase 6: Final Cleanup
 ======================================
@@ -10,12 +11,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = False
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

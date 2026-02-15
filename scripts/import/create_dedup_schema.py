@@ -6,6 +6,7 @@ For membership deduplication
 import psycopg2
 import os
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -308,7 +309,7 @@ def main():
     print("CREATING DEDUPLICATION SCHEMA")
     print("="*60)
     
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = True
     cursor = conn.cursor()
     

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Fix multi-employer group assignments in f7_employers_deduped.
 
@@ -18,12 +19,7 @@ from psycopg2.extras import RealDictCursor
 DRY_RUN = '--apply' not in sys.argv
 BLS_PRIVATE_BENCHMARK = 7_200_000
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 
 mode_label = 'DRY RUN' if DRY_RUN else 'APPLYING CHANGES'
 print('=' * 70)

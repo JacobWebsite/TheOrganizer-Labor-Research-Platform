@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Load F-7 Employer Data into PostgreSQL
 Migrates data from SQLite (union_lm_f7_crosswalk.db) to PostgreSQL (olms_multiyear)
@@ -312,7 +313,7 @@ def main():
     sqlite_conn = sqlite3.connect(SQLITE_DB)
     sqlite_cur = sqlite_conn.cursor()
     
-    pg_conn = psycopg2.connect(**PG_CONFIG)
+    pg_conn = get_connection()
     pg_conn.autocommit = False
     pg_cur = pg_conn.cursor()
     

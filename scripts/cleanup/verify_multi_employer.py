@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Verify multi-employer group assignments in f7_employers_deduped.
 READ-ONLY - does not modify any data.
@@ -13,12 +14,7 @@ Runs 5 checks:
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 
 BLS_PRIVATE_BENCHMARK = 7_200_000
 

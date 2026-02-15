@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Data Loader - Checkpoint 2B
 Extracts union affiliations and local numbers from union names
@@ -6,12 +7,7 @@ Extracts union affiliations and local numbers from union names
 import re
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

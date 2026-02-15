@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Match Mergent employers to NYC Comptroller labor violation data
 and calculate score_labor_violations
@@ -6,12 +7,7 @@ and calculate score_labor_violations
 import psycopg2
 import re
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 70)

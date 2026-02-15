@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Unified Employer-to-OSHA Pipeline
 
@@ -406,7 +407,7 @@ def main():
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Create table

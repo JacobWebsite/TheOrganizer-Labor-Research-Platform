@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 NLRB Participant Matching via Union Names Crosswalk
 ===================================================
@@ -13,12 +14,7 @@ from psycopg2.extras import RealDictCursor
 from datetime import datetime
 
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = False
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Run matching pipeline for Mergent employers
 Matches to 990, F-7, NLRB, OSHA, contracts, and violations
@@ -6,12 +7,7 @@ Matches to 990, F-7, NLRB, OSHA, contracts, and violations
 
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 conn.autocommit = False
 

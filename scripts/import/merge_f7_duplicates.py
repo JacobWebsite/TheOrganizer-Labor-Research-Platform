@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Merge duplicate F7 employers based on similarity scores.
 Handles updating references in f7_union_employer_relations and nlrb_voluntary_recognition.
@@ -80,12 +81,7 @@ def cities_match(city1, city2):
 
     return False
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 70)

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Find potential duplicate employers using fuzzy name matching
 Optimized version with GIN indexes and chunked processing
@@ -8,12 +9,7 @@ from psycopg2.extras import RealDictCursor
 import csv
 from name_normalizer import employer_token_similarity
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 70)

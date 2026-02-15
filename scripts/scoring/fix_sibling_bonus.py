@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Fix sibling union bonus misclassifications across all sectors.
 
@@ -18,12 +19,7 @@ C) Recalculates organizing_score and score_priority for affected records
 import psycopg2
 import re
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 80)

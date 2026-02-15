@@ -36,3 +36,39 @@ def test_verify_scope_remains_migrated():
 
 def test_maintenance_scope_remains_migrated():
     assert _count_pending("scripts/maintenance") == 0
+
+
+def test_import_scope_remains_migrated():
+    assert _count_pending("scripts/import") == 0
+
+
+def test_cleanup_scope_remains_migrated():
+    assert _count_pending("scripts/cleanup") == 0
+
+
+def test_matching_scope_remains_migrated():
+    assert _count_pending("scripts/matching") == 0
+
+
+def test_etl_scope_remains_migrated():
+    assert _count_pending("scripts/etl") == 0
+
+
+def test_density_scope_remains_migrated():
+    assert _count_pending("scripts/density") == 0
+
+
+def test_scoring_scope_remains_migrated():
+    assert _count_pending("scripts/scoring") == 0
+
+
+def test_research_scope_remains_migrated():
+    assert _count_pending("scripts/research") == 0
+
+
+def test_coverage_scope_remains_migrated():
+    assert _count_pending("scripts/coverage") == 0
+
+
+def test_batch_scope_remains_migrated():
+    assert _count_pending("scripts/batch") == 0

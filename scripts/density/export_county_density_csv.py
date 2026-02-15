@@ -1,15 +1,11 @@
 import os
+from db_config import get_connection
 """Export county union density estimates to CSV"""
 import psycopg2
 import csv
 from pathlib import Path
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 output_path = Path(r"C:\Users\jakew\Downloads\labor-data-project\output\county_union_density_estimates.csv")

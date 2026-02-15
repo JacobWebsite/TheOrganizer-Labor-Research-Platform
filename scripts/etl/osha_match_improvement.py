@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Match Improvement Script
 Improves F7-OSHA matching from ~32% to 50%+ using:
@@ -321,7 +322,7 @@ def main():
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Get baseline

@@ -3,6 +3,7 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 
+from db_config import get_connection
 def get_analyze_stats():
     """
     Fetches the last analyze and autoanalyze times for specified tables.
@@ -15,13 +16,7 @@ def get_analyze_stats():
             print("Database password not found in environment variables.")
             return None
 
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=os.getenv("DB_PORT", "5432"),
-            dbname=os.getenv("DB_NAME", "olms_multiyear"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=password
-        )
+        conn = get_connection()
         cur = conn.cursor()
 
         tables_to_check = [

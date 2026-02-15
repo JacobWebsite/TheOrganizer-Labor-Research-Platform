@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 import sys
 
+from db_config import get_connection
 def get_whd_match_stats():
     """
     Fetches WHD match statistics from the database.
@@ -15,13 +16,7 @@ def get_whd_match_stats():
             print("Database password not found in environment variables.")
             return None
 
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=os.getenv("DB_PORT", "5432"),
-            dbname=os.getenv("DB_NAME", "olms_multiyear"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=password # Explicitly pass the fetched password
-        )
+        conn = get_connection()
         cur = conn.cursor()
 
         # 1. Total WHD cases

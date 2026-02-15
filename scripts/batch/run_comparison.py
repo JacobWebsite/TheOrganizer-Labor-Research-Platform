@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """Run all 9 scenarios with limit 200 and report results."""
 import psycopg2
 import sys
@@ -8,7 +9,7 @@ sys.path.insert(0, r'C:\Users\jakew\Downloads\labor-data-project')
 from scripts.matching.pipeline import MatchPipeline
 from scripts.matching.config import list_scenarios
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 
 results = []
 for scenario_name in list_scenarios():

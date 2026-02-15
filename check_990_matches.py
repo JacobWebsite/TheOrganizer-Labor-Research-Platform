@@ -3,6 +3,7 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 
+from db_config import get_connection
 def check_990_matches():
     """
     Checks the count of matched 990 employers to F7 and PS employers.
@@ -15,13 +16,7 @@ def check_990_matches():
             print("Database password not found in environment variables.")
             return None
 
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=os.getenv("DB_PORT", "5432"),
-            dbname=os.getenv("DB_NAME", "olms_multiyear"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=password
-        )
+        conn = get_connection()
         cur = conn.cursor()
 
         print("--- 990 Match Statistics ---")

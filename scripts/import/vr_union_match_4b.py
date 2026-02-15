@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Union Matching - Checkpoint 4B
 Fuzzy name matching for independents and remaining unions
@@ -19,12 +20,7 @@ from name_normalizer import (
     UNION_ACRONYMS
 )
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

@@ -3,13 +3,8 @@ import psycopg2
 import pandas as pd
 import re
 
-conn = psycopg2.connect(
-    host='localhost', 
-    port=5432, 
-    database='olms_multiyear', 
-    user='postgres', 
-    password=os.environ.get('DB_PASSWORD', '')
-)
+from db_config import get_connection
+conn = get_connection()
 
 # Load F7-only unions
 f7_only = pd.read_csv(r"C:\Users\jakew\Downloads\Claude Ai union project\lm and f7 documents 1_22\f7_only_multiyear_check.csv")

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Union Matching - Checkpoint 4A
 Match unions using affiliation code + local number
@@ -14,12 +15,7 @@ from name_normalizer import (
     AFFILIATION_MAPPINGS
 )
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

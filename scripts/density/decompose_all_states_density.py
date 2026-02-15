@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Decompose Public Sector Union Density by Government Level for All States
 
@@ -13,12 +14,7 @@ This assumes each state has a uniform "union premium" across government levels.
 
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # National Government Densities (2024 BLS/unionstats)

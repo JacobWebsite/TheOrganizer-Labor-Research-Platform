@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 NAICS Enrichment for f7_employers_deduped
 ==========================================
@@ -22,12 +23,7 @@ from collections import Counter
 
 APPLY = '--apply' in sys.argv
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 

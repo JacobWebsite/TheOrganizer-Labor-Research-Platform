@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Employer Matching - Checkpoint 3A
 Exact matching on normalized employer name + city + state
@@ -12,12 +13,7 @@ from name_normalizer import (
     EMPLOYER_ABBREVIATIONS
 )
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

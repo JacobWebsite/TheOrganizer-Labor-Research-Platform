@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Update labor violation scores using national WHD data + NYC Comptroller data,
 recalculate organizing scores, and refresh views.
@@ -9,12 +10,7 @@ Prerequisites: WHD data already matched to mergent_employers and f7_employers_de
 import psycopg2
 import subprocess
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 70)

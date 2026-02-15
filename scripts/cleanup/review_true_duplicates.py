@@ -20,6 +20,7 @@ import sys
 import os
 from datetime import datetime
 
+from db_config import get_connection
 DRY_RUN = '--apply' not in sys.argv
 EXPORT_ONLY = '--export-only' in sys.argv
 
@@ -29,12 +30,7 @@ CSV_OUTPUT = os.path.join(BASE_DIR, 'data', 'true_duplicate_review.csv')
 
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        database='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 70)

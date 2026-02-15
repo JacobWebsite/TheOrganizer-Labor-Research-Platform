@@ -8,12 +8,8 @@ from psycopg2.extras import RealDictCursor
 import csv
 import os
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+from db_config import get_connection
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 70)

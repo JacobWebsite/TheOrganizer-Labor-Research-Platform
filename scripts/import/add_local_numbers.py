@@ -11,7 +11,7 @@ DB_CONFIG = {
     'password': os.environ.get('DB_PASSWORD', ''),
 }
 
-conn = psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
+conn = get_connection(cursor_factory=RealDictCursor)
 cur = conn.cursor()
 
 # Add columns if they don't exist
@@ -28,6 +28,7 @@ except Exception as e:
 # Update from most recent lm_data
 print("Updating local numbers from lm_data...")
 cur.execute("""
+from db_config import get_connection
     WITH latest_lm AS (
         SELECT DISTINCT ON (f_num) 
             f_num, desig_num, desig_name

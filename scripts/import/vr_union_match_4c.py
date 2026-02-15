@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Union Matching - Checkpoint 4C
 Verification and match quality report
@@ -8,12 +9,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from name_normalizer import token_similarity, extract_key_tokens
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 60)

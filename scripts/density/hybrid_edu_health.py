@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Hybrid approach: Industry-weighted for 10 industries, state rate for edu/health.
 
@@ -12,12 +13,7 @@ Formula:
 
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # BLS rates for 10 private industries (excluding edu/health)

@@ -9,6 +9,7 @@ import time
 from cleanco import basename as cleanco_basename
 import os
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -67,7 +68,7 @@ def update_table(conn, table, id_col, name_col, norm_col):
 
 
 def main():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = False
 
     print('=== Updating GLEIF name_normalized with cleanco ===')

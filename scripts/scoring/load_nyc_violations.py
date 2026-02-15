@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Load NYC Comptroller Employer Violations Dashboard data into PostgreSQL
 Source: https://comptroller.nyc.gov/services/for-the-public/employer-violations-dashboard/
@@ -10,12 +11,7 @@ from psycopg2.extras import execute_values
 import numpy as np
 
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # Load Excel file

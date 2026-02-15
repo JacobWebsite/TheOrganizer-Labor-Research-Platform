@@ -6,6 +6,7 @@ Check if DC37 locals are double-counted or separate filings
 import psycopg2
 import os
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -24,7 +25,7 @@ DC37_LOCALS = [
 
 
 def main():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     print("="*80)

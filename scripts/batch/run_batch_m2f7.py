@@ -7,6 +7,7 @@ import os
 import time
 import logging
 
+from db_config import get_connection
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -16,12 +17,7 @@ from scripts.matching import MatchPipeline
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
 
     print("=" * 60)
     print("SCENARIO: mergent_to_f7 (full run, skip fuzzy)")

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Form 990 Membership Estimation - Using Researched Per-Capita Rates
 Based on comprehensive research of union dues structures
@@ -15,12 +16,7 @@ STATE AFFILIATES retain 70-80% of dues, only 15-26% flows to national
 """
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost', 
-    dbname='olms_multiyear', 
-    user='postgres', 
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # Clear existing and rebuild with researched rates

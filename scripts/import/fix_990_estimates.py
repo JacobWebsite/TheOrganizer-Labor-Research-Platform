@@ -1,10 +1,11 @@
 import os
+from db_config import get_connection
 """
 Update form_990_estimates with VERIFIED dues revenue figures
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 print("Updating form_990_estimates with verified data...")

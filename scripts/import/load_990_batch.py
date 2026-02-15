@@ -1,11 +1,12 @@
 import os
+from db_config import get_connection
 """
 Form 990 Batch Loader - Top State Teacher Affiliates
 Based on ProPublica Nonprofit Explorer data
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 # Top state affiliates with data from ProPublica and published sources

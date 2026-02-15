@@ -22,8 +22,8 @@ from splink import Linker, DuckDBAPI
 
 # Add parent for config imports
 sys.path.insert(0, str(Path(__file__).parent))
-from splink_config import (
 import os
+from splink_config import (
     SCENARIOS,
     THRESHOLD_AUTO_ACCEPT,
     THRESHOLD_REVIEW,

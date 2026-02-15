@@ -30,6 +30,7 @@ import os
 from datetime import datetime
 from collections import defaultdict
 
+from db_config import get_connection
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -133,12 +134,7 @@ def union(x, y):
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        database='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 70)

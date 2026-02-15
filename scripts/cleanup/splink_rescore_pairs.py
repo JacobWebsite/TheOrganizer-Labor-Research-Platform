@@ -26,6 +26,7 @@ from collections import defaultdict
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from db_config import get_connection
 VERBOSE = '--verbose' in sys.argv
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PGTRGM_CSV = os.path.join(BASE_DIR, 'output', 'f7_internal_duplicates.csv')
@@ -33,12 +34,7 @@ OUTPUT_CSV = os.path.join(BASE_DIR, 'data', 'f7_combined_dedup_evidence.csv')
 
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 70)

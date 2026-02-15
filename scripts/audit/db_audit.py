@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Comprehensive Database Audit for olms_multiyear
 ================================================
@@ -38,7 +39,7 @@ SUB_SEP = "-" * 90
 
 def connect():
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = get_connection()
         conn.set_client_encoding("UTF8")
         return conn
     except Exception as e:

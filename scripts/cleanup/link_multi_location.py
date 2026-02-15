@@ -24,18 +24,14 @@ from collections import defaultdict
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from db_config import get_connection
 DRY_RUN = '--apply' not in sys.argv
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 INPUT_CSV = os.path.join(BASE_DIR, 'data', 'f7_combined_dedup_evidence.csv')
 
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        database='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     print("=" * 70)

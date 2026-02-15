@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Form 990 Correct Methodology - Understanding Dues Flow
 
@@ -29,7 +30,7 @@ METHODOLOGY:
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 cur.execute("DELETE FROM form_990_estimates")

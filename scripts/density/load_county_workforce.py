@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Load County Workforce Shares from CSV
 
@@ -12,12 +13,7 @@ import psycopg2
 import pandas as pd
 from pathlib import Path
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 80)

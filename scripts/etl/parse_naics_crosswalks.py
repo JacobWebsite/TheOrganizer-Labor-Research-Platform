@@ -7,15 +7,11 @@ import psycopg2
 from psycopg2.extras import execute_values
 import os
 
+from db_config import get_connection
 crosswalk_dir = r'C:\Users\jakew\Downloads\labor-data-project\naics_crosswalks'
 
 # Connect to database
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor()
 

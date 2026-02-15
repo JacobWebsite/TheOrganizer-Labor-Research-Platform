@@ -6,6 +6,7 @@ Adds tables for F-7 employer data, sector classification, and union match status
 import psycopg2
 import os
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -238,7 +239,7 @@ COMMENT ON TABLE union_match_status IS 'Lookup table explaining why unions may/m
 
 def main():
     print("Connecting to PostgreSQL...")
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = True
     cursor = conn.cursor()
     

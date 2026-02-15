@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Fix remaining double-counting: signatory patterns and true duplicate filings.
 
@@ -17,10 +18,7 @@ import re
 
 DRY_RUN = '--apply' not in sys.argv
 
-conn = psycopg2.connect(
-    host='localhost', dbname='olms_multiyear',
-    user='postgres', password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 70)

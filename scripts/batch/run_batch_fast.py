@@ -9,6 +9,7 @@ import os
 import time
 import logging
 
+from db_config import get_connection
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,12 +24,7 @@ SCENARIOS = ["vr_to_f7", "violations_to_mergent", "contracts_to_990"]
 
 
 def run_all():
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
 
     all_results = {}
 

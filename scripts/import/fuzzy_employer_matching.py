@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Fuzzy Employer Matching: NLRB Participants → F7 Employers
 Improves match rate from 9.4% using name normalization and fuzzy matching
@@ -40,12 +41,7 @@ def similarity(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     cur = conn.cursor()
     
     print("Loading F7 employers...")

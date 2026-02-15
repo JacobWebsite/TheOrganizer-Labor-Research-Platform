@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Agent D: Score/Priority & Defunct Status Audit - Phase 1 (Read-Only)
 Audits metadata consistency in mergent_employers and f7_employers_deduped
@@ -7,12 +8,7 @@ Audits metadata consistency in mergent_employers and f7_employers_deduped
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 70)

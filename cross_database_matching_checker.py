@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 
+from db_config import get_connection
 def run_matching_checks():
     """
     Connects to the database and runs a series of cross-database matching checks.
@@ -11,13 +12,7 @@ def run_matching_checks():
     load_dotenv()
     conn = None
     try:
-        conn = psycopg2.connect(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=os.getenv("DB_PORT", "5432"),
-            dbname=os.getenv("DB_NAME", "olms_multiyear"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD")
-        )
+        conn = get_connection()
         cur = conn.cursor()
 
         results = []

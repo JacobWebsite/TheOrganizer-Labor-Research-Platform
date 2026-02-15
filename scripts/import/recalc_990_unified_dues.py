@@ -1,11 +1,12 @@
 import os
+from db_config import get_connection
 """
 Recalculate Form 990 estimates using FULL unified dues rates
 Shows relationship between what org receives vs total member cost
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 print("TEACHER UNION DUES STRUCTURE")

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Phase 6.6b: Fuzzy Matching for Union=N establishments
 Uses prefix prefilter approach
@@ -18,7 +19,7 @@ def main():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Phase 6.6b: Fuzzy Matching Union=N")
     print("=" * 60)
     
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = get_connection()
     cursor = conn.cursor()
     
     # Get count of Union=N unmatched

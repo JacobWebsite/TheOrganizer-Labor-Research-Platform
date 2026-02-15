@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Employer Matching - Checkpoint 3C
 Verification and match quality report
@@ -8,12 +9,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from name_normalizer import employer_token_similarity, extract_employer_key_words
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 60)

@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Phase 6.6: Fuzzy Matching with Prefix Prefilter
 Uses first 3 chars to prefilter before applying expensive similarity
@@ -18,7 +19,7 @@ def main():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Phase 6.6: Fuzzy Matching with Prefix Prefilter")
     print("=" * 60)
     
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = get_connection()
     cursor = conn.cursor()
     
     # Get count of Union=Y unmatched

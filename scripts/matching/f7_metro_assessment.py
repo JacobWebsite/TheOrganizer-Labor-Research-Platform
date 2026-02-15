@@ -2,13 +2,8 @@ import os
 import psycopg2
 import pandas as pd
 
-conn = psycopg2.connect(
-    host='localhost', 
-    port=5432, 
-    database='olms_multiyear', 
-    user='postgres', 
-    password=os.environ.get('DB_PASSWORD', '')
-)
+from db_config import get_connection
+conn = get_connection()
 
 print("="*100)
 print("F-7 DATA ASSESSMENT FOR METRO/INDUSTRY ANALYSIS")

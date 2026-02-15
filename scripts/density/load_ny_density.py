@@ -21,6 +21,7 @@ from psycopg2.extras import execute_values
 import os
 from decimal import Decimal
 
+from db_config import get_connection
 # Database connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
@@ -566,7 +567,7 @@ def main():
     data_path = os.path.join(base_path, 'data')
 
     # Connect to database
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
 
     # Create tables
     create_tables(conn)

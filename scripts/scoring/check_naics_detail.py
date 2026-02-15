@@ -1,15 +1,10 @@
 import psycopg2, os
 from dotenv import load_dotenv
 
+from db_config import get_connection
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
-conn = psycopg2.connect(
-    dbname=os.getenv("DB_NAME", "olms_multiyear"),
-    user=os.getenv("DB_USER", "postgres"),
-    password=os.getenv("DB_PASSWORD", ""),
-    host=os.getenv("DB_HOST", "localhost"),
-    port=os.getenv("DB_PORT", "5432"),
-)
+conn = get_connection()
 cur = conn.cursor()
 
 def run_query(label, sql, fetch_all=True):

@@ -10,6 +10,7 @@ import numpy as np
 import os
 import re
 
+from db_config import get_connection
 # ============================================================
 # CONFIGURE: File path(s) to load
 # ============================================================
@@ -19,12 +20,7 @@ base_path = r"C:\Users\jakew\Downloads\labor-data-project\New York all companies
 files = sorted([f for f in os.listdir(base_path) if f.endswith('.csv') or f.endswith('.xlsx')])
 
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # NAICS to sector mapping (same as original loader)

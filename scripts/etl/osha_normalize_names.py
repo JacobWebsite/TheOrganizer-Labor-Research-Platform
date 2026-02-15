@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 OSHA Phase 6.4: Create Normalized Names
 Adds normalized employer names to osha_establishments for better matching
@@ -46,7 +47,7 @@ def main():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Phase 6.4: Create Normalized OSHA Names")
     print("=" * 60)
     
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = get_connection()
     cursor = conn.cursor()
     
     # Get total count

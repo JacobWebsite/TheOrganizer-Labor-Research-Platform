@@ -8,6 +8,7 @@ import sys
 import os
 from pathlib import Path
 
+from db_config import get_connection
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -66,12 +67,7 @@ def load_990_employers_to_db(json_path: str, state_filter: str = 'NY'):
     print(f"{state_filter} employers expected: {state_count}")
 
     # Connect to database
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     cur = conn.cursor()
 
     # Clear existing data

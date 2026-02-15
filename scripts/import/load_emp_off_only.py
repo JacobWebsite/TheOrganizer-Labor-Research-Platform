@@ -7,6 +7,7 @@ import psycopg2
 import csv
 import sys
 
+from db_config import get_connection
 # Fix CSV field size limit for large fields
 csv.field_size_limit(10000000)
 
@@ -110,7 +111,7 @@ def main():
     print("=" * 60)
     print()
     
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = False
     cursor = conn.cursor()
     

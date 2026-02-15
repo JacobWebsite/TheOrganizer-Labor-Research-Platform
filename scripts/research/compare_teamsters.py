@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import datetime
 import os
 
+from db_config import get_connection
 # Database connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
@@ -22,7 +23,7 @@ DB_CONFIG = {
 def get_database_locals():
     """Fetch Teamsters locals from unions_master database."""
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     # Get all IBT locals (LU designation)

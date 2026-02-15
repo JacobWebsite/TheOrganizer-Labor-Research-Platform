@@ -1,10 +1,11 @@
 import os
+from db_config import get_connection
 """
 Create unified membership view combining OLMS LM data with Form 990 estimates
 """
 import psycopg2
 
-conn = psycopg2.connect(host='localhost', dbname='olms_multiyear', user='postgres', password=os.environ.get('DB_PASSWORD', ''))
+conn = get_connection()
 cur = conn.cursor()
 
 # Create unified membership view

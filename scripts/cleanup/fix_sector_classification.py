@@ -14,18 +14,14 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from db_config import get_connection
 parser = argparse.ArgumentParser(description='Fix sector classification in f7_employers_deduped')
 parser.add_argument('--apply', action='store_true', help='Apply changes (default: dry-run)')
 args = parser.parse_args()
 
 DRY_RUN = not args.apply
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 mode = "DRY-RUN" if DRY_RUN else "APPLY"

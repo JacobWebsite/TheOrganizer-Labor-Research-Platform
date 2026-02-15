@@ -1,11 +1,9 @@
 import os
+from db_config import get_connection
 """Investigate remaining double-counting patterns in f7_employers_deduped."""
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost', dbname='olms_multiyear',
-    user='postgres', password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # 1. SAG-AFTRA: how many are currently excluded vs still counted?

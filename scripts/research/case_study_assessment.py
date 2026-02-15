@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Data Assessment for Union Case Studies
 3 Unions (SEIU, Teamsters/IBT, AFSCME) x 3 States (NY, MN, VA)
@@ -6,12 +7,7 @@ Data Assessment for Union Case Studies
 
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print('=' * 80)

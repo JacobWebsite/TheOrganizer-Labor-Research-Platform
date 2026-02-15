@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 NLRB Data Loader
 Loads NLRB case data from SQLite to PostgreSQL
@@ -25,7 +26,7 @@ BATCH_SIZE = 10000
 def get_connections():
     sqlite_conn = sqlite3.connect(NLRB_DB)
     sqlite_conn.row_factory = sqlite3.Row
-    pg_conn = psycopg2.connect(**PG_CONFIG)
+    pg_conn = get_connection()
     pg_conn.autocommit = False
     return sqlite_conn, pg_conn
 

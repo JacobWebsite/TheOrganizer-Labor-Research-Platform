@@ -1,11 +1,9 @@
 import os
+from db_config import get_connection
 """Analyze identical-size groups by address diversity to determine true dups vs distinct employers."""
 import psycopg2
 
-conn = psycopg2.connect(
-    host='localhost', dbname='olms_multiyear',
-    user='postgres', password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # Check how many of the identical-size groups have address/geocode data

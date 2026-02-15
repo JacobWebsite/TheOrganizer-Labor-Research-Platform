@@ -10,13 +10,9 @@ import numpy as np
 import os
 import re
 
+from db_config import get_connection
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # Base path for CSV files

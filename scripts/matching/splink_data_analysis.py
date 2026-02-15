@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Splink Phase 2 - Data Analysis for Blocking Design
 Analyzes unmatched records, data quality, and blocking space estimates.
@@ -45,7 +46,7 @@ def print_table(rows, headers, col_widths=None):
 
 
 def main():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     # =====================================================================

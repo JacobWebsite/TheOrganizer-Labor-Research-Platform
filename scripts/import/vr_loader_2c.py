@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Data Loader - Checkpoint 2C
 Final verification and report generation
@@ -6,12 +7,7 @@ Final verification and report generation
 import psycopg2
 from datetime import datetime
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print("=" * 60)

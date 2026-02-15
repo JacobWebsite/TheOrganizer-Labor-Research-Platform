@@ -17,17 +17,13 @@ import sys
 import os
 import time
 
+from db_config import get_connection
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BLS_PRIVATE_BENCHMARK = 7_200_000
 
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     conn.autocommit = True
     cur = conn.cursor()
 

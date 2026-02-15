@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Sector Classification Cross-Validation (Read-Only)
 Identifies federal, state, and local government employers in f7_employers_deduped
@@ -14,12 +15,7 @@ Checks:
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 70)

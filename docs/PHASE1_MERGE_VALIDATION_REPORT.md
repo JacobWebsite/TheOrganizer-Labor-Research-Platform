@@ -1,6 +1,6 @@
 # Phase 1 Merge Validation Report
 
-- Generated: 2026-02-15T12:50:51
+- Generated: 2026-02-15T13:17:12
 - Passed: 7/7
 
 ## Check Results
@@ -15,12 +15,7 @@ configfile: pyproject.toml
 plugins: anyio-4.12.1
 collected 2 items
 tests\test_phase1_regression_guards.py ..                                [100%]
-============================== warnings summary ===============================
-..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\cacheprovider.py:475
-  C:\Users\jakew\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\cacheprovider.py:475: PytestCacheWarning: could not create cache path C:\Users\jakew\Downloads\labor-data-project\.pytest_cache\v\cache\nodeids: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\jakew\\Downloads\\labor-data-project\\.pytest_cache\\v\\cache'
-    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-... (1 more lines)
+============================== 2 passed in 0.04s ==============================
 ```
 - **Name Normalization Tests**: PASS
   - Command: `python -m pytest tests/test_name_normalization.py -q`
@@ -33,12 +28,7 @@ configfile: pyproject.toml
 plugins: anyio-4.12.1
 collected 6 items
 tests\test_name_normalization.py ......                                  [100%]
-============================== warnings summary ===============================
-..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\cacheprovider.py:475
-  C:\Users\jakew\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\cacheprovider.py:475: PytestCacheWarning: could not create cache path C:\Users\jakew\Downloads\labor-data-project\.pytest_cache\v\cache\nodeids: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\jakew\\Downloads\\labor-data-project\\.pytest_cache\\v\\cache'
-    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-... (1 more lines)
+============================== 6 passed in 0.04s ==============================
 ```
 - **Contract Field Parity Tests**: PASS
   - Command: `python -m pytest tests/test_scorecard_contract_field_parity.py -q`
@@ -51,12 +41,7 @@ configfile: pyproject.toml
 plugins: anyio-4.12.1
 collected 2 items
 tests\test_scorecard_contract_field_parity.py ..                         [100%]
-============================== warnings summary ===============================
-..\..\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\cacheprovider.py:475
-  C:\Users\jakew\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\cacheprovider.py:475: PytestCacheWarning: could not create cache path C:\Users\jakew\Downloads\labor-data-project\.pytest_cache\v\cache\nodeids: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\jakew\\Downloads\\labor-data-project\\.pytest_cache\\v\\cache'
-    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-... (1 more lines)
+============================== 2 passed in 0.46s ==============================
 ```
 - **Frontend/API Audit**: PASS
   - Command: `python scripts/analysis/check_frontend_api_alignment.py`

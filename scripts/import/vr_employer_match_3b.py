@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 VR Employer Matching - Checkpoint 3B
 Fuzzy matching using trigram similarity, token matching, and industry patterns
@@ -16,12 +17,7 @@ from name_normalizer import (
     EMPLOYER_ABBREVIATIONS
 )
 
-conn = psycopg2.connect(
-    host='localhost',
-    database='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 conn.autocommit = True
 cur = conn.cursor(cursor_factory=RealDictCursor)
 

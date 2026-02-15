@@ -9,6 +9,7 @@ import psycopg2
 from collections import defaultdict
 import os
 
+from db_config import get_connection
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
@@ -35,7 +36,7 @@ DC37_MAIN_LOCAL = '37'
 
 def get_afscme_ny_locals():
     """Get all AFSCME locals in NY from OLMS."""
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     query = """
@@ -74,7 +75,7 @@ def get_afscme_ny_locals():
 
 def get_csea_data():
     """Get CSEA and its regions specifically."""
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     # CSEA main and regions
@@ -114,7 +115,7 @@ def get_csea_data():
 
 def get_dc37_data():
     """Get DC37 and its locals."""
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     # DC37 main council
@@ -165,7 +166,7 @@ def get_dc37_data():
 
 def get_990_afscme_ny():
     """Get AFSCME NY data from Form 990 estimates."""
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     # Check if table exists
@@ -215,7 +216,7 @@ def get_990_afscme_ny():
 
 def get_employers_990_afscme_ny():
     """Get AFSCME-related employers from 990 data."""
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     cur = conn.cursor()
 
     # Check if table exists

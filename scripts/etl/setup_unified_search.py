@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Setup unified employer search: review flags table + materialized view.
 
@@ -13,10 +14,7 @@ Run: py scripts/etl/setup_unified_search.py
 import psycopg2
 
 def main():
-    conn = psycopg2.connect(
-        host='localhost', dbname='olms_multiyear',
-        user='postgres', password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
     conn.autocommit = True
     cur = conn.cursor()
 

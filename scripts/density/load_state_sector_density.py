@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Load State Union Density by Sector (Private/Public)
 
@@ -13,12 +14,7 @@ import pandas as pd
 from pathlib import Path
 
 # Database connection
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 # State name to abbreviation mapping

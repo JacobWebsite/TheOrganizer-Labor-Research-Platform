@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 SEIU Locals Comparison Script
 Fetches SEIU's official list of locals from their API and compares to OLMS database.
@@ -80,12 +81,7 @@ def fetch_olms_seiu_locals(include_workers_united=True):
     Args:
         include_workers_united: If True, also include Workers United (WU) affiliates
     """
-    conn = psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
+    conn = get_connection()
 
     if include_workers_united:
         aff_filter = "aff_abbr IN ('SEIU', 'WU')"

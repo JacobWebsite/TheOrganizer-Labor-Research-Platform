@@ -1,4 +1,5 @@
 import os
+from db_config import get_connection
 """
 Review 173 employers excluded with exclude_reason='OUTLIER_WORKER_COUNT' (1.6M workers).
 Some may be legitimately large bargaining units incorrectly excluded.
@@ -20,12 +21,7 @@ from psycopg2.extras import RealDictCursor
 
 DRY_RUN = '--apply' not in sys.argv
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor(cursor_factory=RealDictCursor)
 
 print("=" * 90)

@@ -13,6 +13,7 @@ from psycopg2.extras import execute_values
 from collections import defaultdict
 import os
 
+from db_config import get_connection
 API_BASE = "https://api.usaspending.gov/api/v2"
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) labor-research/1.0',
@@ -185,7 +186,7 @@ def main():
 
     # Load to DB
     print(f"\n=== Loading to PostgreSQL ===")
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = False
     cur = conn.cursor()
 
