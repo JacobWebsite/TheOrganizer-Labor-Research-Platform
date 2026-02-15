@@ -613,6 +613,17 @@ def get_employer_detail(employer_id: str):
             """, [employer_id])
             ulp_cases = cur.fetchall()
 
+            # Canonical group context
+            group_context = None
+            if employer.get('canonical_group_id'):
+                cur.execute("""
+                    SELECT group_id, canonical_name, canonical_employer_id,
+                           member_count, consolidated_workers, is_cross_state, states
+                    FROM employer_canonical_groups
+                    WHERE group_id = %s
+                """, [employer['canonical_group_id']])
+                group_context = cur.fetchone()
+
             return {
                 "employer": employer,
                 "nlrb_elections": elections,
@@ -621,7 +632,123 @@ def get_employer_detail(employer_id: str):
                     "union_wins": sum(1 for e in elections if e['union_won']),
                     "ulp_cases": len(ulp_cases)
                 },
-                "ulp_cases": ulp_cases
+                "ulp_cases": ulp_cases,
+                "group_context": group_context,
+            }
+
+
+@router.get("/api/employers/{employer_id}/related-filings")
+def get_employer_related_filings(employer_id: str):
+    """Get canonical group info and all member filings for an employer.
+
+    If the employer is ungrouped (singleton), returns just the single filing.
+    If grouped, returns all filings in the same canonical group.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Check employer exists and get group info
+            cur.execute("""
+                SELECT e.employer_id, e.employer_name, e.canonical_group_id,
+                       e.is_canonical_rep
+                FROM f7_employers_deduped e
+                WHERE e.employer_id = %s
+            """, [employer_id])
+            emp = cur.fetchone()
+            if not emp:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            group_id = emp['canonical_group_id']
+
+            if not group_id:
+                # Ungrouped singleton
+                return {
+                    "canonical_group_id": None,
+                    "canonical_name": emp['employer_name'],
+                    "member_count": 1,
+                    "consolidated_workers": None,
+                    "filings": [{
+                        "employer_id": emp['employer_id'],
+                        "employer_name": emp['employer_name'],
+                        "is_canonical_rep": True,
+                    }]
+                }
+
+            # Get group metadata
+            cur.execute("""
+                SELECT group_id, canonical_name, canonical_employer_id,
+                       member_count, consolidated_workers, is_cross_state, states
+                FROM employer_canonical_groups
+                WHERE group_id = %s
+            """, [group_id])
+            group = cur.fetchone()
+            if not group:
+                raise HTTPException(status_code=404, detail="Group not found")
+
+            # Get all filings in this group
+            cur.execute("""
+                SELECT e.employer_id, e.employer_name, e.city, e.state,
+                       e.latest_unit_size, e.latest_union_fnum, e.latest_union_name,
+                       e.latest_notice_date, e.is_historical,
+                       e.is_canonical_rep, e.exclude_from_counts,
+                       um.aff_abbr
+                FROM f7_employers_deduped e
+                LEFT JOIN unions_master um ON e.latest_union_fnum::text = um.f_num
+                WHERE e.canonical_group_id = %s
+                ORDER BY e.is_canonical_rep DESC, e.latest_unit_size DESC NULLS LAST
+            """, [group_id])
+            filings = cur.fetchall()
+
+            return {
+                "canonical_group_id": group['group_id'],
+                "canonical_name": group['canonical_name'],
+                "canonical_employer_id": group['canonical_employer_id'],
+                "member_count": group['member_count'],
+                "consolidated_workers": group['consolidated_workers'],
+                "is_cross_state": group['is_cross_state'],
+                "states": group['states'],
+                "filings": filings,
+            }
+
+
+@router.get("/api/admin/employer-groups")
+def get_employer_groups_summary(
+    limit: int = Query(20, le=100)
+):
+    """Summary stats for canonical employer groups."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Check table exists
+            cur.execute("""
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_name = 'employer_canonical_groups'
+            """)
+            if cur.fetchone()['count'] == 0:
+                return {"total_groups": 0, "total_grouped": 0, "top_groups": []}
+
+            cur.execute("SELECT COUNT(*) FROM employer_canonical_groups")
+            total_groups = cur.fetchone()['count']
+
+            cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE canonical_group_id IS NOT NULL")
+            total_grouped = cur.fetchone()['count']
+
+            cur.execute("SELECT COUNT(*) FROM employer_canonical_groups WHERE is_cross_state = TRUE")
+            cross_state = cur.fetchone()['count']
+
+            cur.execute("""
+                SELECT group_id, canonical_name, canonical_employer_id,
+                       state, member_count, consolidated_workers,
+                       is_cross_state, states
+                FROM employer_canonical_groups
+                ORDER BY member_count DESC
+                LIMIT %s
+            """, [limit])
+            top_groups = cur.fetchall()
+
+            return {
+                "total_groups": total_groups,
+                "total_grouped": total_grouped,
+                "cross_state_groups": cross_state,
+                "top_groups": top_groups,
             }
 
 
@@ -774,6 +901,78 @@ def get_employer_nlrb(employer_id: str):
                 "ulp_summary": {
                     "total": len(ulp_cases)
                 }
+            }
+
+
+# ============================================================================
+# NLRB HISTORY (Bridge View)
+# ============================================================================
+
+@router.get("/api/employers/{employer_id}/nlrb-history")
+def get_employer_nlrb_history(employer_id: str):
+    """Get full NLRB history for an employer via the bridge view.
+
+    Returns timeline grouped by category: representation, ULP, unit_clarification.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Check employer exists
+            cur.execute("SELECT employer_name FROM f7_employers_deduped WHERE employer_id = %s", [employer_id])
+            emp = cur.fetchone()
+            if not emp:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            # Get all NLRB history from bridge view
+            cur.execute("""
+                SELECT case_number, case_category, case_type,
+                       event_date, case_open_date, case_close_date,
+                       employer_name,
+                       election_type, union_won,
+                       eligible_voters, vote_margin,
+                       union_name, union_abbr, allegation_section
+                FROM v_nlrb_employer_history
+                WHERE f7_employer_id = %s
+                ORDER BY event_date DESC
+            """, [employer_id])
+            rows = cur.fetchall()
+
+            # Group by category
+            representation = []
+            ulp = []
+            unit_clarification = []
+            other = []
+
+            for r in rows:
+                item = dict(r)
+                cat = r['case_category']
+                if cat == 'representation':
+                    representation.append(item)
+                elif cat == 'ulp':
+                    ulp.append(item)
+                elif cat == 'unit_clarification':
+                    unit_clarification.append(item)
+                else:
+                    other.append(item)
+
+            return {
+                "employer_name": emp['employer_name'],
+                "employer_id": employer_id,
+                "total_cases": len(rows),
+                "representation": {
+                    "cases": representation,
+                    "total": len(representation),
+                    "elections": sum(1 for r in representation if r.get('event_date')),
+                    "union_wins": sum(1 for r in representation if r.get('union_won') is True),
+                    "union_losses": sum(1 for r in representation if r.get('union_won') is False),
+                },
+                "ulp": {
+                    "cases": ulp,
+                    "total": len(ulp),
+                },
+                "unit_clarification": {
+                    "cases": unit_clarification,
+                    "total": len(unit_clarification),
+                },
             }
 
 

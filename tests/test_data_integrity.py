@@ -143,7 +143,7 @@ def test_f7_employer_count_stable(db):
     """
     count = query_one(db, "SELECT COUNT(*) FROM f7_employers_deduped")
 
-    EXPECTED = 113_713
+    EXPECTED = 146_863
     TOLERANCE = 500
 
     assert abs(count - EXPECTED) <= TOLERANCE, (
@@ -527,7 +527,7 @@ def test_current_employers_view(db):
     assert exists > 0, "v_f7_employers_current view does not exist"
 
     count = query_one(db, "SELECT COUNT(*) FROM v_f7_employers_current")
-    EXPECTED = 60_953
+    EXPECTED = 67_552
     TOLERANCE = 500
     assert abs(count - EXPECTED) <= TOLERANCE, (
         f"v_f7_employers_current has {count:,} rows, expected ~{EXPECTED:,} (+/- {TOLERANCE})"

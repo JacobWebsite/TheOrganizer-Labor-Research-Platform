@@ -118,6 +118,13 @@ function renderEmployerDetail(item) {
     // Data Quality indicators
     renderDataQuality(item, srcType);
 
+    // Related filings (canonical group)
+    if (srcType === 'F7') {
+        loadRelatedFilings(canonicalId);
+    } else {
+        document.getElementById('detailRelatedFilings').classList.add('hidden');
+    }
+
     // BLS Projections - show loading then fetch data
     const naics2 = item.naics ? item.naics.substring(0, 2) : null;
     const naicsDetailed = item.naics_detailed || (item.naics && item.naics.length >= 4 ? item.naics : null);
@@ -272,6 +279,76 @@ function renderDataQuality(item, srcType) {
             </div>
         </div>
     `;
+}
+
+// ==========================================
+// RELATED FILINGS (Canonical Groups)
+// ==========================================
+
+async function loadRelatedFilings(employerId) {
+    const el = document.getElementById('detailRelatedFilings');
+
+    try {
+        const resp = await fetch(`${API_BASE}/employers/${employerId}/related-filings`);
+        if (!resp.ok) {
+            el.classList.add('hidden');
+            return;
+        }
+        const data = await resp.json();
+
+        if (!data.canonical_group_id || data.member_count <= 1) {
+            el.classList.add('hidden');
+            return;
+        }
+
+        el.classList.remove('hidden');
+        const filings = data.filings || [];
+
+        el.innerHTML = `
+            <div class="flex justify-between items-center mb-3">
+                <div class="text-xs font-semibold text-warmgray-500 uppercase tracking-wide">
+                    Related Filings
+                    <span class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">${data.member_count}</span>
+                </div>
+                ${data.consolidated_workers ? `
+                    <span class="text-xs text-warmgray-500">
+                        ${formatNumber(data.consolidated_workers)} consolidated workers
+                    </span>
+                ` : ''}
+            </div>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+                ${filings.map(f => {
+                    const isRep = f.is_canonical_rep;
+                    return `
+                        <div class="text-sm p-2 rounded ${isRep ? 'bg-blue-50 border-l-4 border-blue-400' : 'bg-warmgray-50'} ${f.employer_id !== employerId ? 'cursor-pointer hover:bg-warmgray-100' : ''}"
+                             ${f.employer_id !== employerId ? `onclick="switchToEmployerAndSelect('${escapeHtml(f.employer_id)}')"` : ''}>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="font-medium text-warmgray-900">${escapeHtml(f.employer_name || '')}</span>
+                                    ${isRep ? '<span class="ml-1 text-xs px-1 py-0.5 bg-blue-200 text-blue-800 rounded">Primary</span>' : ''}
+                                    ${f.is_historical ? '<span class="ml-1 text-xs px-1 py-0.5 bg-warmgray-200 text-warmgray-600 rounded">Historical</span>' : ''}
+                                </div>
+                                <span class="font-semibold text-warmgray-700">${formatNumber(f.latest_unit_size || 0)}</span>
+                            </div>
+                            <div class="text-xs text-warmgray-500 mt-0.5">
+                                ${f.city ? escapeHtml(f.city) + ', ' : ''}${f.state || ''}
+                                ${f.latest_union_name ? ' -- ' + escapeHtml(f.latest_union_name) : ''}
+                                ${f.latest_notice_date ? ' -- ' + f.latest_notice_date : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            ${data.is_cross_state ? `
+                <div class="text-xs text-warmgray-400 mt-2">
+                    Cross-state group: ${(data.states || []).join(', ')}
+                </div>
+            ` : ''}
+        `;
+    } catch (e) {
+        console.log('Related filings load failed:', e);
+        el.classList.add('hidden');
+    }
 }
 
 // ==========================================
@@ -851,6 +928,15 @@ async function loadEmployerNlrb(employerId) {
 
         const data = await response.json();
         renderNlrbContent(data);
+
+        // Also load enriched history from bridge view
+        const historyData = await loadNlrbHistory(employerId);
+        if (historyData && historyData.total_cases > 0) {
+            const historyHtml = renderNlrbHistorySection(historyData);
+            if (historyHtml) {
+                contentEl.insertAdjacentHTML('beforeend', historyHtml);
+            }
+        }
     } catch (e) {
         console.log('NLRB load failed:', e);
         contentEl.innerHTML = `
@@ -981,6 +1067,52 @@ function renderNlrbContent(data) {
     html += '</div>';
     contentEl.innerHTML = html;
 }
+
+async function loadNlrbHistory(employerId) {
+    // Load enriched NLRB history from bridge view
+    try {
+        const response = await fetch(`${API_BASE}/employers/${employerId}/nlrb-history`);
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) {
+        console.log('NLRB history load failed:', e);
+        return null;
+    }
+}
+
+function renderNlrbHistorySection(data) {
+    // Render full NLRB history timeline
+    if (!data || data.total_cases === 0) return '';
+
+    const rep = data.representation || {};
+    const ulp = data.ulp || {};
+    const uc = data.unit_clarification || {};
+
+    let html = '<div class="mt-3 pt-3 border-t border-warmgray-200">';
+    html += '<div class="text-xs font-semibold text-warmgray-500 mb-2">NLRB History Timeline</div>';
+    html += '<div class="grid grid-cols-3 gap-2 text-center text-xs mb-3">';
+    html += `<div class="bg-blue-50 rounded p-1.5">
+        <div class="font-bold text-blue-700">${rep.total || 0}</div>
+        <div class="text-blue-500">Representation</div></div>`;
+    html += `<div class="bg-yellow-50 rounded p-1.5">
+        <div class="font-bold text-yellow-700">${ulp.total || 0}</div>
+        <div class="text-yellow-500">ULP</div></div>`;
+    html += `<div class="bg-warmgray-50 rounded p-1.5">
+        <div class="font-bold text-warmgray-600">${uc.total || 0}</div>
+        <div class="text-warmgray-400">UC/UD</div></div>`;
+    html += '</div>';
+
+    // Unit clarification cases
+    if (uc.total > 0) {
+        html += '<div class="text-xs text-warmgray-400 mb-2">';
+        html += `${uc.total} unit clarification case${uc.total > 1 ? 's' : ''}`;
+        html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
 
 let trendsChart = null;
 

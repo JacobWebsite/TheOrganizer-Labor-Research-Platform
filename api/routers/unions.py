@@ -248,8 +248,12 @@ def get_national_union_detail(aff_abbr: str):
 
 
 @router.get("/api/unions/{f_num}")
-def get_union_detail(f_num: str):
-    """Get full union details including NLRB history"""
+def get_union_detail(f_num: str, consolidated: bool = True):
+    """Get full union details including NLRB history.
+
+    When consolidated=True (default), top_employers groups by canonical group,
+    returning one row per group with canonical_name and consolidated_workers.
+    """
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM unions_master WHERE f_num = %s", [f_num])
@@ -258,13 +262,30 @@ def get_union_detail(f_num: str):
             if not union:
                 raise HTTPException(status_code=404, detail="Union not found")
 
-            # F-7 employers
-            cur.execute("""
-                SELECT employer_id, employer_name, city, state, latest_unit_size
-                FROM f7_employers_deduped
-                WHERE latest_union_fnum = %s
-                ORDER BY latest_unit_size DESC NULLS LAST LIMIT 20
-            """, [f_num])
+            # F-7 employers -- optionally consolidated
+            if consolidated:
+                cur.execute("""
+                    SELECT
+                        COALESCE(g.canonical_employer_id, e.employer_id) AS employer_id,
+                        COALESCE(g.canonical_name, e.employer_name) AS employer_name,
+                        e.city, e.state,
+                        COALESCE(g.consolidated_workers, e.latest_unit_size) AS latest_unit_size,
+                        g.group_id AS canonical_group_id,
+                        g.member_count
+                    FROM f7_employers_deduped e
+                    LEFT JOIN employer_canonical_groups g ON e.canonical_group_id = g.group_id
+                    WHERE e.latest_union_fnum = %s
+                      AND (e.is_canonical_rep = TRUE OR e.canonical_group_id IS NULL)
+                    ORDER BY COALESCE(g.consolidated_workers, e.latest_unit_size) DESC NULLS LAST
+                    LIMIT 20
+                """, [f_num])
+            else:
+                cur.execute("""
+                    SELECT employer_id, employer_name, city, state, latest_unit_size
+                    FROM f7_employers_deduped
+                    WHERE latest_union_fnum = %s
+                    ORDER BY latest_unit_size DESC NULLS LAST LIMIT 20
+                """, [f_num])
             employers = cur.fetchall()
 
             # NLRB elections
@@ -296,9 +317,14 @@ def get_union_detail(f_num: str):
 @router.get("/api/unions/{f_num}/employers")
 def get_union_employers(
     f_num: str,
+    consolidated: bool = True,
     limit: int = Query(50, le=200)
 ):
-    """Get all employers for a specific union"""
+    """Get all employers for a specific union.
+
+    When consolidated=True (default), groups by canonical group and returns
+    canonical_group_id and member_count per employer row.
+    """
     with get_db() as conn:
         with conn.cursor() as cur:
             # Check union exists
@@ -307,17 +333,39 @@ def get_union_employers(
             if not union:
                 raise HTTPException(status_code=404, detail="Union not found")
 
-            # Get employers
-            cur.execute("""
-                SELECT e.employer_id, e.employer_name, e.city, e.state, e.naics,
-                       e.latest_unit_size, e.latest_notice_date,
-                       c.cbsa_title as metro_name
-                FROM f7_employers_deduped e
-                LEFT JOIN cbsa_definitions c ON e.cbsa_code = c.cbsa_code
-                WHERE e.latest_union_fnum = %s
-                ORDER BY e.latest_unit_size DESC NULLS LAST
-                LIMIT %s
-            """, [f_num, limit])
+            if consolidated:
+                cur.execute("""
+                    SELECT
+                        COALESCE(g.canonical_employer_id, e.employer_id) AS employer_id,
+                        COALESCE(g.canonical_name, e.employer_name) AS employer_name,
+                        e.city, e.state, e.naics,
+                        COALESCE(g.consolidated_workers, e.latest_unit_size) AS latest_unit_size,
+                        e.latest_notice_date,
+                        c.cbsa_title as metro_name,
+                        g.group_id AS canonical_group_id,
+                        g.member_count
+                    FROM f7_employers_deduped e
+                    LEFT JOIN employer_canonical_groups g ON e.canonical_group_id = g.group_id
+                    LEFT JOIN cbsa_definitions c ON e.cbsa_code = c.cbsa_code
+                    WHERE e.latest_union_fnum = %s
+                      AND (e.is_canonical_rep = TRUE OR e.canonical_group_id IS NULL)
+                    ORDER BY COALESCE(g.consolidated_workers, e.latest_unit_size) DESC NULLS LAST
+                    LIMIT %s
+                """, [f_num, limit])
+            else:
+                cur.execute("""
+                    SELECT e.employer_id, e.employer_name, e.city, e.state, e.naics,
+                           e.latest_unit_size, e.latest_notice_date,
+                           c.cbsa_title as metro_name,
+                           e.canonical_group_id,
+                           COALESCE(g.member_count, 1) as member_count
+                    FROM f7_employers_deduped e
+                    LEFT JOIN employer_canonical_groups g ON e.canonical_group_id = g.group_id
+                    LEFT JOIN cbsa_definitions c ON e.cbsa_code = c.cbsa_code
+                    WHERE e.latest_union_fnum = %s
+                    ORDER BY e.latest_unit_size DESC NULLS LAST
+                    LIMIT %s
+                """, [f_num, limit])
             employers = cur.fetchall()
 
             return {

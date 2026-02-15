@@ -116,14 +116,20 @@ function renderUnionEmployers(employers) {
                 </tr>
             </thead>
             <tbody>
-                ${employers.slice(0, 15).map(e => `
+                ${employers.slice(0, 15).map(e => {
+                    const mc = e.member_count || 1;
+                    const groupBadge = mc > 1
+                        ? `<span class="ml-1 text-xs px-1 py-0.5 bg-blue-100 text-blue-700 rounded">${mc} filings</span>`
+                        : '';
+                    return `
                     <tr class="border-b border-warmgray-50 cursor-pointer hover:bg-warmgray-50"
                         onclick="openDeepDive('${escapeHtml(e.employer_id || '')}', 'uniondive')">
-                        <td class="py-2 font-medium text-warmgray-900">${escapeHtml(e.employer_name || '')}</td>
+                        <td class="py-2 font-medium text-warmgray-900">${escapeHtml(e.employer_name || '')}${groupBadge}</td>
                         <td class="py-2 text-warmgray-500">${escapeHtml((e.city || '') + (e.state ? ', ' + e.state : ''))}</td>
                         <td class="py-2 text-right font-semibold">${formatNumber(e.latest_unit_size || 0)}</td>
                     </tr>
-                `).join('')}
+                    `;
+                }).join('')}
             </tbody>
         </table>
     `;
