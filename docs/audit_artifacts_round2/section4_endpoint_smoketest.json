@@ -1,0 +1,302 @@
+{
+  "tested_count": 46,
+  "pass_count": 41,
+  "fail_count": 5,
+  "results": [
+    {
+      "method": "GET",
+      "path": "/",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 400,
+      "ok": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/summary",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats/breakdown",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/sectors",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/affiliations",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/states",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/naics-sectors",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/metros",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/lookups/cities",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/all",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/by-state",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/by-govt-level",
+      "status": 500,
+      "ok": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/by-county",
+      "status": 500,
+      "ok": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/county-summary",
+      "status": 500,
+      "ok": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/industry-rates",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/state-industry-comparison",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/ny/counties",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/ny/zips",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/ny/tracts",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/density/ny/summary",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projections/summary",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projections/search",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/projections/top",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/employers/search",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/employers/unified-search",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/employers/flags/pending",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/naics/stats",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/employers/unified/stats",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/employers/unified/search",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/osha/unified-matches",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/employers/unified/sources",
+      "status": 422,
+      "ok": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/unions/search",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/unions/types",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/unions/national",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/nlrb/summary",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/nlrb/elections/search",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/nlrb/elections/map",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/nlrb/elections/by-year",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "query": {},
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/employers/search",
+      "query": {
+        "q": "amazon"
+      },
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/unions/search",
+      "query": {
+        "q": "teamsters",
+        "limit": 5
+      },
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/osha/establishments/search",
+      "query": {
+        "q": "amazon",
+        "limit": 5
+      },
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/nlrb/elections/search",
+      "query": {
+        "q": "amazon",
+        "limit": 5
+      },
+      "status": 200,
+      "ok": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizing/scorecard",
+      "query": {
+        "limit": 5
+      },
+      "status": 200,
+      "ok": true
+    }
+  ]
+}

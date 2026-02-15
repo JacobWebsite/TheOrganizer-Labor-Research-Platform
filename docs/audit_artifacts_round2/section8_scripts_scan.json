@@ -1,0 +1,6681 @@
+{
+  "script_file_count_py": 494,
+  "sql_file_count": 34,
+  "script_refs_summary_top": [
+    {
+      "file": "scripts/density/build_density_map.py",
+      "refs_count": 21,
+      "unknown_ref_count": 20
+    },
+    {
+      "file": "scripts/maintenance/db_fixes_2026_02_14.py",
+      "refs_count": 20,
+      "unknown_ref_count": 18
+    },
+    {
+      "file": "scripts/etl/fix_orphaned_relations.py",
+      "refs_count": 18,
+      "unknown_ref_count": 15
+    },
+    {
+      "file": "scripts/scoring/create_scorecard_mv.py",
+      "refs_count": 26,
+      "unknown_ref_count": 14
+    },
+    {
+      "file": "scripts/audit/db_audit.py",
+      "refs_count": 15,
+      "unknown_ref_count": 13
+    },
+    {
+      "file": "scripts/import/name_normalizer.py",
+      "refs_count": 13,
+      "unknown_ref_count": 13
+    },
+    {
+      "file": "scripts/explore_osha_tables.py",
+      "refs_count": 12,
+      "unknown_ref_count": 12
+    },
+    {
+      "file": "scripts/cleanup/merge_f7_enhanced.py",
+      "refs_count": 20,
+      "unknown_ref_count": 12
+    },
+    {
+      "file": "scripts/cleanup/_remaining_audit.py",
+      "refs_count": 18,
+      "unknown_ref_count": 11
+    },
+    {
+      "file": "scripts/density/estimate_public_density.py",
+      "refs_count": 14,
+      "unknown_ref_count": 11
+    },
+    {
+      "file": "scripts/import/vr_employer_match_3b.py",
+      "refs_count": 13,
+      "unknown_ref_count": 11
+    },
+    {
+      "file": "scripts/analysis/multi_employer_handler.py",
+      "refs_count": 13,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/audit/verify_docs.py",
+      "refs_count": 23,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/cleanup/enrich_naics.py",
+      "refs_count": 13,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/etl/load_bls_projections.py",
+      "refs_count": 15,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/etl/load_national_990.py",
+      "refs_count": 14,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/etl/whd_match_phase5.py",
+      "refs_count": 15,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/etl/_integrate_qcew.py",
+      "refs_count": 15,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/matching/splink_pipeline.py",
+      "refs_count": 11,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/scoring/run_mergent_matching.py",
+      "refs_count": 22,
+      "unknown_ref_count": 10
+    },
+    {
+      "file": "scripts/afscme_ny/load_nyc_contracts.py",
+      "refs_count": 10,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/analysis/investigate_orphaned_relations.py",
+      "refs_count": 13,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/audit/database_audit.py",
+      "refs_count": 20,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/density/load_industry_density.py",
+      "refs_count": 15,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/etl/load_osha_accidents.py",
+      "refs_count": 11,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/etl/_match_usaspending.py",
+      "refs_count": 14,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/scoring/load_nyc_violations.py",
+      "refs_count": 19,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/scoring/update_whd_scores.py",
+      "refs_count": 10,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/setup/init_database.py",
+      "refs_count": 9,
+      "unknown_ref_count": 9
+    },
+    {
+      "file": "scripts/density/load_ny_density.py",
+      "refs_count": 11,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/density/load_state_sector_density.py",
+      "refs_count": 10,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/etl/fetch_usaspending.py",
+      "refs_count": 8,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/etl/load_gleif_bods.py",
+      "refs_count": 15,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/etl/osha_match_phase5.py",
+      "refs_count": 13,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/etl/unified_employer_osha_pipeline.py",
+      "refs_count": 15,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/import/load_f7_crosswalk.py",
+      "refs_count": 16,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/matching/splink_integrate.py",
+      "refs_count": 10,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/research/seiu_nj_reconciliation.py",
+      "refs_count": 14,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/scoring/compute_gower_similarity.py",
+      "refs_count": 13,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/scoring/rescore_phase2.py",
+      "refs_count": 13,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/scraper/fetch_union_sites.py",
+      "refs_count": 10,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/validation/run_all_checks.py",
+      "refs_count": 13,
+      "unknown_ref_count": 8
+    },
+    {
+      "file": "scripts/afscme_ny/match_990_to_afscme.py",
+      "refs_count": 15,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/analysis/create_coverage_tables.py",
+      "refs_count": 12,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/cleanup/audit_name_quality.py",
+      "refs_count": 9,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/discovery/catalog_research_events.py",
+      "refs_count": 7,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/import/merge_f7_duplicates.py",
+      "refs_count": 11,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/matching/splink_data_analysis.py",
+      "refs_count": 12,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/research/compare_seiu_locals.py",
+      "refs_count": 8,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/research/compare_teamsters.py",
+      "refs_count": 8,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/research/scrape_teamsters_locals.py",
+      "refs_count": 7,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/scoring/match_labor_violations.py",
+      "refs_count": 14,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/scraper/extract_union_data.py",
+      "refs_count": 12,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/matching/matchers/base.py",
+      "refs_count": 7,
+      "unknown_ref_count": 7
+    },
+    {
+      "file": "scripts/afscme_ny/match_contracts_to_employers.py",
+      "refs_count": 10,
+      "unknown_ref_count": 6
+    },
+    {
+      "file": "scripts/density/load_county_workforce.py",
+      "refs_count": 8,
+      "unknown_ref_count": 6
+    },
+    {
+      "file": "scripts/etl/backfill_naics.py",
+      "refs_count": 10,
+      "unknown_ref_count": 6
+    },
+    {
+      "file": "scripts/etl/extract_990_data.py",
+      "refs_count": 6,
+      "unknown_ref_count": 6
+    },
+    {
+      "file": "scripts/etl/load_osha_violations.py",
+      "refs_count": 8,
+      "unknown_ref_count": 6
+    },
+    {
+      "file": "scripts/etl/load_sam.py",
+      "refs_count": 7,
+      "unknown_ref_count": 6
+    }
+  ],
+  "scripts_with_unknown_refs_count": 415,
+  "scripts_with_unknown_refs": {
+    "scripts/explore_osha_tables.py": [
+      "information_schema.columns",
+      "information_schema.constraint_column_usage",
+      "information_schema.key_column_usage",
+      "information_schema.table_constraints",
+      "information_schema.tables",
+      "public.collections",
+      "public.db_config",
+      "public.each",
+      "public.found",
+      "public.keys",
+      "public.pg_indexes",
+      "public.print"
+    ],
+    "scripts/query_dupes.py": [
+      "public.collections",
+      "public.db_config",
+      "public.dupes"
+    ],
+    "scripts/afscme_ny/generate_targets.py": [
+      "public.datetime",
+      "public.pathlib",
+      "public.unmatched"
+    ],
+    "scripts/afscme_ny/load_990_employers.py": [
+      "public.JSON",
+      "public.database",
+      "public.name_normalizer",
+      "public.pathlib"
+    ],
+    "scripts/afscme_ny/load_nyc_contracts.py": [
+      "public.Checkbook",
+      "public.NYC",
+      "public.Recent",
+      "public.database",
+      "public.datetime",
+      "public.https",
+      "public.name_normalizer",
+      "public.pathlib",
+      "public.start_date"
+    ],
+    "scripts/afscme_ny/load_ny_contracts.py": [
+      "public.Excel",
+      "public.datetime",
+      "public.name_normalizer",
+      "public.pathlib",
+      "public.start"
+    ],
+    "scripts/afscme_ny/match_990_to_afscme.py": [
+      "public.AFSCME",
+      "public.collections",
+      "public.name_normalizer",
+      "public.pathlib",
+      "public.rapidfuzz",
+      "public.same",
+      "public.the"
+    ],
+    "scripts/afscme_ny/match_contracts_to_employers.py": [
+      "public.collections",
+      "public.index",
+      "public.organizing",
+      "public.pathlib",
+      "public.priority",
+      "public.rapidfuzz"
+    ],
+    "scripts/analysis/analyze_coverage.py": [
+      "psycopg2.extras",
+      "public.classified",
+      "public.multiple"
+    ],
+    "scripts/analysis/analyze_deduplication.py": [
+      "public.Local",
+      "public.classified"
+    ],
+    "scripts/analysis/analyze_deduplication_v2.py": [
+      "public.Local",
+      "public.classified"
+    ],
+    "scripts/analysis/analyze_hierarchy_deep.py": [
+      "public.large_orgs",
+      "public.union"
+    ],
+    "scripts/analysis/analyze_membership_duplication.py": [
+      "public.different"
+    ],
+    "scripts/analysis/analyze_remaining_overcount.py": [
+      "public.known",
+      "public.large",
+      "public.other"
+    ],
+    "scripts/analysis/analyze_schedule13.py": [
+      "public.structure"
+    ],
+    "scripts/analysis/analyze_schedule13_cp2.py": [
+      "public.membership_detail"
+    ],
+    "scripts/analysis/analyze_schedule13_cp3.py": [
+      "public.lm_summary",
+      "public.sched13_summary"
+    ],
+    "scripts/analysis/analyze_schedule13_total.py": [
+      "public.lm_summary",
+      "public.sched13_summary"
+    ],
+    "scripts/analysis/check_relation_dupes.py": [
+      "public.db_config"
+    ],
+    "scripts/analysis/compare_lm2_vs_f7.py": [
+      "public.db_config",
+      "public.hierarchy"
+    ],
+    "scripts/analysis/complete_coverage.py": [
+      "public.private_only"
+    ],
+    "scripts/analysis/corrected_coverage.py": [
+      "psycopg2.extras",
+      "public.print",
+      "public.private"
+    ],
+    "scripts/analysis/create_coverage_tables.py": [
+      "public.current",
+      "public.print",
+      "public.private_reconciled",
+      "public.public_sector",
+      "public.v_coverage_anomalies",
+      "public.v_coverage_summary",
+      "public.v_state_coverage_live"
+    ],
+    "scripts/analysis/federal_deep_dive.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/federal_final_verification.py": [
+      "psycopg2.extras",
+      "public.Private",
+      "public.the"
+    ],
+    "scripts/analysis/federal_misclass_check.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/final_coverage.py": [
+      "public.exclusion_flags",
+      "public.private_only",
+      "public.reconciled"
+    ],
+    "scripts/analysis/investigate_orphaned_relations.py": [
+      "information_schema.columns",
+      "public.a",
+      "public.but",
+      "public.columns",
+      "public.db_config",
+      "public.did",
+      "public.has",
+      "public.the",
+      "public.was"
+    ],
+    "scripts/analysis/linkage_analysis.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/matching_analysis.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/multi_employer_analysis.py": [
+      "psycopg2.extras",
+      "public.BLS"
+    ],
+    "scripts/analysis/multi_employer_final.py": [
+      "psycopg2.extras",
+      "public.counts",
+      "public.private",
+      "public.repeated"
+    ],
+    "scripts/analysis/multi_employer_fix.py": [
+      "psycopg2.extras",
+      "public.sag_employers",
+      "public.sag_max",
+      "public.union_groups"
+    ],
+    "scripts/analysis/multi_employer_fix_v2.py": [
+      "psycopg2.extras",
+      "public.BLS",
+      "public.duplicates",
+      "public.sag_employers",
+      "public.union_stats"
+    ],
+    "scripts/analysis/multi_employer_handler.py": [
+      "psycopg2.extras",
+      "public.count",
+      "public.counts",
+      "public.datetime",
+      "public.multi",
+      "public.ranked",
+      "public.sag_ranked",
+      "public.signatory_patterns",
+      "public.union_groups",
+      "public.union_stats"
+    ],
+    "scripts/analysis/sector_analysis_1.py": [
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/sector_analysis_2.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/sector_analysis_3.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/sector_final_summary.py": [
+      "psycopg2.extras",
+      "public.unions"
+    ],
+    "scripts/analysis/teacher_sector_check.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/analysis/va_sector_check.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/archive/afscme_1199_nj_only.py": [
+      "public.healthcare"
+    ],
+    "scripts/archive/check_1199_nj_employers.py": [
+      "information_schema.columns",
+      "public.F"
+    ],
+    "scripts/archive/check_cbsa.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "psycopg2.extras"
+    ],
+    "scripts/archive/export_all_employers.py": [
+      "public.datetime",
+      "public.multiple"
+    ],
+    "scripts/archive/extract_ny_990.py": [
+      "public.IRS",
+      "public.a",
+      "public.datetime",
+      "public.multiprocessing",
+      "public.the"
+    ],
+    "scripts/archive/f7_details.py": [
+      "public.base_names",
+      "public.grouped"
+    ],
+    "scripts/archive/find_dupes.py": [
+      "public.name_groups"
+    ],
+    "scripts/archive/find_dupes2.py": [
+      "public.f7_names",
+      "public.nlrb_names"
+    ],
+    "scripts/archive/find_dupes3.py": [
+      "public.name_prefix"
+    ],
+    "scripts/archive/fix_duplicates.py": [
+      "cur.execute",
+      "public.both",
+      "public.too"
+    ],
+    "scripts/audit/database_audit.py": [
+      "information_schema.columns",
+      "public.db_config",
+      "public.pg_indexes",
+      "public.pg_matviews",
+      "public.pg_stat",
+      "public.pg_stat_user_tables",
+      "public.pg_views",
+      "public.qcew_annual_averages",
+      "public.scored"
+    ],
+    "scripts/audit/db_audit.py": [
+      "information_schema.columns",
+      "public.DETAILS",
+      "public.column",
+      "public.does",
+      "public.f7_enhanced",
+      "public.in",
+      "public.pg_class",
+      "public.pg_index",
+      "public.pg_matviews",
+      "public.pg_namespace",
+      "public.pg_tables",
+      "public.pg_views",
+      "public.try"
+    ],
+    "scripts/audit/verify_docs.py": [
+      "MEMORY.md",
+      "information_schema.columns",
+      "information_schema.table_constraints",
+      "information_schema.tables",
+      "information_schema.views",
+      "public.db_config",
+      "public.existence",
+      "public.names",
+      "public.pg_matviews",
+      "public.splink_match_results"
+    ],
+    "scripts/batch/run_batch_fast.py": [
+      "scripts.matching"
+    ],
+    "scripts/batch/run_batch_large.py": [
+      "public.datetime",
+      "scripts.matching"
+    ],
+    "scripts/batch/run_batch_large_fast.py": [
+      "public.address",
+      "scripts.matching"
+    ],
+    "scripts/batch/run_batch_m2990.py": [
+      "scripts.matching"
+    ],
+    "scripts/batch/run_batch_m2990_fast.py": [
+      "scripts.matching"
+    ],
+    "scripts/batch/run_batch_m2f7.py": [
+      "public.each",
+      "scripts.matching"
+    ],
+    "scripts/batch/run_batch_m2osha.py": [
+      "scripts.matching"
+    ],
+    "scripts/batch/run_comparison.py": [
+      "scripts.matching"
+    ],
+    "scripts/batch/run_unified_matching.py": [
+      "scripts.matching"
+    ],
+    "scripts/cleanup/audit_coverage_gaps.py": [
+      "information_schema.columns",
+      "lm_data.street",
+      "psycopg2.extras",
+      "public.OSHA"
+    ],
+    "scripts/cleanup/audit_f7_duplicates.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/cleanup/audit_metadata.py": [
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/cleanup/audit_name_quality.py": [
+      "psycopg2.extras",
+      "public.Analysis",
+      "public.case_sensitive",
+      "public.employer_name",
+      "public.failures",
+      "public.losses",
+      "public.name_normalizer"
+    ],
+    "scripts/cleanup/audit_union_hierarchy.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/cleanup/enrich_naics.py": [
+      "information_schema.columns",
+      "psycopg2.extras",
+      "public.OSHA",
+      "public.collections",
+      "public.dominant",
+      "public.the",
+      "public.their",
+      "public.three",
+      "public.union",
+      "public.union_naics"
+    ],
+    "scripts/cleanup/enrich_naics_from_osha.py": [
+      "psycopg2.extras",
+      "public.OSHA",
+      "public.collections"
+    ],
+    "scripts/cleanup/fix_double_counting.py": [
+      "public.collections"
+    ],
+    "scripts/cleanup/fix_metadata.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/cleanup/fix_missing_union_linkage.py": [
+      "public.fix1_count",
+      "public.fuzzy",
+      "public.ranked",
+      "public.relations"
+    ],
+    "scripts/cleanup/fix_multi_employer.py": [
+      "psycopg2.extras",
+      "public.group_info"
+    ],
+    "scripts/cleanup/fix_name_quality.py": [
+      "psycopg2.extras",
+      "public.employer_name",
+      "public.improvement",
+      "public.name_normalizer"
+    ],
+    "scripts/cleanup/fix_sector_classification.py": [
+      "psycopg2.extras",
+      "public.private"
+    ],
+    "scripts/cleanup/fix_union_hierarchy.py": [
+      "psycopg2.extras",
+      "public.LATERAL",
+      "public.count"
+    ],
+    "scripts/cleanup/link_multi_location.py": [
+      "psycopg2.extras",
+      "public.collections",
+      "public.evidence",
+      "public.the"
+    ],
+    "scripts/cleanup/merge_f7_enhanced.py": [
+      "psycopg2.extras",
+      "public.CSV",
+      "public.collections",
+      "public.combined",
+      "public.counts",
+      "public.datetime",
+      "public.deleted",
+      "public.exists",
+      "public.keeper",
+      "public.original",
+      "public.print",
+      "public.the"
+    ],
+    "scripts/cleanup/post_merge_refresh.py": [
+      "public.not",
+      "public.pg_matviews"
+    ],
+    "scripts/cleanup/prepare_geocoding_batch.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/cleanup/recover_addresses.py": [
+      "psycopg2.extras",
+      "public.recovery",
+      "public.the"
+    ],
+    "scripts/cleanup/review_outliers.py": [
+      "psycopg2.extras",
+      "public.FEDERAL",
+      "public.LATERAL",
+      "public.MULTI_EMPLOYER"
+    ],
+    "scripts/cleanup/review_true_duplicates.py": [
+      "f7_duplicate_groups.csv",
+      "psycopg2.extras",
+      "public.datetime",
+      "public.exists",
+      "public.remaining"
+    ],
+    "scripts/cleanup/run_geocoding.py": [
+      "psycopg2.extras",
+      "public.data",
+      "public.existing"
+    ],
+    "scripts/cleanup/splink_rescore_pairs.py": [
+      "psycopg2.extras",
+      "public.collections",
+      "public.each",
+      "public.output",
+      "public.splink_match_results"
+    ],
+    "scripts/cleanup/validate_sector_classification.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/cleanup/verify_multi_employer.py": [
+      "psycopg2.extras",
+      "public.group_info"
+    ],
+    "scripts/cleanup/_analyze_identical_groups.py": [
+      "public.dup_groups",
+      "public.same_city_same_street"
+    ],
+    "scripts/cleanup/_check_missing_unions.py": [
+      "public.for",
+      "public.null_fnum_unions",
+      "public.relations"
+    ],
+    "scripts/cleanup/_check_null_fnum_relations.py": [
+      "public.fixable",
+      "public.for",
+      "public.relations",
+      "public.unmatched"
+    ],
+    "scripts/cleanup/_check_relation_cols.py": [
+      "information_schema.columns"
+    ],
+    "scripts/cleanup/_investigate_double_counting.py": [
+      "public.identical"
+    ],
+    "scripts/cleanup/_remaining_audit.py": [
+      "information_schema.columns",
+      "psycopg2.extras",
+      "public.NLRB",
+      "public.OSHA",
+      "public.columns",
+      "public.dup_groups",
+      "public.dups",
+      "public.specific",
+      "public.structure",
+      "public.union",
+      "public.union_dominant_naics"
+    ],
+    "scripts/cleanup/_scope_lowered_thresholds.py": [
+      "public.duplicates"
+    ],
+    "scripts/cleanup/_verify_all.py": [
+      "psycopg2.extras",
+      "public.v_museums_organizing_targets"
+    ],
+    "scripts/coverage/final_comparison.py": [
+      "cur.execute",
+      "public.print",
+      "public.the"
+    ],
+    "scripts/coverage/full_comparison.py": [
+      "information_schema.columns",
+      "public.OLMS",
+      "public.activity",
+      "public.earlier"
+    ],
+    "scripts/coverage/investigate_public.py": [
+      "public.ranked"
+    ],
+    "scripts/coverage/private_refined.py": [
+      "public.PRIVATE",
+      "public.private_only"
+    ],
+    "scripts/coverage/public_by_state.py": [
+      "public.database"
+    ],
+    "scripts/coverage/public_final_summary.py": [
+      "public.nhq_candidates"
+    ],
+    "scripts/coverage/public_sector_coverage.py": [
+      "cur.execute",
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/coverage/public_sector_coverage_v2.py": [
+      "psycopg2.extras",
+      "public.BLS"
+    ],
+    "scripts/coverage/public_sector_coverage_v3.py": [
+      "psycopg2.extras",
+      "public.latest_filing"
+    ],
+    "scripts/coverage/public_sector_dedup.py": [
+      "public.employers_deduped"
+    ],
+    "scripts/coverage/public_sector_final.py": [
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/coverage/reconcile_public_sector.py": [
+      "psycopg2.extras",
+      "public.PUBLIC_SECTOR_BENCHMARKS"
+    ],
+    "scripts/density/build_density_map.py": [
+      "ny_county_density.csv",
+      "ny_density_map.html",
+      "ny_tract_density.csv",
+      "ny_zip_density.csv",
+      "public.CSV",
+      "public.CSVs",
+      "public.Census",
+      "public.GeoJSON",
+      "public.HTML",
+      "public.KML",
+      "public.ZIP",
+      "public.county",
+      "public.govt",
+      "public.header",
+      "public.name",
+      "public.shapefile",
+      "public.summary",
+      "public.the",
+      "public.tract",
+      "public.tract_data"
+    ],
+    "scripts/density/calculate_county_density.py": [
+      "public.created",
+      "public.print"
+    ],
+    "scripts/density/check_self_employment.py": [
+      "public.density",
+      "public.the"
+    ],
+    "scripts/density/compare_edu_inclusion.py": [
+      "public.CPS"
+    ],
+    "scripts/density/decompose_all_states_density.py": [
+      "public.for"
+    ],
+    "scripts/density/estimate_public_density.py": [
+      "public.ACS",
+      "public.API",
+      "public.created",
+      "public.date",
+      "public.decimal",
+      "public.latest_private",
+      "public.latest_public",
+      "public.latest_total",
+      "public.pathlib",
+      "public.states_with_public",
+      "public.the"
+    ],
+    "scripts/density/export_county_density_csv.py": [
+      "public.pathlib"
+    ],
+    "scripts/density/load_county_workforce.py": [
+      "public.ACS",
+      "public.CSV",
+      "public.Name",
+      "public.created",
+      "public.pathlib",
+      "public.print"
+    ],
+    "scripts/density/load_industry_density.py": [
+      "cur.execute",
+      "information_schema.columns",
+      "public.Excel",
+      "public.Table",
+      "public.county",
+      "public.decimal",
+      "public.industry",
+      "public.pathlib",
+      "public.private"
+    ],
+    "scripts/density/load_ny_density.py": [
+      "cur.execute",
+      "psycopg2.extras",
+      "public.CPS",
+      "public.Excel",
+      "public.county",
+      "public.database",
+      "public.decimal",
+      "public.methodology"
+    ],
+    "scripts/density/load_state_sector_density.py": [
+      "public.CSV",
+      "public.created",
+      "public.date",
+      "public.latest_private",
+      "public.latest_public",
+      "public.pathlib",
+      "public.print",
+      "unionstats.com"
+    ],
+    "scripts/density/show_govt_level_density.py": [
+      "public.total"
+    ],
+    "scripts/density/show_state_density.py": [
+      "public.total"
+    ],
+    "scripts/discovery/catalog_research_events.py": [
+      "public.UAW",
+      "public.USW",
+      "public.aggregate",
+      "public.consolidated",
+      "public.editorial",
+      "public.structured",
+      "scripts.matching"
+    ],
+    "scripts/discovery/crosscheck_events.py": [
+      "public.IN_MERGENT",
+      "public.Script",
+      "public.catalog",
+      "public.has_union",
+      "scripts.matching"
+    ],
+    "scripts/discovery/insert_new_events.py": [
+      "public.Database",
+      "public.crosscheck",
+      "public.datetime",
+      "scripts.matching"
+    ],
+    "scripts/etl/aggregate_osha_violations.py": [
+      "psycopg2.extras",
+      "public.datetime",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/backfill_naics.py": [
+      "public.LATERAL",
+      "public.Mergent",
+      "public.collections",
+      "public.db_config",
+      "public.peer",
+      "public.the"
+    ],
+    "scripts/etl/build_corporate_hierarchy.py": [
+      "public.GLEIF",
+      "public.chain",
+      "public.corporate_ultimate_parents",
+      "public.direct",
+      "public.ultimate"
+    ],
+    "scripts/etl/build_crosswalk.py": [
+      "public.GLEIF",
+      "public.Mergent",
+      "public.created",
+      "public.existing",
+      "public.parent_duns"
+    ],
+    "scripts/etl/check_hierarchy_prereqs.py": [
+      "information_schema.columns",
+      "information_schema.schemata",
+      "information_schema.tables"
+    ],
+    "scripts/etl/check_naics_crosswalk.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "psycopg2.extras"
+    ],
+    "scripts/etl/check_naics_xwalk.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "psycopg2.extras"
+    ],
+    "scripts/etl/check_sam_detail.py": [
+      "public.datetime",
+      "public.db_config",
+      "public.pg_stat_activity"
+    ],
+    "scripts/etl/check_sam_progress.py": [
+      "public.db_config",
+      "public.pg_stat_activity"
+    ],
+    "scripts/etl/count_osha_2012.py": [
+      "public.accident",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/create_osha_schema.py": [
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/etl/download_naics_crosswalks.py": [
+      "public.CENSUS"
+    ],
+    "scripts/etl/download_remaining_naics.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL"
+    ],
+    "scripts/etl/explore_osha.py": [
+      "public.columns",
+      "public.structure"
+    ],
+    "scripts/etl/explore_osha_violations.py": [
+      "public.inspection",
+      "public.schema",
+      "public.violation"
+    ],
+    "scripts/etl/extract_990_data.py": [
+      "concurrent.futures",
+      "public.IRS",
+      "public.a",
+      "public.datetime",
+      "public.every",
+      "public.pathlib"
+    ],
+    "scripts/etl/extract_gleif_us_optimized.py": [
+      "public.LEI",
+      "public.created",
+      "public.fresh",
+      "public.print"
+    ],
+    "scripts/etl/extract_osha_establishments.py": [
+      "psycopg2.extras",
+      "public.SQLite",
+      "public.datetime",
+      "public.insert_sql",
+      "public.inspection"
+    ],
+    "scripts/etl/extract_osha_resume.py": [
+      "psycopg2.extras",
+      "public.datetime",
+      "public.inspection"
+    ],
+    "scripts/etl/fetch_qcew.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.ready"
+    ],
+    "scripts/etl/fetch_usaspending.py": [
+      "public.PostgreSQL",
+      "public.database",
+      "public.federal_contracts",
+      "public.pathlib",
+      "public.ready",
+      "public.recipient",
+      "public.state",
+      "public.the"
+    ],
+    "scripts/etl/fix_orphaned_relations.py": [
+      "cur.execute",
+      "fe.latest_notice_date",
+      "psycopg2.extras",
+      "public.by",
+      "public.collections",
+      "public.db_config",
+      "public.deduped",
+      "public.for",
+      "public.matches",
+      "public.orphan_employers",
+      "public.pg_matviews",
+      "public.raw",
+      "public.the",
+      "public.tier1_mapping",
+      "public.tier2_mapping"
+    ],
+    "scripts/etl/fix_union_hierarchy.py": [
+      "public.collections",
+      "public.db_config",
+      "public.union"
+    ],
+    "scripts/etl/geocode_backfill.py": [
+      "public.already",
+      "public.db_config",
+      "public.existing"
+    ],
+    "scripts/etl/kill_stuck.py": [
+      "public.db_config",
+      "public.pg_stat_activity"
+    ],
+    "scripts/etl/list_osha_tables.py": [
+      "public.sqlite_master"
+    ],
+    "scripts/etl/load_bls_projections.py": [
+      "cur.execute",
+      "public.CSV",
+      "public.code",
+      "public.db_config",
+      "public.employment_change_pct",
+      "public.filename",
+      "public.fresh",
+      "public.from",
+      "public.glob",
+      "public.py"
+    ],
+    "scripts/etl/load_gleif_bods.py": [
+      "cur.execute",
+      "public.PostgreSQL",
+      "public.address",
+      "public.entity_statement",
+      "public.identifiers",
+      "public.in",
+      "public.jurisdiction",
+      "public.the"
+    ],
+    "scripts/etl/load_naics_crosswalks.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL"
+    ],
+    "scripts/etl/load_national_990.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "public.collections",
+      "public.create_table",
+      "public.database",
+      "public.datetime",
+      "public.does",
+      "public.existing",
+      "public.if",
+      "public.national"
+    ],
+    "scripts/etl/load_osha_accidents.py": [
+      "accident.fatality",
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.SQLite",
+      "public.accident",
+      "public.accident_injury",
+      "public.datetime",
+      "public.event_date",
+      "public.inspection"
+    ],
+    "scripts/etl/load_osha_violations.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.SQLite",
+      "public.datetime",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/load_osha_violations_detail.py": [
+      "psycopg2.extras",
+      "public.datetime",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/load_sam.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.created",
+      "public.datetime",
+      "public.db_config",
+      "public.in"
+    ],
+    "scripts/etl/load_sec_edgar.py": [
+      "public.PostgreSQL",
+      "public.a",
+      "public.zip",
+      "submissions.zip"
+    ],
+    "scripts/etl/load_whd_national.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.in",
+      "public.print"
+    ],
+    "scripts/etl/match_990_national.py": [
+      "public.created",
+      "public.crosswalk",
+      "public.datetime",
+      "public.db_config",
+      "public.existing",
+      "public.step0_create_table"
+    ],
+    "scripts/etl/osha_address_match.py": [
+      "public.datetime"
+    ],
+    "scripts/etl/osha_deep_dive.py": [
+      "cur.execute",
+      "public.datetime",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/osha_explore.py": [
+      "public.datetime",
+      "public.in",
+      "public.sqlite_master"
+    ],
+    "scripts/etl/osha_f7_potential.py": [
+      "psycopg2.extras",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/osha_fuzzy_match.py": [
+      "public.datetime"
+    ],
+    "scripts/etl/osha_fuzzy_micro.py": [
+      "public.datetime"
+    ],
+    "scripts/etl/osha_fuzzy_prefix.py": [
+      "public.datetime"
+    ],
+    "scripts/etl/osha_fuzzy_prefix_n.py": [
+      "public.datetime"
+    ],
+    "scripts/etl/osha_historical.py": [
+      "public.accident",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/osha_match_improvement.py": [
+      "public.datetime"
+    ],
+    "scripts/etl/osha_match_phase5.py": [
+      "cur.execute",
+      "public.OSHA",
+      "public.create_mergent_bridge_temp",
+      "public.datetime",
+      "public.db_config",
+      "public.names",
+      "public.of",
+      "public.tmp_mergent_f7_bridge"
+    ],
+    "scripts/etl/osha_normalize_names.py": [
+      "cursor.executemany",
+      "public.datetime"
+    ],
+    "scripts/etl/osha_violations.py": [
+      "public.accident",
+      "public.inspection",
+      "public.violation"
+    ],
+    "scripts/etl/parse_naics_crosswalks.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL"
+    ],
+    "scripts/etl/peek_sam5.py": [
+      "public.collections",
+      "public.ratios"
+    ],
+    "scripts/etl/phase5_refresh.py": [
+      "public.datetime",
+      "public.db_config",
+      "public.in",
+      "public.pg_matviews"
+    ],
+    "scripts/etl/post_orphan_fix_cleanup.py": [
+      "public.db_config",
+      "public.from",
+      "public.the"
+    ],
+    "scripts/etl/setup_afscme_scraper.py": [
+      "public.db_config",
+      "public.union"
+    ],
+    "scripts/etl/setup_unified_search.py": [
+      "public.for",
+      "public.print",
+      "public.to"
+    ],
+    "scripts/etl/unified_employer_osha_pipeline.py": [
+      "public.all",
+      "public.combining",
+      "public.create_unified_table",
+      "public.created",
+      "public.datetime",
+      "public.for",
+      "public.participants",
+      "public.source"
+    ],
+    "scripts/etl/update_normalization.py": [
+      "public.cleanco",
+      "public.name_normalized",
+      "public.normalized"
+    ],
+    "scripts/etl/verify_naics_crosswalks.py": [
+      "psycopg2.extras",
+      "public.chain",
+      "public.each"
+    ],
+    "scripts/etl/verify_osha_schema.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "public.pg_indexes"
+    ],
+    "scripts/etl/whd_match_phase5.py": [
+      "public.Mergent",
+      "public.already",
+      "public.created",
+      "public.datetime",
+      "public.db_config",
+      "public.name_normalized",
+      "public.step0_create_table",
+      "public.tmp_whd_mergent_bridge",
+      "public.whd_agg",
+      "public.whd_state_agg"
+    ],
+    "scripts/etl/_fetch_usaspending_api.py": [
+      "psycopg2.extras",
+      "public.collections",
+      "public.global"
+    ],
+    "scripts/etl/_integrate_qcew.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "psycopg2.extras",
+      "public.QCEW",
+      "public._naics2_qcew_map",
+      "public.create_qcew_industry_density",
+      "public.exists",
+      "public.f7_by_state",
+      "public.qcew_by_state",
+      "public.to"
+    ],
+    "scripts/etl/_match_usaspending.py": [
+      "cur.execute",
+      "information_schema.columns",
+      "psycopg2.extras",
+      "public.USASpending",
+      "public._f7_normalized",
+      "public.existing",
+      "public.for",
+      "public.pg_extension",
+      "public.the"
+    ],
+    "scripts/etl/_phase3_baseline.py": [
+      "information_schema.tables",
+      "information_schema.views"
+    ],
+    "scripts/export/export_all_locals.py": [
+      "public.datetime"
+    ],
+    "scripts/export/export_all_locals_v2.py": [
+      "information_schema.tables",
+      "public.f990",
+      "public.not",
+      "public.olms"
+    ],
+    "scripts/export/export_all_locals_v3.py": [
+      "information_schema.tables",
+      "public.not"
+    ],
+    "scripts/export/export_coverage.py": [
+      "psycopg2.extras",
+      "public.classified"
+    ],
+    "scripts/export/export_raw_lm_data.py": [
+      "public.RAW",
+      "public.raw"
+    ],
+    "scripts/export/extract_locals_councils.py": [
+      "public.OLMS",
+      "public.hierarchy"
+    ],
+    "scripts/export/extract_locals_only.py": [
+      "public.OLMS"
+    ],
+    "scripts/export/generate_discovery_reports.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/export/generate_discovery_reports_v2.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/export/reconciled_summary.py": [
+      "public.official",
+      "public.published"
+    ],
+    "scripts/federal/checkpoint2_load_federal.py": [
+      "public.CSV",
+      "public.recreated"
+    ],
+    "scripts/federal/checkpoint3_olms_linkage.py": [
+      "public.LATERAL"
+    ],
+    "scripts/federal/checkpoint5_verification.py": [
+      "public.API"
+    ],
+    "scripts/federal/checkpoint7_validation.py": [
+      "psycopg2.extras",
+      "public.VALIDATION",
+      "public.rows"
+    ],
+    "scripts/federal/checkpoint_a1_api_additions.py": [
+      "public.unified"
+    ],
+    "scripts/federal/run_checkpoint1.py": [
+      "cur.execute",
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/federal/run_checkpoint4.py": [
+      "information_schema.tables",
+      "public.F",
+      "public.employers_deduped"
+    ],
+    "scripts/federal/run_checkpoint_a1.py": [
+      "labor_api_v4.py",
+      "public.unified"
+    ],
+    "scripts/fixes/fix_nlrb_xref_orphans.py": [
+      "public.db_config"
+    ],
+    "scripts/import/add_local_numbers.py": [
+      "psycopg2.extras",
+      "public.from",
+      "public.latest_lm"
+    ],
+    "scripts/import/batch_matcher.py": [
+      "psycopg2.extras",
+      "public.name_normalizer",
+      "public.rapidfuzz",
+      "public.typing",
+      "rapidfuzz.distance"
+    ],
+    "scripts/import/canonical_lookup.py": [
+      "psycopg2.extras",
+      "public.typing"
+    ],
+    "scripts/import/create_dedup_schema.py": [
+      "public.For"
+    ],
+    "scripts/import/create_f7_schema.py": [
+      "information_schema.tables",
+      "information_schema.views",
+      "public.between",
+      "public.explaining",
+      "public.for",
+      "public.other"
+    ],
+    "scripts/import/find_duplicate_employers.py": [
+      "psycopg2.extras",
+      "public.different",
+      "public.is",
+      "public.matches",
+      "public.name_normalizer",
+      "public.same"
+    ],
+    "scripts/import/fix_990_estimates.py": [
+      "public.dues"
+    ],
+    "scripts/import/fuzzy_employer_matching.py": [
+      "public.collections",
+      "public.difflib"
+    ],
+    "scripts/import/load_990_affiliates.py": [
+      "public.ProPublica",
+      "public.published"
+    ],
+    "scripts/import/load_990_aft_fop.py": [
+      "public.published"
+    ],
+    "scripts/import/load_990_batch.py": [
+      "public.ProPublica",
+      "public.published"
+    ],
+    "scripts/import/load_f7_crosswalk.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.SQLite",
+      "public.affiliation_sector_map",
+      "public.employers",
+      "public.f7_only_unions",
+      "public.in",
+      "public.union_employer_relations"
+    ],
+    "scripts/import/load_f7_data.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.SQLite",
+      "public.counts",
+      "public.ranked",
+      "public.string"
+    ],
+    "scripts/import/load_mergent_30k.py": [
+      "psycopg2.extras",
+      "public.files"
+    ],
+    "scripts/import/load_multiyear_olms.py": [
+      "public.PostgreSQL",
+      "public.psycopg2"
+    ],
+    "scripts/import/load_unionstats.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.filename"
+    ],
+    "scripts/import/load_unionstats_v2.py": [
+      "psycopg2.extras",
+      "public.PASSWORD",
+      "public.PostgreSQL",
+      "public.filename"
+    ],
+    "scripts/import/merge_f7_duplicates.py": [
+      "psycopg2.extras",
+      "public.CSV",
+      "public.VR",
+      "public.collections",
+      "public.datetime",
+      "public.it",
+      "public.print"
+    ],
+    "scripts/import/name_normalizer.py": [
+      "public.OLMS",
+      "public.VR",
+      "public.a",
+      "public.acronym",
+      "public.both",
+      "public.employer",
+      "public.expansion",
+      "public.name",
+      "public.name_normalizer",
+      "public.the",
+      "public.typing",
+      "public.union",
+      "public.words"
+    ],
+    "scripts/import/olms_gap_analysis.py": [
+      "public.union"
+    ],
+    "scripts/import/recalc_990_published.py": [
+      "public.locals",
+      "public.published"
+    ],
+    "scripts/import/recalc_990_research_rates.py": [
+      "public.DATABASE",
+      "public.RESEARCH",
+      "public.flra_bargaining_units",
+      "public.locals",
+      "public.published",
+      "public.union_financials_multiyear"
+    ],
+    "scripts/import/recalc_990_unified_dues.py": [
+      "public.database"
+    ],
+    "scripts/import/recalc_990_unified_rates.py": [
+      "public.affiliates",
+      "public.locals"
+    ],
+    "scripts/import/vr_employer_match_3a.py": [
+      "psycopg2.extras",
+      "public.F7",
+      "public.VR",
+      "public.matches",
+      "public.name_normalizer"
+    ],
+    "scripts/import/vr_employer_match_3b.py": [
+      "psycopg2.extras",
+      "public.cleaned_f7",
+      "public.cleaned_vr",
+      "public.f7_first_word",
+      "public.f7_prefix",
+      "public.matches",
+      "public.name_normalizer",
+      "public.national_employers",
+      "public.pg_extension",
+      "public.vr_first_word",
+      "public.vr_prefix"
+    ],
+    "scripts/import/vr_employer_match_3c.py": [
+      "psycopg2.extras",
+      "public.date_vr_request_received",
+      "public.name_normalizer"
+    ],
+    "scripts/import/vr_loader_2a.py": [
+      "public.CSV",
+      "public.PostgreSQL",
+      "public.collections",
+      "public.datetime"
+    ],
+    "scripts/import/vr_loader_2b.py": [
+      "public.print",
+      "public.union"
+    ],
+    "scripts/import/vr_loader_2c.py": [
+      "public.date_vr_request_received",
+      "public.datetime"
+    ],
+    "scripts/import/vr_union_match_4a.py": [
+      "psycopg2.extras",
+      "public.extracted",
+      "public.largest_by_affil",
+      "public.matches",
+      "public.name_normalizer",
+      "public.national_unions"
+    ],
+    "scripts/import/vr_union_match_4b.py": [
+      "psycopg2.extras",
+      "public.matches",
+      "public.name_normalizer"
+    ],
+    "scripts/import/vr_union_match_4c.py": [
+      "psycopg2.extras",
+      "public.name_normalizer"
+    ],
+    "scripts/maintenance/check_990_validation.py": [
+      "information_schema.tables",
+      "public.contents",
+      "public.lm_data_deduped",
+      "public.not",
+      "public.print",
+      "public.reconciled_union_totals"
+    ],
+    "scripts/maintenance/check_accidents.py": [
+      "public.accident",
+      "public.inspection",
+      "public.related_activity"
+    ],
+    "scripts/maintenance/check_accidents2.py": [
+      "public.accident",
+      "public.accident_injury",
+      "public.inspection"
+    ],
+    "scripts/maintenance/check_bls_data.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/check_cases.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_cols.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_columns.py": [
+      "information_schema.columns",
+      "public.STRUCTURES"
+    ],
+    "scripts/maintenance/check_db_state.py": [
+      "information_schema.tables",
+      "information_schema.views",
+      "public.in"
+    ],
+    "scripts/maintenance/check_db_structure.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "information_schema.views",
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/check_discovered.py": [
+      "psycopg2.extras",
+      "public.status"
+    ],
+    "scripts/maintenance/check_elections.py": [
+      "information_schema.tables",
+      "information_schema.views"
+    ],
+    "scripts/maintenance/check_elections_cols.py": [
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/check_employer_schema.py": [
+      "information_schema.columns",
+      "public.columns"
+    ],
+    "scripts/maintenance/check_existing.py": [
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/check_f7.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_f7_adjustments.py": [
+      "information_schema.columns",
+      "psycopg2.extras",
+      "public.STRUCTURE"
+    ],
+    "scripts/maintenance/check_f7_sources.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_f7_structure.py": [
+      "information_schema.columns",
+      "information_schema.views",
+      "public.unified"
+    ],
+    "scripts/maintenance/check_field_lengths.py": [
+      "public.FIELD",
+      "public.allegation",
+      "public.election_result",
+      "public.participant",
+      "public.tally"
+    ],
+    "scripts/maintenance/check_lm_data.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_local_numbers.py": [
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/check_match_status.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_nlrb_cols.py": [
+      "information_schema.columns",
+      "public.in"
+    ],
+    "scripts/maintenance/check_osha_ein.py": [
+      "cursor.execute",
+      "public.columns",
+      "public.optional_info",
+      "public.sqlite_master"
+    ],
+    "scripts/maintenance/check_projections.py": [
+      "public.v_naics_projections"
+    ],
+    "scripts/maintenance/check_reconciled_data.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_reconciliation.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "information_schema.views"
+    ],
+    "scripts/maintenance/check_remaining_dups.py": [
+      "public.repeated"
+    ],
+    "scripts/maintenance/check_schema.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_structure.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_tables.py": [
+      "information_schema.tables"
+    ],
+    "scripts/maintenance/check_tallies_matching.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_types.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_views.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/check_views_for_interface.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "information_schema.views"
+    ],
+    "scripts/maintenance/check_vr_structure.py": [
+      "information_schema.columns",
+      "psycopg2.extras",
+      "public.Columns",
+      "public.STRUCTURE",
+      "public.columns"
+    ],
+    "scripts/maintenance/create_data_freshness.py": [
+      "public.db_config"
+    ],
+    "scripts/maintenance/cross_validate_990.py": [
+      "public.LM",
+      "public.both"
+    ],
+    "scripts/maintenance/db_fixes_2026_02_14.py": [
+      "information_schema.columns",
+      "information_schema.table_constraints",
+      "information_schema.tables",
+      "public.Audit",
+      "public.IF",
+      "public.context",
+      "public.db_config",
+      "public.exists",
+      "public.in",
+      "public.pg_class",
+      "public.pg_depend",
+      "public.pg_indexes",
+      "public.pg_matviews",
+      "public.pg_namespace",
+      "public.pg_rewrite",
+      "public.pg_views",
+      "public.references",
+      "public.usage"
+    ],
+    "scripts/maintenance/db_stats_check.py": [
+      "information_schema.columns",
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/debug_export.py": [
+      "information_schema.columns"
+    ],
+    "scripts/maintenance/diagnose_and_fix.py": [
+      "psycopg2.extras",
+      "public.check_f7_adjustments",
+      "public.print",
+      "public.totals"
+    ],
+    "scripts/maintenance/explore_crosswalk.py": [
+      "public.SCHEMAS",
+      "public.in",
+      "public.sqlite_master"
+    ],
+    "scripts/maintenance/explore_nlrb.py": [
+      "public.filing",
+      "public.participant"
+    ],
+    "scripts/maintenance/explore_nlrb_patterns.py": [
+      "public.participant"
+    ],
+    "scripts/maintenance/fix_checkpoint4.py": [
+      "public.F"
+    ],
+    "scripts/maintenance/fix_checkpoint4_reconciled.py": [
+      "information_schema.columns",
+      "public.FLRA",
+      "public.RECONCILED"
+    ],
+    "scripts/maintenance/fix_private_coverage_final.py": [
+      "psycopg2.extras",
+      "public.classified",
+      "public.totals"
+    ],
+    "scripts/maintenance/fix_unified_views.py": [
+      "information_schema.columns",
+      "public.F"
+    ],
+    "scripts/maintenance/fix_unified_views2.py": [
+      "public.F"
+    ],
+    "scripts/maintenance/fix_unified_view_cleaned.py": [
+      "information_schema.columns",
+      "public.CLEANED"
+    ],
+    "scripts/maintenance/inspect_dbs.py": [
+      "public.in",
+      "public.sqlite_master"
+    ],
+    "scripts/maintenance/merge_mergent_dupes.py": [
+      "public.db_config",
+      "public.foreign"
+    ],
+    "scripts/maintenance/migrate_credentials.py": [
+      "public.all",
+      "public.db_config",
+      "public.this"
+    ],
+    "scripts/maintenance/quality_check_runner.py": [
+      "psycopg2.extras",
+      "public.MAX",
+      "public.datetime",
+      "public.private"
+    ],
+    "scripts/maintenance/quality_check_runner_v2.py": [
+      "information_schema.columns",
+      "psycopg2.extras",
+      "public.MAX",
+      "public.datetime",
+      "public.exists",
+      "public.not"
+    ],
+    "scripts/maintenance/real_990_validation.py": [
+      "public.Americans",
+      "public.LM",
+      "public.dues",
+      "public.federal"
+    ],
+    "scripts/maintenance/run_nlrb_schema.py": [
+      "information_schema.tables"
+    ],
+    "scripts/maintenance/run_vr_schema.py": [
+      "information_schema.tables",
+      "information_schema.views",
+      "public.data"
+    ],
+    "scripts/maintenance/run_vr_views_5a.py": [
+      "information_schema.views"
+    ],
+    "scripts/maintenance/run_vr_views_5b.py": [
+      "e.election_date",
+      "public.combined",
+      "vr.date_vr_request_received"
+    ],
+    "scripts/maintenance/test_api_queries.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/test_elections_query.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/test_vr_api.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/maintenance/update_private_sector_coverage.py": [
+      "psycopg2.extras",
+      "public.DEDUPLICATED",
+      "public.totals"
+    ],
+    "scripts/maintenance/update_unified_reconciled.py": [
+      "public.CLEANED",
+      "public.unified"
+    ],
+    "scripts/maintenance/update_unified_view.py": [
+      "public.unified"
+    ],
+    "scripts/maintenance/update_views.py": [
+      "public.the",
+      "public.views"
+    ],
+    "scripts/maintenance/verify_2024_expanded.py": [
+      "psycopg2.extras",
+      "public.CSV",
+      "public.if"
+    ],
+    "scripts/maintenance/verify_discovery_2024.py": [
+      "cur.execute",
+      "psycopg2.extras",
+      "public.AFSCME",
+      "public.database",
+      "public.datetime",
+      "public.web"
+    ],
+    "scripts/maintenance/verify_f7_integration.py": [
+      "public.v_f7_employers_full",
+      "public.v_f7_state_summary"
+    ],
+    "scripts/maintenance/verify_f7_schema.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "information_schema.views",
+      "public.structure"
+    ],
+    "scripts/maintenance/vr_views_5a.py": [
+      "psycopg2.extras",
+      "public.VR",
+      "public.city",
+      "public.date_vr_request_received",
+      "vr.date_vr_request_received"
+    ],
+    "scripts/maintenance/vr_views_5c.py": [
+      "information_schema.views",
+      "psycopg2.extras"
+    ],
+    "scripts/matching/cli.py": [
+      "public.datetime"
+    ],
+    "scripts/matching/config.py": [
+      "public.dataclasses",
+      "public.source_state_col",
+      "public.target_state_col",
+      "public.target_table",
+      "public.typing",
+      "public.uses"
+    ],
+    "scripts/matching/differ.py": [
+      "public.dataclasses",
+      "public.datetime",
+      "public.to",
+      "public.typing"
+    ],
+    "scripts/matching/f7_metro_assessment.py": [
+      "information_schema.columns",
+      "public.Census",
+      "public.STRUCTURE",
+      "public.by",
+      "public.employer",
+      "public.structure"
+    ],
+    "scripts/matching/match_f7_to_lm.py": [
+      "public.CSV",
+      "public.database",
+      "public.union"
+    ],
+    "scripts/matching/nlrb_crosswalk_matching.py": [
+      "psycopg2.extras",
+      "public.LABOR_PLATFORM_ROADMAP_v7",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_final_summary.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_lookup_fnums.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_lookup_more.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/matching/nlrb_lookup_ue.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/matching/nlrb_matching_phase2.py": [
+      "psycopg2.extras",
+      "public.datetime",
+      "public.roadmap"
+    ],
+    "scripts/matching/nlrb_matching_phase3.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_matching_phase4.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_matching_phase5.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_matching_phase6.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_matching_summary.py": [
+      "psycopg2.extras",
+      "public.datetime"
+    ],
+    "scripts/matching/nlrb_match_analysis.py": [
+      "psycopg2.extras"
+    ],
+    "scripts/matching/nlrb_unmatched_analysis.py": [
+      "psycopg2.extras",
+      "public.collections"
+    ],
+    "scripts/matching/normalizer.py": [
+      "public.cleanco",
+      "public.name_normalizer",
+      "public.pathlib",
+      "public.typing"
+    ],
+    "scripts/matching/olms_multiyear_analysis.py": [
+      "openpyxl.styles",
+      "openpyxl.utils",
+      "public.any",
+      "public.each",
+      "public.openpyxl"
+    ],
+    "scripts/matching/olms_union_analysis_v2.py": [
+      "openpyxl.styles",
+      "openpyxl.utils",
+      "public.extracted",
+      "public.openpyxl"
+    ],
+    "scripts/matching/pipeline.py": [
+      "public.database",
+      "public.datetime",
+      "public.memory",
+      "public.tier",
+      "public.typing"
+    ],
+    "scripts/matching/splink_config.py": [
+      "public.prediction",
+      "public.splink"
+    ],
+    "scripts/matching/splink_data_analysis.py": [
+      "information_schema.columns",
+      "public.collections",
+      "public.first",
+      "public.name",
+      "public.state_counts",
+      "public.unmatched_f7",
+      "public.unmatched_mergent"
+    ],
+    "scripts/matching/splink_integrate.py": [
+      "public.best_per_source",
+      "public.crosswalk",
+      "public.existing",
+      "public.rows",
+      "public.source_deduped",
+      "public.splink_match_results",
+      "public.target_ranked",
+      "public.the"
+    ],
+    "scripts/matching/splink_pipeline.py": [
+      "public.DataFrames",
+      "public.Splink",
+      "public.if",
+      "public.pathlib",
+      "public.ready",
+      "public.source",
+      "public.splink",
+      "public.splink_config",
+      "public.splink_match_results",
+      "public.the"
+    ],
+    "scripts/matching/__init__.py": [
+      "scripts.matching"
+    ],
+    "scripts/research/analyze_afscme_ny.py": [
+      "information_schema.tables",
+      "public.Form",
+      "public.OLMS",
+      "public.collections",
+      "public.exists"
+    ],
+    "scripts/research/case_study_assessment.py": [
+      "public.exists"
+    ],
+    "scripts/research/compare_seiu_locals.py": [
+      "public.API",
+      "public.OLMS",
+      "public.SEIU",
+      "public.collections",
+      "public.name",
+      "public.their",
+      "public.union"
+    ],
+    "scripts/research/compare_teamsters.py": [
+      "public.CSV",
+      "public.DB",
+      "public.collections",
+      "public.database",
+      "public.datetime",
+      "public.official",
+      "public.scraper"
+    ],
+    "scripts/research/load_teamsters_to_db.py": [
+      "public.CSV",
+      "public.OLMS",
+      "public.PostgreSQL",
+      "public.database",
+      "public.the"
+    ],
+    "scripts/research/scrape_teamsters_locals.py": [
+      "public.HTML",
+      "public.JS",
+      "public.bs4",
+      "public.datetime",
+      "public.div",
+      "public.official",
+      "public.title"
+    ],
+    "scripts/research/seiu_nj_reconciliation.py": [
+      "information_schema.tables",
+      "psycopg2.extras",
+      "public.collections",
+      "public.datetime",
+      "public.exists",
+      "public.normalized",
+      "public.not",
+      "public.vr_cases"
+    ],
+    "scripts/research/verify_dc37_duplicates.py": [
+      "public.Local"
+    ],
+    "scripts/scoring/check_contract_coverage.py": [
+      "information_schema.columns",
+      "public.db_config"
+    ],
+    "scripts/scoring/check_integration.py": [
+      "information_schema.columns",
+      "public.db_config",
+      "public.stored"
+    ],
+    "scripts/scoring/check_naics_detail.py": [
+      "information_schema.columns",
+      "public.dotenv"
+    ],
+    "scripts/scoring/compute_gower_similarity.py": [
+      "public.base",
+      "public.can",
+      "public.db_config",
+      "public.pandas",
+      "public.pg_matviews",
+      "public.schema",
+      "public.similarity_score",
+      "public.union_df"
+    ],
+    "scripts/scoring/compute_nlrb_patterns.py": [
+      "public.db_config",
+      "public.from",
+      "public.memory"
+    ],
+    "scripts/scoring/create_scorecard_mv.py": [
+      "public.bls_proj",
+      "public.db_config",
+      "public.f7_matches",
+      "public.fed_contracts",
+      "public.industry_density",
+      "public.mergent_data",
+      "public.nlrb_industry",
+      "public.nlrb_state_rates",
+      "public.nlrb_us_industry",
+      "public.nlrb_us_rate",
+      "public.osha_industry_avgs",
+      "public.ratio",
+      "public.rtw_states",
+      "public.state_members"
+    ],
+    "scripts/scoring/create_scorecard_reference_tables.py": [
+      "public.NLRB",
+      "public.db_config"
+    ],
+    "scripts/scoring/create_sector_views.py": [
+      "public.db_config",
+      "public.v_"
+    ],
+    "scripts/scoring/explore_scoring.py": [
+      "information_schema.columns",
+      "information_schema.views",
+      "public.db_config"
+    ],
+    "scripts/scoring/fix_sibling_bonus.py": [
+      "public.an",
+      "public.name",
+      "public.priority"
+    ],
+    "scripts/scoring/flag_low_confidence.py": [
+      "information_schema.columns",
+      "public.complete",
+      "public.conf_cols",
+      "public.db_config"
+    ],
+    "scripts/scoring/load_mergent_employers.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.museum",
+      "public.string"
+    ],
+    "scripts/scoring/load_nyc_violations.py": [
+      "psycopg2.extras",
+      "public.PostgreSQL",
+      "public.all_violations",
+      "public.date_closed",
+      "public.date_filed",
+      "public.findings_end_date",
+      "public.local_laws",
+      "public.ulp",
+      "public.wage_theft"
+    ],
+    "scripts/scoring/match_labor_violations.py": [
+      "public.in",
+      "public.local_laws",
+      "public.organizing_score",
+      "public.priority",
+      "public.ulp",
+      "public.ulp_agg",
+      "public.wage_theft"
+    ],
+    "scripts/scoring/match_sam_to_employers.py": [
+      "information_schema.columns",
+      "public.SAM",
+      "public.created",
+      "public.datetime",
+      "public.db_config",
+      "public.existing"
+    ],
+    "scripts/scoring/match_whd_tier2.py": [
+      "public.for",
+      "public.tmp_whd_state_agg"
+    ],
+    "scripts/scoring/match_whd_to_employers.py": [
+      "public.must",
+      "public.whd_state_agg"
+    ],
+    "scripts/scoring/nlrb_win_rates.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "public.DISCOVERY",
+      "public.db_config"
+    ],
+    "scripts/scoring/osha_industry_averages.py": [
+      "public.db_config"
+    ],
+    "scripts/scoring/recalibrate_tiers.py": [
+      "public.db_config"
+    ],
+    "scripts/scoring/rescore_phase2.py": [
+      "public._before",
+      "public.b",
+      "public.db_config",
+      "public.priority",
+      "public.ratio",
+      "public.score_geographic",
+      "public.score_osha_violations",
+      "public.score_size"
+    ],
+    "scripts/scoring/run_mergent_matching.py": [
+      "public.by",
+      "public.contract_agg",
+      "public.elections",
+      "public.f7_unionized",
+      "public.osha_agg",
+      "public.osha_viol",
+      "public.recent_wins",
+      "public.sector_density",
+      "public.unionized_parents",
+      "public.wage_agg"
+    ],
+    "scripts/scoring/update_whd_scores.py": [
+      "b.organizing_score",
+      "cur.execute",
+      "public.COMPLETE",
+      "public.LABOR",
+      "public.WHD",
+      "public._before_scores",
+      "public.labor",
+      "public.score_labor_violations",
+      "public.score_priority"
+    ],
+    "scripts/scoring/_audit_gower_coverage.py": [
+      "public.db_config",
+      "public.dim_counts",
+      "public.employer",
+      "public.top"
+    ],
+    "scripts/scraper/export_html.py": [
+      "public.db_config"
+    ],
+    "scripts/scraper/extract_union_data.py": [
+      "dateutil.parser",
+      "public.JSON",
+      "public.datetime",
+      "public.db_config",
+      "public.name",
+      "public.scrape",
+      "public.text"
+    ],
+    "scripts/scraper/fetch_summary.py": [
+      "public.db_config"
+    ],
+    "scripts/scraper/fetch_union_sites.py": [
+      "public.NOW",
+      "public.URL",
+      "public.crawl4ai",
+      "public.datetime",
+      "public.db_config",
+      "public.scrape",
+      "public.union",
+      "urllib.parse"
+    ],
+    "scripts/scraper/fix_extraction.py": [
+      "public.db_config",
+      "public.name"
+    ],
+    "scripts/scraper/match_web_employers.py": [
+      "public.Checkpoint",
+      "public.db_config"
+    ],
+    "scripts/scraper/read_profiles.py": [
+      "public.db_config"
+    ],
+    "scripts/setup/init_database.py": [
+      "public.backup",
+      "public.db_config",
+      "public.in",
+      "public.not",
+      "public.pg_dump",
+      "public.pg_extension",
+      "public.pg_matviews",
+      "public.pg_tables",
+      "public.scratch"
+    ],
+    "scripts/validation/run_all_checks.py": [
+      "public.Drift",
+      "public.changes",
+      "public.datetime",
+      "public.db_config",
+      "public.in",
+      "public.pathlib",
+      "public.pg_matviews",
+      "public.row"
+    ],
+    "scripts/verify/cancel_and_check.py": [
+      "public.pg_stat_activity"
+    ],
+    "scripts/verify/check_active_queries.py": [
+      "public.pg_stat_activity"
+    ],
+    "scripts/verify/check_bls_tables.py": [
+      "information_schema.columns",
+      "public.matrix"
+    ],
+    "scripts/verify/check_cols.py": [
+      "information_schema.columns",
+      "public.in"
+    ],
+    "scripts/verify/check_columns.py": [
+      "information_schema.columns",
+      "public.in"
+    ],
+    "scripts/verify/check_col_lengths.py": [
+      "information_schema.columns"
+    ],
+    "scripts/verify/check_db_projections.py": [
+      "information_schema.tables",
+      "information_schema.views",
+      "public.exists",
+      "public.industry_projections",
+      "public.occupation_projections"
+    ],
+    "scripts/verify/check_f7_indexes.py": [
+      "public.pg_indexes"
+    ],
+    "scripts/verify/check_gleif_progress.py": [
+      "information_schema.schemata",
+      "public.counts",
+      "public.gleif",
+      "public.in",
+      "public.pg_stat_activity"
+    ],
+    "scripts/verify/check_national_discoveries.py": [
+      "public.collections",
+      "public.name"
+    ],
+    "scripts/verify/check_nlrb_cols.py": [
+      "information_schema.columns"
+    ],
+    "scripts/verify/check_nlrb_cols2.py": [
+      "information_schema.columns",
+      "public.cursor",
+      "public.pg_matviews"
+    ],
+    "scripts/verify/check_osha_indexes.py": [
+      "public.pg_indexes"
+    ],
+    "scripts/verify/check_schema.py": [
+      "information_schema.columns"
+    ],
+    "scripts/verify/check_state_detail.py": [
+      "public.pg_stat_activity"
+    ],
+    "scripts/verify/check_violations.py": [
+      "cur.execute",
+      "public.matches"
+    ],
+    "scripts/verify/deep_tier_check.py": [
+      "scripts.matching"
+    ],
+    "scripts/verify/insert_national_discoveries.py": [
+      "information_schema.columns"
+    ],
+    "scripts/verify/spot_check_matches.py": [
+      "scripts.matching"
+    ],
+    "scripts/verify/test_edge_cases.py": [
+      "public.row",
+      "scripts.matching"
+    ],
+    "scripts/verify/test_targets.py": [
+      "psycopg2.extras",
+      "public.the"
+    ],
+    "scripts/verify/validation_framework.py": [
+      "psycopg2.extras",
+      "public.display",
+      "public.print"
+    ],
+    "scripts/verify/verify_bls_data.py": [
+      "cur.execute",
+      "public.CSV",
+      "public.the"
+    ],
+    "scripts/verify/verify_ny_public_sector.py": [
+      "public.DB",
+      "public.database"
+    ],
+    "scripts/verify/_check_cols.py": [
+      "information_schema.columns"
+    ],
+    "scripts/verify/_check_crosswalk_schema.py": [
+      "information_schema.columns"
+    ],
+    "scripts/verify/_check_mv_cols.py": [
+      "public.pg_attribute",
+      "public.pg_class"
+    ],
+    "scripts/verify/_project_stats.py": [
+      "psycopg2.extras",
+      "public.splink_match_results"
+    ],
+    "scripts/matching/matchers/address.py": [
+      "public.an",
+      "public.typing"
+    ],
+    "scripts/matching/matchers/base.py": [
+      "public.abc",
+      "public.dataclasses",
+      "public.datetime",
+      "public.source",
+      "public.source_name",
+      "public.target",
+      "public.typing"
+    ],
+    "scripts/matching/matchers/exact.py": [
+      "public.typing"
+    ],
+    "scripts/matching/matchers/fuzzy.py": [
+      "public.PostgreSQL",
+      "public.difflib",
+      "public.rapidfuzz",
+      "public.typing",
+      "rapidfuzz.distance"
+    ]
+  },
+  "credential_hits": [
+    {
+      "file": "scripts/afscme_ny/generate_targets.py",
+      "line": 21,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/afscme_ny/generate_targets.py",
+      "line": 19,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/afscme_ny/load_990_employers.py",
+      "line": 72,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/afscme_ny/load_990_employers.py",
+      "line": 70,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/afscme_ny/load_nyc_contracts.py",
+      "line": 40,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/afscme_ny/load_nyc_contracts.py",
+      "line": 38,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/afscme_ny/load_ny_contracts.py",
+      "line": 35,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/afscme_ny/load_ny_contracts.py",
+      "line": 33,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/afscme_ny/match_990_to_afscme.py",
+      "line": 31,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/afscme_ny/match_990_to_afscme.py",
+      "line": 29,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/afscme_ny/match_contracts_to_employers.py",
+      "line": 29,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/afscme_ny/match_contracts_to_employers.py",
+      "line": 27,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/afscme_ny/show_targets_summary.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/afscme_ny/show_targets_summary.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/analyze_coverage.py",
+      "line": 13,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/analyze_coverage.py",
+      "line": 11,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13_cp2.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13_cp2.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13_cp3.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13_cp3.py",
+      "line": 11,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13_total.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/analyze_schedule13_total.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/complete_coverage.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/complete_coverage.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/corrected_coverage.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/corrected_coverage.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/create_coverage_tables.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/create_coverage_tables.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/federal_deep_dive.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/federal_deep_dive.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/federal_final_verification.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/federal_final_verification.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/federal_misclass_check.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/federal_misclass_check.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/final_coverage.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/final_coverage.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/linkage_analysis.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/linkage_analysis.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/matching_analysis.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/matching_analysis.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_analysis.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_analysis.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_final.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_final.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_fix.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_fix.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_fix_v2.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/multi_employer_fix_v2.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/sector_analysis_1.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/sector_analysis_1.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/sector_analysis_2.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/sector_analysis_2.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/sector_analysis_3.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/sector_analysis_3.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/sector_final_summary.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/sector_final_summary.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/teacher_sector_check.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/teacher_sector_check.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/analysis/va_sector_check.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/analysis/va_sector_check.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/afscme_1199_nj_only.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/afscme_1199_nj_only.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/check_1199_all.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/check_1199_all.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/check_1199_f7.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/check_1199_f7.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/check_1199_nj.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/check_1199_nj.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/check_1199_nj_employers.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/check_1199_nj_employers.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/check_1199_nj_final.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/check_1199_nj_final.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/check_cbsa.py",
+      "line": 5,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/check_cbsa.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/check_db.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/archive/check_db.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/archive/check_seiu_nj_detail.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/check_seiu_nj_detail.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/export_all_employers.py",
+      "line": 15,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/export_all_employers.py",
+      "line": 13,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/f7_details.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/f7_details.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/find_dupes.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/find_dupes.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/find_dupes2.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/find_dupes2.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/find_dupes3.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/find_dupes3.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/fix_duplicates.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/fix_duplicates.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/archive/load_epi_benchmarks.py",
+      "line": 52,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/archive/load_epi_benchmarks.py",
+      "line": 50,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/archive/seiu_1199_nj_only.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/archive/seiu_1199_nj_only.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/batch/run_batch_fast.py",
+      "line": 29,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/batch/run_batch_fast.py",
+      "line": 27,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/batch/run_batch_large.py",
+      "line": 28,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/batch/run_batch_large.py",
+      "line": 26,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/batch/run_batch_large_fast.py",
+      "line": 332,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/batch/run_batch_large_fast.py",
+      "line": 330,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/batch/run_batch_m2990.py",
+      "line": 98,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/batch/run_batch_m2990.py",
+      "line": 96,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/batch/run_batch_m2990_fast.py",
+      "line": 256,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/batch/run_batch_m2990_fast.py",
+      "line": 254,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/batch/run_batch_m2f7.py",
+      "line": 22,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/batch/run_batch_m2f7.py",
+      "line": 20,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/batch/run_batch_m2osha.py",
+      "line": 40,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/batch/run_batch_m2osha.py",
+      "line": 38,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/batch/run_comparison.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/batch/run_comparison.py",
+      "line": 11,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/audit_coverage_gaps.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/audit_coverage_gaps.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/audit_f7_duplicates.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/audit_f7_duplicates.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/audit_metadata.py",
+      "line": 13,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/audit_metadata.py",
+      "line": 11,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/audit_name_quality.py",
+      "line": 18,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/audit_name_quality.py",
+      "line": 16,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/audit_union_hierarchy.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/audit_union_hierarchy.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/enrich_naics.py",
+      "line": 28,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/enrich_naics.py",
+      "line": 26,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/enrich_naics_from_osha.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/enrich_naics_from_osha.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/fix_double_counting.py",
+      "line": 22,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/fix_double_counting.py",
+      "line": 21,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/fix_metadata.py",
+      "line": 13,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/fix_metadata.py",
+      "line": 11,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/fix_missing_union_linkage.py",
+      "line": 21,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/fix_missing_union_linkage.py",
+      "line": 20,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/fix_multi_employer.py",
+      "line": 24,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/fix_multi_employer.py",
+      "line": 22,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/fix_name_quality.py",
+      "line": 17,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/fix_name_quality.py",
+      "line": 15,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/fix_sector_classification.py",
+      "line": 26,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/fix_sector_classification.py",
+      "line": 24,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/fix_union_hierarchy.py",
+      "line": 24,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/fix_union_hierarchy.py",
+      "line": 22,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/link_multi_location.py",
+      "line": 36,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/link_multi_location.py",
+      "line": 34,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/merge_f7_enhanced.py",
+      "line": 139,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/merge_f7_enhanced.py",
+      "line": 137,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/post_merge_refresh.py",
+      "line": 28,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/post_merge_refresh.py",
+      "line": 26,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/prepare_geocoding_batch.py",
+      "line": 26,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/prepare_geocoding_batch.py",
+      "line": 24,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/recover_addresses.py",
+      "line": 25,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/recover_addresses.py",
+      "line": 23,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/review_outliers.py",
+      "line": 26,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/review_outliers.py",
+      "line": 24,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/review_true_duplicates.py",
+      "line": 35,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/review_true_duplicates.py",
+      "line": 33,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/run_geocoding.py",
+      "line": 50,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/run_geocoding.py",
+      "line": 48,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/splink_rescore_pairs.py",
+      "line": 39,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/splink_rescore_pairs.py",
+      "line": 37,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/validate_sector_classification.py",
+      "line": 20,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/validate_sector_classification.py",
+      "line": 18,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/verify_multi_employer.py",
+      "line": 19,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/verify_multi_employer.py",
+      "line": 17,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_analyze_identical_groups.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_analyze_identical_groups.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_check_missing_unions.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_check_missing_unions.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_check_null_fnum_relations.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_check_null_fnum_relations.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_check_relation_cols.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_check_relation_cols.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_investigate_double_counting.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_investigate_double_counting.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_remaining_audit.py",
+      "line": 18,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_remaining_audit.py",
+      "line": 16,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_scope_lowered_thresholds.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_scope_lowered_thresholds.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/cleanup/_verify_all.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/cleanup/_verify_all.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/final_comparison.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/final_comparison.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/full_comparison.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/full_comparison.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/get_private_by_state.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/get_private_by_state.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/get_reconciled_private.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/get_reconciled_private.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/investigate_public.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/coverage/investigate_public.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/coverage/private_refined.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/private_refined.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/public_by_state.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/public_by_state.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/public_final_summary.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/coverage/public_final_summary.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/coverage/public_sector_audit.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/coverage/public_sector_audit.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/coverage/public_sector_coverage.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/public_sector_coverage.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/public_sector_coverage_v2.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/public_sector_coverage_v2.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/public_sector_coverage_v3.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/public_sector_coverage_v3.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/public_sector_dedup.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/coverage/public_sector_dedup.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/coverage/public_sector_final.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/public_sector_final.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/reconcile_public_sector.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/coverage/reconcile_public_sector.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/coverage/trace_worker_counts.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/coverage/trace_worker_counts.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/density/calculate_county_density.py",
+      "line": 21,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/calculate_county_density.py",
+      "line": 19,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/calc_national_density.py",
+      "line": 25,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/calc_national_density.py",
+      "line": 23,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/check_self_employment.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/check_self_employment.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/compare_edu_inclusion.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/compare_edu_inclusion.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/decompose_all_states_density.py",
+      "line": 19,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/decompose_all_states_density.py",
+      "line": 17,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/estimate_public_density.py",
+      "line": 29,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/estimate_public_density.py",
+      "line": 27,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/export_county_density_csv.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/export_county_density_csv.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/hybrid_edu_health.py",
+      "line": 18,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/hybrid_edu_health.py",
+      "line": 16,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/load_county_workforce.py",
+      "line": 18,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/load_county_workforce.py",
+      "line": 16,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/load_industry_density.py",
+      "line": 25,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/load_industry_density.py",
+      "line": 23,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/load_state_sector_density.py",
+      "line": 19,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/load_state_sector_density.py",
+      "line": 17,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/show_govt_level_density.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/show_govt_level_density.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/density/show_state_density.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/density/show_state_density.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/discovery/crosscheck_events.py",
+      "line": 43,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/discovery/crosscheck_events.py",
+      "line": 41,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/discovery/insert_new_events.py",
+      "line": 33,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/discovery/insert_new_events.py",
+      "line": 31,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/etl/check_naics_crosswalk.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/check_naics_crosswalk.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/check_naics_xwalk.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/check_naics_xwalk.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/create_osha_idx.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/etl/create_osha_idx.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/etl/create_osha_schema.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/create_osha_schema.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/load_naics_crosswalks.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/load_naics_crosswalks.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/load_whd_national.py",
+      "line": 29,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/etl/load_whd_national.py",
+      "line": 27,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/etl/osha_f7_potential.py",
+      "line": 19,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/osha_f7_potential.py",
+      "line": 17,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/parse_naics_crosswalks.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/parse_naics_crosswalks.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/setup_unified_search.py",
+      "line": 18,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/setup_unified_search.py",
+      "line": 17,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/show_detailed_projections.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/show_detailed_projections.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/verify_naics_crosswalks.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/verify_naics_crosswalks.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/verify_osha_schema.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/verify_osha_schema.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/etl/_phase3_baseline.py",
+      "line": 5,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/etl/_phase3_baseline.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/export_all_locals.py",
+      "line": 13,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/export_all_locals.py",
+      "line": 11,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/export_all_locals_v2.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/export_all_locals_v2.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/export_all_locals_v3.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/export_all_locals_v3.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/export_coverage.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/export_coverage.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/export_raw_lm_data.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/export_raw_lm_data.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/extract_locals_councils.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/extract_locals_councils.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/extract_locals_only.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/extract_locals_only.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/generate_discovery_reports.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/generate_discovery_reports.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/platform_summary.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/platform_summary.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/export/reconciled_summary.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/export/reconciled_summary.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/federal/checkpoint2_load_federal.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/federal/checkpoint2_load_federal.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/federal/checkpoint3_olms_linkage.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/federal/checkpoint3_olms_linkage.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/federal/checkpoint5_verification.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/federal/checkpoint5_verification.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/federal/checkpoint7_validation.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/federal/checkpoint7_validation.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/federal/run_checkpoint1.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/federal/run_checkpoint1.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/federal/run_checkpoint4.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/federal/run_checkpoint4.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/import/clean_intl_totals.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/clean_intl_totals.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/complete_intl_filings.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/complete_intl_filings.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/create_unified_view.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/create_unified_view.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/find_dc_intl.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/find_dc_intl.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/find_duplicate_employers.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/find_duplicate_employers.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/fix_990_estimates.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/fix_990_estimates.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/fix_pipeline_view.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/fix_pipeline_view.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/fuzzy_employer_matching.py",
+      "line": 46,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/fuzzy_employer_matching.py",
+      "line": 44,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/load_990_affiliates.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/load_990_affiliates.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/load_990_aft_fop.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/load_990_aft_fop.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/load_990_batch.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/load_990_batch.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/load_mergent_30k.py",
+      "line": 25,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/load_mergent_30k.py",
+      "line": 23,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/merge_f7_duplicates.py",
+      "line": 86,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/merge_f7_duplicates.py",
+      "line": 84,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/olms_gap_analysis.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/olms_gap_analysis.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/proper_reconciliation.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/proper_reconciliation.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/recalc_990_published.py",
+      "line": 32,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/recalc_990_published.py",
+      "line": 32,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/recalc_990_research_rates.py",
+      "line": 21,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/recalc_990_research_rates.py",
+      "line": 19,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/recalc_990_unified_dues.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/recalc_990_unified_dues.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/recalc_990_unified_rates.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/recalc_990_unified_rates.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_employer_match_3a.py",
+      "line": 18,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_employer_match_3a.py",
+      "line": 16,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_employer_match_3b.py",
+      "line": 22,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_employer_match_3b.py",
+      "line": 20,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_employer_match_3c.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_employer_match_3c.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_loader_2a.py",
+      "line": 17,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_loader_2a.py",
+      "line": 15,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_loader_2b.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_loader_2b.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_loader_2c.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_loader_2c.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_union_match_4a.py",
+      "line": 20,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_union_match_4a.py",
+      "line": 18,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_union_match_4b.py",
+      "line": 25,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_union_match_4b.py",
+      "line": 23,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/import/vr_union_match_4c.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/import/vr_union_match_4c.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/add_indexes.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/add_indexes.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/analyze_unknown.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/analyze_unknown.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_2024_data.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_2024_data.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_990_validation.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_990_validation.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_afscme_seiu.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_afscme_seiu.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_bls_data.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_bls_data.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_cases.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_cases.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_cols.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_cols.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_columns.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/check_columns.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/check_db_state.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/check_db_state.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/check_db_structure.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/check_db_structure.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/check_dedup_views.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_dedup_views.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_elections.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_elections.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_employer_schema.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_employer_schema.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_existing.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_existing.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_f7.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_f7.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_f7_adjustments.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_f7_adjustments.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_f7_sources.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/check_f7_sources.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/check_f7_structure.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_f7_structure.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_ibt.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_ibt.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_lm_data.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_lm_data.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_locals.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_locals.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_match_status.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_match_status.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_nlrb_cols.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_nlrb_cols.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_nlrb_matching.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_nlrb_matching.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_olms_afscme_seiu.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_olms_afscme_seiu.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_projections.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_projections.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_reconciled.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_reconciled.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_reconciled_data.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_reconciled_data.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_reconciliation.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_reconciliation.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_remaining_dups.py",
+      "line": 4,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_remaining_dups.py",
+      "line": 4,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_schema.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_schema.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_structure.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_structure.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_tables.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_tables.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_tallies_matching.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_tallies_matching.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_types.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_types.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_union_names.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_union_names.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_views.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_views.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/check_vr_structure.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/check_vr_structure.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/create_cleaned_view.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/create_cleaned_view.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/cross_validate_990.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/cross_validate_990.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/db_stats_check.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/db_stats_check.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/debug_export.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/debug_export.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/diagnose_and_fix.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/diagnose_and_fix.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/final_cleanup.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/final_cleanup.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/final_cleanup_pass.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/final_cleanup_pass.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/final_validation.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/final_validation.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/fix_checkpoint4.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/fix_checkpoint4.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/fix_checkpoint4_reconciled.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/fix_checkpoint4_reconciled.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/fix_private_coverage_final.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/fix_private_coverage_final.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/fix_unified_views.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/fix_unified_views.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/fix_unified_views2.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/fix_unified_views2.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/fix_unified_view_cleaned.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/fix_unified_view_cleaned.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/fix_unknown.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/fix_unknown.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/further_cleanup.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/further_cleanup.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/migrate_credentials.py",
+      "line": 23,
+      "type": "password_literal",
+      "snippet": "password='...'"
+    },
+    {
+      "file": "scripts/maintenance/more_fixes.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/more_fixes.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/real_990_validation.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/real_990_validation.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/run_vr_schema.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/run_vr_schema.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/run_vr_views_5a.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/run_vr_views_5a.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/run_vr_views_5b.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/run_vr_views_5b.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/test_vr_api.py",
+      "line": 6,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/test_vr_api.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/update_private_sector_coverage.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/update_private_sector_coverage.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/update_unified_reconciled.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/maintenance/update_unified_reconciled.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/maintenance/update_unified_view.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/update_unified_view.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/update_views.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/update_views.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/validation_framework.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/validation_framework.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/verify_discovery_2024.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/verify_discovery_2024.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/verify_intl.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/verify_intl.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/vr_views_5a.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/vr_views_5a.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/maintenance/vr_views_5c.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/maintenance/vr_views_5c.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/cli.py",
+      "line": 32,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/cli.py",
+      "line": 30,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/f7_comprehensive_match.py",
+      "line": 10,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/f7_comprehensive_match.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/f7_metro_assessment.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/f7_metro_assessment.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/identify_contamination.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/identify_contamination.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/match_f7_to_lm.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/match_f7_to_lm.py",
+      "line": 8,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_crosswalk_matching.py",
+      "line": 19,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_crosswalk_matching.py",
+      "line": 17,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_final_summary.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_final_summary.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_lookup_fnums.py",
+      "line": 20,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_lookup_fnums.py",
+      "line": 18,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_lookup_more.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_lookup_more.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_lookup_ue.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_lookup_ue.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase2.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase2.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase3.py",
+      "line": 20,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase3.py",
+      "line": 18,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase4.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase4.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase5.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase5.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase6.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_phase6.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_summary.py",
+      "line": 14,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_matching_summary.py",
+      "line": 12,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_match_analysis.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_match_analysis.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/matching/nlrb_unmatched_analysis.py",
+      "line": 17,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/matching/nlrb_unmatched_analysis.py",
+      "line": 15,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/research/case_study_assessment.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/research/case_study_assessment.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/research/compare_seiu_locals.py",
+      "line": 86,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/research/compare_seiu_locals.py",
+      "line": 84,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/research/seiu_nj_reconciliation.py",
+      "line": 25,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/research/seiu_nj_reconciliation.py",
+      "line": 23,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/fix_sibling_bonus.py",
+      "line": 24,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/fix_sibling_bonus.py",
+      "line": 22,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/load_mergent_employers.py",
+      "line": 17,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/load_mergent_employers.py",
+      "line": 15,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/load_nyc_violations.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/load_nyc_violations.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/match_labor_violations.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/match_labor_violations.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/match_whd_tier2.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/match_whd_tier2.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/match_whd_to_employers.py",
+      "line": 16,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/match_whd_to_employers.py",
+      "line": 14,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/run_mergent_matching.py",
+      "line": 12,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/run_mergent_matching.py",
+      "line": 10,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/scoring/update_whd_scores.py",
+      "line": 15,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/scoring/update_whd_scores.py",
+      "line": 13,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/cancel_and_check.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/cancel_and_check.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_active_queries.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_active_queries.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_bls_tables.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_bls_tables.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_cols.py",
+      "line": 4,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_cols.py",
+      "line": 4,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_columns.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_columns.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_col_lengths.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_col_lengths.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_db_projections.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_db_projections.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_f7_indexes.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_f7_indexes.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_national_discoveries.py",
+      "line": 13,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_national_discoveries.py",
+      "line": 11,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_nlrb_cols.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_nlrb_cols.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_nlrb_cols2.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_nlrb_cols2.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_osha_indexes.py",
+      "line": 7,
+      "type": "db_user_literal",
+      "snippet": "user=\"postgres\""
+    },
+    {
+      "file": "scripts/verify/check_osha_indexes.py",
+      "line": 5,
+      "type": "host_localhost_literal",
+      "snippet": "host=\"localhost\""
+    },
+    {
+      "file": "scripts/verify/check_schema.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_schema.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_state_detail.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_state_detail.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_union_priority.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_union_priority.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/check_violations.py",
+      "line": 4,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/check_violations.py",
+      "line": 4,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/deep_tier_check.py",
+      "line": 17,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/deep_tier_check.py",
+      "line": 15,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/insert_national_discoveries.py",
+      "line": 11,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/insert_national_discoveries.py",
+      "line": 9,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/spot_check_matches.py",
+      "line": 24,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/spot_check_matches.py",
+      "line": 22,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/test_edge_cases.py",
+      "line": 19,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/test_edge_cases.py",
+      "line": 17,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/test_govt_level_api.py",
+      "line": 9,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/test_govt_level_api.py",
+      "line": 7,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/validation_framework.py",
+      "line": 47,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/validation_framework.py",
+      "line": 45,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/verify_bls_data.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/verify_bls_data.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/verify_load.py",
+      "line": 8,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/verify_load.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/verify_ny_public_sector.py",
+      "line": 15,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/verify_ny_public_sector.py",
+      "line": 13,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/_check_cols.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/_check_cols.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/_check_crosswalk_schema.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/_check_crosswalk_schema.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/_check_mv_cols.py",
+      "line": 3,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/_check_mv_cols.py",
+      "line": 3,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    },
+    {
+      "file": "scripts/verify/_project_stats.py",
+      "line": 6,
+      "type": "db_user_literal",
+      "snippet": "user='postgres'"
+    },
+    {
+      "file": "scripts/verify/_project_stats.py",
+      "line": 6,
+      "type": "host_localhost_literal",
+      "snippet": "host='localhost'"
+    }
+  ],
+  "critical_path_scripts": [
+    "scripts/etl/create_osha_schema.py",
+    "scripts/etl/fetch_qcew.py",
+    "scripts/etl/load_bls_projections.py",
+    "scripts/etl/load_national_990.py",
+    "scripts/etl/load_sam.py",
+    "scripts/etl/load_sec_edgar.py",
+    "scripts/etl/load_whd_national.py",
+    "scripts/import/create_f7_schema.py",
+    "scripts/import/load_990_affiliates.py",
+    "scripts/import/load_990_aft_fop.py",
+    "scripts/import/load_990_batch.py",
+    "scripts/import/load_emp_off_fixed.py",
+    "scripts/import/load_emp_off_only.py",
+    "scripts/import/load_f7_crosswalk.py",
+    "scripts/import/load_f7_data.py",
+    "scripts/import/load_financial_details.py",
+    "scripts/import/load_financial_details_v2.py",
+    "scripts/import/load_mergent_30k.py",
+    "scripts/import/load_multiyear_olms.py",
+    "scripts/import/load_unionstats.py",
+    "scripts/import/load_unionstats_v2.py",
+    "scripts/maintenance/create_data_freshness.py",
+    "scripts/scoring/create_scorecard_mv.py"
+  ],
+  "schedule_hits": [
+    {
+      "file": "claude_audit_report.md",
+      "line": 254,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "claude_audit_report.md",
+      "line": 316,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "claude_audit_report.md",
+      "line": 474,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "gemini_audit_report.md",
+      "line": 182,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "LABOR_PLATFORM_ROADMAP_v13.md",
+      "line": 241,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "LABOR_PLATFORM_ROADMAP_v13.md",
+      "line": 745,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "LABOR_PLATFORM_ROADMAP_v13.md",
+      "line": 241,
+      "match": "task scheduler"
+    },
+    {
+      "file": "UNIFIED_AUDIT_PROMPT_v2.md",
+      "line": 314,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "UNIFIED_AUDIT_PROMPT_v2.md",
+      "line": 314,
+      "match": "task scheduler"
+    },
+    {
+      "file": "lm-2 2000_2025/2000/ar_disbursements_emp_off_data_2000.txt",
+      "line": 196793,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2001/lm_data_data_2001.txt",
+      "line": 28757,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2002/lm_data_data_2002.txt",
+      "line": 27892,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2003/ar_disbursements_emp_off_data_2003.txt",
+      "line": 62217,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2003/lm_data_data_2003.txt",
+      "line": 23125,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2003/lm_data_data_2003.txt",
+      "line": 27778,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2004/ar_disbursements_emp_off_data_2004.txt",
+      "line": 35323,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2004/ar_disbursements_emp_off_data_2004.txt",
+      "line": 62172,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2004/lm_data_data_2004.txt",
+      "line": 5996,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2004/lm_data_data_2004.txt",
+      "line": 18678,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2005/ar_disbursements_emp_off_data_2005.txt",
+      "line": 35958,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2005/ar_disbursements_emp_off_data_2005.txt",
+      "line": 62812,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2005/ar_disbursements_emp_off_data_2005.txt",
+      "line": 125889,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2005/lm_data_data_2005.txt",
+      "line": 14285,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2005/lm_data_data_2005.txt",
+      "line": 20712,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2006/ar_disbursements_emp_off_data_2006.txt",
+      "line": 34787,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2006/ar_disbursements_emp_off_data_2006.txt",
+      "line": 122756,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2006/lm_data_data_2006.txt",
+      "line": 6137,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2006/lm_data_data_2006.txt",
+      "line": 15042,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2007/ar_disbursements_emp_off_data_2007.txt",
+      "line": 34800,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2007/ar_disbursements_emp_off_data_2007.txt",
+      "line": 57442,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2007/lm_data_data_2007.txt",
+      "line": 5517,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2007/lm_data_data_2007.txt",
+      "line": 9124,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2008/ar_disbursements_emp_off_data_2008.txt",
+      "line": 34856,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2008/ar_disbursements_emp_off_data_2008.txt",
+      "line": 57438,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2008/lm_data_data_2008.txt",
+      "line": 5382,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2008/lm_data_data_2008.txt",
+      "line": 21137,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2009/ar_disbursements_emp_off_data_2009.txt",
+      "line": 33932,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2009/ar_disbursements_emp_off_data_2009.txt",
+      "line": 84483,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2009/lm_data_data_2009.txt",
+      "line": 5071,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2010/ar_disbursements_emp_off_data_2010.txt",
+      "line": 32655,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2010/lm_data_data_2010.txt",
+      "line": 5787,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2011/lm_data_data_2011.txt",
+      "line": 6022,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2012/ar_disbursements_emp_off_data_2012.txt",
+      "line": 80357,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2012/lm_data_data_2012.txt",
+      "line": 6544,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2013/ar_disbursements_emp_off_data_2013.txt",
+      "line": 77057,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2013/lm_data_data_2013.txt",
+      "line": 4988,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2014/ar_disbursements_emp_off_data_2014.txt",
+      "line": 76259,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2014/lm_data_data_2014.txt",
+      "line": 6141,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2015/ar_disbursements_emp_off_data_2015.txt",
+      "line": 76413,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2015/lm_data_data_2015.txt",
+      "line": 6510,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2016/ar_disbursements_emp_off_data_2016.txt",
+      "line": 75690,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2016/lm_data_data_2016.txt",
+      "line": 6397,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2017/ar_payer_payee_data_2017.txt",
+      "line": 76092,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2017/lm_data_data_2017.txt",
+      "line": 5511,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2018/ar_payer_payee_data_2018.txt",
+      "line": 78755,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2021/ar_disbursements_emp_off_data_2021.txt",
+      "line": 45968,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2021/ar_disbursements_emp_off_data_2021.txt",
+      "line": 61223,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2022/ar_disbursements_emp_off_data_2022.txt",
+      "line": 46765,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2022/ar_payer_payee_data_2022.txt",
+      "line": 80354,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2022/ar_payer_payee_data_2022.txt",
+      "line": 80509,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2023/ar_disbursements_emp_off_data_2023.txt",
+      "line": 47058,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2023/ar_payer_payee_data_2023.txt",
+      "line": 85726,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2024/ar_disbursements_emp_off_data_2024.txt",
+      "line": 29247,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2024/ar_disbursements_emp_off_data_2024.txt",
+      "line": 47999,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "lm-2 2000_2025/2024/ar_payer_payee_data_2024.txt",
+      "line": 88962,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2010.txt",
+      "line": 32655,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2012.txt",
+      "line": 80357,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2013.txt",
+      "line": 77057,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2014.txt",
+      "line": 76259,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2015.txt",
+      "line": 76413,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2016.txt",
+      "line": 75690,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2021.txt",
+      "line": 45968,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2021.txt",
+      "line": 61223,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2022.txt",
+      "line": 46765,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2023.txt",
+      "line": 47058,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2024.txt",
+      "line": 29247,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_disbursements_emp_off_data_2024.txt",
+      "line": 47999,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_payer_payee_data_2017.txt",
+      "line": 76092,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_payer_payee_data_2018.txt",
+      "line": 78755,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_payer_payee_data_2022.txt",
+      "line": 80354,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_payer_payee_data_2022.txt",
+      "line": 80509,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_payer_payee_data_2023.txt",
+      "line": 85726,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/ar_payer_payee_data_2024.txt",
+      "line": 88962,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2010.txt",
+      "line": 16730,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2011.txt",
+      "line": 6022,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2012.txt",
+      "line": 6544,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2013.txt",
+      "line": 4988,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2014.txt",
+      "line": 6141,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2015.txt",
+      "line": 6510,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2016.txt",
+      "line": 6397,
+      "match": "\\bcron\\b"
+    },
+    {
+      "file": "archive/Claude Ai union project/OLMS/lm_data_data_2017.txt",
+      "line": 5511,
+      "match": "\\bcron\\b"
+    }
+  ]
+}

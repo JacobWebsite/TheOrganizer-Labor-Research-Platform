@@ -1,0 +1,2046 @@
+{
+  "files_scanned": [
+    "files\\js\\app.js",
+    "files\\js\\config.js",
+    "files\\js\\deepdive.js",
+    "files\\js\\detail.js",
+    "files\\js\\maps.js",
+    "files\\js\\modals.js",
+    "files\\js\\scorecard.js",
+    "files\\js\\search.js",
+    "files\\js\\territory.js",
+    "files\\js\\utils.js",
+    "files\\afscme_scraper_data.html",
+    "files\\api_map.html",
+    "files\\organizer_v5.html",
+    "files\\test_api.html",
+    "files\\css\\organizer.css"
+  ],
+  "fetch_calls": [
+    {
+      "file": "files\\js\\app.js",
+      "line": 420,
+      "expr": "`${API_BASE}/health`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 428,
+      "expr": "`${API_BASE}/employers/unified/search?limit=2`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 436,
+      "expr": "`${API_BASE}/nlrb/elections/search?limit=2`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 479,
+      "expr": "`${API_BASE}/lookups/states`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 502,
+      "expr": "`${API_BASE}/summary`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 564,
+      "expr": "`${API_BASE}/lookups/metros?state=${state}`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 581,
+      "expr": "`${API_BASE}/lookups/cities?state=${state}`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 614,
+      "expr": "`${API_BASE}/lookups/cities?cbsa=${metro}`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 633,
+      "expr": "`${API_BASE}/lookups/cities?state=${state}`"
+    },
+    {
+      "file": "files\\js\\app.js",
+      "line": 1021,
+      "expr": "`${API_BASE}/admin/data-freshness`"
+    },
+    {
+      "file": "files\\js\\deepdive.js",
+      "line": 29,
+      "expr": "`${API_BASE}/organizing/scorecard/${employerId}`"
+    },
+    {
+      "file": "files\\js\\deepdive.js",
+      "line": 31,
+      "expr": "`${API_BASE}/organizing/siblings/${employerId}?limit=10`"
+    },
+    {
+      "file": "files\\js\\deepdive.js",
+      "line": 60,
+      "expr": "`${API_BASE}/nlrb/elections/search?employer_name=${encodeURIComponent(elName"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 204,
+      "expr": "`${API_BASE}/employers/unified-detail/${encodeURIComponent(canonicalId"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 277,
+      "expr": "`${API_BASE}/employers/flags`, {             method: 'POST',             headers: {'Content-Type': 'application/json'},             body: JSON.stringify({source_type: srcType, source_id: sourceId, flag_type: flagType, notes: notes || null}"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 298,
+      "expr": "`${API_BASE}/employers/flags/${flagId}`, {method: 'DELETE'}"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 355,
+      "expr": "`${API_BASE}/employers/flags/by-source?source_type=${encodeURIComponent(sourceType"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 372,
+      "expr": "`${API_BASE}/employers/flags`, {             method: 'POST',             headers: {'Content-Type': 'application/json'},             body: JSON.stringify({                 source_type: currentScorecardFlagSource.source_type,                 source_id: currentScorecardFlagSource.source_id,            "
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 397,
+      "expr": "`${API_BASE}/employers/flags/${flagId}`, {method: 'DELETE'}"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 440,
+      "expr": "`${API_BASE}/projections/matrix/${naicsDetailed}`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 453,
+      "expr": "`${API_BASE}/projections/naics/${naics2digit}`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 575,
+      "expr": "`${API_BASE}/projections/matrix/${matrixCode}/occupations?occupation_type=Line+Item&limit=8&sort_by=employment`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 647,
+      "expr": "`${API_BASE}/employers/${employerId}/osha`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 764,
+      "expr": "`${API_BASE}/employers/${employerId}/nlrb`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 1008,
+      "expr": "`${API_BASE}/unions/${item.f_num}`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 1273,
+      "expr": "`${API_BASE}/employers/${employerId}`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 1294,
+      "expr": "`${API_BASE}/unions/search?f_num=${fNum}&limit=1`"
+    },
+    {
+      "file": "files\\js\\detail.js",
+      "line": 1325,
+      "expr": "`${API_BASE}/unions/${fNum}/employers?limit=50`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 50,
+      "expr": "`${API_BASE}/unions/national/${encodeURIComponent(affAbbr"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 291,
+      "expr": "`${API_BASE}/employers/${employerId}`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 330,
+      "expr": "`${API_BASE}/unions/national?limit=100`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 429,
+      "expr": "`${API_BASE}/employers/${selectedItem.employer_id}/similar?${params}`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 542,
+      "expr": "`${API_BASE}/corporate/family/${employerId}`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 649,
+      "expr": "`${API_BASE}/corporate/family/${employerId}`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 867,
+      "expr": "`${API_BASE}/summary`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 868,
+      "expr": "`${API_BASE}/trends/national?start_year=2010&end_year=2024`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 869,
+      "expr": "`${API_BASE}/trends/elections`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 870,
+      "expr": "`${API_BASE}/nlrb/elections/search?limit=10`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 1556,
+      "expr": "url"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 1614,
+      "expr": "`${API_BASE}/employers/unified/${unifiedId}`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 1741,
+      "expr": "url"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 1929,
+      "expr": "`${API_BASE}/public-sector/parent-unions`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 1941,
+      "expr": "`${API_BASE}/public-sector/employer-types`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 1990,
+      "expr": "url"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2019,
+      "expr": "`${API_BASE}/public-sector/employers?${params}`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2189,
+      "expr": "`${API_BASE}/trends/national?start_year=2010&end_year=2024`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2190,
+      "expr": "`${API_BASE}/trends/elections`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2191,
+      "expr": "`${API_BASE}/trends/affiliations/summary`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2192,
+      "expr": "`${API_BASE}/trends/states/summary`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2193,
+      "expr": "`${API_BASE}/trends/sectors`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2486,
+      "expr": "`${API_BASE}/trends/by-state/${state}`"
+    },
+    {
+      "file": "files\\js\\modals.js",
+      "line": 2545,
+      "expr": "`${API_BASE}/trends/by-affiliation/${encodeURIComponent(aff"
+    },
+    {
+      "file": "files\\js\\scorecard.js",
+      "line": 111,
+      "expr": "`${API_BASE}/sectors/${sector}/summary`"
+    },
+    {
+      "file": "files\\js\\scorecard.js",
+      "line": 124,
+      "expr": "`${API_BASE}/sectors/${sector}/targets/cities`"
+    },
+    {
+      "file": "files\\js\\scorecard.js",
+      "line": 183,
+      "expr": "`${API_BASE}/organizing/scorecard?${params}`"
+    },
+    {
+      "file": "files\\js\\scorecard.js",
+      "line": 212,
+      "expr": "`${API_BASE}/sectors/${sector}/targets?${params}`"
+    },
+    {
+      "file": "files\\js\\scorecard.js",
+      "line": 370,
+      "expr": "`${API_BASE}/organizing/scorecard/${estabId}`"
+    },
+    {
+      "file": "files\\js\\search.js",
+      "line": 513,
+      "expr": "`${API_BASE}/${endpoint}?${params}`"
+    },
+    {
+      "file": "files\\js\\search.js",
+      "line": 553,
+      "expr": "`${API_BASE}/stats/breakdown?${searchParams}`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 10,
+      "expr": "`${API_BASE}/lookups/affiliations`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 22,
+      "expr": "`${API_BASE}/lookups/states`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 42,
+      "expr": "`${API_BASE}/unions/national?limit=100`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 43,
+      "expr": "`${API_BASE}/organizing/scorecard?limit=1&min_score=20`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 103,
+      "expr": "`${API_BASE}/lookups/metros?state=${state}`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 252,
+      "expr": "`${API_BASE}/unions/national/${encodeURIComponent(ctx.union"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 264,
+      "expr": "`${API_BASE}/organizing/scorecard?${scorecardParams}`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 272,
+      "expr": "`${API_BASE}/trends/by-state/${ctx.state}`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 278,
+      "expr": "`${API_BASE}/trends/national`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 288,
+      "expr": "`${API_BASE}/nlrb/elections/search?${electionParams}`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 295,
+      "expr": "`${API_BASE}/density/by-state`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 304,
+      "expr": "`${API_BASE}/whd/top-violators?${whdParams}`"
+    },
+    {
+      "file": "files\\js\\territory.js",
+      "line": 311,
+      "expr": "`${API_BASE}/density/industry-rates`"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 933,
+      "expr": "'http://localhost:8001/api/health'"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 957,
+      "expr": "'http://localhost:8001/api/health'"
+    },
+    {
+      "file": "files\\test_api.html",
+      "line": 18,
+      "expr": "`${API_BASE}/health`"
+    },
+    {
+      "file": "files\\test_api.html",
+      "line": 27,
+      "expr": "`${API_BASE}/employers/unified/search?limit=2`"
+    },
+    {
+      "file": "files\\test_api.html",
+      "line": 36,
+      "expr": "`${API_BASE}/nlrb/elections/search?limit=2`"
+    },
+    {
+      "file": "files\\test_api.html",
+      "line": 45,
+      "expr": "`${API_BASE}/lookups/states`"
+    }
+  ],
+  "api_path_literals": [
+    {
+      "file": "files\\api_map.html",
+      "line": 343,
+      "path": "/api/health"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 344,
+      "path": "/api/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 345,
+      "path": "/api/stats/breakdown"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 352,
+      "path": "/api/lookups/sectors"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 353,
+      "path": "/api/lookups/affiliations"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 354,
+      "path": "/api/lookups/states"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 355,
+      "path": "/api/lookups/naics-sectors"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 356,
+      "path": "/api/lookups/metros"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 357,
+      "path": "/api/lookups/cities"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 358,
+      "path": "/api/metros/{cbsa_code}/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 365,
+      "path": "/api/employers/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 366,
+      "path": "/api/employers/fuzzy-search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 367,
+      "path": "/api/employers/normalized-search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 368,
+      "path": "/api/employers/cities"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 369,
+      "path": "/api/employers/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 370,
+      "path": "/api/employers/{id}/similar"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 371,
+      "path": "/api/employers/{id}/comparables"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 372,
+      "path": "/api/employers/{id}/osha"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 373,
+      "path": "/api/employers/{id}/nlrb"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 374,
+      "path": "/api/employers/by-naics-detailed/{code}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 375,
+      "path": "/api/employers/unified/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 376,
+      "path": "/api/employers/unified/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 377,
+      "path": "/api/employers/unified/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 378,
+      "path": "/api/employers/unified/sources"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 379,
+      "path": "/api/employers/unified-search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 380,
+      "path": "/api/employers/unified-detail/{canonical_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 381,
+      "path": "/api/employers/flags"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 382,
+      "path": "/api/employers/flags/pending"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 383,
+      "path": "/api/employers/flags/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 384,
+      "path": "/api/employers/flags/by-employer/{canonical_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 385,
+      "path": "/api/employers/flags/by-source"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 386,
+      "path": "/api/employers/refresh-search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 387,
+      "path": "/api/naics/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 394,
+      "path": "/api/unions/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 395,
+      "path": "/api/unions/national"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 396,
+      "path": "/api/unions/national/{aff_abbr}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 397,
+      "path": "/api/unions/{f_num}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 398,
+      "path": "/api/unions/{f_num}/employers"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 399,
+      "path": "/api/unions/locals/{affiliation}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 400,
+      "path": "/api/unions/types"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 401,
+      "path": "/api/unions/cities"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 408,
+      "path": "/api/nlrb/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 409,
+      "path": "/api/nlrb/elections/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 410,
+      "path": "/api/nlrb/elections/map"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 411,
+      "path": "/api/nlrb/elections/by-year"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 412,
+      "path": "/api/nlrb/elections/by-state"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 413,
+      "path": "/api/nlrb/elections/by-affiliation"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 414,
+      "path": "/api/nlrb/election/{case_number}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 415,
+      "path": "/api/nlrb/ulp/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 416,
+      "path": "/api/nlrb/ulp/by-section"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 417,
+      "path": "/api/nlrb/patterns"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 424,
+      "path": "/api/osha/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 425,
+      "path": "/api/osha/establishments/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 426,
+      "path": "/api/osha/establishments/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 427,
+      "path": "/api/osha/by-state"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 428,
+      "path": "/api/osha/high-severity"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 429,
+      "path": "/api/osha/organizing-targets"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 430,
+      "path": "/api/osha/employer-safety/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 431,
+      "path": "/api/osha/unified-matches"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 438,
+      "path": "/api/whd/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 439,
+      "path": "/api/whd/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 440,
+      "path": "/api/whd/by-state/{state}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 441,
+      "path": "/api/whd/employer/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 442,
+      "path": "/api/whd/top-violators"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 449,
+      "path": "/api/organizing/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 450,
+      "path": "/api/organizing/by-state"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 451,
+      "path": "/api/organizing/scorecard"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 452,
+      "path": "/api/organizing/scorecard/{estab_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 453,
+      "path": "/api/organizing/siblings/{estab_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 460,
+      "path": "/api/sectors/list"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 461,
+      "path": "/api/sectors/{sector}/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 462,
+      "path": "/api/sectors/{sector}/targets"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 463,
+      "path": "/api/sectors/{sector}/targets/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 464,
+      "path": "/api/sectors/{sector}/targets/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 465,
+      "path": "/api/sectors/{sector}/targets/cities"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 466,
+      "path": "/api/sectors/{sector}/unionized"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 473,
+      "path": "/api/museums/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 474,
+      "path": "/api/museums/targets"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 475,
+      "path": "/api/museums/targets/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 476,
+      "path": "/api/museums/targets/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 477,
+      "path": "/api/museums/targets/cities"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 478,
+      "path": "/api/museums/unionized"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 485,
+      "path": "/api/trends/national"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 486,
+      "path": "/api/trends/by-state/{state}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 487,
+      "path": "/api/trends/by-affiliation/{aff_abbr}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 488,
+      "path": "/api/trends/elections"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 489,
+      "path": "/api/trends/affiliations/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 490,
+      "path": "/api/trends/states/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 491,
+      "path": "/api/trends/sectors"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 492,
+      "path": "/api/trends/elections/by-affiliation/{aff_abbr}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 499,
+      "path": "/api/projections/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 500,
+      "path": "/api/projections/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 501,
+      "path": "/api/projections/top"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 502,
+      "path": "/api/projections/industry/{naics_code}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 503,
+      "path": "/api/projections/industries/{sector}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 504,
+      "path": "/api/projections/occupations/{naics_code}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 505,
+      "path": "/api/projections/matrix/{matrix_code}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 506,
+      "path": "/api/projections/matrix/{code}/occupations"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 507,
+      "path": "/api/projections/naics/{naics_2digit}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 508,
+      "path": "/api/employer/{id}/projections"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 515,
+      "path": "/api/corporate/family/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 516,
+      "path": "/api/corporate/hierarchy/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 517,
+      "path": "/api/corporate/hierarchy/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 518,
+      "path": "/api/corporate/hierarchy/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 519,
+      "path": "/api/corporate/sec/{cik}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 520,
+      "path": "/api/multi-employer/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 521,
+      "path": "/api/multi-employer/groups"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 522,
+      "path": "/api/employer/{id}/agreement"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 529,
+      "path": "/api/public-sector/stats"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 530,
+      "path": "/api/public-sector/parent-unions"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 531,
+      "path": "/api/public-sector/employer-types"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 532,
+      "path": "/api/public-sector/locals"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 533,
+      "path": "/api/public-sector/employers"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 534,
+      "path": "/api/public-sector/benchmarks"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 541,
+      "path": "/api/density/all"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 542,
+      "path": "/api/density/naics/{naics_2digit}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 543,
+      "path": "/api/density/by-state"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 544,
+      "path": "/api/density/by-state/{state}/history"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 545,
+      "path": "/api/density/by-state/{state}/counties"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 546,
+      "path": "/api/density/by-govt-level"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 547,
+      "path": "/api/density/by-govt-level/{state}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 548,
+      "path": "/api/density/by-county"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 549,
+      "path": "/api/density/by-county/{fips}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 550,
+      "path": "/api/density/by-county/{fips}/industry"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 551,
+      "path": "/api/density/county-summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 552,
+      "path": "/api/density/industry-rates"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 553,
+      "path": "/api/density/state-industry-comparison"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 554,
+      "path": "/api/density/state-industry-comparison/{state}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 555,
+      "path": "/api/density/ny/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 556,
+      "path": "/api/density/ny/counties"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 557,
+      "path": "/api/density/ny/county/{fips}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 558,
+      "path": "/api/density/ny/zips"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 559,
+      "path": "/api/density/ny/zip/{code}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 560,
+      "path": "/api/density/ny/tracts"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 561,
+      "path": "/api/density/ny/tract/{fips}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 568,
+      "path": "/api/vr/stats/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 569,
+      "path": "/api/vr/stats/by-year"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 570,
+      "path": "/api/vr/stats/by-state"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 571,
+      "path": "/api/vr/stats/by-affiliation"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 572,
+      "path": "/api/vr/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 573,
+      "path": "/api/vr/{case_number}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 574,
+      "path": "/api/vr/map"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 575,
+      "path": "/api/vr/new-employers"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 576,
+      "path": "/api/vr/pipeline"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/lookups/affiliations"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/lookups/states"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/lookups/metros"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/lookups/cities"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/unions/national"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/unions/national/{aff_abbr}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/nlrb/elections/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/density/by-state"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/density/industry-rates"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/whd/top-violators"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/trends/national"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 587,
+      "path": "/api/organizing/scorecard"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 593,
+      "path": "/api/employers/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 593,
+      "path": "/api/lookups/states"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 593,
+      "path": "/api/lookups/cities"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 593,
+      "path": "/api/stats/breakdown"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 599,
+      "path": "/api/unions/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 605,
+      "path": "/api/employers/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 605,
+      "path": "/api/employers/{id}/similar"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 605,
+      "path": "/api/organizing/scorecard/{estab_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 605,
+      "path": "/api/nlrb/elections/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 605,
+      "path": "/api/corporate/family/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 605,
+      "path": "/api/organizing/siblings/{estab_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 611,
+      "path": "/api/employers/{id}/osha"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 617,
+      "path": "/api/employers/{id}/nlrb"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 623,
+      "path": "/api/projections/matrix/{matrix_code}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 623,
+      "path": "/api/projections/matrix/{code}/occupations"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 623,
+      "path": "/api/projections/naics/{naics_2digit}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 629,
+      "path": "/api/organizing/scorecard/{estab_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 629,
+      "path": "/api/employers/flags/by-source"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 635,
+      "path": "/api/corporate/family/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 641,
+      "path": "/api/employers/unified-detail/{canonical_id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 647,
+      "path": "/api/unions/{f_num}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 653,
+      "path": "/api/employers/flags"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 653,
+      "path": "/api/employers/flags/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 659,
+      "path": "/api/organizing/scorecard"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 665,
+      "path": "/api/unions/national"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 665,
+      "path": "/api/unions/national/{aff_abbr}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 665,
+      "path": "/api/unions/{f_num}/employers"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 671,
+      "path": "/api/nlrb/elections/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 677,
+      "path": "/api/employers/unified/search"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 677,
+      "path": "/api/employers/unified/{id}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 683,
+      "path": "/api/trends/national"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 683,
+      "path": "/api/trends/by-state/{state}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 683,
+      "path": "/api/trends/by-affiliation/{aff_abbr}"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 683,
+      "path": "/api/trends/elections"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 683,
+      "path": "/api/trends/affiliations/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 683,
+      "path": "/api/trends/states/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 683,
+      "path": "/api/trends/sectors"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 689,
+      "path": "/api/public-sector/parent-unions"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 689,
+      "path": "/api/public-sector/employer-types"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 689,
+      "path": "/api/public-sector/employers"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 695,
+      "path": "/api/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 695,
+      "path": "/api/trends/elections"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 695,
+      "path": "/api/trends/affiliations/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 695,
+      "path": "/api/trends/states/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 695,
+      "path": "/api/trends/sectors"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 701,
+      "path": "/api/sectors/{sector}/summary"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 701,
+      "path": "/api/sectors/{sector}/targets"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 701,
+      "path": "/api/sectors/{sector}/targets/cities"
+    }
+  ],
+  "absolute_api_urls": [
+    {
+      "file": "files\\api_map.html",
+      "line": 933,
+      "url": "http://localhost:8001/api/health"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 957,
+      "url": "http://localhost:8001/api/health"
+    }
+  ],
+  "localhost_literals": [
+    {
+      "file": "files\\api_map.html",
+      "line": 806,
+      "value": "http://localhost:8001"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 933,
+      "value": "http://localhost:8001"
+    },
+    {
+      "file": "files\\api_map.html",
+      "line": 957,
+      "value": "http://localhost:8001"
+    },
+    {
+      "file": "files\\test_api.html",
+      "line": 10,
+      "value": "http://localhost:8001"
+    }
+  ],
+  "api_path_status": [
+    {
+      "path": "/api/corporate/family/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/corporate/hierarchy/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/corporate/hierarchy/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/corporate/hierarchy/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/corporate/sec/{cik}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/all",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-county",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-county/{fips}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-county/{fips}/industry",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-govt-level",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-govt-level/{state}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-state",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-state/{state}/counties",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/by-state/{state}/history",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/county-summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/industry-rates",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/naics/{naics_2digit}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/ny/counties",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/ny/county/{fips}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/ny/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/ny/tract/{fips}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/ny/tracts",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/ny/zip/{code}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/ny/zips",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/state-industry-comparison",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/density/state-industry-comparison/{state}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employer/{id}/agreement",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employer/{id}/projections",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/by-naics-detailed/{code}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/cities",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/flags",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/flags/by-employer/{canonical_id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/flags/by-source",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/flags/pending",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/flags/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/fuzzy-search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/normalized-search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/refresh-search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/unified-detail/{canonical_id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/unified-search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/unified/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/unified/sources",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/unified/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/unified/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/{id}/comparables",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/{id}/nlrb",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/{id}/osha",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/employers/{id}/similar",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/health",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/lookups/affiliations",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/lookups/cities",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/lookups/metros",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/lookups/naics-sectors",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/lookups/sectors",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/lookups/states",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/metros/{cbsa_code}/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/multi-employer/groups",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/multi-employer/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/museums/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/museums/targets",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/museums/targets/cities",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/museums/targets/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/museums/targets/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/museums/unionized",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/naics/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/election/{case_number}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/elections/by-affiliation",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/elections/by-state",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/elections/by-year",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/elections/map",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/elections/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/patterns",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/ulp/by-section",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/nlrb/ulp/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/organizing/by-state",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/organizing/scorecard",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/organizing/scorecard/{estab_id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/organizing/siblings/{estab_id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/organizing/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/by-state",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/employer-safety/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/establishments/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/establishments/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/high-severity",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/organizing-targets",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/osha/unified-matches",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/industries/{sector}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/industry/{naics_code}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/matrix/{code}/occupations",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/matrix/{matrix_code}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/naics/{naics_2digit}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/occupations/{naics_code}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/projections/top",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/public-sector/benchmarks",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/public-sector/employer-types",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/public-sector/employers",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/public-sector/locals",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/public-sector/parent-unions",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/public-sector/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/sectors/list",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/sectors/{sector}/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/sectors/{sector}/targets",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/cities",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/stats",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/sectors/{sector}/unionized",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/stats/breakdown",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/affiliations/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/by-affiliation/{aff_abbr}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/by-state/{state}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/elections",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/elections/by-affiliation/{aff_abbr}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/national",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/sectors",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/trends/states/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/cities",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/locals/{affiliation}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/national",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/national/{aff_abbr}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/types",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/{f_num}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/unions/{f_num}/employers",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/map",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/new-employers",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/pipeline",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/stats/by-affiliation",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/stats/by-state",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/stats/by-year",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/stats/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/vr/{case_number}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/whd/by-state/{state}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/whd/employer/{id}",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/whd/search",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/whd/summary",
+      "exists_or_matches": true
+    },
+    {
+      "path": "/api/whd/top-violators",
+      "exists_or_matches": true
+    }
+  ],
+  "unmatched_api_paths": []
+}

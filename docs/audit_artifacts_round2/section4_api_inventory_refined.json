@@ -1,0 +1,3707 @@
+{
+  "route_count": 152,
+  "endpoints": [
+    {
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.main",
+      "function": "serve_frontend",
+      "description": "",
+      "tables_in_router": [],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/admin/data-freshness",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.organizing",
+      "function": "get_data_freshness",
+      "description": "Return freshness info for all data sources.",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/admin/refresh-freshness",
+      "methods": [
+        "POST"
+      ],
+      "module": "api.routers.organizing",
+      "function": "refresh_freshness",
+      "description": "Re-query all data sources to update freshness counts and dates.",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/admin/refresh-scorecard",
+      "methods": [
+        "POST"
+      ],
+      "module": "api.routers.organizing",
+      "function": "refresh_scorecard",
+      "description": "Refresh the mv_organizing_scorecard materialized view.",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/auth/login",
+      "methods": [
+        "POST"
+      ],
+      "module": "api.routers.auth",
+      "function": "login",
+      "description": "Authenticate and receive a JWT token.",
+      "tables_in_router": [
+        "public.platform_users"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/auth/me",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.auth",
+      "function": "current_user",
+      "description": "Get the current authenticated user.",
+      "tables_in_router": [
+        "public.platform_users"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/auth/refresh",
+      "methods": [
+        "POST"
+      ],
+      "module": "api.routers.auth",
+      "function": "refresh_token",
+      "description": "Refresh the current token (must be authenticated).",
+      "tables_in_router": [
+        "public.platform_users"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/auth/register",
+      "methods": [
+        "POST"
+      ],
+      "module": "api.routers.auth",
+      "function": "register",
+      "description": "Create a new user. First user bootstraps as admin; subsequent require admin token.",
+      "tables_in_router": [
+        "public.platform_users"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/corporate/family/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "get_corporate_family",
+      "description": "Get related employers (corporate family) - ownership hierarchy + name similarity + multi-employer groups",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/corporate/hierarchy/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "search_corporate_hierarchy",
+      "description": "Search corporate hierarchy by name, EIN, or ticker",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/corporate/hierarchy/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "get_corporate_hierarchy_stats",
+      "description": "Get overall corporate hierarchy statistics",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/corporate/hierarchy/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "get_corporate_hierarchy",
+      "description": "Get ownership-based corporate hierarchy for an employer.",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/corporate/sec/{cik}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "get_sec_company",
+      "description": "Get SEC company profile by CIK number",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/all",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_all_density",
+      "description": "Get union density for all NAICS sectors",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-county",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_density_by_county",
+      "description": "Get estimated union density for counties",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-county/{fips}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_county_density_detail",
+      "description": "Get detailed density estimate for a specific county",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-county/{fips}/industry",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_county_industry_detail",
+      "description": "Get industry composition and density calculation for a single county",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-govt-level",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_density_by_govt_level",
+      "description": "Get estimated union density by government level (federal/state/local) for all states",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-govt-level/{state}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_state_density_by_govt_level",
+      "description": "Get estimated union density by government level for a specific state",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-state",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_density_by_state",
+      "description": "Get union density by state (private and public sector)",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-state/{state}/counties",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_state_counties_density",
+      "description": "Get all county density estimates for a state",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/by-state/{state}/history",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_state_density_history",
+      "description": "Get historical union density for a state",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/county-summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_county_density_summary",
+      "description": "Get summary statistics for county density estimates",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/industry-rates",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_industry_density_rates",
+      "description": "Get BLS industry union density rates (2024)",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/naics/{naics_2digit}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_naics_density",
+      "description": "Get union density data for a NAICS 2-digit sector",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/ny/counties",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_ny_county_density",
+      "description": "Get union density estimates for all 62 NY counties",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/ny/county/{fips}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_ny_county_density_detail",
+      "description": "Get detailed density breakdown for a single NY county",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/ny/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_ny_density_summary",
+      "description": "Get summary statistics for NY density estimates at all geographic levels",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/ny/tract/{tract_fips}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_ny_tract_density_detail",
+      "description": "Get detailed density breakdown for a single NY census tract",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/ny/tracts",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_ny_tract_density",
+      "description": "Get union density estimates for NY census tracts",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/ny/zip/{zip_code}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_ny_zip_density_detail",
+      "description": "Get detailed density breakdown for a single NY ZIP code",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/ny/zips",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_ny_zip_density",
+      "description": "Get union density estimates for NY ZIP codes",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/state-industry-comparison",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_state_industry_comparison",
+      "description": "Get state-level expected vs actual private sector density comparison",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/density/state-industry-comparison/{state}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.density",
+      "function": "get_state_industry_detail",
+      "description": "Get detailed industry composition and density comparison for a single state",
+      "tables_in_router": [
+        "public.bls_industry_density",
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.county_industry_shares",
+        "public.county_union_density_estimates",
+        "public.county_workforce_shares",
+        "public.naics_sectors",
+        "public.ny_county_density_estimates",
+        "public.ny_tract_density_estimates",
+        "public.ny_zip_density_estimates",
+        "public.state_govt_level_density",
+        "public.state_industry_density_comparison",
+        "public.state_sector_union_density",
+        "public.state_workforce_shares",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/employer/{employer_id}/agreement",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "get_employer_agreement_info",
+      "description": "Get multi-employer agreement context for an employer",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/employer/{employer_id}/projections",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_employer_projections",
+      "description": "Get industry outlook and top occupations for an employer based on their NAICS",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/employers/by-naics-detailed/{naics_code}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_employers_by_detailed_naics",
+      "description": "Get employers with a specific detailed NAICS code",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/cities",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_cities_for_state",
+      "description": "Get cities for a state, ordered by employer count",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/flags",
+      "methods": [
+        "POST"
+      ],
+      "module": "api.routers.employers",
+      "function": "create_flag",
+      "description": "Create a review flag for an employer.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/by-employer/{canonical_id:path}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_employer_flags",
+      "description": "Get all review flags for an employer by canonical_id.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/by-source",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_flags_by_source",
+      "description": "Get review flags by source_type and source_id directly (for scorecard items).",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/pending",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_pending_flags",
+      "description": "Get all flagged employers for review queue.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/{flag_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "module": "api.routers.employers",
+      "function": "delete_flag",
+      "description": "Remove a review flag.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/fuzzy-search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "fuzzy_search_employers",
+      "description": "Fuzzy search using pg_trgm similarity - catches typos and variations",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/normalized-search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "normalized_search_employers",
+      "description": "Search with normalized names - strips Inc, LLC, Corp, etc.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/refresh-search",
+      "methods": [
+        "POST"
+      ],
+      "module": "api.routers.employers",
+      "function": "refresh_unified_search",
+      "description": "Refresh the materialized view for unified employer search.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "search_employers",
+      "description": "Search employers with filters. Use sector=PUBLIC_SECTOR to search public sector employers.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/unified-detail/{canonical_id:path}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "unified_employer_detail",
+      "description": "Get employer detail with cross-references from all sources.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/unified-search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "unified_employer_search",
+      "description": "Search across all employer sources (F7, NLRB, VR, Manual) with deduplication.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "search_unified_employers",
+      "description": "Search all unified employers across all sources (F7, NLRB, VR, PUBLIC)",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/sources",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_unified_source_types",
+      "description": "Get list of source types with counts",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_unified_employer_stats",
+      "description": "Get statistics for unified employers by source type",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/{unified_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_unified_employer",
+      "description": "Get details for a specific unified employer including OSHA matches",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_employer_detail",
+      "description": "Get full employer details including NLRB history",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/comparables",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_employer_comparables",
+      "description": "Get the top-5 most similar unionized employers for a given mergent employer.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/nlrb",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_employer_nlrb",
+      "description": "Get NLRB elections and ULP cases for an employer",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/osha",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_employer_osha",
+      "description": "Get OSHA violations and safety data for an employer",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/similar",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_similar_employers",
+      "description": "Get employers similar to this one (same NAICS, state, or union)",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/health",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.health",
+      "function": "health_check",
+      "description": "API health check",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.naics_sectors",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/lookups/affiliations",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.lookups",
+      "function": "get_affiliations",
+      "description": "Get all national union affiliations with stats",
+      "tables_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/lookups/cities",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.lookups",
+      "function": "get_cities_lookup",
+      "description": "Get cities for a state or metro, ordered by employer count",
+      "tables_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/lookups/metros",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.lookups",
+      "function": "get_metros",
+      "description": "Get all metropolitan areas with employer counts and union density",
+      "tables_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/lookups/naics-sectors",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.lookups",
+      "function": "get_naics_sectors",
+      "description": "Get all NAICS 2-digit sectors with union density",
+      "tables_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/lookups/sectors",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.lookups",
+      "function": "get_sectors",
+      "description": "Get all union sectors (Private, Federal, Public, RLA)",
+      "tables_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/lookups/states",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.lookups",
+      "function": "get_states",
+      "description": "Get all states with employer counts",
+      "tables_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/metros/{cbsa_code}/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.lookups",
+      "function": "get_metro_stats",
+      "description": "Get detailed stats for a specific metro area",
+      "tables_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/multi-employer/groups",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "get_multi_employer_groups",
+      "description": "Get list of multi-employer agreement groups",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/multi-employer/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.corporate",
+      "function": "get_multi_employer_stats",
+      "description": "Get multi-employer agreement deduplication statistics",
+      "tables_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/museums/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.museums",
+      "function": "get_museum_sector_summary",
+      "description": "Get overall summary of museum sector (targets + unionized)",
+      "tables_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/museums/targets",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.museums",
+      "function": "search_museum_targets",
+      "description": "Search museum organizing targets.",
+      "tables_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/museums/targets/cities",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.museums",
+      "function": "get_museum_target_cities",
+      "description": "Get list of cities with museum targets for dropdown",
+      "tables_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/museums/targets/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.museums",
+      "function": "get_museum_target_stats",
+      "description": "Get summary statistics for museum organizing targets by tier",
+      "tables_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/museums/targets/{target_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.museums",
+      "function": "get_museum_target_detail",
+      "description": "Get detailed information for a specific museum target",
+      "tables_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/museums/unionized",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.museums",
+      "function": "get_unionized_museums",
+      "description": "Get list of already-unionized museums for reference",
+      "tables_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/naics/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "get_naics_stats",
+      "description": "Get statistics about NAICS code granularity and sources",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/nlrb/election/{case_number}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_election_detail",
+      "description": "Get detailed information about a specific election",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/by-affiliation",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_elections_by_affiliation",
+      "description": "Get election statistics by union affiliation",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/by-state",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_elections_by_state",
+      "description": "Get election statistics by state",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/by-year",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_elections_by_year",
+      "description": "Get election statistics by year",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/map",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_elections_map",
+      "description": "Get election data for map visualization",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "search_nlrb_elections",
+      "description": "Search NLRB elections with filters",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/patterns",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_patterns",
+      "description": "Return NLRB historical success pattern reference data:",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_summary",
+      "description": "Get overall NLRB statistics",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/ulp/by-section",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "get_nlrb_ulp_by_section",
+      "description": "Get ULP case counts by NLRA section",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/nlrb/ulp/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.nlrb",
+      "function": "search_nlrb_ulp",
+      "description": "Search ULP (Unfair Labor Practice) cases",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "c.earliest_date",
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/organizing/by-state",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.organizing",
+      "function": "get_organizing_by_state",
+      "description": "Get combined organizing activity by state",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/organizing/scorecard",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.organizing",
+      "function": "get_organizing_scorecard",
+      "description": "Get scored organizing targets from pre-computed materialized view (0-90 points):",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/organizing/scorecard/{estab_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.organizing",
+      "function": "get_scorecard_detail",
+      "description": "Get detailed scorecard for a specific establishment.",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/organizing/siblings/{estab_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.organizing",
+      "function": "get_sibling_employers",
+      "description": "Find the most similar unionized F7 employers for a given OSHA target.",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/organizing/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.organizing",
+      "function": "get_organizing_summary",
+      "description": "Get combined organizing activity summary (Elections + VR)",
+      "tables_in_router": [
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/by-state",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.osha",
+      "function": "get_osha_by_state",
+      "description": "Get OSHA summary statistics by state",
+      "tables_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/employer-safety/{f7_employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.osha",
+      "function": "get_employer_safety_profile",
+      "description": "Get OSHA safety profile for an F-7 employer",
+      "tables_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/establishments/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.osha",
+      "function": "search_osha_establishments",
+      "description": "Search OSHA establishments with filters",
+      "tables_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/establishments/{establishment_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.osha",
+      "function": "get_osha_establishment",
+      "description": "Get detailed OSHA establishment info including violations and accidents",
+      "tables_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/high-severity",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.osha",
+      "function": "get_osha_high_severity",
+      "description": "Get recent high-severity violations (Willful/Repeat)",
+      "tables_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/organizing-targets",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.osha",
+      "function": "get_osha_organizing_targets",
+      "description": "Get non-union establishments with significant safety violations (organizing targets)",
+      "tables_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.osha",
+      "function": "get_osha_summary",
+      "description": "Get OSHA database summary statistics",
+      "tables_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/osha/unified-matches",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.employers",
+      "function": "search_osha_unified_matches",
+      "description": "Search OSHA establishments matched to unified employers",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.employer_comparables",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.manual_employers",
+        "public.mergent_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_unified_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.ps_employers",
+        "public.unified_employers_osha",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "labor_api_v6.py"
+      ]
+    },
+    {
+      "path": "/api/projections/industries/{sector}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_sector_sub_industries",
+      "description": "Get all sub-industries for a 2-digit NAICS sector with projections.",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/industry/{naics_code}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_industry_projections",
+      "description": "Get employment projections for a NAICS 2-digit sector",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/matrix/{matrix_code}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_industry_by_matrix_code",
+      "description": "Get projection for a specific BLS industry matrix code (e.g., 238110, 621610).",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/matrix/{matrix_code}/occupations",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_occupations_by_matrix_code",
+      "description": "Get occupation breakdown for a specific industry matrix code.",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/naics/{naics_2digit}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_naics_projections",
+      "description": "Get employment projections for a NAICS 2-digit sector (legacy)",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/occupations/{naics_code}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_occupation_projections_v2",
+      "description": "Get top occupations in a NAICS sector from bls_industry_occupation_matrix",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "search_industry_projections",
+      "description": "Search and filter industry projections across all sectors.",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_projections_summary",
+      "description": "Get summary of industry projections: counts by growth category + top/bottom industries",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/projections/top",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.projections",
+      "function": "get_top_projections",
+      "description": "Get top growing or declining industries",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/public-sector/benchmarks",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.public_sector",
+      "function": "get_public_sector_benchmarks",
+      "description": "Get state-level public sector benchmarks",
+      "tables_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/public-sector/employer-types",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.public_sector",
+      "function": "get_public_sector_employer_types",
+      "description": "Get list of employer types with counts",
+      "tables_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/public-sector/employers",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.public_sector",
+      "function": "search_public_sector_employers",
+      "description": "Search public sector employers",
+      "tables_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/public-sector/locals",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.public_sector",
+      "function": "search_public_sector_locals",
+      "description": "Search public sector union locals",
+      "tables_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/public-sector/parent-unions",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.public_sector",
+      "function": "get_public_sector_parent_unions",
+      "description": "Get list of parent unions for filtering",
+      "tables_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/public-sector/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.public_sector",
+      "function": "get_public_sector_stats",
+      "description": "Get summary statistics for public sector data",
+      "tables_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/sectors/list",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.sectors",
+      "function": "list_sectors",
+      "description": "List all available sectors with target counts",
+      "tables_in_router": [
+        "public.mergent_employers"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.sectors",
+      "function": "get_sector_summary",
+      "description": "Get summary statistics for a sector",
+      "tables_in_router": [
+        "public.mergent_employers"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.sectors",
+      "function": "search_sector_targets",
+      "description": "Search organizing targets in a specific sector",
+      "tables_in_router": [
+        "public.mergent_employers"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/cities",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.sectors",
+      "function": "get_sector_target_cities",
+      "description": "Get list of cities with targets for dropdown",
+      "tables_in_router": [
+        "public.mergent_employers"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/stats",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.sectors",
+      "function": "get_sector_target_stats",
+      "description": "Get summary statistics by tier for a sector",
+      "tables_in_router": [
+        "public.mergent_employers"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/{target_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.sectors",
+      "function": "get_sector_target_detail",
+      "description": "Get detailed information for a specific target",
+      "tables_in_router": [
+        "public.mergent_employers"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/unionized",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.sectors",
+      "function": "get_sector_unionized",
+      "description": "Get list of unionized employers in sector for reference",
+      "tables_in_router": [
+        "public.mergent_employers"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/stats/breakdown",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.health",
+      "function": "get_stats_breakdown",
+      "description": "Get breakdown statistics for the filter panel",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.naics_sectors",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.health",
+      "function": "get_platform_summary",
+      "description": "Get overall platform summary statistics",
+      "tables_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.naics_sectors",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.unions_master"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/trends/affiliations/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_affiliation_trends_summary",
+      "description": "Get membership trends summary for top affiliations",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/trends/by-affiliation/{aff_abbr}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_affiliation_trends",
+      "description": "Get membership trends for a specific affiliation",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/trends/by-state/{state}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_state_trends",
+      "description": "Get membership trends for a specific state",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/trends/elections",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_election_trends",
+      "description": "Get NLRB election trends by year",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/trends/elections/by-affiliation/{aff_abbr}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_election_trends_by_affiliation",
+      "description": "Get NLRB election trends for a specific union affiliation",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/trends/national",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_national_trends",
+      "description": "Get national union membership trends by year (2010-2024) with deduplicated estimates",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/trends/sectors",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_sector_trends",
+      "description": "Get employer distribution by NAICS sector",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/trends/states/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.trends",
+      "function": "get_state_trends_summary",
+      "description": "Get membership summary by state for latest year",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_members_deduplicated"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "e.election_date"
+      ]
+    },
+    {
+      "path": "/api/unions/cities",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "get_union_cities",
+      "description": "Get cities for a state from unions_master, ordered by union count",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/unions/locals/{affiliation}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "get_locals_for_affiliation",
+      "description": "Get local unions for a national affiliation",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/unions/national",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "get_national_unions",
+      "description": "Get national/international unions aggregated by affiliation",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/unions/national/{aff_abbr}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "get_national_union_detail",
+      "description": "Get detailed info for a national union affiliation",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/unions/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "search_unions",
+      "description": "Search unions with filters including display names and hierarchy type.",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/unions/types",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "get_union_types",
+      "description": "Get list of union designation types with counts",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/unions/{f_num}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "get_union_detail",
+      "description": "Get full union details including NLRB history",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/unions/{f_num}/employers",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.unions",
+      "function": "get_union_employers",
+      "description": "Get all employers for a specific union",
+      "tables_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/vr/map",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_map_data",
+      "description": "Get VR cases with coordinates for mapping",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/new-employers",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_new_employers",
+      "description": "Get employers with VR but not yet in F7 data (new organizing)",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/pipeline",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_pipeline",
+      "description": "Analyze VR to F7 filing pipeline timing",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "search_vr",
+      "description": "Search Voluntary Recognition cases",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/by-affiliation",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_by_affiliation",
+      "description": "Get VR cases by union affiliation",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/by-state",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_by_state",
+      "description": "Get VR cases by state",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/by-year",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_by_year",
+      "description": "Get VR cases by year",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_summary",
+      "description": "Get overall VR statistics",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/{case_number}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.vr",
+      "function": "get_vr_detail",
+      "description": "Get detailed info for a specific VR case",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary"
+      ],
+      "unknown_explicit_objects_in_router": [
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/whd/by-state/{state}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.whd",
+      "function": "get_whd_by_state",
+      "description": "Get WHD violations summary for a specific state",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/whd/employer/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.whd",
+      "function": "get_whd_employer_cases",
+      "description": "Get WHD cases matched to a specific employer (F7 or Mergent)",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/whd/search",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.whd",
+      "function": "search_whd_cases",
+      "description": "Search WHD cases by employer name, state, city, NAICS",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/whd/summary",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.whd",
+      "function": "get_whd_summary",
+      "description": "Get WHD national database summary statistics",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "unknown_explicit_objects_in_router": []
+    },
+    {
+      "path": "/api/whd/top-violators",
+      "methods": [
+        "GET"
+      ],
+      "module": "api.routers.whd",
+      "function": "get_whd_top_violators",
+      "description": "Get worst WHD violators by backwages, violations, penalties, or employees affected",
+      "tables_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "unknown_explicit_objects_in_router": []
+    }
+  ],
+  "sql_safety_scan": {
+    "api\\routers\\auth.py": {
+      "total_execute_calls": 5,
+      "fstring_execute_calls": 0,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 4
+    },
+    "api\\routers\\corporate.py": {
+      "total_execute_calls": 35,
+      "fstring_execute_calls": 0,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 23
+    },
+    "api\\routers\\density.py": {
+      "total_execute_calls": 46,
+      "fstring_execute_calls": 8,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 23
+    },
+    "api\\routers\\employers.py": {
+      "total_execute_calls": 57,
+      "fstring_execute_calls": 16,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 30
+    },
+    "api\\routers\\health.py": {
+      "total_execute_calls": 14,
+      "fstring_execute_calls": 4,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 0
+    },
+    "api\\routers\\lookups.py": {
+      "total_execute_calls": 10,
+      "fstring_execute_calls": 2,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 4
+    },
+    "api\\routers\\museums.py": {
+      "total_execute_calls": 12,
+      "fstring_execute_calls": 4,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 2
+    },
+    "api\\routers\\nlrb.py": {
+      "total_execute_calls": 18,
+      "fstring_execute_calls": 8,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 4
+    },
+    "api\\routers\\organizing.py": {
+      "total_execute_calls": 23,
+      "fstring_execute_calls": 2,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 17
+    },
+    "api\\routers\\osha.py": {
+      "total_execute_calls": 12,
+      "fstring_execute_calls": 5,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 6
+    },
+    "api\\routers\\projections.py": {
+      "total_execute_calls": 22,
+      "fstring_execute_calls": 1,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 16
+    },
+    "api\\routers\\public_sector.py": {
+      "total_execute_calls": 15,
+      "fstring_execute_calls": 4,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 1
+    },
+    "api\\routers\\sectors.py": {
+      "total_execute_calls": 13,
+      "fstring_execute_calls": 9,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 5
+    },
+    "api\\routers\\trends.py": {
+      "total_execute_calls": 9,
+      "fstring_execute_calls": 0,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 3
+    },
+    "api\\routers\\unions.py": {
+      "total_execute_calls": 15,
+      "fstring_execute_calls": 3,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 11
+    },
+    "api\\routers\\vr.py": {
+      "total_execute_calls": 12,
+      "fstring_execute_calls": 6,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 1
+    },
+    "api\\routers\\whd.py": {
+      "total_execute_calls": 13,
+      "fstring_execute_calls": 3,
+      "dotformat_execute_calls": 0,
+      "calls_with_param_arg_estimate": 8
+    }
+  }
+}

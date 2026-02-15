@@ -1,0 +1,138 @@
+{
+  "frontend_files": [
+    {
+      "file": "files/js/modals.js",
+      "type": ".js",
+      "lines": 2598,
+      "size_bytes": 118050
+    },
+    {
+      "file": "files/organizer_v5.html",
+      "type": ".html",
+      "lines": 2160,
+      "size_bytes": 138775
+    },
+    {
+      "file": "files/afscme_scraper_data.html",
+      "type": ".html",
+      "lines": 1790,
+      "size_bytes": 257305
+    },
+    {
+      "file": "files/js/detail.js",
+      "type": ".js",
+      "lines": 1351,
+      "size_bytes": 63816
+    },
+    {
+      "file": "files/js/app.js",
+      "type": ".js",
+      "lines": 1105,
+      "size_bytes": 48170
+    },
+    {
+      "file": "files/api_map.html",
+      "type": ".html",
+      "lines": 970,
+      "size_bytes": 47452
+    },
+    {
+      "file": "files/js/search.js",
+      "type": ".js",
+      "lines": 934,
+      "size_bytes": 48571
+    },
+    {
+      "file": "files/js/scorecard.js",
+      "type": ".js",
+      "lines": 859,
+      "size_bytes": 45666
+    },
+    {
+      "file": "files/js/territory.js",
+      "type": ".js",
+      "lines": 670,
+      "size_bytes": 31228
+    },
+    {
+      "file": "files/js/deepdive.js",
+      "type": ".js",
+      "lines": 355,
+      "size_bytes": 21663
+    },
+    {
+      "file": "files/css/organizer.css",
+      "type": ".css",
+      "lines": 227,
+      "size_bytes": 7185
+    },
+    {
+      "file": "files/js/maps.js",
+      "type": ".js",
+      "lines": 211,
+      "size_bytes": 7688
+    },
+    {
+      "file": "files/js/utils.js",
+      "type": ".js",
+      "lines": 196,
+      "size_bytes": 6989
+    },
+    {
+      "file": "files/test_api.html",
+      "type": ".html",
+      "lines": 58,
+      "size_bytes": 2028
+    },
+    {
+      "file": "files/js/config.js",
+      "type": ".js",
+      "lines": 29,
+      "size_bytes": 934
+    }
+  ],
+  "total_frontend_files": 15,
+  "total_frontend_lines": 13513,
+  "core_app_lines": 10695,
+  "core_files": [
+    "files/css/organizer.css",
+    "files/js/app.js",
+    "files/js/config.js",
+    "files/js/deepdive.js",
+    "files/js/detail.js",
+    "files/js/maps.js",
+    "files/js/modals.js",
+    "files/js/scorecard.js",
+    "files/js/search.js",
+    "files/js/territory.js",
+    "files/js/utils.js",
+    "files/organizer_v5.html"
+  ],
+  "api_calls": {
+    "fetch_calls": 78,
+    "api_path_literals_unique": 144,
+    "unmatched_api_paths": []
+  },
+  "hardcoded_localhost_refs": [
+    {
+      "file": "files/api_map.html",
+      "line": 806,
+      "value": "http://localhost:8001"
+    },
+    {
+      "file": "files/api_map.html",
+      "line": 933,
+      "value": "http://localhost:8001"
+    },
+    {
+      "file": "files/api_map.html",
+      "line": 957,
+      "value": "http://localhost:8001"
+    },
+    {
+      "file": "files/test_api.html",
+      "line": 10,
+      "value": "http://localhost:8001"
+    }
+  ]
+}

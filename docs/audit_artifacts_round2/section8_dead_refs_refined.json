@@ -1,0 +1,641 @@
+{
+  "scripts_with_unknown_sql_refs": 179,
+  "top_unknown_sql_refs": [
+    [
+      "information_schema.columns",
+      68
+    ],
+    [
+      "information_schema.tables",
+      31
+    ],
+    [
+      "information_schema.views",
+      15
+    ],
+    [
+      "public.pg_matviews",
+      11
+    ],
+    [
+      "public.pg_stat_activity",
+      7
+    ],
+    [
+      "public.pg_indexes",
+      6
+    ],
+    [
+      "public.matches",
+      5
+    ],
+    [
+      "public.splink_match_results",
+      4
+    ],
+    [
+      "information_schema.table_constraints",
+      3
+    ],
+    [
+      "public.private_only",
+      3
+    ],
+    [
+      "public.counts",
+      3
+    ],
+    [
+      "public.pg_views",
+      3
+    ],
+    [
+      "public.pg_class",
+      3
+    ],
+    [
+      "public.date_vr_request_received",
+      3
+    ],
+    [
+      "public.lm_summary",
+      2
+    ],
+    [
+      "public.sched13_summary",
+      2
+    ],
+    [
+      "public.sag_employers",
+      2
+    ],
+    [
+      "public.union_groups",
+      2
+    ],
+    [
+      "public.duplicates",
+      2
+    ],
+    [
+      "public.union_stats",
+      2
+    ],
+    [
+      "public.pg_namespace",
+      2
+    ],
+    [
+      "public.pg_tables",
+      2
+    ],
+    [
+      "public.names",
+      2
+    ],
+    [
+      "public.address",
+      2
+    ],
+    [
+      "public.group_info",
+      2
+    ],
+    [
+      "public.dup_groups",
+      2
+    ],
+    [
+      "public.employers_deduped",
+      2
+    ],
+    [
+      "public.latest_private",
+      2
+    ],
+    [
+      "public.latest_public",
+      2
+    ],
+    [
+      "public.accident_injury",
+      2
+    ],
+    [
+      "public.name_normalized",
+      2
+    ],
+    [
+      "public.whd_state_agg",
+      2
+    ],
+    [
+      "vr.date_vr_request_received",
+      2
+    ],
+    [
+      "public.local_laws",
+      2
+    ],
+    [
+      "public.wage_theft",
+      2
+    ],
+    [
+      "information_schema.constraint_column_usage",
+      1
+    ],
+    [
+      "information_schema.key_column_usage",
+      1
+    ],
+    [
+      "public.dupes",
+      1
+    ],
+    [
+      "public.large_orgs",
+      1
+    ],
+    [
+      "public.membership_detail",
+      1
+    ],
+    [
+      "public.private_reconciled",
+      1
+    ],
+    [
+      "public.public_sector",
+      1
+    ],
+    [
+      "public.v_state_coverage_live",
+      1
+    ],
+    [
+      "public.exclusion_flags",
+      1
+    ],
+    [
+      "public.sag_max",
+      1
+    ],
+    [
+      "public.sag_ranked",
+      1
+    ],
+    [
+      "public.signatory_patterns",
+      1
+    ],
+    [
+      "public.unions",
+      1
+    ],
+    [
+      "public.base_names",
+      1
+    ],
+    [
+      "public.name_groups",
+      1
+    ],
+    [
+      "public.f7_names",
+      1
+    ],
+    [
+      "public.nlrb_names",
+      1
+    ],
+    [
+      "public.name_prefix",
+      1
+    ],
+    [
+      "public.pg_stat_user_tables",
+      1
+    ],
+    [
+      "public.f7_enhanced",
+      1
+    ],
+    [
+      "public.pg_index",
+      1
+    ],
+    [
+      "public.case_sensitive",
+      1
+    ],
+    [
+      "public.union_naics",
+      1
+    ],
+    [
+      "f7_duplicate_groups.csv",
+      1
+    ],
+    [
+      "public.same_city_same_street",
+      1
+    ],
+    [
+      "public.null_fnum_unions",
+      1
+    ],
+    [
+      "public.dups",
+      1
+    ],
+    [
+      "public.union_dominant_naics",
+      1
+    ],
+    [
+      "public.nhq_candidates",
+      1
+    ],
+    [
+      "public.latest_filing",
+      1
+    ],
+    [
+      "ny_county_density.csv",
+      1
+    ],
+    [
+      "ny_density_map.html",
+      1
+    ],
+    [
+      "ny_tract_density.csv",
+      1
+    ],
+    [
+      "ny_zip_density.csv",
+      1
+    ],
+    [
+      "public.latest_total",
+      1
+    ],
+    [
+      "public.states_with_public",
+      1
+    ],
+    [
+      "unionstats.com",
+      1
+    ],
+    [
+      "public.IN_MERGENT",
+      1
+    ],
+    [
+      "public.has_union",
+      1
+    ],
+    [
+      "public.corporate_ultimate_parents",
+      1
+    ],
+    [
+      "public.federal_contracts",
+      1
+    ],
+    [
+      "fe.latest_notice_date",
+      1
+    ],
+    [
+      "public.orphan_employers",
+      1
+    ],
+    [
+      "public.tier1_mapping",
+      1
+    ],
+    [
+      "public.tier2_mapping",
+      1
+    ]
+  ],
+  "examples": {
+    "scripts/explore_osha_tables.py": [
+      "information_schema.columns",
+      "information_schema.constraint_column_usage",
+      "information_schema.key_column_usage",
+      "information_schema.table_constraints",
+      "information_schema.tables",
+      "public.pg_indexes"
+    ],
+    "scripts/query_dupes.py": [
+      "public.dupes"
+    ],
+    "scripts/analysis/analyze_hierarchy_deep.py": [
+      "public.large_orgs"
+    ],
+    "scripts/analysis/analyze_schedule13_cp2.py": [
+      "public.membership_detail"
+    ],
+    "scripts/analysis/analyze_schedule13_cp3.py": [
+      "public.lm_summary",
+      "public.sched13_summary"
+    ],
+    "scripts/analysis/analyze_schedule13_total.py": [
+      "public.lm_summary",
+      "public.sched13_summary"
+    ],
+    "scripts/analysis/complete_coverage.py": [
+      "public.private_only"
+    ],
+    "scripts/analysis/create_coverage_tables.py": [
+      "public.private_reconciled",
+      "public.public_sector",
+      "public.v_state_coverage_live"
+    ],
+    "scripts/analysis/final_coverage.py": [
+      "public.exclusion_flags",
+      "public.private_only"
+    ],
+    "scripts/analysis/investigate_orphaned_relations.py": [
+      "information_schema.columns"
+    ],
+    "scripts/analysis/multi_employer_final.py": [
+      "public.counts"
+    ],
+    "scripts/analysis/multi_employer_fix.py": [
+      "public.sag_employers",
+      "public.sag_max",
+      "public.union_groups"
+    ],
+    "scripts/analysis/multi_employer_fix_v2.py": [
+      "public.duplicates",
+      "public.sag_employers",
+      "public.union_stats"
+    ],
+    "scripts/analysis/multi_employer_handler.py": [
+      "public.sag_ranked",
+      "public.signatory_patterns",
+      "public.union_groups",
+      "public.union_stats"
+    ],
+    "scripts/analysis/sector_analysis_1.py": [
+      "information_schema.columns"
+    ],
+    "scripts/analysis/sector_final_summary.py": [
+      "public.unions"
+    ],
+    "scripts/archive/check_1199_nj_employers.py": [
+      "information_schema.columns"
+    ],
+    "scripts/archive/check_cbsa.py": [
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/archive/f7_details.py": [
+      "public.base_names"
+    ],
+    "scripts/archive/find_dupes.py": [
+      "public.name_groups"
+    ],
+    "scripts/archive/find_dupes2.py": [
+      "public.f7_names",
+      "public.nlrb_names"
+    ],
+    "scripts/archive/find_dupes3.py": [
+      "public.name_prefix"
+    ],
+    "scripts/audit/database_audit.py": [
+      "information_schema.columns",
+      "public.pg_indexes",
+      "public.pg_matviews",
+      "public.pg_stat_user_tables",
+      "public.pg_views"
+    ],
+    "scripts/audit/db_audit.py": [
+      "information_schema.columns",
+      "public.f7_enhanced",
+      "public.pg_class",
+      "public.pg_index",
+      "public.pg_matviews",
+      "public.pg_namespace",
+      "public.pg_tables",
+      "public.pg_views"
+    ],
+    "scripts/audit/verify_docs.py": [
+      "information_schema.columns",
+      "information_schema.table_constraints",
+      "information_schema.tables",
+      "information_schema.views",
+      "public.names",
+      "public.pg_matviews"
+    ],
+    "scripts/batch/run_batch_large_fast.py": [
+      "public.address"
+    ],
+    "scripts/cleanup/audit_coverage_gaps.py": [
+      "information_schema.columns"
+    ],
+    "scripts/cleanup/audit_metadata.py": [
+      "information_schema.columns"
+    ],
+    "scripts/cleanup/audit_name_quality.py": [
+      "public.case_sensitive"
+    ],
+    "scripts/cleanup/enrich_naics.py": [
+      "information_schema.columns",
+      "public.union_naics"
+    ],
+    "scripts/cleanup/fix_multi_employer.py": [
+      "public.group_info"
+    ],
+    "scripts/cleanup/merge_f7_enhanced.py": [
+      "public.counts"
+    ],
+    "scripts/cleanup/post_merge_refresh.py": [
+      "public.pg_matviews"
+    ],
+    "scripts/cleanup/review_true_duplicates.py": [
+      "f7_duplicate_groups.csv"
+    ],
+    "scripts/cleanup/splink_rescore_pairs.py": [
+      "public.splink_match_results"
+    ],
+    "scripts/cleanup/verify_multi_employer.py": [
+      "public.group_info"
+    ],
+    "scripts/cleanup/_analyze_identical_groups.py": [
+      "public.dup_groups",
+      "public.same_city_same_street"
+    ],
+    "scripts/cleanup/_check_missing_unions.py": [
+      "public.null_fnum_unions"
+    ],
+    "scripts/cleanup/_check_relation_cols.py": [
+      "information_schema.columns"
+    ],
+    "scripts/cleanup/_remaining_audit.py": [
+      "information_schema.columns",
+      "public.dup_groups",
+      "public.dups",
+      "public.union_dominant_naics"
+    ],
+    "scripts/cleanup/_scope_lowered_thresholds.py": [
+      "public.duplicates"
+    ],
+    "scripts/coverage/full_comparison.py": [
+      "information_schema.columns"
+    ],
+    "scripts/coverage/private_refined.py": [
+      "public.private_only"
+    ],
+    "scripts/coverage/public_final_summary.py": [
+      "public.nhq_candidates"
+    ],
+    "scripts/coverage/public_sector_coverage.py": [
+      "information_schema.columns"
+    ],
+    "scripts/coverage/public_sector_coverage_v3.py": [
+      "public.latest_filing"
+    ],
+    "scripts/coverage/public_sector_dedup.py": [
+      "public.employers_deduped"
+    ],
+    "scripts/coverage/public_sector_final.py": [
+      "information_schema.columns"
+    ],
+    "scripts/density/build_density_map.py": [
+      "ny_county_density.csv",
+      "ny_density_map.html",
+      "ny_tract_density.csv",
+      "ny_zip_density.csv"
+    ],
+    "scripts/density/estimate_public_density.py": [
+      "public.latest_private",
+      "public.latest_public",
+      "public.latest_total",
+      "public.states_with_public"
+    ],
+    "scripts/density/load_industry_density.py": [
+      "information_schema.columns"
+    ],
+    "scripts/density/load_state_sector_density.py": [
+      "public.latest_private",
+      "public.latest_public",
+      "unionstats.com"
+    ],
+    "scripts/discovery/crosscheck_events.py": [
+      "public.IN_MERGENT",
+      "public.has_union"
+    ],
+    "scripts/etl/build_corporate_hierarchy.py": [
+      "public.corporate_ultimate_parents"
+    ],
+    "scripts/etl/check_hierarchy_prereqs.py": [
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/etl/check_naics_crosswalk.py": [
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/etl/check_naics_xwalk.py": [
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/etl/check_sam_detail.py": [
+      "public.pg_stat_activity"
+    ],
+    "scripts/etl/check_sam_progress.py": [
+      "public.pg_stat_activity"
+    ],
+    "scripts/etl/create_osha_schema.py": [
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/etl/fetch_usaspending.py": [
+      "public.federal_contracts"
+    ],
+    "scripts/etl/fix_orphaned_relations.py": [
+      "fe.latest_notice_date",
+      "public.matches",
+      "public.orphan_employers",
+      "public.pg_matviews",
+      "public.tier1_mapping",
+      "public.tier2_mapping"
+    ],
+    "scripts/etl/kill_stuck.py": [
+      "public.pg_stat_activity"
+    ],
+    "scripts/etl/load_bls_projections.py": [
+      "public.employment_change_pct"
+    ],
+    "scripts/etl/load_gleif_bods.py": [
+      "public.address",
+      "public.identifiers"
+    ],
+    "scripts/etl/load_national_990.py": [
+      "information_schema.columns",
+      "information_schema.tables"
+    ],
+    "scripts/etl/load_osha_accidents.py": [
+      "public.accident_injury",
+      "public.event_date"
+    ],
+    "scripts/etl/load_sec_edgar.py": [
+      "submissions.zip"
+    ],
+    "scripts/etl/osha_match_phase5.py": [
+      "public.names",
+      "public.tmp_mergent_f7_bridge"
+    ],
+    "scripts/etl/phase5_refresh.py": [
+      "public.pg_matviews"
+    ],
+    "scripts/etl/update_normalization.py": [
+      "public.name_normalized"
+    ],
+    "scripts/etl/verify_osha_schema.py": [
+      "information_schema.tables",
+      "public.pg_indexes"
+    ],
+    "scripts/etl/whd_match_phase5.py": [
+      "public.name_normalized",
+      "public.tmp_whd_mergent_bridge",
+      "public.whd_agg",
+      "public.whd_state_agg"
+    ],
+    "scripts/etl/_integrate_qcew.py": [
+      "information_schema.columns",
+      "information_schema.tables",
+      "public._naics2_qcew_map",
+      "public.f7_by_state",
+      "public.qcew_by_state"
+    ],
+    "scripts/etl/_match_usaspending.py": [
+      "information_schema.columns",
+      "public._f7_normalized"
+    ],
+    "scripts/etl/_phase3_baseline.py": [
+      "information_schema.tables",
+      "information_schema.views"
+    ],
+    "scripts/export/export_all_locals_v2.py": [
+      "information_schema.tables",
+      "public.olms"
+    ],
+    "scripts/export/export_all_locals_v3.py": [
+      "information_schema.tables"
+    ],
+    "scripts/federal/run_checkpoint1.py": [
+      "information_schema.tables"
+    ],
+    "scripts/federal/run_checkpoint4.py": [
+      "information_schema.tables",
+      "public.employers_deduped"
+    ]
+  }
+}

@@ -1,0 +1,4341 @@
+{
+  "route_count": 152,
+  "routes": [
+    {
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "name": "serve_frontend",
+      "endpoint_module": "api.main",
+      "endpoint_func": "serve_frontend",
+      "router_file": null,
+      "tables_referenced_in_router": [],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/admin/data-freshness",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_data_freshness",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "get_data_freshness",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/admin/refresh-freshness",
+      "methods": [
+        "POST"
+      ],
+      "name": "refresh_freshness",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "refresh_freshness",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/admin/refresh-scorecard",
+      "methods": [
+        "POST"
+      ],
+      "name": "refresh_scorecard",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "refresh_scorecard",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/auth/login",
+      "methods": [
+        "POST"
+      ],
+      "name": "login",
+      "endpoint_module": "api.routers.auth",
+      "endpoint_func": "login",
+      "router_file": "api\\routers\\auth.py",
+      "tables_referenced_in_router": [],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/auth/me",
+      "methods": [
+        "GET"
+      ],
+      "name": "current_user",
+      "endpoint_module": "api.routers.auth",
+      "endpoint_func": "current_user",
+      "router_file": "api\\routers\\auth.py",
+      "tables_referenced_in_router": [],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/auth/refresh",
+      "methods": [
+        "POST"
+      ],
+      "name": "refresh_token",
+      "endpoint_module": "api.routers.auth",
+      "endpoint_func": "refresh_token",
+      "router_file": "api\\routers\\auth.py",
+      "tables_referenced_in_router": [],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/auth/register",
+      "methods": [
+        "POST"
+      ],
+      "name": "register",
+      "endpoint_module": "api.routers.auth",
+      "endpoint_func": "register",
+      "router_file": "api\\routers\\auth.py",
+      "tables_referenced_in_router": [],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/corporate/family/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_corporate_family",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "get_corporate_family",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/corporate/hierarchy/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_corporate_hierarchy",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "search_corporate_hierarchy",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/corporate/hierarchy/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_corporate_hierarchy_stats",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "get_corporate_hierarchy_stats",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/corporate/hierarchy/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_corporate_hierarchy",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "get_corporate_hierarchy",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/corporate/sec/{cik}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sec_company",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "get_sec_company",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/density/all",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_all_density",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_all_density",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-county",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_density_by_county",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_density_by_county",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-county/{fips}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_county_density_detail",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_county_density_detail",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-county/{fips}/industry",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_county_industry_detail",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_county_industry_detail",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-govt-level",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_density_by_govt_level",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_density_by_govt_level",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-govt-level/{state}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_state_density_by_govt_level",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_state_density_by_govt_level",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-state",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_density_by_state",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_density_by_state",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-state/{state}/counties",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_state_counties_density",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_state_counties_density",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/by-state/{state}/history",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_state_density_history",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_state_density_history",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/county-summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_county_density_summary",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_county_density_summary",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/industry-rates",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_industry_density_rates",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_industry_density_rates",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/naics/{naics_2digit}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_naics_density",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_naics_density",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/ny/counties",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ny_county_density",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_ny_county_density",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/ny/county/{fips}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ny_county_density_detail",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_ny_county_density_detail",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/ny/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ny_density_summary",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_ny_density_summary",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/ny/tract/{tract_fips}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ny_tract_density_detail",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_ny_tract_density_detail",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/ny/tracts",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ny_tract_density",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_ny_tract_density",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/ny/zip/{zip_code}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ny_zip_density_detail",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_ny_zip_density_detail",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/ny/zips",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_ny_zip_density",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_ny_zip_density",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/state-industry-comparison",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_state_industry_comparison",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_state_industry_comparison",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/density/state-industry-comparison/{state}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_state_industry_detail",
+      "endpoint_module": "api.routers.density",
+      "endpoint_func": "get_state_industry_detail",
+      "router_file": "api\\routers\\density.py",
+      "tables_referenced_in_router": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "missing_tables_in_router": [
+        "public.each",
+        "public.total"
+      ]
+    },
+    {
+      "path": "/api/employer/{employer_id}/agreement",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_agreement_info",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "get_employer_agreement_info",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/employer/{employer_id}/projections",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_projections",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_employer_projections",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/employers/by-naics-detailed/{naics_code}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employers_by_detailed_naics",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_employers_by_detailed_naics",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/cities",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_cities_for_state",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_cities_for_state",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/flags",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_flag",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "create_flag",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/by-employer/{canonical_id:path}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_flags",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_employer_flags",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/by-source",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_flags_by_source",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_flags_by_source",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/pending",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_pending_flags",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_pending_flags",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/flags/{flag_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_flag",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "delete_flag",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/fuzzy-search",
+      "methods": [
+        "GET"
+      ],
+      "name": "fuzzy_search_employers",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "fuzzy_search_employers",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/normalized-search",
+      "methods": [
+        "GET"
+      ],
+      "name": "normalized_search_employers",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "normalized_search_employers",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/refresh-search",
+      "methods": [
+        "POST"
+      ],
+      "name": "refresh_unified_search",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "refresh_unified_search",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_employers",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "search_employers",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/unified-detail/{canonical_id:path}",
+      "methods": [
+        "GET"
+      ],
+      "name": "unified_employer_detail",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "unified_employer_detail",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/unified-search",
+      "methods": [
+        "GET"
+      ],
+      "name": "unified_employer_search",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "unified_employer_search",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_unified_employers",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "search_unified_employers",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/sources",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_unified_source_types",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_unified_source_types",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_unified_employer_stats",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_unified_employer_stats",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/unified/{unified_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_unified_employer",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_unified_employer",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_detail",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_employer_detail",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/comparables",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_comparables",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_employer_comparables",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/nlrb",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_nlrb",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_employer_nlrb",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/osha",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_osha",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_employer_osha",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/employers/{employer_id}/similar",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_similar_employers",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_similar_employers",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/health",
+      "methods": [
+        "GET"
+      ],
+      "name": "health_check",
+      "endpoint_module": "api.routers.health",
+      "endpoint_func": "health_check",
+      "router_file": "api\\routers\\health.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.naics_sectors",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/lookups/affiliations",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_affiliations",
+      "endpoint_module": "api.routers.lookups",
+      "endpoint_func": "get_affiliations",
+      "router_file": "api\\routers\\lookups.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/lookups/cities",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_cities_lookup",
+      "endpoint_module": "api.routers.lookups",
+      "endpoint_func": "get_cities_lookup",
+      "router_file": "api\\routers\\lookups.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/lookups/metros",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_metros",
+      "endpoint_module": "api.routers.lookups",
+      "endpoint_func": "get_metros",
+      "router_file": "api\\routers\\lookups.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/lookups/naics-sectors",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_naics_sectors",
+      "endpoint_module": "api.routers.lookups",
+      "endpoint_func": "get_naics_sectors",
+      "router_file": "api\\routers\\lookups.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/lookups/sectors",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sectors",
+      "endpoint_module": "api.routers.lookups",
+      "endpoint_func": "get_sectors",
+      "router_file": "api\\routers\\lookups.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/lookups/states",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_states",
+      "endpoint_module": "api.routers.lookups",
+      "endpoint_func": "get_states",
+      "router_file": "api\\routers\\lookups.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/metros/{cbsa_code}/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_metro_stats",
+      "endpoint_module": "api.routers.lookups",
+      "endpoint_func": "get_metro_stats",
+      "router_file": "api\\routers\\lookups.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/multi-employer/groups",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_multi_employer_groups",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "get_multi_employer_groups",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/multi-employer/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_multi_employer_stats",
+      "endpoint_module": "api.routers.corporate",
+      "endpoint_func": "get_multi_employer_stats",
+      "router_file": "api\\routers\\corporate.py",
+      "tables_referenced_in_router": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/museums/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_museum_sector_summary",
+      "endpoint_module": "api.routers.museums",
+      "endpoint_func": "get_museum_sector_summary",
+      "router_file": "api\\routers\\museums.py",
+      "tables_referenced_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/museums/targets",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_museum_targets",
+      "endpoint_module": "api.routers.museums",
+      "endpoint_func": "search_museum_targets",
+      "router_file": "api\\routers\\museums.py",
+      "tables_referenced_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/museums/targets/cities",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_museum_target_cities",
+      "endpoint_module": "api.routers.museums",
+      "endpoint_func": "get_museum_target_cities",
+      "router_file": "api\\routers\\museums.py",
+      "tables_referenced_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/museums/targets/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_museum_target_stats",
+      "endpoint_module": "api.routers.museums",
+      "endpoint_func": "get_museum_target_stats",
+      "router_file": "api\\routers\\museums.py",
+      "tables_referenced_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/museums/targets/{target_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_museum_target_detail",
+      "endpoint_module": "api.routers.museums",
+      "endpoint_func": "get_museum_target_detail",
+      "router_file": "api\\routers\\museums.py",
+      "tables_referenced_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/museums/unionized",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_unionized_museums",
+      "endpoint_module": "api.routers.museums",
+      "endpoint_func": "get_unionized_museums",
+      "router_file": "api\\routers\\museums.py",
+      "tables_referenced_in_router": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/naics/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_naics_stats",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "get_naics_stats",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/nlrb/election/{case_number}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_election_detail",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_election_detail",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/by-affiliation",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_elections_by_affiliation",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_elections_by_affiliation",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/by-state",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_elections_by_state",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_elections_by_state",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/by-year",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_elections_by_year",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_elections_by_year",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/map",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_elections_map",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_elections_map",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/elections/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_nlrb_elections",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "search_nlrb_elections",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/patterns",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_patterns",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_patterns",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_summary",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_summary",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/ulp/by-section",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nlrb_ulp_by_section",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "get_nlrb_ulp_by_section",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/nlrb/ulp/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_nlrb_ulp",
+      "endpoint_module": "api.routers.nlrb",
+      "endpoint_func": "search_nlrb_ulp",
+      "router_file": "api\\routers\\nlrb.py",
+      "tables_referenced_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e"
+      ]
+    },
+    {
+      "path": "/api/organizing/by-state",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_organizing_by_state",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "get_organizing_by_state",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/organizing/scorecard",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_organizing_scorecard",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "get_organizing_scorecard",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/organizing/scorecard/{estab_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_scorecard_detail",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "get_scorecard_detail",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/organizing/siblings/{estab_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sibling_employers",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "get_sibling_employers",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/organizing/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_organizing_summary",
+      "endpoint_module": "api.routers.organizing",
+      "endpoint_func": "get_organizing_summary",
+      "router_file": "api\\routers\\organizing.py",
+      "tables_referenced_in_router": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "missing_tables_in_router": [
+        "public.a",
+        "public.freshness",
+        "public.pre",
+        "public.scored",
+        "public.the"
+      ]
+    },
+    {
+      "path": "/api/osha/by-state",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_osha_by_state",
+      "endpoint_module": "api.routers.osha",
+      "endpoint_func": "get_osha_by_state",
+      "router_file": "api\\routers\\osha.py",
+      "tables_referenced_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/osha/employer-safety/{f7_employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_employer_safety_profile",
+      "endpoint_module": "api.routers.osha",
+      "endpoint_func": "get_employer_safety_profile",
+      "router_file": "api\\routers\\osha.py",
+      "tables_referenced_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/osha/establishments/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_osha_establishments",
+      "endpoint_module": "api.routers.osha",
+      "endpoint_func": "search_osha_establishments",
+      "router_file": "api\\routers\\osha.py",
+      "tables_referenced_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/osha/establishments/{establishment_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_osha_establishment",
+      "endpoint_module": "api.routers.osha",
+      "endpoint_func": "get_osha_establishment",
+      "router_file": "api\\routers\\osha.py",
+      "tables_referenced_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/osha/high-severity",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_osha_high_severity",
+      "endpoint_module": "api.routers.osha",
+      "endpoint_func": "get_osha_high_severity",
+      "router_file": "api\\routers\\osha.py",
+      "tables_referenced_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/osha/organizing-targets",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_osha_organizing_targets",
+      "endpoint_module": "api.routers.osha",
+      "endpoint_func": "get_osha_organizing_targets",
+      "router_file": "api\\routers\\osha.py",
+      "tables_referenced_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/osha/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_osha_summary",
+      "endpoint_module": "api.routers.osha",
+      "endpoint_func": "get_osha_summary",
+      "router_file": "api\\routers\\osha.py",
+      "tables_referenced_in_router": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/osha/unified-matches",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_osha_unified_matches",
+      "endpoint_module": "api.routers.employers",
+      "endpoint_func": "search_osha_unified_matches",
+      "router_file": "api\\routers\\employers.py",
+      "tables_referenced_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.normalized"
+      ]
+    },
+    {
+      "path": "/api/projections/industries/{sector}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sector_sub_industries",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_sector_sub_industries",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/industry/{naics_code}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_industry_projections",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_industry_projections",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/matrix/{matrix_code}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_industry_by_matrix_code",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_industry_by_matrix_code",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/matrix/{matrix_code}/occupations",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_occupations_by_matrix_code",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_occupations_by_matrix_code",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/naics/{naics_2digit}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_naics_projections",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_naics_projections",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/occupations/{naics_code}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_occupation_projections_v2",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_occupation_projections_v2",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_industry_projections",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "search_industry_projections",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_projections_summary",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_projections_summary",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/projections/top",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_top_projections",
+      "endpoint_module": "api.routers.projections",
+      "endpoint_func": "get_top_projections",
+      "router_file": "api\\routers\\projections.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/public-sector/benchmarks",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_public_sector_benchmarks",
+      "endpoint_module": "api.routers.public_sector",
+      "endpoint_func": "get_public_sector_benchmarks",
+      "router_file": "api\\routers\\public_sector.py",
+      "tables_referenced_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/public-sector/employer-types",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_public_sector_employer_types",
+      "endpoint_module": "api.routers.public_sector",
+      "endpoint_func": "get_public_sector_employer_types",
+      "router_file": "api\\routers\\public_sector.py",
+      "tables_referenced_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/public-sector/employers",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_public_sector_employers",
+      "endpoint_module": "api.routers.public_sector",
+      "endpoint_func": "search_public_sector_employers",
+      "router_file": "api\\routers\\public_sector.py",
+      "tables_referenced_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/public-sector/locals",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_public_sector_locals",
+      "endpoint_module": "api.routers.public_sector",
+      "endpoint_func": "search_public_sector_locals",
+      "router_file": "api\\routers\\public_sector.py",
+      "tables_referenced_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/public-sector/parent-unions",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_public_sector_parent_unions",
+      "endpoint_module": "api.routers.public_sector",
+      "endpoint_func": "get_public_sector_parent_unions",
+      "router_file": "api\\routers\\public_sector.py",
+      "tables_referenced_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/public-sector/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_public_sector_stats",
+      "endpoint_module": "api.routers.public_sector",
+      "endpoint_func": "get_public_sector_stats",
+      "router_file": "api\\routers\\public_sector.py",
+      "tables_referenced_in_router": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/sectors/list",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_sectors",
+      "endpoint_module": "api.routers.sectors",
+      "endpoint_func": "list_sectors",
+      "router_file": "api\\routers\\sectors.py",
+      "tables_referenced_in_router": [
+        "public.mergent_employers"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sector_summary",
+      "endpoint_module": "api.routers.sectors",
+      "endpoint_func": "get_sector_summary",
+      "router_file": "api\\routers\\sectors.py",
+      "tables_referenced_in_router": [
+        "public.mergent_employers"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_sector_targets",
+      "endpoint_module": "api.routers.sectors",
+      "endpoint_func": "search_sector_targets",
+      "router_file": "api\\routers\\sectors.py",
+      "tables_referenced_in_router": [
+        "public.mergent_employers"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/cities",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sector_target_cities",
+      "endpoint_module": "api.routers.sectors",
+      "endpoint_func": "get_sector_target_cities",
+      "router_file": "api\\routers\\sectors.py",
+      "tables_referenced_in_router": [
+        "public.mergent_employers"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sector_target_stats",
+      "endpoint_module": "api.routers.sectors",
+      "endpoint_func": "get_sector_target_stats",
+      "router_file": "api\\routers\\sectors.py",
+      "tables_referenced_in_router": [
+        "public.mergent_employers"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/targets/{target_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sector_target_detail",
+      "endpoint_module": "api.routers.sectors",
+      "endpoint_func": "get_sector_target_detail",
+      "router_file": "api\\routers\\sectors.py",
+      "tables_referenced_in_router": [
+        "public.mergent_employers"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/sectors/{sector}/unionized",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sector_unionized",
+      "endpoint_module": "api.routers.sectors",
+      "endpoint_func": "get_sector_unionized",
+      "router_file": "api\\routers\\sectors.py",
+      "tables_referenced_in_router": [
+        "public.mergent_employers"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/stats/breakdown",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_stats_breakdown",
+      "endpoint_module": "api.routers.health",
+      "endpoint_func": "get_stats_breakdown",
+      "router_file": "api\\routers\\health.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.naics_sectors",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_platform_summary",
+      "endpoint_module": "api.routers.health",
+      "endpoint_func": "get_platform_summary",
+      "router_file": "api\\routers\\health.py",
+      "tables_referenced_in_router": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.naics_sectors",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.unions_master"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/trends/affiliations/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_affiliation_trends_summary",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_affiliation_trends_summary",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/trends/by-affiliation/{aff_abbr}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_affiliation_trends",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_affiliation_trends",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/trends/by-state/{state}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_state_trends",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_state_trends",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/trends/elections",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_election_trends",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_election_trends",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/trends/elections/by-affiliation/{aff_abbr}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_election_trends_by_affiliation",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_election_trends_by_affiliation",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/trends/national",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_national_trends",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_national_trends",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/trends/sectors",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_sector_trends",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_sector_trends",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/trends/states/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_state_trends_summary",
+      "endpoint_module": "api.routers.trends",
+      "endpoint_func": "get_state_trends_summary",
+      "router_file": "api\\routers\\trends.py",
+      "tables_referenced_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "missing_tables_in_router": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.pivoted",
+        "public.state_data",
+        "public.yearly"
+      ]
+    },
+    {
+      "path": "/api/unions/cities",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_union_cities",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "get_union_cities",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/unions/locals/{affiliation}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_locals_for_affiliation",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "get_locals_for_affiliation",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/unions/national",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_national_unions",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "get_national_unions",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/unions/national/{aff_abbr}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_national_union_detail",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "get_national_union_detail",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/unions/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_unions",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "search_unions",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/unions/types",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_union_types",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "get_union_types",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/unions/{f_num}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_union_detail",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "get_union_detail",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/unions/{f_num}/employers",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_union_employers",
+      "endpoint_module": "api.routers.unions",
+      "endpoint_func": "get_union_employers",
+      "router_file": "api\\routers\\unions.py",
+      "tables_referenced_in_router": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/vr/map",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_map_data",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_map_data",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/new-employers",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_new_employers",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_new_employers",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/pipeline",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_pipeline",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_pipeline",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_vr",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "search_vr",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/by-affiliation",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_by_affiliation",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_by_affiliation",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/by-state",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_by_state",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_by_state",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/by-year",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_by_year",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_by_year",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/stats/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_summary",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_summary",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/vr/{case_number}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_vr_detail",
+      "endpoint_module": "api.routers.vr",
+      "endpoint_func": "get_vr_detail",
+      "router_file": "api\\routers\\vr.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "missing_tables_in_router": [
+        "public.vr",
+        "vr.date_vr_request_received"
+      ]
+    },
+    {
+      "path": "/api/whd/by-state/{state}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_whd_by_state",
+      "endpoint_module": "api.routers.whd",
+      "endpoint_func": "get_whd_by_state",
+      "router_file": "api\\routers\\whd.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/whd/employer/{employer_id}",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_whd_employer_cases",
+      "endpoint_module": "api.routers.whd",
+      "endpoint_func": "get_whd_employer_cases",
+      "router_file": "api\\routers\\whd.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/whd/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_whd_cases",
+      "endpoint_module": "api.routers.whd",
+      "endpoint_func": "search_whd_cases",
+      "router_file": "api\\routers\\whd.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/whd/summary",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_whd_summary",
+      "endpoint_module": "api.routers.whd",
+      "endpoint_func": "get_whd_summary",
+      "router_file": "api\\routers\\whd.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "missing_tables_in_router": []
+    },
+    {
+      "path": "/api/whd/top-violators",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_whd_top_violators",
+      "endpoint_module": "api.routers.whd",
+      "endpoint_func": "get_whd_top_violators",
+      "router_file": "api\\routers\\whd.py",
+      "tables_referenced_in_router": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "missing_tables_in_router": []
+    }
+  ],
+  "router_analysis": {
+    "api\\routers\\auth.py": {
+      "tables_referenced": [],
+      "unsafe_sql_patterns": {
+        "execute_fstring": false,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\corporate.py": {
+      "tables_referenced": [
+        "public.corporate_hierarchy",
+        "public.corporate_identifier_crosswalk",
+        "public.f7_employers_deduped",
+        "public.gleif_us_entities",
+        "public.mergent_employers",
+        "public.sec_companies",
+        "public.v_multi_employer_groups"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": false,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\density.py": {
+      "tables_referenced": [
+        "public.bls_naics_mapping",
+        "public.bls_union_data",
+        "public.bls_union_series",
+        "public.each",
+        "public.naics_sectors",
+        "public.state_govt_level_density",
+        "public.state_sector_union_density",
+        "public.total",
+        "public.v_naics_union_density",
+        "public.v_state_density_latest"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\employers.py": {
+      "tables_referenced": [
+        "labor_api_v6.py",
+        "public.all",
+        "public.cbsa_definitions",
+        "public.employer_review_flags",
+        "public.f7_employers_deduped",
+        "public.feature",
+        "public.labor_api_v6",
+        "public.manual_employers",
+        "public.mv_employer_search",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.nlrb_voluntary_recognition",
+        "public.normalized",
+        "public.ps_employers",
+        "public.unions_master"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\health.py": {
+      "tables_referenced": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.naics_sectors",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_voluntary_recognition",
+        "public.osha_establishments",
+        "public.unions_master"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\lookups.py": {
+      "tables_referenced": [
+        "public.cbsa_counties",
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.msa_union_stats",
+        "public.naics_sectors",
+        "public.union_sector",
+        "public.unions_master",
+        "public.v_naics_union_density"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\museums.py": {
+      "tables_referenced": [
+        "public.v_museum_organizing_targets",
+        "public.v_museum_target_stats",
+        "public.v_museum_unionized"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\nlrb.py": {
+      "tables_referenced": [
+        "c.earliest_date",
+        "e.election_date",
+        "public.c",
+        "public.e",
+        "public.f7_employers_deduped",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_size_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.unions_master"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\organizing.py": {
+      "tables_referenced": [
+        "public.a",
+        "public.data_source_freshness",
+        "public.f7_employers_deduped",
+        "public.freshness",
+        "public.mergent_employers",
+        "public.mv_organizing_scorecard",
+        "public.nlrb_allegations",
+        "public.nlrb_case_types",
+        "public.nlrb_cases",
+        "public.nlrb_participants",
+        "public.ny_state_contracts",
+        "public.nyc_contracts",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.pre",
+        "public.ref_nlrb_industry_win_rates",
+        "public.ref_nlrb_state_win_rates",
+        "public.ref_rtw_states",
+        "public.scored",
+        "public.the",
+        "public.v_organizing_by_state",
+        "public.v_organizing_by_year",
+        "public.v_organizing_scorecard"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\osha.py": {
+      "tables_referenced": [
+        "public.osha_accidents",
+        "public.osha_establishments",
+        "public.osha_f7_matches",
+        "public.osha_violation_summary",
+        "public.osha_violations_detail",
+        "public.v_employer_safety_profile",
+        "public.v_osha_establishment_search",
+        "public.v_osha_high_severity_recent",
+        "public.v_osha_organizing_targets",
+        "public.v_osha_state_summary"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\projections.py": {
+      "tables_referenced": [
+        "public.bls_industry_occupation_matrix",
+        "public.bls_industry_projections",
+        "public.f7_employers_deduped",
+        "public.naics_sectors"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\public_sector.py": {
+      "tables_referenced": [
+        "public.ps_bargaining_units",
+        "public.ps_employers",
+        "public.ps_parent_unions",
+        "public.ps_union_locals",
+        "public.public_sector_benchmarks"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\sectors.py": {
+      "tables_referenced": [
+        "public.mergent_employers"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\trends.py": {
+      "tables_referenced": [
+        "e.election_date",
+        "public.e",
+        "public.election_date",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.naics_sectors",
+        "public.nlrb_elections",
+        "public.nlrb_tallies",
+        "public.pivoted",
+        "public.state_data",
+        "public.unions_master",
+        "public.v_union_members_deduplicated",
+        "public.yearly"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": false,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\unions.py": {
+      "tables_referenced": [
+        "public.cbsa_definitions",
+        "public.f7_employers_deduped",
+        "public.lm_data",
+        "public.nlrb_elections",
+        "public.nlrb_participants",
+        "public.nlrb_tallies",
+        "public.unions_master",
+        "public.v_union_display_names"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\vr.py": {
+      "tables_referenced": [
+        "public.f7_employers_deduped",
+        "public.nlrb_regions",
+        "public.nlrb_voluntary_recognition",
+        "public.unions_master",
+        "public.v_vr_affiliation_summary",
+        "public.v_vr_map_data",
+        "public.v_vr_new_employers",
+        "public.v_vr_state_summary",
+        "public.v_vr_summary_stats",
+        "public.v_vr_to_f7_pipeline",
+        "public.v_vr_yearly_summary",
+        "public.vr",
+        "vr.date_vr_request_received"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    },
+    "api\\routers\\whd.py": {
+      "tables_referenced": [
+        "public.f7_employers_deduped",
+        "public.mergent_employers",
+        "public.whd_cases"
+      ],
+      "unsafe_sql_patterns": {
+        "execute_fstring": true,
+        "execute_format": false,
+        "execute_percent": false,
+        "query_concat": false
+      }
+    }
+  },
+  "missing_tables_overall": [
+    "c.earliest_date",
+    "e.election_date",
+    "labor_api_v6.py",
+    "public.a",
+    "public.all",
+    "public.c",
+    "public.e",
+    "public.each",
+    "public.election_date",
+    "public.feature",
+    "public.freshness",
+    "public.labor_api_v6",
+    "public.normalized",
+    "public.pivoted",
+    "public.pre",
+    "public.scored",
+    "public.state_data",
+    "public.the",
+    "public.total",
+    "public.vr",
+    "public.yearly",
+    "vr.date_vr_request_received"
+  ],
+  "risk_summary": {
+    "api\\routers\\density.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\employers.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\health.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\lookups.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\museums.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\nlrb.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\organizing.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\osha.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\projections.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\public_sector.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\sectors.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\unions.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\vr.py": [
+      "execute_fstring"
+    ],
+    "api\\routers\\whd.py": [
+      "execute_fstring"
+    ]
+  }
+}

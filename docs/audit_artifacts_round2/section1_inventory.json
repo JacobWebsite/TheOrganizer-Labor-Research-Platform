@@ -1,0 +1,3289 @@
+{
+  "table_count": 169,
+  "view_count": 186,
+  "materialized_view_count": 4,
+  "database_size_bytes": 21423205523,
+  "database_size_pretty": "20 GB",
+  "tables": [
+    {
+      "schema": "gleif",
+      "name": "entity_addresses",
+      "row_count": 6706686,
+      "size_bytes": 956645376,
+      "size_pretty": "912 MB",
+      "column_count": 6,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "entity_annotations",
+      "row_count": 5667010,
+      "size_bytes": 1275060224,
+      "size_pretty": "1216 MB",
+      "column_count": 8,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "entity_identifiers",
+      "row_count": 6706686,
+      "size_bytes": 873816064,
+      "size_pretty": "833 MB",
+      "column_count": 5,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "entity_statement",
+      "row_count": 5667010,
+      "size_bytes": 2561630208,
+      "size_pretty": "2443 MB",
+      "column_count": 20,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "ooc_annotations",
+      "row_count": 10783856,
+      "size_bytes": 2332311552,
+      "size_pretty": "2224 MB",
+      "column_count": 8,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "ooc_interests",
+      "row_count": 5748906,
+      "size_bytes": 857817088,
+      "size_pretty": "818 MB",
+      "column_count": 7,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "ooc_statement",
+      "row_count": 5758526,
+      "size_bytes": 2489171968,
+      "size_pretty": "2374 MB",
+      "column_count": 16,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "person_annotations",
+      "row_count": 2826102,
+      "size_bytes": 674586624,
+      "size_pretty": "643 MB",
+      "column_count": 8,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "person_statement",
+      "row_count": 2826102,
+      "size_bytes": 1150246912,
+      "size_pretty": "1097 MB",
+      "column_count": 16,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "ar_assets_investments",
+      "row_count": 304816,
+      "size_bytes": 33144832,
+      "size_pretty": "32 MB",
+      "column_count": 6,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "ar_disbursements_emp_off",
+      "row_count": 2813248,
+      "size_bytes": 404701184,
+      "size_pretty": "386 MB",
+      "column_count": 20,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "ar_disbursements_total",
+      "row_count": 216372,
+      "size_bytes": 28925952,
+      "size_pretty": "28 MB",
+      "column_count": 23,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "ar_membership",
+      "row_count": 216508,
+      "size_bytes": 24502272,
+      "size_pretty": "23 MB",
+      "column_count": 7,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "bls_fips_lookup",
+      "row_count": 52,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 3,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_industry_density",
+      "row_count": 12,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_industry_lookup",
+      "row_count": 39,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 2,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_industry_occupation_matrix",
+      "row_count": 113473,
+      "size_bytes": 22233088,
+      "size_pretty": "21 MB",
+      "column_count": 15,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_industry_projections",
+      "row_count": 423,
+      "size_bytes": 196608,
+      "size_pretty": "192 kB",
+      "column_count": 14,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_naics_mapping",
+      "row_count": 22,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 3,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_naics_sector_map",
+      "row_count": 231,
+      "size_bytes": 65536,
+      "size_pretty": "64 kB",
+      "column_count": 4,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_occupation_lookup",
+      "row_count": 30,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 2,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_occupation_projections",
+      "row_count": 1113,
+      "size_bytes": 450560,
+      "size_pretty": "440 kB",
+      "column_count": 17,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_union_data",
+      "row_count": 31007,
+      "size_bytes": 3694592,
+      "size_pretty": "3608 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "bls_union_series",
+      "row_count": 1232,
+      "size_bytes": 1777664,
+      "size_pretty": "1736 kB",
+      "column_count": 25,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "cbsa_counties",
+      "row_count": 1915,
+      "size_bytes": 434176,
+      "size_pretty": "424 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "cbsa_definitions",
+      "row_count": 935,
+      "size_bytes": 172032,
+      "size_pretty": "168 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "census_industry_naics_xwalk",
+      "row_count": 24373,
+      "size_bytes": 2932736,
+      "size_pretty": "2864 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "census_occupation_soc_xwalk",
+      "row_count": 34540,
+      "size_bytes": 3989504,
+      "size_pretty": "3896 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "contract_employer_matches",
+      "row_count": 8954,
+      "size_bytes": 2375680,
+      "size_pretty": "2320 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "corporate_hierarchy",
+      "row_count": 125120,
+      "size_bytes": 25255936,
+      "size_pretty": "24 MB",
+      "column_count": 13,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "corporate_identifier_crosswalk",
+      "row_count": 25177,
+      "size_bytes": 7618560,
+      "size_pretty": "7440 kB",
+      "column_count": 19,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "county_industry_shares",
+      "row_count": 3144,
+      "size_bytes": 647168,
+      "size_pretty": "632 kB",
+      "column_count": 17,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "county_union_density_estimates",
+      "row_count": 3144,
+      "size_bytes": 3948544,
+      "size_pretty": "3856 kB",
+      "column_count": 27,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "county_workforce_shares",
+      "row_count": 3144,
+      "size_bytes": 688128,
+      "size_pretty": "672 kB",
+      "column_count": 15,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "crosswalk_affiliation_sector_map",
+      "row_count": 111,
+      "size_bytes": 65536,
+      "size_pretty": "64 kB",
+      "column_count": 4,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "crosswalk_f7_only_unions",
+      "row_count": 167,
+      "size_bytes": 73728,
+      "size_pretty": "72 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "crosswalk_sector_lookup",
+      "row_count": 6,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "crosswalk_unions_master",
+      "row_count": 50039,
+      "size_bytes": 11862016,
+      "size_pretty": "11 MB",
+      "column_count": 16,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "data_source_freshness",
+      "row_count": 15,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "deduplication_methodology",
+      "row_count": 11,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "discovered_employers",
+      "row_count": 32,
+      "size_bytes": 65536,
+      "size_pretty": "64 kB",
+      "column_count": 17,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "employer_990_matches",
+      "row_count": 514,
+      "size_bytes": 278528,
+      "size_pretty": "272 kB",
+      "column_count": 12,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "employer_comparables",
+      "row_count": 269785,
+      "size_bytes": 141754368,
+      "size_pretty": "135 MB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "employer_review_flags",
+      "row_count": 13,
+      "size_bytes": 49152,
+      "size_pretty": "48 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "employers_990",
+      "row_count": 5942,
+      "size_bytes": 6291456,
+      "size_pretty": "6144 kB",
+      "column_count": 24,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "employers_990_deduped",
+      "row_count": 1046167,
+      "size_bytes": 278200320,
+      "size_pretty": "265 MB",
+      "column_count": 22,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "epi_state_benchmarks",
+      "row_count": 51,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 18,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "epi_union_membership",
+      "row_count": 1420064,
+      "size_bytes": 327393280,
+      "size_pretty": "312 MB",
+      "column_count": 14,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "f7_adjustment_factors",
+      "row_count": 76,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "f7_employer_merge_log",
+      "row_count": 21608,
+      "size_bytes": 4669440,
+      "size_pretty": "4560 kB",
+      "column_count": 15,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "f7_employers",
+      "row_count": 146863,
+      "size_bytes": 106307584,
+      "size_pretty": "101 MB",
+      "column_count": 18,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "f7_employers_deduped",
+      "row_count": 113713,
+      "size_bytes": 146292736,
+      "size_pretty": "140 MB",
+      "column_count": 36,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "f7_federal_scores",
+      "row_count": 9305,
+      "size_bytes": 1761280,
+      "size_pretty": "1720 kB",
+      "column_count": 10,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "f7_fnum_crosswalk",
+      "row_count": 2693,
+      "size_bytes": 712704,
+      "size_pretty": "696 kB",
+      "column_count": 9,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "f7_industry_scores",
+      "row_count": 121433,
+      "size_bytes": 26836992,
+      "size_pretty": "26 MB",
+      "column_count": 13,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "f7_name_inference_rules",
+      "row_count": 23,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "f7_union_employer_relations",
+      "row_count": 119445,
+      "size_bytes": 20373504,
+      "size_pretty": "19 MB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "federal_agencies",
+      "row_count": 192,
+      "size_bytes": 131072,
+      "size_pretty": "128 kB",
+      "column_count": 11,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "federal_bargaining_units",
+      "row_count": 2183,
+      "size_bytes": 1646592,
+      "size_pretty": "1608 kB",
+      "column_count": 25,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "federal_contract_recipients",
+      "row_count": 47193,
+      "size_bytes": 14958592,
+      "size_pretty": "14 MB",
+      "column_count": 13,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "flra_olms_union_map",
+      "row_count": 40,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 4,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "form_990_estimates",
+      "row_count": 39,
+      "size_bytes": 163840,
+      "size_pretty": "160 kB",
+      "column_count": 29,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "gleif_ownership_links",
+      "row_count": 498963,
+      "size_bytes": 91062272,
+      "size_pretty": "87 MB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "gleif_us_entities",
+      "row_count": 379192,
+      "size_bytes": 325451776,
+      "size_pretty": "310 MB",
+      "column_count": 15,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "labor_990_olms_crosswalk",
+      "row_count": 5522,
+      "size_bytes": 679936,
+      "size_pretty": "664 kB",
+      "column_count": 4,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "labor_orgs_990",
+      "row_count": 19367,
+      "size_bytes": 6881280,
+      "size_pretty": "6720 kB",
+      "column_count": 18,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "labor_orgs_990_deduped",
+      "row_count": 15172,
+      "size_bytes": 5160960,
+      "size_pretty": "5040 kB",
+      "column_count": 19,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "lm_data",
+      "row_count": 331238,
+      "size_bytes": 75358208,
+      "size_pretty": "72 MB",
+      "column_count": 21,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "manual_employers",
+      "row_count": 520,
+      "size_bytes": 286720,
+      "size_pretty": "280 kB",
+      "column_count": 19,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "match_rate_baselines",
+      "row_count": 3,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "match_run_results",
+      "row_count": 1175,
+      "size_bytes": 196608,
+      "size_pretty": "192 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "match_runs",
+      "row_count": 9,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "match_status_lookup",
+      "row_count": 6,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 4,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "mergent_employers",
+      "row_count": 56426,
+      "size_bytes": 578527232,
+      "size_pretty": "552 MB",
+      "column_count": 111,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "msa_union_stats",
+      "row_count": 1505,
+      "size_bytes": 417792,
+      "size_pretty": "408 kB",
+      "column_count": 11,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "naics_codes_reference",
+      "row_count": 4323,
+      "size_bytes": 958464,
+      "size_pretty": "936 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "naics_sectors",
+      "row_count": 24,
+      "size_bytes": 49152,
+      "size_pretty": "48 kB",
+      "column_count": 3,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "naics_sic_crosswalk",
+      "row_count": 2163,
+      "size_bytes": 679936,
+      "size_pretty": "664 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "naics_version_crosswalk",
+      "row_count": 4607,
+      "size_bytes": 1581056,
+      "size_pretty": "1544 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "national_990_f7_matches",
+      "row_count": 14059,
+      "size_bytes": 3743744,
+      "size_pretty": "3656 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "national_990_filers",
+      "row_count": 586767,
+      "size_bytes": 326762496,
+      "size_pretty": "312 MB",
+      "column_count": 18,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nhq_reconciled_membership",
+      "row_count": 132,
+      "size_bytes": 49152,
+      "size_pretty": "48 kB",
+      "column_count": 8,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_allegations",
+      "row_count": 715805,
+      "size_bytes": 129572864,
+      "size_pretty": "124 MB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_case_types",
+      "row_count": 13,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 3,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_cases",
+      "row_count": 477688,
+      "size_bytes": 95420416,
+      "size_pretty": "91 MB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_docket",
+      "row_count": 2046151,
+      "size_bytes": 294494208,
+      "size_pretty": "281 MB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_election_results",
+      "row_count": 33096,
+      "size_bytes": 3850240,
+      "size_pretty": "3760 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_elections",
+      "row_count": 33096,
+      "size_bytes": 11075584,
+      "size_pretty": "11 MB",
+      "column_count": 13,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_employer_xref",
+      "row_count": 179275,
+      "size_bytes": 49020928,
+      "size_pretty": "47 MB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_filings",
+      "row_count": 498749,
+      "size_bytes": 92872704,
+      "size_pretty": "89 MB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_participants",
+      "row_count": 1906542,
+      "size_bytes": 601956352,
+      "size_pretty": "574 MB",
+      "column_count": 17,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_regions",
+      "row_count": 31,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_sought_units",
+      "row_count": 52078,
+      "size_bytes": 20742144,
+      "size_pretty": "20 MB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_tallies",
+      "row_count": 67779,
+      "size_bytes": 29106176,
+      "size_pretty": "28 MB",
+      "column_count": 11,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_union_xref",
+      "row_count": 73326,
+      "size_bytes": 32145408,
+      "size_pretty": "31 MB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_voluntary_recognition",
+      "row_count": 1681,
+      "size_bytes": 6086656,
+      "size_pretty": "5944 kB",
+      "column_count": 37,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_voting_units",
+      "row_count": 31643,
+      "size_bytes": 16261120,
+      "size_pretty": "16 MB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ny_990_filers",
+      "row_count": 47614,
+      "size_bytes": 37740544,
+      "size_pretty": "36 MB",
+      "column_count": 16,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ny_county_density_estimates",
+      "row_count": 62,
+      "size_bytes": 57344,
+      "size_pretty": "56 kB",
+      "column_count": 24,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ny_state_contracts",
+      "row_count": 51500,
+      "size_bytes": 27287552,
+      "size_pretty": "26 MB",
+      "column_count": 23,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ny_tract_density_estimates",
+      "row_count": 5411,
+      "size_bytes": 1728512,
+      "size_pretty": "1688 kB",
+      "column_count": 25,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ny_zip_density_estimates",
+      "row_count": 1826,
+      "size_bytes": 499712,
+      "size_pretty": "488 kB",
+      "column_count": 24,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_contracts",
+      "row_count": 49767,
+      "size_bytes": 31817728,
+      "size_pretty": "30 MB",
+      "column_count": 25,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_debarment_list",
+      "row_count": 210,
+      "size_bytes": 147456,
+      "size_pretty": "144 kB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_discrimination",
+      "row_count": 111,
+      "size_bytes": 81920,
+      "size_pretty": "80 kB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_local_labor_laws",
+      "row_count": 568,
+      "size_bytes": 450560,
+      "size_pretty": "440 kB",
+      "column_count": 21,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_osha_violations",
+      "row_count": 3454,
+      "size_bytes": 1220608,
+      "size_pretty": "1192 kB",
+      "column_count": 22,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_prevailing_wage",
+      "row_count": 46,
+      "size_bytes": 65536,
+      "size_pretty": "64 kB",
+      "column_count": 11,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_ulp_closed",
+      "row_count": 260,
+      "size_bytes": 991232,
+      "size_pretty": "968 kB",
+      "column_count": 22,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_ulp_open",
+      "row_count": 660,
+      "size_bytes": 1802240,
+      "size_pretty": "1760 kB",
+      "column_count": 20,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_wage_theft_litigation",
+      "row_count": 54,
+      "size_bytes": 65536,
+      "size_pretty": "64 kB",
+      "column_count": 9,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_wage_theft_nys",
+      "row_count": 3281,
+      "size_bytes": 2252800,
+      "size_pretty": "2200 kB",
+      "column_count": 12,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nyc_wage_theft_usdol",
+      "row_count": 431,
+      "size_bytes": 434176,
+      "size_pretty": "424 kB",
+      "column_count": 19,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "organizing_targets",
+      "row_count": 5428,
+      "size_bytes": 5021696,
+      "size_pretty": "4904 kB",
+      "column_count": 27,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "osha_accidents",
+      "row_count": 63066,
+      "size_bytes": 17620992,
+      "size_pretty": "17 MB",
+      "column_count": 9,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "osha_establishments",
+      "row_count": 1007217,
+      "size_bytes": 672628736,
+      "size_pretty": "641 MB",
+      "column_count": 15,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "osha_f7_matches",
+      "row_count": 138340,
+      "size_bytes": 57499648,
+      "size_pretty": "55 MB",
+      "column_count": 11,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "osha_unified_matches",
+      "row_count": 42812,
+      "size_bytes": 5529600,
+      "size_pretty": "5400 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "osha_violation_summary",
+      "row_count": 872163,
+      "size_bytes": 158318592,
+      "size_pretty": "151 MB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "osha_violations_detail",
+      "row_count": 2245020,
+      "size_bytes": 451575808,
+      "size_pretty": "431 MB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "platform_users",
+      "row_count": 0,
+      "size_bytes": 40960,
+      "size_pretty": "40 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ps_bargaining_units",
+      "row_count": 438,
+      "size_bytes": 172032,
+      "size_pretty": "168 kB",
+      "column_count": 14,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ps_employers",
+      "row_count": 7987,
+      "size_bytes": 2351104,
+      "size_pretty": "2296 kB",
+      "column_count": 14,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ps_parent_unions",
+      "row_count": 24,
+      "size_bytes": 49152,
+      "size_pretty": "48 kB",
+      "column_count": 9,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ps_union_locals",
+      "row_count": 1520,
+      "size_bytes": 499712,
+      "size_pretty": "488 kB",
+      "column_count": 16,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "public_sector_benchmarks",
+      "row_count": 51,
+      "size_bytes": 16384,
+      "size_pretty": "16 kB",
+      "column_count": 10,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "qcew_annual",
+      "row_count": 1943426,
+      "size_bytes": 365338624,
+      "size_pretty": "348 MB",
+      "column_count": 19,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "qcew_industry_density",
+      "row_count": 7143,
+      "size_bytes": 1032192,
+      "size_pretty": "1008 kB",
+      "column_count": 10,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "ref_nlrb_industry_win_rates",
+      "row_count": 24,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ref_nlrb_size_win_rates",
+      "row_count": 8,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ref_nlrb_state_win_rates",
+      "row_count": 54,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ref_osha_industry_averages",
+      "row_count": 340,
+      "size_bytes": 106496,
+      "size_pretty": "104 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ref_rtw_states",
+      "row_count": 27,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 4,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "sam_entities",
+      "row_count": 826042,
+      "size_bytes": 866058240,
+      "size_pretty": "826 MB",
+      "column_count": 26,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "sam_f7_matches",
+      "row_count": 11050,
+      "size_bytes": 2752512,
+      "size_pretty": "2688 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "scrape_jobs",
+      "row_count": 112,
+      "size_bytes": 106496,
+      "size_pretty": "104 kB",
+      "column_count": 14,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "sec_companies",
+      "row_count": 517403,
+      "size_bytes": 321339392,
+      "size_pretty": "306 MB",
+      "column_count": 19,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "sector_lookup",
+      "row_count": 6,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_abbrev",
+      "row_count": 51,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 2,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_coverage_comparison",
+      "row_count": 51,
+      "size_bytes": 90112,
+      "size_pretty": "88 kB",
+      "column_count": 13,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_fips_map",
+      "row_count": 54,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 3,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_govt_level_density",
+      "row_count": 51,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 16,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_industry_density_comparison",
+      "row_count": 51,
+      "size_bytes": 65536,
+      "size_pretty": "64 kB",
+      "column_count": 19,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_industry_shares",
+      "row_count": 51,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 17,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_lookup",
+      "row_count": 52,
+      "size_bytes": 24576,
+      "size_pretty": "24 kB",
+      "column_count": 3,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_sector_union_density",
+      "row_count": 6191,
+      "size_bytes": 1449984,
+      "size_pretty": "1416 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "state_workforce_shares",
+      "row_count": 51,
+      "size_bytes": 40960,
+      "size_pretty": "40 kB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "teamsters_official_locals",
+      "row_count": 338,
+      "size_bytes": 196608,
+      "size_pretty": "192 kB",
+      "column_count": 13,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "unified_employers_osha",
+      "row_count": 100766,
+      "size_bytes": 31449088,
+      "size_pretty": "30 MB",
+      "column_count": 14,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "union_hierarchy",
+      "row_count": 26665,
+      "size_bytes": 6266880,
+      "size_pretty": "6120 kB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "union_match_status",
+      "row_count": 6,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 4,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "union_naics_mapping",
+      "row_count": 7624,
+      "size_bytes": 1327104,
+      "size_pretty": "1296 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "union_name_variants",
+      "row_count": 43,
+      "size_bytes": 81920,
+      "size_pretty": "80 kB",
+      "column_count": 6,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "union_names_crosswalk",
+      "row_count": 171481,
+      "size_bytes": 53043200,
+      "size_pretty": "51 MB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "union_organization_level",
+      "row_count": 19536,
+      "size_bytes": 2990080,
+      "size_pretty": "2920 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "union_sector",
+      "row_count": 6,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "unions_master",
+      "row_count": 26665,
+      "size_bytes": 21897216,
+      "size_pretty": "21 MB",
+      "column_count": 24,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "unionstats_industry",
+      "row_count": 281,
+      "size_bytes": 114688,
+      "size_pretty": "112 kB",
+      "column_count": 11,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "unionstats_state",
+      "row_count": 10710,
+      "size_bytes": 1622016,
+      "size_pretty": "1584 kB",
+      "column_count": 11,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "usaspending_f7_matches",
+      "row_count": 9305,
+      "size_bytes": 1630208,
+      "size_pretty": "1592 kB",
+      "column_count": 11,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "vr_affiliation_patterns",
+      "row_count": 29,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "vr_status_lookup",
+      "row_count": 4,
+      "size_bytes": 32768,
+      "size_pretty": "32 kB",
+      "column_count": 3,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "web_union_contracts",
+      "row_count": 120,
+      "size_bytes": 98304,
+      "size_pretty": "96 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "web_union_employers",
+      "row_count": 160,
+      "size_bytes": 122880,
+      "size_pretty": "120 kB",
+      "column_count": 12,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "web_union_membership",
+      "row_count": 31,
+      "size_bytes": 90112,
+      "size_pretty": "88 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "web_union_news",
+      "row_count": 183,
+      "size_bytes": 90112,
+      "size_pretty": "88 kB",
+      "column_count": 8,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "web_union_profiles",
+      "row_count": 295,
+      "size_bytes": 1638400,
+      "size_pretty": "1600 kB",
+      "column_count": 25,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "whd_cases",
+      "row_count": 363365,
+      "size_bytes": 447676416,
+      "size_pretty": "427 MB",
+      "column_count": 27,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "whd_f7_matches",
+      "row_count": 24610,
+      "size_bytes": 6299648,
+      "size_pretty": "6152 kB",
+      "column_count": 7,
+      "has_primary_key": true
+    }
+  ],
+  "views": [
+    {
+      "schema": "public",
+      "name": "all_employers_unified",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 18,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "bls_industry_union_density",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "bls_national_union_trends",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "bls_occupation_union_density",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "bls_state_union_rates",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "flra_olms_crosswalk",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 17,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "flra_olms_enhanced_crosswalk",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 16,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "public_sector_employers",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 18,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "sector_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "union_sector_coverage",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_990_by_org_type",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_990_by_state",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_990_olms_matched",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 15,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_affiliation_adjustment_factors",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 11,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_affiliation_industry_coverage",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_affiliation_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_afscme_targeting_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_afscme_targets_by_city",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_afscme_targets_by_industry",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_all_organizing_events",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 17,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_arts_entertainment_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_arts_entertainment_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_arts_entertainment_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_bls_coverage_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_bls_industry_density_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_bls_occupation_census_link",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_bls_sector_coverage",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_broadcasting_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_broadcasting_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_broadcasting_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_building_services_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_building_services_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_building_services_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_cbsa_state_lookup",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 3,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_city_cbsa_lookup",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_civic_organizations_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_civic_organizations_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_civic_organizations_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_county_density_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 10,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_dedup_summary_by_affiliation",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_dedup_summary_by_level",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_deduplicated_membership",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_deduplication_comparison",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 3,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_education_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_education_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_education_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_employer_industry_outlook",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 16,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_employer_naics_enhanced",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 17,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_employer_safety_profile",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 26,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_employer_search",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 18,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_employer_with_agreements",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 28,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_employers_with_naics",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 20,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_epi_national_trend",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_epi_national_yoy",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_epi_platform_validation",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_epi_state_demographics",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_epi_state_latest",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_dedup_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 2,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_employer_safety_profile",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 19,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_employers_adjusted",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 13,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_employers_current",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 36,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_employers_fully_adjusted",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_for_bls_counts",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 27,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_private_sector_cleaned",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_private_sector_reconciled",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_reconciled_private_sector",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_reconciliation_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_union_matched",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 11,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_f7_union_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 19,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_food_service_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_food_service_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_food_service_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_government_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_government_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_government_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_ambulatory_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_ambulatory_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_ambulatory_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_hospitals_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_hospitals_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_hospitals_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_nursing_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_nursing_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_healthcare_nursing_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_hierarchy_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_high_wage_growing_occupations",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_hospitality_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_hospitality_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_hospitality_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_industry_growth_opportunities",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_industry_naics_coverage",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_industry_top_occupations",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 15,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_industry_union_risk",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_information_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_information_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_information_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_lm_with_f7_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 15,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_match_status_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_membership_by_affiliation",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_membership_by_sector",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_membership_by_state",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_multi_employer_groups",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_museum_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 35,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_museum_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_museum_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 15,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_naics_to_census_industry",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 3,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_naics_union_density",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_nlrb_election_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 14,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_nyc_employer_violations_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_occupation_union_outlook",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_organizing_by_state",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_organizing_by_year",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_organizing_scorecard",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 35,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_osha_establishment_search",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 27,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_osha_high_severity_recent",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 14,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_osha_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 18,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_osha_state_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_other_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_other_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_other_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_platform_master_metrics",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_platform_metrics",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_professional_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_professional_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_professional_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_ps_state_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 5,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_public_sector_coverage_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 11,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_public_sector_gap_estimate",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 11,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_public_sector_members",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_public_sector_state_recon",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_publishing_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_publishing_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_publishing_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_repair_services_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_repair_services_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_repair_services_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_sector_coverage_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_sector_statistics",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_sector_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_seiu_nj_employers",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 10,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_soc_occupation_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_social_services_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_social_services_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_social_services_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_state_county_comparison",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_state_density_by_govt_level",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 14,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_state_density_latest",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_state_epi_comparison",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 23,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_state_overview",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_state_union_activity",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_teamsters_comparison",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 17,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_top_afscme_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 31,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_top_unions_by_membership",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_transit_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_transit_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_transit_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_unified_by_affiliation",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 4,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_unified_membership",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 9,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_activity_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 13,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_display_names",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 10,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_f7_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_lm_detail",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 18,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_local_search",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 16,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_members_counted",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 18,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_members_deduplicated",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 18,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_naics_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 8,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_union_name_lookup",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_utilities_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_utilities_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_utilities_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_affiliation_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 10,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_by_affiliation",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_by_state",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_by_year",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 6,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_cases_full",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 37,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_data_quality",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 2,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_map_data",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_new_employers",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 11,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_state_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 10,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 22,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_summary_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 11,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_to_f7_pipeline",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 13,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_vr_yearly_summary",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 10,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_waste_mgmt_organizing_targets",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 40,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_waste_mgmt_target_stats",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 7,
+      "type": "view"
+    },
+    {
+      "schema": "public",
+      "name": "v_waste_mgmt_unionized",
+      "size_bytes": 0,
+      "size_pretty": "0 bytes",
+      "column_count": 12,
+      "type": "view"
+    }
+  ],
+  "materialized_views": [
+    {
+      "schema": "public",
+      "name": "mv_employer_features",
+      "size_bytes": 10608640,
+      "size_pretty": "10 MB",
+      "column_count": 0,
+      "row_count": 54968,
+      "type": "materialized_view"
+    },
+    {
+      "schema": "public",
+      "name": "mv_employer_search",
+      "size_bytes": 60907520,
+      "size_pretty": "58 MB",
+      "column_count": 0,
+      "row_count": 170775,
+      "type": "materialized_view"
+    },
+    {
+      "schema": "public",
+      "name": "mv_organizing_scorecard",
+      "size_bytes": 9486336,
+      "size_pretty": "9264 kB",
+      "column_count": 0,
+      "row_count": 24841,
+      "type": "materialized_view"
+    },
+    {
+      "schema": "public",
+      "name": "mv_whd_employer_agg",
+      "size_bytes": 79273984,
+      "size_pretty": "76 MB",
+      "column_count": 0,
+      "row_count": 330419,
+      "type": "materialized_view"
+    }
+  ],
+  "categories": {
+    "Core (unions, employers, relations)": {
+      "table_count": 22,
+      "total_rows": 1918898,
+      "total_size_bytes": 462274560
+    },
+    "NLRB (elections, cases, participants)": {
+      "table_count": 16,
+      "total_rows": 5864438,
+      "total_size_bytes": 1301577728
+    },
+    "OSHA (establishments, violations)": {
+      "table_count": 9,
+      "total_rows": 4473178,
+      "total_size_bytes": 1395949568
+    },
+    "Corporate (GLEIF, SEC, crosswalk)": {
+      "table_count": 28,
+      "total_rows": 54506731,
+      "total_size_bytes": 14583799808
+    },
+    "Geographic (QCEW, BLS, density)": {
+      "table_count": 30,
+      "total_rows": 2193046,
+      "total_size_bytes": 428212224
+    },
+    "Matching (splink, fuzzy matches)": {
+      "table_count": 14,
+      "total_rows": 1235800,
+      "total_size_bytes": 444710912
+    },
+    "Other/Unknown": {
+      "table_count": 50,
+      "total_rows": 6467448,
+      "total_size_bytes": 2626740224
+    }
+  },
+  "top20_by_size": [
+    {
+      "schema": "gleif",
+      "name": "entity_statement",
+      "row_count": 5667010,
+      "size_bytes": 2561630208,
+      "size_pretty": "2443 MB",
+      "column_count": 20,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "ooc_statement",
+      "row_count": 5758526,
+      "size_bytes": 2489171968,
+      "size_pretty": "2374 MB",
+      "column_count": 16,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "ooc_annotations",
+      "row_count": 10783856,
+      "size_bytes": 2332311552,
+      "size_pretty": "2224 MB",
+      "column_count": 8,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "entity_annotations",
+      "row_count": 5667010,
+      "size_bytes": 1275060224,
+      "size_pretty": "1216 MB",
+      "column_count": 8,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "person_statement",
+      "row_count": 2826102,
+      "size_bytes": 1150246912,
+      "size_pretty": "1097 MB",
+      "column_count": 16,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "entity_addresses",
+      "row_count": 6706686,
+      "size_bytes": 956645376,
+      "size_pretty": "912 MB",
+      "column_count": 6,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "entity_identifiers",
+      "row_count": 6706686,
+      "size_bytes": 873816064,
+      "size_pretty": "833 MB",
+      "column_count": 5,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "sam_entities",
+      "row_count": 826042,
+      "size_bytes": 866058240,
+      "size_pretty": "826 MB",
+      "column_count": 26,
+      "has_primary_key": true
+    },
+    {
+      "schema": "gleif",
+      "name": "ooc_interests",
+      "row_count": 5748906,
+      "size_bytes": 857817088,
+      "size_pretty": "818 MB",
+      "column_count": 7,
+      "has_primary_key": false
+    },
+    {
+      "schema": "gleif",
+      "name": "person_annotations",
+      "row_count": 2826102,
+      "size_bytes": 674586624,
+      "size_pretty": "643 MB",
+      "column_count": 8,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "osha_establishments",
+      "row_count": 1007217,
+      "size_bytes": 672628736,
+      "size_pretty": "641 MB",
+      "column_count": 15,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "nlrb_participants",
+      "row_count": 1906542,
+      "size_bytes": 601956352,
+      "size_pretty": "574 MB",
+      "column_count": 17,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "mergent_employers",
+      "row_count": 56426,
+      "size_bytes": 578527232,
+      "size_pretty": "552 MB",
+      "column_count": 111,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "osha_violations_detail",
+      "row_count": 2245020,
+      "size_bytes": 451575808,
+      "size_pretty": "431 MB",
+      "column_count": 10,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "whd_cases",
+      "row_count": 363365,
+      "size_bytes": 447676416,
+      "size_pretty": "427 MB",
+      "column_count": 27,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "ar_disbursements_emp_off",
+      "row_count": 2813248,
+      "size_bytes": 404701184,
+      "size_pretty": "386 MB",
+      "column_count": 20,
+      "has_primary_key": false
+    },
+    {
+      "schema": "public",
+      "name": "qcew_annual",
+      "row_count": 1943426,
+      "size_bytes": 365338624,
+      "size_pretty": "348 MB",
+      "column_count": 19,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "epi_union_membership",
+      "row_count": 1420064,
+      "size_bytes": 327393280,
+      "size_pretty": "312 MB",
+      "column_count": 14,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "national_990_filers",
+      "row_count": 586767,
+      "size_bytes": 326762496,
+      "size_pretty": "312 MB",
+      "column_count": 18,
+      "has_primary_key": true
+    },
+    {
+      "schema": "public",
+      "name": "gleif_us_entities",
+      "row_count": 379192,
+      "size_bytes": 325451776,
+      "size_pretty": "310 MB",
+      "column_count": 15,
+      "has_primary_key": true
+    }
+  ],
+  "empty_tables": [
+    {
+      "schema": "public",
+      "name": "platform_users",
+      "row_count": 0,
+      "size_bytes": 40960,
+      "size_pretty": "40 kB",
+      "column_count": 5,
+      "has_primary_key": true
+    }
+  ],
+  "suspicious_tables": []
+}

@@ -29,8 +29,7 @@
 - ~~Frontend is a 10K-line monolith~~ FIXED (Sprint 6: split into CSS + 10 JS files)
 - LIMIT 500 pre-filter bug in scorecard
 - No data freshness tracking
-- No FMCS contract expiration data
-- No ULP integration
+- No national ULP data (Sprint 5)
 - 73% of indexes never scanned (2.1 GB wasted)
 
 ### Completed Since Audit
@@ -254,23 +253,13 @@ Tasks:
 
 ---
 
-## Sprint 5: New Data Sources (Medium)
-**Goal:** Add the two highest-value datasets identified by auditors.
-**Effort:** 5-7 days
+## Sprint 5: New Data Sources & Freshness (Medium)
+**Goal:** Surface ULP retaliation history and track data currency.
+**Effort:** 3-4 days
 
-### 5.1 FMCS contract expiration data
-**Flagged by:** Gemini (unique catch, highest-priority new data source)
-**Why:** When a union contract expires, that's a critical organizing moment. This is the #1 timing signal.
+**Note:** FMCS contract expiration data was evaluated and removed from scope. Most of it is already compiled at https://www.bargainingforthecommongood.org/mapping-landing/ — no need to duplicate.
 
-Tasks:
-- [ ] Research FMCS data availability (fmcs.gov, bulk download or API)
-- [ ] Create `fmcs_contract_expirations` table
-- [ ] ETL script: `scripts/etl/load_fmcs.py`
-- [ ] Match to F7 employers (name+state, EIN if available)
-- [ ] Add API endpoint: `/api/organizing/expiring-contracts?months=6`
-- [ ] Add to territory mode: "X contracts expiring in next 6 months"
-
-### 5.2 ULP (Unfair Labor Practice) integration
+### 5.1 ULP (Unfair Labor Practice) integration
 **Flagged by:** Claude
 **Why:** Every organizer needs to know which employers retaliate. #1 missing dataset for field use.
 **Note:** NLRB ULP data partially exists (nyc_ulp_open/closed tables). Need national coverage.
@@ -283,7 +272,7 @@ Tasks:
 - [ ] Add to employer deep dive profile
 - [ ] API endpoint: `/api/nlrb/ulp/employer/{id}`
 
-### 5.3 Add data freshness tracking
+### 5.2 Add data freshness tracking
 **Flagged by:** Claude
 **Why:** Organizers need to know if data is from 2025 or 2018.
 
@@ -447,7 +436,15 @@ Tasks:
 - [ ] Weight recent violations more than old ones
 - [ ] A 2025 violation matters more than a 2015 one
 
-### 9.5 Evidence packet export
+### 9.5 F7 employer deduplication & worker count accuracy
+**Flagged by:** Manual QA (Sprint 6 frontend review)
+**Issue:** Multi-employer F7 agreements (SAG-AFTRA, etc.) create duplicate employer rows with inflated worker counts. Sorting by "workers" surfaces public-sector entities and repeated entries.
+- [ ] Dedup F7 employers by union f_num + fuzzy employer name to collapse duplicate agreements
+- [ ] Distinguish F7 `unit_size` (covered workers) from OSHA `employee_count` (actual employees) in UI
+- [ ] Filter or flag multi-employer agreements ("All Signatories to...", "Joint Policy Committee", etc.)
+- [ ] Consider capping displayed unit_size or adding a "multi-employer agreement" badge
+
+### 9.6 Evidence packet export
 **Flagged by:** Codex (unique catch)
 - [ ] Generate printable bundle: safety record + wage theft + elections + comparables
 - [ ] Single downloadable PDF for campaign use
@@ -459,7 +456,7 @@ Tasks:
 ### Data Sources to Evaluate
 | Source | Champion | Value |
 |--------|----------|-------|
-| FMCS contract expirations | Gemini | Contract timing = #1 organizing signal |
+| FMCS contract expirations | Gemini | Removed from scope — already compiled at bargainingforthecommongood.org |
 | CPS microdata (IPUMS) | Roadmap v3 | Granular density at industry x geography x occupation |
 | State PERB data (NY, CA, IL) | Roadmap v3 | Public employment relations boards |
 | FEC/OpenSecrets PAC data | Gemini | Political contribution tracking |
@@ -494,7 +491,7 @@ Tasks:
 | **2: Deployment Blockers** | CRITICAL | 2-3 days | Auth enabled, CORS restricted |
 | **3: Scoring & Performance** | HIGH | 2-3 days | LIMIT 500 bug fixed, scorecard cached |
 | **4: Test Coverage** | HIGH | DONE | 97 tests: 51 matching + 39 scoring + 7 integrity |
-| **5: New Data Sources** | MEDIUM | 5-7 days | FMCS + ULP integrated |
+| **5: New Data Sources & Freshness** | MEDIUM | 3-4 days | ULP integrated, data freshness tracked |
 | **6: Frontend Improvements** | MEDIUM | DONE | 10,506 -> 2,139 HTML + 11 CSS/JS files |
 | **7: Database Cleanup** | MEDIUM | 1-2 days | ~3.5 GB recovered, PK added |
 | **8: Deployment Infrastructure** | LOW | 1-2 weeks | Docker + CI/CD |

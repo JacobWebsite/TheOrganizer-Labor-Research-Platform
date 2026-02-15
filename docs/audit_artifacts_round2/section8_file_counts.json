@@ -1,0 +1,245 @@
+{
+  "total_files": 5513,
+  "extension_counts_top30": [
+    [
+      ".txt",
+      1660
+    ],
+    [
+      "<no_ext>",
+      1292
+    ],
+    [
+      ".py",
+      798
+    ],
+    [
+      ".csv",
+      700
+    ],
+    [
+      ".xlsx",
+      330
+    ],
+    [
+      ".md",
+      139
+    ],
+    [
+      ".pdf",
+      129
+    ],
+    [
+      ".sql",
+      103
+    ],
+    [
+      ".pyc",
+      94
+    ],
+    [
+      ".html",
+      55
+    ],
+    [
+      ".zip",
+      53
+    ],
+    [
+      ".json",
+      34
+    ],
+    [
+      ".rtf",
+      27
+    ],
+    [
+      ".db",
+      21
+    ],
+    [
+      ".sample",
+      14
+    ],
+    [
+      ".bat",
+      12
+    ],
+    [
+      ".js",
+      11
+    ],
+    [
+      ".xls",
+      4
+    ],
+    [
+      ".7z",
+      3
+    ],
+    [
+      ".png",
+      3
+    ],
+    [
+      ".jsx",
+      3
+    ],
+    [
+      ".exe",
+      3
+    ],
+    [
+      ".xml",
+      2
+    ],
+    [
+      ".fips",
+      2
+    ],
+    [
+      ".indy",
+      2
+    ],
+    [
+      ".occupation",
+      2
+    ],
+    [
+      ".series",
+      2
+    ],
+    [
+      ".alldata",
+      2
+    ],
+    [
+      ".example",
+      1
+    ],
+    [
+      ".ini",
+      1
+    ]
+  ],
+  "dir_summary": {
+    "scripts": {
+      "file_count": 535,
+      "line_count_py": 99378,
+      "top_ext": [
+        [
+          ".py",
+          494
+        ],
+        [
+          ".pyc",
+          34
+        ],
+        [
+          ".json",
+          5
+        ],
+        [
+          ".sql",
+          1
+        ],
+        [
+          ".txt",
+          1
+        ]
+      ]
+    },
+    "sql": {
+      "file_count": 34,
+      "line_count_py": 0,
+      "top_ext": [
+        [
+          ".sql",
+          34
+        ]
+      ]
+    },
+    "api": {
+      "file_count": 58,
+      "line_count_py": 8026,
+      "top_ext": [
+        [
+          ".py",
+          29
+        ],
+        [
+          ".pyc",
+          29
+        ]
+      ]
+    },
+    "files": {
+      "file_count": 15,
+      "line_count_py": 0,
+      "top_ext": [
+        [
+          ".js",
+          10
+        ],
+        [
+          ".html",
+          4
+        ],
+        [
+          ".css",
+          1
+        ]
+      ]
+    },
+    "tests": {
+      "file_count": 15,
+      "line_count_py": 2238,
+      "top_ext": [
+        [
+          ".pyc",
+          8
+        ],
+        [
+          ".py",
+          7
+        ]
+      ]
+    },
+    "docs": {
+      "file_count": 36,
+      "line_count_py": 0,
+      "top_ext": [
+        [
+          ".md",
+          19
+        ],
+        [
+          ".json",
+          9
+        ],
+        [
+          ".csv",
+          5
+        ],
+        [
+          ".pdf",
+          3
+        ]
+      ]
+    },
+    "src": {
+      "file_count": 2,
+      "line_count_py": 300,
+      "top_ext": [
+        [
+          ".sql",
+          1
+        ],
+        [
+          ".py",
+          1
+        ]
+      ]
+    }
+  }
+}

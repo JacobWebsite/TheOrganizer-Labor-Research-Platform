@@ -1,0 +1,86 @@
+{
+  "f7_to_osha": {
+    "matched_f7_employers": 28848,
+    "total_f7_employers": 113713,
+    "match_rate_pct": 25.37,
+    "avg_match_confidence": 0.6850190111319936,
+    "matched_osha_establishments": 138340,
+    "total_osha_establishments": 1007217,
+    "unmatched_osha_establishments": 868877,
+    "osha_establishment_match_rate_pct": 13.73
+  },
+  "f7_to_nlrb": {
+    "method": "participant bridge (matched_employer_id + case_number join)",
+    "matched_f7_employers": 5548,
+    "total_f7_employers": 113713,
+    "f7_match_rate_pct": 4.88,
+    "linked_nlrb_elections": 10679,
+    "total_nlrb_elections": 33096,
+    "election_link_rate_pct": 32.27
+  },
+  "crosswalk": {
+    "f7_employers_with_crosswalk": 17280,
+    "total_f7_employers": 113713,
+    "crosswalk_rate_pct": 15.2,
+    "identifier_coverage_counts": {
+      "gleif_identifier": 1913,
+      "mergent_duns": 1045,
+      "sec_cik": 650,
+      "ein": 7720
+    },
+    "employers_with_more_than_one_identifier": 1400,
+    "pct_with_more_than_one_identifier": 8.1
+  },
+  "public_sector": {
+    "detected_tables": [
+      "public.ps_employers",
+      "public.public_sector_employers"
+    ],
+    "locals_linked_to_unions_master": 1179,
+    "total_public_sector_locals": 1520,
+    "locals_link_rate_pct": 77.57,
+    "public_employers_with_bargaining_unit_data": 420,
+    "total_public_employers": 7987,
+    "public_employer_bu_rate_pct": 5.26
+  },
+  "unified_employer_view": {
+    "table_used": "public.v_employer_search",
+    "total_rows": 113740,
+    "rows_with_coordinates": 99571,
+    "coordinates_pct": 87.54,
+    "rows_with_naics": 107440,
+    "naics_pct": 94.46
+  },
+  "match_rate_summary": {
+    "F7 employers -> OSHA": {
+      "matched": 28848,
+      "total": 113713,
+      "rate_pct": 25.37
+    },
+    "F7 employers -> NLRB": {
+      "matched": 5548,
+      "total": 113713,
+      "rate_pct": 4.88
+    },
+    "F7 employers -> Crosswalk": {
+      "matched": 17280,
+      "total": 113713,
+      "rate_pct": 15.2
+    },
+    "NLRB elections -> Known union": {
+      "matched": 29577,
+      "total": 33096,
+      "rate_pct": 89.37
+    },
+    "Public sector locals -> unions_master": {
+      "matched": 1179,
+      "total": 1520,
+      "rate_pct": 77.57
+    }
+  },
+  "notes": [
+    "public.v_employer_search has no explicit source column among expected names.",
+    "Public sector mappings: ps_union_locals.f_num -> unions_master.f_num; bargaining coverage from ps_bargaining_units.employer_id -> ps_employers.id.",
+    "NLRB known-union metric derived via nlrb_participants.matched_olms_fnum joined by case context, not from nlrb_elections native union columns."
+  ]
+}

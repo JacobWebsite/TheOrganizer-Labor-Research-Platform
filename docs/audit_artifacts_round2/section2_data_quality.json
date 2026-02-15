@@ -1,0 +1,287 @@
+{
+  "completeness": {
+    "public.f7_employers_deduped": {
+      "total_rows": 113713,
+      "columns": {
+        "employer_name": {
+          "actual_column": "employer_name",
+          "data_type": "text",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 113713,
+          "filled_pct": 100.0
+        },
+        "city": {
+          "actual_column": "city",
+          "data_type": "text",
+          "null_count": 2446,
+          "empty_count": 0,
+          "filled_count": 111267,
+          "filled_pct": 97.85
+        },
+        "state": {
+          "actual_column": "state",
+          "data_type": "text",
+          "null_count": 2752,
+          "empty_count": 0,
+          "filled_count": 110961,
+          "filled_pct": 97.58
+        },
+        "naics": {
+          "actual_column": "naics",
+          "data_type": "text",
+          "null_count": 6299,
+          "empty_count": 0,
+          "filled_count": 107414,
+          "filled_pct": 94.46
+        },
+        "lat": {
+          "actual_column": "latitude",
+          "data_type": "real",
+          "null_count": 14167,
+          "empty_count": 0,
+          "filled_count": 99546,
+          "filled_pct": 87.54
+        },
+        "lon": {
+          "actual_column": "longitude",
+          "data_type": "real",
+          "null_count": 14167,
+          "empty_count": 0,
+          "filled_count": 99546,
+          "filled_pct": 87.54
+        },
+        "latest_unit_size": {
+          "actual_column": "latest_unit_size",
+          "data_type": "integer",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 113713,
+          "filled_pct": 100.0
+        }
+      },
+      "missing_columns": [],
+      "mapped_columns": {
+        "lat": "latitude",
+        "lon": "longitude"
+      }
+    },
+    "public.unions_master": {
+      "total_rows": 26665,
+      "columns": {
+        "union_name": {
+          "actual_column": "union_name",
+          "data_type": "character varying",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 26665,
+          "filled_pct": 100.0
+        },
+        "aff_abbr": {
+          "actual_column": "aff_abbr",
+          "data_type": "character varying",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 26665,
+          "filled_pct": 100.0
+        },
+        "members": {
+          "actual_column": "members",
+          "data_type": "integer",
+          "null_count": 1744,
+          "empty_count": 0,
+          "filled_count": 24921,
+          "filled_pct": 93.46
+        },
+        "city": {
+          "actual_column": "city",
+          "data_type": "character varying",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 26665,
+          "filled_pct": 100.0
+        },
+        "state": {
+          "actual_column": "state",
+          "data_type": "character",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 26665,
+          "filled_pct": 100.0
+        }
+      },
+      "missing_columns": [],
+      "mapped_columns": {}
+    },
+    "public.osha_establishments": {
+      "total_rows": 1007217,
+      "columns": {
+        "estab_name": {
+          "actual_column": "estab_name",
+          "data_type": "text",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 1007217,
+          "filled_pct": 100.0
+        },
+        "city": {
+          "actual_column": "site_city",
+          "data_type": "character varying",
+          "null_count": 0,
+          "empty_count": 1934,
+          "filled_count": 1005283,
+          "filled_pct": 99.81
+        },
+        "state": {
+          "actual_column": "site_state",
+          "data_type": "character varying",
+          "null_count": 0,
+          "empty_count": 135,
+          "filled_count": 1007082,
+          "filled_pct": 99.99
+        },
+        "sic_code": {
+          "actual_column": "sic_code",
+          "data_type": "character varying",
+          "null_count": 773775,
+          "empty_count": 0,
+          "filled_count": 233442,
+          "filled_pct": 23.18
+        },
+        "naics_code": {
+          "actual_column": "naics_code",
+          "data_type": "character varying",
+          "null_count": 1856,
+          "empty_count": 0,
+          "filled_count": 1005361,
+          "filled_pct": 99.82
+        }
+      },
+      "missing_columns": [],
+      "mapped_columns": {
+        "city": "site_city",
+        "state": "site_state"
+      }
+    },
+    "public.nlrb_elections": {
+      "total_rows": 33096,
+      "columns": {
+        "eligible_voters": {
+          "actual_column": "eligible_voters",
+          "data_type": "integer",
+          "null_count": 156,
+          "empty_count": 0,
+          "filled_count": 32940,
+          "filled_pct": 99.53
+        },
+        "union_won": {
+          "actual_column": "union_won",
+          "data_type": "boolean",
+          "null_count": 303,
+          "empty_count": 0,
+          "filled_count": 32793,
+          "filled_pct": 99.08
+        }
+      },
+      "missing_columns": [
+        "employer_name",
+        "city",
+        "state",
+        "votes_for",
+        "votes_against"
+      ],
+      "mapped_columns": {}
+    },
+    "public.mergent_employers": {
+      "total_rows": 56426,
+      "columns": {
+        "company_name": {
+          "actual_column": "company_name",
+          "data_type": "text",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 56426,
+          "filled_pct": 100.0
+        },
+        "duns": {
+          "actual_column": "duns",
+          "data_type": "character varying",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 56426,
+          "filled_pct": 100.0
+        },
+        "ein": {
+          "actual_column": "ein",
+          "data_type": "character varying",
+          "null_count": 31627,
+          "empty_count": 0,
+          "filled_count": 24799,
+          "filled_pct": 43.95
+        },
+        "employees_site": {
+          "actual_column": "employees_site",
+          "data_type": "integer",
+          "null_count": 0,
+          "empty_count": 0,
+          "filled_count": 56426,
+          "filled_pct": 100.0
+        },
+        "naics_primary": {
+          "actual_column": "naics_primary",
+          "data_type": "character varying",
+          "null_count": 1537,
+          "empty_count": 0,
+          "filled_count": 54889,
+          "filled_pct": 97.28
+        }
+      },
+      "missing_columns": [],
+      "mapped_columns": {}
+    }
+  },
+  "duplicates": {
+    "f7_employers_deduped (employer_name,state)": {
+      "duplicate_groups": 1840,
+      "rows_in_duplicate_groups": 3872,
+      "duplicate_rows_beyond_first": 2032
+    },
+    "osha_establishments (estab_name,site_city,site_state)": {
+      "duplicate_groups": 56149,
+      "rows_in_duplicate_groups": 139634,
+      "duplicate_rows_beyond_first": 83485
+    },
+    "nlrb_elections (case_number)": {
+      "duplicate_groups": 1604,
+      "rows_in_duplicate_groups": 3415,
+      "duplicate_rows_beyond_first": 1811
+    }
+  },
+  "orphans": {
+    "f7_union_employer_relations.employer_id -> f7_employers_deduped.employer_id": {
+      "orphan_count": 0,
+      "total_references": 119445,
+      "orphan_pct": 0.0
+    },
+    "f7_union_employer_relations.f_num -> unions_master.f_num (mapped via union_file_number)": {
+      "orphan_count": 824,
+      "total_references": 119445,
+      "orphan_pct": 0.69
+    },
+    "nlrb_participants.case_number -> nlrb_elections.case_number": {
+      "orphan_count": 1760408,
+      "total_references": 1906542,
+      "orphan_pct": 92.34
+    },
+    "osha_f7_matches.employer_id -> f7_employers_deduped.employer_id (mapped via f7_employer_id)": {
+      "orphan_count": 0,
+      "total_references": 138340,
+      "orphan_pct": 0.0
+    },
+    "osha_f7_matches.establishment_id -> osha_establishments.establishment_id": {
+      "orphan_count": 0,
+      "total_references": 138340,
+      "orphan_pct": 0.0
+    }
+  }
+}
