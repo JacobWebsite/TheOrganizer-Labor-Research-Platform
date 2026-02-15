@@ -380,6 +380,7 @@ def get_organizing_scorecard(
                     'has_f7_match': r['has_f7_match'],
                     'has_federal_contracts': r['has_federal_contracts'],
                     'federal_obligations': float(r['federal_obligations']) if r['federal_obligations'] else None,
+                    'federal_contract_count': r['federal_contract_count'] or 0,
                     'organizing_score': r['organizing_score'],
                     'osha_industry_ratio': float(r['osha_industry_ratio']) if r['osha_industry_ratio'] is not None else None,
                     'score_breakdown': {

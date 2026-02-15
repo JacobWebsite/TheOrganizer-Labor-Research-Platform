@@ -111,12 +111,16 @@ async function updateScorecardFilters() {
             const response = await fetch(`${API_BASE}/sectors/${sector}/summary`);
             if (response.ok) {
                 const data = await response.json();
+                const safeSector = escapeHtml(String(data.sector || ''));
+                const targetCount = Number(data.targets?.target_count) || 0;
+                const unionizedCount = Number(data.unionized?.unionized_count) || 0;
+                const densityPct = Number(data.union_density_pct) || 0;
                 statsEl.classList.remove('hidden');
                 statsEl.innerHTML = `
-                    <span class="font-semibold">${data.sector}</span>:
-                    <span class="text-green-600">${data.targets?.target_count || 0} targets</span> \u00B7
-                    <span class="text-blue-600">${data.unionized?.unionized_count || 0} unionized</span> \u00B7
-                    <span>${data.union_density_pct}% density</span>
+                    <span class="font-semibold">${safeSector}</span>:
+                    <span class="text-green-600">${targetCount} targets</span> \u00B7
+                    <span class="text-blue-600">${unionizedCount} unionized</span> \u00B7
+                    <span>${densityPct}% density</span>
                 `;
             }
 
@@ -331,7 +335,7 @@ function renderMiniScoreBar(breakdown, source = 'osha') {
         segments = [
             { value: breakdown.company_unions || 0, max: 20, color: 'bg-indigo-500', label: 'Union Shops' },
             { value: breakdown.industry_density || 0, max: 10, color: 'bg-blue-500', label: 'Industry' },
-            { value: breakdown.state_density || 0, max: 10, color: 'bg-purple-500', label: 'State' },
+            { value: breakdown.geographic || 0, max: 10, color: 'bg-purple-500', label: 'Geographic' },
             { value: breakdown.size || 0, max: 10, color: 'bg-yellow-500', label: 'Size' },
             { value: breakdown.osha || 0, max: 10, color: 'bg-red-500', label: 'OSHA' },
             { value: breakdown.nlrb || 0, max: 10, color: 'bg-green-500', label: 'NLRB' },
@@ -517,6 +521,12 @@ function renderScorecardDetail(detail) {
     const violations = detail.violations || {};
     const contracts = detail.contracts || {};
     const context = detail.context || {};
+    const organizingScoreValue = Number(detail.organizing_score) || 0;
+    const organizingScoreColor = getScoreColor(organizingScoreValue);
+    const predictedWinPct = Number(detail.nlrb_context?.predicted_win_pct);
+    const nlrbDescription = Number.isFinite(predictedWinPct)
+        ? `Predicted ${predictedWinPct.toFixed(0)}% win probability`
+        : 'Past election activity for this employer';
 
     el.innerHTML = `
         <!-- Header -->
@@ -536,7 +546,7 @@ function renderScorecardDetail(detail) {
         <div class="bg-gradient-to-r from-green-50 to-warmgray-50 rounded-lg p-4 mb-6">
             <div class="flex items-center justify-between mb-4">
                 <span class="text-sm font-semibold text-warmgray-700">Organizing Potential Score</span>
-                <span class="text-4xl font-bold ${getScoreColor(detail.organizing_score)}">${detail.organizing_score}</span>
+                <span class="text-4xl font-bold ${organizingScoreColor}">${organizingScoreValue}</span>
             </div>
 
             <div class="space-y-3">
@@ -545,7 +555,7 @@ function renderScorecardDetail(detail) {
                 ${renderScoreRow('Geographic', breakdown.geographic, 10, 'bg-purple-500', 'State union membership vs national average')}
                 ${renderScoreRow('Establishment Size', breakdown.size, 10, 'bg-yellow-500', 'Sweet spot 50-250 employees')}
                 ${renderScoreRow('OSHA Violations', breakdown.osha, 10, 'bg-red-500', 'Workplace safety violations on record')}
-                ${renderScoreRow('NLRB Patterns', breakdown.nlrb, 10, 'bg-green-500', detail.nlrb_context?.predicted_win_pct ? `Predicted ${detail.nlrb_context.predicted_win_pct.toFixed(0)}% win probability` : 'Past election activity for this employer')}
+                ${renderScoreRow('NLRB Patterns', breakdown.nlrb, 10, 'bg-green-500', nlrbDescription)}
                 ${renderScoreRow('Govt Contracts', breakdown.contracts, 10, 'bg-orange-500', 'NY State & NYC contract funding')}
                 ${renderScoreRow('Industry Growth', breakdown.projections, 10, 'bg-teal-500', 'BLS industry employment projections')}
                 ${renderScoreRow('Union Similarity', breakdown.similarity, 10, 'bg-cyan-500', 'Gower distance to unionized employers')}

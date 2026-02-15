@@ -583,6 +583,9 @@ async function loadCorporateFamily(employerId) {
         const unionizedCount = data.unionized_count || 0;
         const totalFamily = data.total_family || 0;
         const unionPct = totalFamily > 0 ? Math.round(100 * unionizedCount / totalFamily) : 0;
+        const totalFamilyDisplay = Number(data.total_family) || 0;
+        const totalWorkersDisplay = formatNumber(Number(data.total_workers) || 0);
+        const statesCountDisplay = Array.isArray(data.states) ? data.states.length : 0;
 
         document.getElementById('corporateContent').innerHTML = `
             <div class="bg-gradient-to-r from-warmgray-100 to-warmgray-50 rounded-lg p-4 border border-warmgray-200">
@@ -601,15 +604,15 @@ async function loadCorporateFamily(employerId) {
                 </div>
                 <div class="grid grid-cols-4 gap-2 text-center">
                     <div class="bg-white rounded-lg p-2">
-                        <div class="text-xl font-bold text-warmgray-900">${data.total_family}</div>
+                        <div class="text-xl font-bold text-warmgray-900">${totalFamilyDisplay}</div>
                         <div class="text-xs text-warmgray-500">Related</div>
                     </div>
                     <div class="bg-white rounded-lg p-2">
-                        <div class="text-xl font-bold text-accent-red">${formatNumber(data.total_workers || 0)}</div>
+                        <div class="text-xl font-bold text-accent-red">${totalWorkersDisplay}</div>
                         <div class="text-xs text-warmgray-500">Workers</div>
                     </div>
                     <div class="bg-white rounded-lg p-2">
-                        <div class="text-xl font-bold text-warmgray-900">${(data.states || []).length}</div>
+                        <div class="text-xl font-bold text-warmgray-900">${statesCountDisplay}</div>
                         <div class="text-xs text-warmgray-500">States</div>
                     </div>
                     <div class="bg-white rounded-lg p-2">
@@ -1625,14 +1628,23 @@ async function selectUnifiedItem(unifiedId) {
 function renderUnifiedDetail(detail) {
     const el = document.getElementById('unifiedDetail');
     const oshaMatches = detail.osha_matches || [];
+    const sourceTypeRaw = String(detail.source_type || '');
+    const sourceBadge = getSourceBadge(sourceTypeRaw);
+    const hasEmployeeCount = Number(detail.employee_count) > 0;
+    const employeeCountDisplay = formatNumber(Number(detail.employee_count) || 0);
+    const hasNaicsCode = Boolean(detail.naics_code);
+    const safeState = escapeHtml(String(detail.state || ''));
+    const safeSourceType = escapeHtml(String(detail.source_type || 'N/A'));
+    const safeSourceId = escapeHtml(String(detail.source_id || 'N/A'));
+    const safeNaicsCode = escapeHtml(String(detail.naics_code || ''));
 
     el.innerHTML = `
         <div class="mb-6">
             <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(detail.employer_name || 'Unknown')}</h3>
-            <p class="text-warmgray-500">${escapeHtml(detail.city || '')}, ${detail.state || ''}</p>
+            <p class="text-warmgray-500">${escapeHtml(detail.city || '')}, ${safeState}</p>
             <div class="flex gap-2 mt-2 flex-wrap">
-                ${getSourceBadge(detail.source_type)}
-                ${detail.employee_count ? `<span class="badge badge-industry">${formatNumber(detail.employee_count)} employees</span>` : ''}
+                ${sourceBadge}
+                ${hasEmployeeCount ? `<span class="badge badge-industry">${employeeCountDisplay} employees</span>` : ''}
                 ${detail.union_name ? `<span class="badge badge-public">${escapeHtml(detail.union_name)}</span>` : ''}
             </div>
         </div>
@@ -1641,9 +1653,9 @@ function renderUnifiedDetail(detail) {
             <div class="bg-warmgray-50 rounded-lg p-4">
                 <h4 class="text-xs font-semibold text-warmgray-500 uppercase mb-2">Source Information</h4>
                 <div class="text-sm space-y-1">
-                    <div><span class="text-warmgray-500">Source:</span> ${detail.source_type || 'N/A'}</div>
-                    <div><span class="text-warmgray-500">Source ID:</span> ${detail.source_id || 'N/A'}</div>
-                    ${detail.naics_code ? `<div><span class="text-warmgray-500">NAICS:</span> ${detail.naics_code}</div>` : ''}
+                    <div><span class="text-warmgray-500">Source:</span> ${safeSourceType}</div>
+                    <div><span class="text-warmgray-500">Source ID:</span> ${safeSourceId}</div>
+                    ${hasNaicsCode ? `<div><span class="text-warmgray-500">NAICS:</span> ${safeNaicsCode}</div>` : ''}
                 </div>
             </div>
 

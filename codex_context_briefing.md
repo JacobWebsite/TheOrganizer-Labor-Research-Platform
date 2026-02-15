@@ -103,8 +103,15 @@ The frontend was split from a 10,506-line monolith into:
 - Frontend `getScoreReason()` in `scorecard.js` prefers server explanations, falls back to client-side logic
 
 **Remaining known issues:**
-- `f7_employers_deduped` has no primary key
-- 73% of indexes never scanned (2.1 GB wasted space)
+- 3 density endpoints crash (RealDictRow access by index instead of name)
+- 29 scripts have literal-string password bug (`os.environ.get('DB_PASSWORD', '')` as text, not code)
+- 824 union file number orphans (worsened from historical import)
+- Only 37.7% of current employers have NAICS codes (scoring gap)
+- 299 unused indexes wasting 1.67 GB
+- GLEIF raw schema is 12 GB (only 310 MB distilled data used)
+- modals.js is 2,598 lines (secondary monolith)
+- Auth disabled by default (security risk if deployed)
+- Documentation ~55% accurate
 - F7 employer duplicates — multi-employer agreements (SAG-AFTRA) create duplicate rows with inflated worker counts
 - F7 `unit_size` ≠ actual employees — misleading when sorted by "workers"
 
@@ -198,5 +205,53 @@ cur.execute("""
 
 ---
 
-*Last updated: February 14, 2026 (after Sprint 6 completion + review fixes)*
+---
+
+## Current Roadmap (TRUE Roadmap — February 15, 2026)
+
+**Source document:** `Roadmap_TRUE_02_15.md` — supersedes ALL prior roadmaps. Built from Codex+Claude dual-roadmap comparison + 6 owner decisions on disagreements.
+
+**7 Phases, 14 Weeks:**
+
+| Phase | What | Weeks | Key Deliverable |
+|-------|------|-------|-----------------|
+| 1: Fix Broken | Crashes, security, data integrity | Week 1 | Zero critical bugs |
+| 2: Frontend Cleanup | Interface trust and usability | Weeks 2-4 | 4 clear screens, no contradictory scores |
+| 3: Matching Overhaul | Standardize all matching | Weeks 3-7 | Auditable, confidence-scored matching pipeline |
+| 4: New Data Sources | SEC, IRS, CPS, OEWS | Weeks 8-10 | High-value data integrated through standard pipeline |
+| 5: Scoring Evolution | Better scoring model | Weeks 10-12 | Temporal decay + experimental propensity model |
+| 6: Deployment Prep | Docker, CI/CD, scheduling | Weeks 11-14 | Ready for remote access when needed |
+| 7: Intelligence | Scrapers, PERB, reports | Week 14+ | Strategic intelligence features |
+
+**Phase 1 specifics (what you'll review first):**
+- Fix 3 crashing density endpoints (RealDictRow access pattern)
+- Fix 29 scripts with literal-string password bug (replace with `db_config.get_connection()`)
+- Investigate/fix 824 union file number orphans
+- Backfill NAICS codes from OSHA matches (37.7% → 50%+ coverage)
+- Archive 12 GB GLEIF raw schema
+- Enforce authentication by default
+- Fix documentation to match reality
+
+**Phase 3 specifics (major matching work):**
+- Standardized match output format: source, target, method, confidence (HIGH/MEDIUM/LOW), score, run_id, evidence
+- Single canonical name-normalization function (3 levels: standard, aggressive, fuzzy)
+- Deterministic matching improvements (tie-breakers, audit trail of rejected matches)
+- Probabilistic matching via Splink for unresolved cases
+- Match quality dashboard (weekly reports)
+- NLRB bridge view unifying all case types
+
+**Critical path:** Phase 1 → Phase 3 → Phase 4 → Phase 5 Advanced
+**Parallel track:** Phase 2 (frontend) alongside Phase 3 (matching)
+
+**Key owner decisions that shaped this roadmap:**
+1. 14-week timeline (thorough, not rushed)
+2. Frontend cleanup EARLY (organizers need trust in what they see)
+3. New data sources WAIT until matching is standardized
+4. Scoring model planned but doesn't block release
+5. Deployment planned but not urgent (couple months out)
+6. Start with 4 screens, architect for later expansion to 5 areas
+
+---
+
+*Last updated: February 15, 2026 (TRUE Roadmap committed)*
 *Context: This briefing was written so you can effectively review code without needing the full project history.*

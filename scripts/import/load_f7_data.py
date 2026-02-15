@@ -17,7 +17,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'database': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'os.environ.get('DB_PASSWORD', '')',
+    'password': os.environ.get('DB_PASSWORD', ''),
     'sslmode': 'disable'
 }
 

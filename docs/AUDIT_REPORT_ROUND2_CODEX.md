@@ -568,3 +568,219 @@ From git history since 2026-02-13:
 - Current inventory: `docs/audit_artifacts_round2/section1_inventory.json`
 - Delta checks for specific tables/matviews executed live in Section 7 queries
 - Code-change timeline: `git log --since="2026-02-13" --name-only`
+## SECTION 8: Scripts & File System (What Code Exists?)
+
+Artifacts:
+- `docs/audit_artifacts_round2/section8_file_counts.json`
+- `docs/audit_artifacts_round2/section8_scripts_scan.json`
+- `docs/audit_artifacts_round2/section8_dead_refs_refined.json`
+
+### Directory Summary (File Counts)
+
+| Directory | File Count | Notes |
+|---|---:|---|
+| `scripts/` | 535 files total (`494` `.py`) | Main ETL/analysis/matching codebase |
+| `sql/` | 34 `.sql` files | SQL migrations/utilities |
+| `api/` | 56 files | FastAPI app, routers, middleware |
+| `files/` | 15 core frontend files (+ data pages) | Main UI assets |
+| `tests/` | 16 files | Pytest suites |
+| `docs/` | high-volume docs | Audit/review/process docs |
+
+Repository-wide snapshot (for context):
+- Total files: `5,513`
+- Top extensions by count: `.txt`, `<no_ext>`, `.py`, `.csv`, `.xlsx`, `.md`
+
+### Critical Path Scripts (Rebuild/Refresh Priority)
+
+Likely required or central for rebuilding major data layers:
+
+1. `scripts/import/create_f7_schema.py` — initialize core F7/union schema.
+2. `scripts/import/load_f7_data.py` — load F7 employer and union records.
+3. `scripts/import/load_multiyear_olms.py` — load OLMS multiyear filings.
+4. `scripts/etl/create_osha_schema.py` — create OSHA tables.
+5. `scripts/etl/load_whd_national.py` — load WHD enforcement data.
+6. `scripts/etl/load_national_990.py` — load national 990 filers.
+7. `scripts/etl/load_sec_edgar.py` — load SEC company data.
+8. `scripts/etl/load_sam.py` — load SAM/federal entity data.
+9. `scripts/etl/fetch_qcew.py` — load QCEW reference data.
+10. `scripts/etl/load_bls_projections.py` — load BLS projections data.
+11. `scripts/scoring/create_scorecard_mv.py` — build/refresh organizing scorecard MV.
+12. `scripts/maintenance/create_data_freshness.py` — create freshness tracking table.
+
+(Full heuristic list is in `section8_scripts_scan.json` under `critical_path_scripts`.)
+
+### Dead/Outdated Reference Checks
+
+Confirmed scripts referencing objects not present in current DB state:
+
+| Script | Reference | Current DB Status |
+|---|---|---|
+| `scripts/etl/build_corporate_hierarchy.py` | `corporate_ultimate_parents` | Table does not exist |
+| `scripts/etl/fetch_usaspending.py` | `federal_contracts` | Table does not exist |
+| `scripts/matching/splink_pipeline.py` and `scripts/matching/splink_integrate.py` | `splink_match_results` | Table does not exist |
+| `scripts/maintenance/add_indexes.py` | `mv_employers_unified` | Materialized view does not exist |
+
+Notes:
+- Some references are from scripts that *create* these objects; absence likely means those pipelines were not run in current environment.
+- Regardless, these are runtime breakpoints if scripts assume pre-existing objects.
+
+### Credential Scan Results
+
+- No hardcoded leaked password string (e.g., `Juniordog33!`) found in script/SQL scan.
+- One password literal-like hit is a placeholder in migration tooling (`scripts/maintenance/migrate_credentials.py`, snippet `password='...'`), not an active secret.
+- Many scripts still hardcode connection host/user defaults (`host='localhost'`, `user='postgres'`) while using env for password.
+
+### Scheduled/Recurring Script Detection
+
+- No concrete scheduler configuration found (no crontab files, no `schtasks` commands, no task-runner configs in repo).
+- Only documentation mentions suggested cron/task-scheduler usage.
+
+### [?? HIGH] Script Surface Area Is Large With Uneven Lifecycle Hygiene
+
+**What's wrong:** Nearly 500 Python scripts exist in `scripts/`, with many one-off or legacy paths and inconsistent assumptions about object existence.
+**Evidence:** `scripts/` contains 494 `.py` files; dead/outdated references found (e.g., `corporate_ultimate_parents`, `splink_match_results`, `federal_contracts`).
+**Impact:** Rebuild reliability is fragile; operators can trigger failures by running scripts out of sequence or using stale utilities.
+**Suggested fix:** Introduce a maintained “blessed pipeline” manifest (ordered stages + required preconditions), and tag scripts as `active`, `legacy`, or `experimental` (1-2 days).
+**Verified by:** `docs/audit_artifacts_round2/section8_file_counts.json`, `docs/audit_artifacts_round2/section8_dead_refs_refined.json`, direct DB existence checks in Section 8
+
+### [?? MEDIUM] Connection Configuration Patterns Are Inconsistent Across Scripts
+
+**What's wrong:** Many scripts use hardcoded `host='localhost'` and `user='postgres'` defaults while password comes from env.
+**Evidence:** Credential scan found hundreds of `host_localhost_literal` / `db_user_literal` occurrences in scripts.
+**Impact:** Portability suffers across environments (dev/staging/prod or alternate local setups), and operational errors increase.
+**Suggested fix:** Centralize script DB connection through one shared helper (e.g., `db_config.py`) and deprecate inline connection literals (4-8 hours).
+**Verified by:** `docs/audit_artifacts_round2/section8_scripts_scan.json`
+
+### Evidence (Section 8)
+- File inventory/counts: `docs/audit_artifacts_round2/section8_file_counts.json`
+- Script scans (refs/credentials/schedule heuristics): `docs/audit_artifacts_round2/section8_scripts_scan.json`
+- Refined unknown SQL object references: `docs/audit_artifacts_round2/section8_dead_refs_refined.json`
+
+## SECTION 9: Documentation Accuracy
+
+### Corrections Needed: `CLAUDE.md`
+
+| Doc Claim | Live Reality | Required Correction |
+|---|---|---|
+| `mv_employer_search` has `118,015` rows | `170,775` rows | Update table count and note refresh date. |
+| `unified_employers_osha` has `100,768` rows | `100,766` rows | Correct count (small drift but still inaccurate). |
+| Crosswalk F7 coverage is `~12,000` (`10.6%`) | `17,280` distinct F7 employers (`15.20%`) | Update coverage section to current values. |
+| WHD match text implies F7 coverage from `24,610` rows (`6.8%`) | `24,610` is match rows, but only `9,739` distinct F7 employers (`8.56%`) | Clarify row-vs-employer metric to avoid interpretation errors. |
+| Mergent WHD coverage `1,170` (`2.1%`) | `1,396` (`2.47%`) | Update coverage figures. |
+| Main API feature descriptions do not mention known broken density endpoints | `/api/density/by-govt-level`, `/api/density/by-county`, `/api/density/county-summary` return 500 in smoke tests | Add a known-issues section until fixed. |
+| Auth docs do not clearly warn fail-open behavior when `LABOR_JWT_SECRET` is unset | API runs with auth disabled and logs startup warning if secret missing | Add explicit deployment warning and required env var checklist. |
+
+### Corrections Needed: `README.md`
+
+| Doc Claim | Live Reality | Required Correction |
+|---|---|---|
+| "Open `files/organizer_v5.html` in your browser." | Frontend file references absolute `/files/js/config.js`; direct file-open mode is unreliable | Tell users to open `http://localhost:8001/` after starting uvicorn. |
+| Project structure includes `frontend/` | No `frontend/` directory exists in repo root | Replace with `files/` as frontend location. |
+| Data source count: F-7 employers `63,118` | Core table count is `113,713` in `f7_employers_deduped` | Update to current count and explain if `63,118` is a subset metric. |
+| Data source count: NLRB participants `30,399 unions` | `nlrb_participants` table has `1,906,542` rows | Replace with actual table metric or rename to "distinct unions" with query definition. |
+| Data source count: 990 employers `5,942` | `national_990_filers` has `586,767` rows | Update number and scope label. |
+| API section lists a small subset | Live app exposes `152` routes | Add generated endpoint inventory or link to `/docs`. |
+
+### Missing Documentation
+
+- `README.md` and `CLAUDE.md` do not document the modular API layout (`api/main.py` + routers) and still imply a more monolithic reference model.
+- There is no concise, maintained "production startup checklist" covering:
+  - `LABOR_JWT_SECRET` requirement
+  - expected frontend URL (`/`)
+  - smoke-test endpoints to validate after deploy.
+
+### Evidence (Section 9)
+- Live truth snapshot: `docs/audit_artifacts_round2/section9_doc_truth_snapshot.json`
+- Additional claim checks: `docs/audit_artifacts_round2/section9_doc_claim_checks.json`
+- API smoke failures: `docs/audit_artifacts_round2/section4_endpoint_smoketest.json`
+- Source files inspected: `CLAUDE.md`, `README.md`, `api/main.py`, `files/organizer_v5.html`
+
+### [HIGH] Documentation Drift Is Material and Operationally Risky
+
+**What's wrong:** Core documentation contains stale counts and startup guidance that can cause incorrect assumptions during operation or development.
+**Evidence:** Multiple concrete mismatches above (e.g., `mv_employer_search`, crosswalk coverage, startup/open instructions).
+**Impact:** Developers and organizers can misread platform coverage and may fail to launch/test correctly in new environments.
+**Suggested fix:** Add a generated "live metrics" block (nightly refresh) and a deployment runbook section in both docs (2-4 hours).
+**Verified by:** Section 9 artifacts and direct file inspection.
+
+## SECTION 10: Overall Assessment & Recommendations
+
+### 10.1 - Overall Health Score
+NEEDS WORK. The platform has broad, valuable data integration and strong API/frontend coverage, but several high-impact reliability and governance issues remain: auth can fail open if `LABOR_JWT_SECRET` is unset, three density endpoints return 500, cross-dataset links still leave large blind spots (especially OSHA establishment and NLRB participant integrity), and documentation drift is significant enough to mislead operators.
+
+### 10.2 - Top 10 Issues (Ranked by Impact)
+1. [CRITICAL] Auth can run disabled by configuration (`LABOR_JWT_SECRET` unset), leaving endpoints publicly accessible.
+2. [CRITICAL] Three density endpoints return 500 due to cursor/indexing mismatch in `api/routers/density.py`.
+3. [HIGH] NLRB participant linkage integrity is weak (`92.34%` orphan rate on `case_number` relation), reducing trust in election joins.
+4. [HIGH] OSHA linkage coverage remains limited (`25.37%` of F7 employers matched), so many targets lack safety context.
+5. [HIGH] Documentation is materially stale (`CLAUDE.md`, `README.md`) and diverges from live counts and startup behavior.
+6. [HIGH] Script footprint is very large (494 Python scripts) with uneven lifecycle hygiene and stale object assumptions.
+7. [MEDIUM] `pg_stat_user_tables` analyze metadata is mostly stale, increasing risk of poor query plans.
+8. [MEDIUM] WHD/990/crosswalk metrics are inconsistently defined in docs (row-level vs entity-level), causing interpretation errors.
+9. [MEDIUM] DB connection/config patterns are inconsistent across scripts (many hardcoded host/user defaults).
+10. [LOW] Scheduler/automation configuration is undocumented in code, reducing repeatability for routine refresh jobs.
+
+### 10.3 - Quick Wins
+- Fix `density.py` tuple-style indexing against `RealDictCursor` (`stats[0]` -> `stats['avg_federal']` style) and retest 3 failing endpoints.
+- Set `LABOR_JWT_SECRET` in `.env`, register one admin user, and run authenticated smoke tests.
+- Update `README.md` startup steps to use `http://localhost:8001/` and correct `frontend/` -> `files/`.
+- Refresh stale numeric blocks in `CLAUDE.md` from a generated query snapshot.
+- Run `ANALYZE` on high-traffic tables (`f7_employers_deduped`, `osha_establishments`, `whd_cases`, `nlrb_participants`).
+
+### 10.4 - Tables to Consider Dropping
+No high-confidence drop candidates were identified that clearly satisfy all three conditions (no API use, no script use, no apparent purpose).
+
+Low-confidence archival candidates (tiny footprint, low operational value) for manual review:
+- `public.deduplication_methodology` (`11` rows, `32 kB`) - no direct API/script references found.
+- `public.match_status_lookup` (`6` rows, `32 kB`) - appears to overlap with `union_match_status`; validate before removal.
+- `public.match_rate_baselines` (`3` rows, `32 kB`) - appears to be ETL bookkeeping; decide if historical tracking is still needed.
+
+Estimated immediate space savings from dropping these three would be negligible (`~96 kB` total).
+
+### 10.5 - Missing Indexes
+Recommended indexes based on active API query patterns and current index inventory:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_osha_unified_matches_unified_id
+ON public.osha_unified_matches (unified_employer_id);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_osha_unified_matches_estab_id
+ON public.osha_unified_matches (establishment_id);
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_whd_cases_name_trgm
+ON public.whd_cases USING gin (name_normalized gin_trgm_ops);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_whd_cases_trade_trgm
+ON public.whd_cases USING gin (trade_name gin_trgm_ops);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_whd_cases_legal_trgm
+ON public.whd_cases USING gin (legal_name gin_trgm_ops);
+```
+
+Rationale:
+- `api/routers/employers.py` repeatedly joins/filters `osha_unified_matches` on `unified_employer_id` and `establishment_id`, but table currently has only a PK on `id`.
+- `api/routers/whd.py` uses `ILIKE` text search on `trade_name`, `legal_name`, and `name_normalized`; trigram indexes are absent.
+
+### 10.6 - Strategic Recommendations
+
+Should do now:
+- Enforce non-empty `LABOR_JWT_SECRET` in non-dev mode (startup hard-fail).
+- Add endpoint-level smoke tests in CI for organizer-critical routes (especially density, employer detail, scorecard).
+- Publish a generated "live metrics and schema facts" doc that updates from SQL.
+- Create a minimal "blessed pipeline" manifest for data refresh ordering.
+
+Should do eventually:
+- Consolidate script sprawl into versioned pipelines with explicit ownership.
+- Introduce data contracts for high-value joins (F7<->OSHA, participants<->elections, crosswalk tiers).
+- Formalize environment profiles (dev/staging/prod) for API + frontend with one config entrypoint.
+- Reassess retention strategy for large raw GLEIF holdings vs organizer-facing value.
+
+### 10.7 - What's Working Well
+- Strong breadth of integrated labor-relevant data sources in one platform.
+- Frontend/API connectivity is largely coherent: no unmatched frontend API literals in this audit.
+- Core matching infrastructure exists across OSHA, WHD, crosswalk, and public-sector layers.
+- Materialized views for search/scorecard indicate practical performance-minded design.
+- Round 1 issue closure is meaningful on several items (password leak removed, CORS tightened, several schema/index fixes landed).
+

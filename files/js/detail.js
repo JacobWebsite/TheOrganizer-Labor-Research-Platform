@@ -465,11 +465,12 @@ async function loadIndustryProjections(naics2digit, naicsDetailed) {
             const emp2024 = proj.employment_2024 || 0;
             const emp2034 = proj.employment_2034 || 0;
             const industryTitle = proj.industry_title || data.industry_title || 'Industry';
+            const matrixCode = escapeHtml(String(data.matrix_code || ''));
 
             // Update header with specific industry name
             headerEl.innerHTML = `
                 <span class="font-medium">${escapeHtml(industryTitle)}</span>
-                <span class="text-warmgray-400">(${data.matrix_code})</span>
+                <span class="text-warmgray-400">(${matrixCode})</span>
             `;
 
             // Determine color based on growth category
@@ -497,12 +498,13 @@ async function loadIndustryProjections(naics2digit, naicsDetailed) {
 
             // Show occupation toggle if we have a matrix code
             if (currentProjectionMatrixCode && data.occupation_count > 0) {
+                const occupationCount = Number(data.occupation_count) || 0;
                 toggleEl.classList.remove('hidden');
                 toggleEl.innerHTML = `
                     <button onclick="toggleOccupations()" class="flex items-center gap-1 text-xs text-accent-blue hover:text-accent-blue/80 transition-colors">
                         <span id="occupationsToggleIcon">\u25BC</span>
                         <span id="occupationsToggleText">Show Top Occupations</span>
-                        <span class="text-warmgray-400">(${data.occupation_count} jobs)</span>
+                        <span class="text-warmgray-400">(${occupationCount} jobs)</span>
                     </button>
                 `;
             }

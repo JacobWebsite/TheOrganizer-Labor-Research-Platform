@@ -16,7 +16,7 @@ PG_CONFIG = {
     'host': 'localhost',
     'dbname': 'olms_multiyear',
     'user': 'postgres',
-    'password': 'os.environ.get('DB_PASSWORD', '')'
+    'password': os.environ.get('DB_PASSWORD', '')
 }
 BATCH_SIZE = 50000
 START_DATE = '2012-01-01'

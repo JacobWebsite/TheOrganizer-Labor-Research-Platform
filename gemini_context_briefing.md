@@ -79,21 +79,29 @@ We use a combination of text matching (comparing how similar names look), geogra
 
 ---
 
-## Current Platform Numbers
+## Current Platform Numbers (updated Feb 15, 2026)
 
 | What | Count |
 |------|-------|
 | Total union members tracked | 14.5 million (validated against BLS benchmark of 14.3M) |
 | Unions in database | 26,665 |
-| Employers (private sector, current + historical) | ~113,700 |
-| Employers (all sources combined) | ~120,000 |
+| Employers (current) | 60,953 |
+| Employers (historical, expired contracts) | 52,760 |
+| Employers (total in f7_employers_deduped) | 113,713 |
+| Employers (all sources combined, mv_employer_search) | 120,169 |
 | OSHA workplaces | 1,007,217 |
 | Safety violations | 2,245,020 ($3.52B in penalties) |
 | Wage theft cases | 363,365 ($4.7B in stolen wages) |
 | Union elections | 33,096 |
-| API endpoints | 142+ (across 16 routers) |
-| Database tables | 207 |
-| Automated tests | 162 (30 API + 16 auth + 24 data integrity + 51 matching + 39 scoring) |
+| API endpoints | 152 (across 17 routers) |
+| Database tables | 169 |
+| Views | 186 |
+| Materialized views | 4 |
+| Database size | ~20 GB (12 GB is GLEIF raw, archival target) |
+| Total rows | ~23.9M (public) / ~76.7M (with GLEIF raw) |
+| Python scripts | ~494 |
+| Frontend files | 12 (down from 1 monolith) |
+| Automated tests | 165 (33 API + 16 auth + 24 data integrity + 53 matching + 39 scoring) |
 
 ---
 
@@ -145,11 +153,23 @@ For context on questions about current platform capabilities:
 6. **Score explanations** — API now returns `score_explanations` dict with plain-language reasons for each of the 9 scoring factors (e.g., "150 employees -- in the 50-250 organizing sweet spot").
 7. **F7 public-sector banner** — UI now documents that F7 data only covers private-sector employers. Public-sector unions (5.4M members) are tracked through separate state PERB systems.
 
-### Known Data Quality Issues
-8. **Match rates remain low** — OSHA 13.7%, WHD 6.8%, 990 2.4%. Key data gaps: SEC EDGAR full index (300K+ companies), IRS BMF (all nonprofits), SEC 10-K Exhibit 21 (subsidiary lists).
-9. **F7 employer duplicates** — Multi-employer agreements (e.g., SAG-AFTRA with 5+ filings for different contract types) create duplicate rows in search results, all showing the same ~165K workers. F7 `unit_size` is bargaining unit size, not actual employer employees.
-10. **No FMCS data** — Contract expiration dates (#1 timing signal for organizing) not yet integrated.
-11. **No national ULP data** — Unfair labor practice tracking limited to NYC tables.
+### Sprint 5 (Complete) — ULP + Data Freshness
+8. **ULP context** — Unfair labor practice case data linked to employers via NLRB participants. ULP is context (yellow badges), NOT a scoring factor. 9,909 ULP employer participants still unmatched.
+9. **Data freshness tracking** — `data_source_freshness` table tracks 15 sources, ~7M records. Admin endpoints for viewing/refreshing. Frontend footer bar + modal.
+
+### Known Data Quality Issues (updated Feb 15, 2026)
+10. **3 density endpoints crash** — RealDictRow access by index instead of by name.
+11. **29 scripts have password bug** — literal-string `os.environ.get(...)` instead of actual code execution.
+12. **824 union file number orphans** — worsened from 195 after historical employer import.
+13. **Only 37.7% of current employers have NAICS codes** — 71.8% of OSHA records have them (backfill opportunity).
+14. **Match rates (F7 employer perspective):** OSHA 47.3%, WHD 16.0%, 990 11.9%, SAM 7.5%, NLRB 28.7%.
+15. **Match rates (source perspective):** OSHA 13.7%, WHD 6.8%, 990 2.4%. Key data gaps: SEC EDGAR full index (300K+), IRS BMF (1.8M nonprofits), CPS microdata (IPUMS), OEWS staffing patterns.
+16. **GLEIF raw schema is 12 GB** — only 310 MB distilled data used. Archive target.
+17. **299 unused indexes wasting 1.67 GB** — never scanned, scheduled for removal.
+18. **Documentation ~55% accurate** — README has wrong startup command, file paths, scoring description.
+19. **Auth disabled by default** — security system exists but not enforced unless manually enabled.
+20. **F7 employer duplicates** — Multi-employer agreements create duplicate rows. F7 `unit_size` is bargaining unit size, not actual employees.
+21. **No FMCS data** — Contract expiration dates (#1 timing signal) not yet integrated.
 
 ## Architecture Review History
 
@@ -181,5 +201,60 @@ In addition to research and fact-checking, you now serve as **architecture revie
 4. **API design** — Are endpoints well-structured? Do response shapes make sense for the frontend?
 5. **Suggest improvements** — But be pragmatic. This is an internal research tool, not a SaaS product. Over-engineering is worse than under-engineering.
 
-*Last updated: February 14, 2026 (after Sprint 6 completion + review fixes)*
+---
+
+## Current Roadmap (TRUE Roadmap — February 15, 2026)
+
+**Source document:** `Roadmap_TRUE_02_15.md` — supersedes ALL prior roadmaps (ROADMAP.md, v12, EXTENDED, TO_DEPLOYMENT, v1, v2). Built from Codex+Claude dual-roadmap comparison + 6 explicit owner decisions on disagreements.
+
+**7 Phases, 14 Weeks:**
+
+| Phase | What | Weeks | Key Deliverable |
+|-------|------|-------|-----------------|
+| 1: Fix Broken | Crashes, security, data integrity | Week 1 | Zero critical bugs |
+| 2: Frontend Cleanup | Interface trust and usability | Weeks 2-4 | 4 clear screens, no contradictory scores |
+| 3: Matching Overhaul | Standardize all matching | Weeks 3-7 | Auditable, confidence-scored matching pipeline |
+| 4: New Data Sources | SEC EDGAR, IRS BMF, CPS/IPUMS, OEWS | Weeks 8-10 | High-value data through standard pipeline |
+| 5: Scoring Evolution | Temporal decay, NAICS hierarchy, propensity model | Weeks 10-12 | Better scoring + experimental ML model |
+| 6: Deployment Prep | Docker, CI/CD, scheduling | Weeks 11-14 | Ready for remote access |
+| 7: Intelligence | Scrapers, state PERB, reports, occupation similarity | Week 14+ | Strategic intelligence features |
+
+**Key research areas where Gemini's help will be needed:**
+
+**Phase 1:** Verify NAICS backfill approach — can OSHA `naics_code` field reliably fill gaps for F7 employers? What's the NAICS code accuracy in OSHA inspection records?
+
+**Phase 3:** Research Splink probabilistic matching — what are best practices for entity resolution confidence scoring? How should match evidence be structured for human review? What standards exist for match quality reporting?
+
+**Phase 4 (major research needs):**
+- SEC EDGAR full index via `edgartools` — confirm bulk access patterns, EIN availability in XBRL filings, CIK-to-company mapping completeness
+- IRS Business Master File — confirm coverage (~1.8M tax-exempt orgs), available fields, bulk download vs API options (ProPublica vs IRS direct)
+- CPS microdata via IPUMS (`ipumspy`) — confirm union membership variables, geographic granularity, academic registration requirements
+- OEWS staffing patterns — confirm occupation-by-industry matrix availability, geographic levels, update frequency
+
+**Phase 5:** Research logistic regression approaches for organizing propensity scoring. What AUC thresholds are meaningful for this kind of prediction? How have similar models been built in political/social organizing contexts?
+
+**Phase 7:** Research state PERB data availability — NY PERB, CA PERB, IL ILRB. What data do they publish? Any APIs or bulk downloads? This is a potential original contribution (no existing open-source tools for this).
+
+**Critical path:** Phase 1 → Phase 3 → Phase 4 → Phase 5 Advanced
+**Parallel track:** Phase 2 (frontend) alongside Phase 3 (matching)
+**Independent after Phase 1:** Phase 6 (deployment)
+
+**6 owner decisions that shaped this roadmap:**
+1. 14-week timeline (thorough) over 6-week (rushed)
+2. Frontend cleanup EARLY — organizers need trust in what they see
+3. New data sources WAIT until matching is standardized (Phase 3 first)
+4. Scoring model planned but doesn't block release
+5. Deployment planned but not urgent
+6. Start with 4 screens, architect for 5-area expansion later
+
+**Audit conflict resolutions (relevant for future fact-checking):**
+- OSHA match rate: 47.3% (current employers) and 25.37% (all employers) — both correct, different denominators. Use current-employer rate for organizer-facing screens.
+- WHD/990 matching: IMPROVED (primary path 8x better), old Mergent columns caused confusion.
+- NAICS coverage: 37.7% is the real number for scoring. 94.46% includes historical backfill.
+- NLRB participant "orphans" (92.34%): structurally expected — participants table includes ALL case types, not just elections.
+- GLEIF storage: 396 MB useful + 12 GB raw. Archive the raw.
+
+---
+
+*Last updated: February 15, 2026 (TRUE Roadmap committed)*
 *Context: This briefing was written so you can effectively research, fact-check, and review architecture without needing our full technical history.*
