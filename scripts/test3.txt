@@ -1,0 +1,4 @@
+    cur.execute(
+        "WHERE employer_name ILIKE '%%signator%%' "
+        "   OR exclude_reason ILIKE '%%signator%%' "
+    )

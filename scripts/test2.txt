@@ -1,0 +1,4 @@
+    print('hello')
+    x = 'world'
+    f.write("test 'quotes'")
+    "FROM f7 WHERE state = 'CA'"
