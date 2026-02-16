@@ -48,6 +48,7 @@ FEATURE_WEIGHTS = {
     'whd_violation_rate':   1.0,   # Wage compliance signal
     'is_federal_contractor': 1.0,  # Government oversight
     'bls_growth_pct':       0.5,   # Industry trajectory
+    'occupation_overlap':   1.5,   # BLS occupation overlap between industries (Phase 5.4c)
 }
 
 CATEGORICAL_FEATURES = ['state', 'county', 'company_type']
@@ -56,6 +57,68 @@ NUMERIC_FEATURES = ['employees_here_log', 'employees_total_log', 'revenue_log',
                      'bls_growth_pct']
 BINARY_FEATURES = ['is_subsidiary', 'is_federal_contractor']
 HIERARCHICAL_FEATURE = 'naics_4'  # special handling
+OCCUPATION_FEATURE = 'occupation_overlap'  # Phase 5.4c
+
+
+# ============================================================
+# Occupation overlap loading (Phase 5.4c)
+# ============================================================
+
+_occupation_overlap_cache = {}
+_naics_bls_mapping_cache = {}
+
+
+def load_occupation_overlap(conn):
+    """Load pre-computed industry occupation overlap scores into a dict."""
+    global _occupation_overlap_cache
+    if _occupation_overlap_cache:
+        return _occupation_overlap_cache
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT industry_code_a, industry_code_b, overlap_score FROM industry_occupation_overlap")
+        for row in cur.fetchall():
+            _occupation_overlap_cache[(row[0], row[1])] = float(row[2])
+    except Exception:
+        pass  # Table may not exist yet
+    return _occupation_overlap_cache
+
+
+def load_naics_bls_mapping(conn):
+    """Load NAICS -> BLS industry code mapping."""
+    global _naics_bls_mapping_cache
+    if _naics_bls_mapping_cache:
+        return _naics_bls_mapping_cache
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT naics_code, bls_industry_code FROM naics_to_bls_industry")
+        for row in cur.fetchall():
+            _naics_bls_mapping_cache[row[0]] = row[1]
+    except Exception:
+        pass
+    return _naics_bls_mapping_cache
+
+
+def get_bls_industry_for_naics(naics_4, naics_bls_map):
+    """Map a 4-digit NAICS code to BLS industry code via hierarchical prefix."""
+    if not naics_4 or naics_4 in ('None', 'nan'):
+        return None
+    # Try exact 4-digit, then 3, then 2
+    for length in [4, 3, 2]:
+        prefix = naics_4[:length]
+        if prefix in naics_bls_map:
+            return naics_bls_map[prefix]
+    return None
+
+
+def get_occupation_overlap(naics_a, naics_b, overlap_map, naics_bls_map):
+    """Get occupation overlap score between two NAICS codes."""
+    bls_a = get_bls_industry_for_naics(naics_a, naics_bls_map)
+    bls_b = get_bls_industry_for_naics(naics_b, naics_bls_map)
+    if bls_a is None or bls_b is None:
+        return None
+    if bls_a == bls_b:
+        return 1.0
+    return overlap_map.get((bls_a, bls_b), overlap_map.get((bls_b, bls_a), 0.0))
 
 
 # ============================================================
@@ -201,7 +264,7 @@ def create_table(conn):
 # Gower distance computation (vectorized)
 # ============================================================
 
-def compute_gower_chunk(target_df, union_df):
+def compute_gower_chunk(target_df, union_df, overlap_map=None, naics_bls_map=None):
     """Compute Gower distance between each target row and all union rows.
 
     Returns:
@@ -226,8 +289,14 @@ def compute_gower_chunk(target_df, union_df):
 
     for feat in all_features:
         w = FEATURE_WEIGHTS[feat]
-        t_vals = target_df[feat].values
-        u_vals = union_df[feat].values
+
+        # Occupation overlap is virtual - no column in DataFrame
+        if feat == OCCUPATION_FEATURE:
+            t_vals = None
+            u_vals = None
+        else:
+            t_vals = target_df[feat].values
+            u_vals = union_df[feat].values
 
         if feat == HIERARCHICAL_FEATURE:
             # NAICS hierarchical: exact 4-digit=0, same 2-digit=0.3, different=1.0
@@ -294,6 +363,37 @@ def compute_gower_chunk(target_df, union_df):
             weight_sum += w * valid_mask
             feature_dists[feat] = d
 
+        elif feat == OCCUPATION_FEATURE:
+            # Occupation overlap distance: 1 - overlap_score
+            # Uses pre-computed industry_occupation_overlap table
+            if overlap_map and naics_bls_map:
+                t_naics = target_df['naics_4'].values.astype(str)
+                u_naics = union_df['naics_4'].values.astype(str)
+                d = np.ones((n_targets, n_unions), dtype=np.float64)
+                valid_mask = np.ones((n_targets, n_unions), dtype=bool)
+
+                for i in range(n_targets):
+                    if t_naics[i] in ('None', 'nan', ''):
+                        valid_mask[i, :] = False
+                        continue
+                    for j in range(n_unions):
+                        if u_naics[j] in ('None', 'nan', ''):
+                            valid_mask[i, j] = False
+                            continue
+                        overlap = get_occupation_overlap(t_naics[i], u_naics[j], overlap_map, naics_bls_map)
+                        if overlap is not None:
+                            d[i, j] = 1.0 - overlap
+                        else:
+                            valid_mask[i, j] = False
+
+                dist_sum += np.where(valid_mask, d * w, 0)
+                weight_sum += w * valid_mask
+                feature_dists[feat] = d
+            else:
+                # No overlap data - skip this feature
+                feature_dists[feat] = np.ones((n_targets, n_unions), dtype=np.float64) * np.nan
+                continue
+
         elif feat in BINARY_FEATURES:
             t_bin = pd.to_numeric(t_vals, errors='coerce').astype(float)
             u_bin = pd.to_numeric(u_vals, errors='coerce').astype(float)
@@ -348,7 +448,11 @@ def main():
     parser.add_argument('--chunk-size', type=int, default=2500, help='Rows per chunk (default 2500)')
     parser.add_argument('--refresh-view', action='store_true', help='Only refresh materialized view')
     parser.add_argument('--skip-view', action='store_true', help='Skip view creation/refresh')
+    parser.add_argument('--occ-weight', type=float, default=1.5, help='Occupation overlap feature weight (default 1.5)')
     args = parser.parse_args()
+
+    # Apply occupation weight from CLI
+    FEATURE_WEIGHTS['occupation_overlap'] = args.occ_weight
 
     conn = get_connection()
     cur = conn.cursor()
@@ -413,6 +517,17 @@ def main():
         return
 
     # ============================================================
+    # Step 4b: Load occupation overlap data (Phase 5.4c)
+    # ============================================================
+    print("\n=== Step 4b: Loading occupation overlap ===")
+    overlap_map = load_occupation_overlap(conn)
+    naics_bls_map = load_naics_bls_mapping(conn)
+    print(f"  Overlap pairs: {len(overlap_map):,}")
+    print(f"  NAICS->BLS mappings: {len(naics_bls_map):,}")
+    if not overlap_map:
+        print("  WARNING: No occupation overlap data. Skipping occupation_overlap feature.")
+
+    # ============================================================
     # Step 5: Compute Gower distances in chunks
     # ============================================================
     print(f"\n=== Step 5: Computing Gower distances (chunk_size={args.chunk_size}) ===")
@@ -435,7 +550,7 @@ def main():
         chunk = target_df.iloc[chunk_start:chunk_end]
 
         t0 = time.time()
-        top5_idx, top5_dist, top5_bd = compute_gower_chunk(chunk, union_df)
+        top5_idx, top5_dist, top5_bd = compute_gower_chunk(chunk, union_df, overlap_map, naics_bls_map)
         elapsed = time.time() - t0
 
         # Prepare insert rows (dedup within each target's top-5)
