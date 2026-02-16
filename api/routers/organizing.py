@@ -1,10 +1,30 @@
 import os
 from fastapi import APIRouter, Query, HTTPException, Request
-from typing import Optional
+from typing import Literal, Optional
+from pydantic import BaseModel
 from ..database import get_db
 from ..helpers import safe_sort_col, safe_order_dir
 
 router = APIRouter()
+
+
+# Canonical scoring parameters — fallbacks if score_versions table is empty or missing
+_FALLBACK_FACTOR_WEIGHTS = {
+    "company_unions": {"max": 0, "note": "excluded"},
+    "industry_density": {"max": 10, "method": "hierarchical_naics_blend"},
+    "geographic": {"max": 10}, "size": {"max": 10},
+    "osha": {"max": 10}, "nlrb": {"max": 10},
+    "contracts": {"max": 10}, "projections": {"max": 10},
+    "similarity": {"max": 10},
+}
+_FALLBACK_DECAY_PARAMS = {
+    "osha": {"half_life_years": 10, "lambda_expr": "LN(2)/10"},
+    "nlrb": {"half_life_years": 7, "lambda_expr": "LN(2)/7"},
+}
+
+
+class MatchReviewAction(BaseModel):
+    action: Literal["approve", "reject"]
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +135,7 @@ def _explain_size(emp_count):
         return f"{emp_count:,} employees -- very {'large' if emp_count > 1000 else 'small'} unit"
 
 
-def _explain_osha(total_violations, osha_ratio):
+def _explain_osha(total_violations, osha_ratio, decay_factor=None):
     """Human-readable explanation for the OSHA score."""
     total_violations = total_violations or 0
     if total_violations == 0:
@@ -123,7 +143,11 @@ def _explain_osha(total_violations, osha_ratio):
     ratio_str = ""
     if osha_ratio and osha_ratio > 0:
         ratio_str = f" ({osha_ratio:.1f}x industry average)"
-    return f"{total_violations} violations{ratio_str}"
+    decay_str = ""
+    if decay_factor is not None and decay_factor < 0.95:
+        pct = round((1 - decay_factor) * 100)
+        decay_str = f" -- score reduced {pct}% due to data age"
+    return f"{total_violations} violations{ratio_str}{decay_str}"
 
 
 def _explain_geographic(state, is_rtw, win_rate):
@@ -214,13 +238,47 @@ def _explain_similarity(score):
     return "Low similarity to organized employers"
 
 
+def _get_propensity_context(cur, estab_id):
+    """Get propensity score for an establishment via F7 match path. Returns None if unavailable."""
+    try:
+        cur.execute("""
+            SELECT EXISTS(
+                SELECT 1 FROM information_schema.tables
+                WHERE table_name = 'ml_election_propensity_scores'
+            ) AS e
+        """)
+        if not cur.fetchone()["e"]:
+            return None
+        # Look up via osha_f7_matches -> employer_id
+        cur.execute("""
+            SELECT ps.propensity_score, ps.confidence_band, ps.model_name
+            FROM osha_f7_matches ofm
+            JOIN ml_election_propensity_scores ps ON ps.employer_id = ofm.f7_employer_id
+            WHERE ofm.establishment_id = %s
+            ORDER BY ps.confidence_band ASC
+            LIMIT 1
+        """, [estab_id])
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "propensity_score": float(row["propensity_score"]),
+            "confidence_band": row["confidence_band"],
+            "model_name": row["model_name"],
+            "experimental": True,
+        }
+    except Exception:
+        return None
+
+
 def _build_explanations(row, is_rtw=None, win_rate=None):
     """Build the full score_explanations dict from a row."""
     return {
         'size': _explain_size(row.get('employee_count')),
         'osha': _explain_osha(
             row.get('total_violations'),
-            float(row['osha_industry_ratio']) if row.get('osha_industry_ratio') is not None else None
+            float(row['osha_industry_ratio']) if row.get('osha_industry_ratio') is not None else None,
+            float(row['osha_decay_factor']) if row.get('osha_decay_factor') is not None else None
         ),
         'geographic': _explain_geographic(
             row.get('site_state'), is_rtw, win_rate
@@ -395,6 +453,8 @@ def get_organizing_scorecard(
                         'similarity': r['score_similarity'],
                     },
                     'nlrb_predicted_win_pct': float(r['nlrb_predicted_win_pct']) if r['nlrb_predicted_win_pct'] else None,
+                    'osha_decay_factor': float(r['osha_decay_factor']) if r.get('osha_decay_factor') is not None else None,
+                    'nlrb_decay_factor': float(r['nlrb_decay_factor']) if r.get('nlrb_decay_factor') is not None else None,
                     'score_explanations': _build_explanations(r),
                     'ulp_case_count': ulp_counts.get(r['establishment_id'], 0),
                 })
@@ -570,6 +630,54 @@ def get_scorecard_detail(estab_id: str):
             nlrb_predicted_pct = float(mv['nlrb_predicted_win_pct']) if mv['nlrb_predicted_win_pct'] is not None else None
             osha_ratio = float(mv['osha_industry_ratio']) if mv['osha_industry_ratio'] is not None else None
 
+            # Nearest unionized F7 employers (5.4 Gower enhancement)
+            # Map OSHA NAICS-2 to F7 composite codes (31-33->31, 44-45->44, 48-49->48)
+            nearest_unionized = []
+            if naics_2:
+                f7_naics = {'32': '31', '33': '31', '45': '44', '49': '48'}.get(naics_2, naics_2)
+                cur.execute("""
+                    WITH union_employers AS (
+                        SELECT f.employer_id, f.employer_name, f.city, f.state,
+                               f.naics, f.naics_detailed,
+                               -- Multi-factor similarity score (max 100)
+                               (CASE WHEN %(naics_4)s IS NOT NULL AND f.naics_detailed IS NOT NULL
+                                          AND LEFT(f.naics_detailed, 4) = %(naics_4)s THEN 40
+                                     WHEN f.naics = %(f7_naics)s THEN 25
+                                     ELSE 10 END)
+                               + (CASE WHEN f.state = %(state)s THEN 25 ELSE 0 END)
+                               + (CASE WHEN f.city = %(city)s THEN 10 ELSE 0 END)
+                               + 5
+                               AS match_score
+                        FROM f7_employers_deduped f
+                        WHERE f.exclude_from_counts IS NOT TRUE
+                          AND f.naics = %(f7_naics)s
+                          AND EXISTS (
+                              SELECT 1 FROM osha_f7_matches ofm
+                              WHERE ofm.f7_employer_id = f.employer_id::text
+                          )
+                    )
+                    SELECT employer_id, employer_name, city, state, naics,
+                           naics_detailed, match_score
+                    FROM union_employers
+                    WHERE match_score >= 25
+                    ORDER BY match_score DESC
+                    LIMIT 3
+                """, {
+                    'f7_naics': f7_naics,
+                    'naics_4': (mv['naics_code'] or '')[:4] or None,
+                    'state': est_state,
+                    'city': mv['site_city'] or '',
+                })
+                for r in cur.fetchall():
+                    nearest_unionized.append({
+                        'employer_id': r['employer_id'],
+                        'employer_name': r['employer_name'],
+                        'city': r['city'],
+                        'state': r['state'],
+                        'naics': r.get('naics'),
+                        'match_score': r['match_score'],
+                    })
+
             return {
                 "establishment": {
                     'establishment_id': mv['establishment_id'],
@@ -605,13 +713,17 @@ def get_scorecard_detail(estab_id: str):
                 },
                 "similarity_context": {
                     "similarity_score": similarity_score_val,
-                    "comparables_url": f"/api/employers/{estab_id}/comparables" if similarity_score_val else None
+                    "similarity_source": mv.get('similarity_source'),
+                    "nearest_unionized": nearest_unionized or None,
+                    "siblings_url": f"/api/organizing/siblings/{estab_id}",
                 },
                 "osha_context": {
                     "industry_ratio": osha_ratio,
                     "total_violations": mv['total_violations'] or 0,
                     "willful": mv['willful_count'] or 0,
-                    "repeat": mv['repeat_count'] or 0
+                    "repeat": mv['repeat_count'] or 0,
+                    "decay_factor": float(mv['osha_decay_factor']) if mv.get('osha_decay_factor') is not None else None,
+                    "last_inspection_date": str(mv['last_inspection_date']) if mv.get('last_inspection_date') else None,
                 },
                 "geographic_context": {
                     "is_rtw_state": is_rtw,
@@ -632,6 +744,7 @@ def get_scorecard_detail(estab_id: str):
                     "factors": nlrb_factors
                 },
                 "ulp_context": ulp_context,
+                "propensity_context": _get_propensity_context(cur, estab_id),
                 "context": {
                     "has_related_union": mv['has_f7_match'],
                     "nlrb_count": nlrb_count
@@ -776,7 +889,8 @@ def get_sibling_employers(estab_id: str, limit: int = Query(default=5, le=20)):
 def refresh_scorecard(request: Request):
     """Refresh the mv_organizing_scorecard materialized view.
     Requires admin role when auth is enabled.
-    Call after data pipeline updates (new matches, new OSHA data, etc.)."""
+    Call after data pipeline updates OR periodically (daily/weekly) since
+    temporal decay uses CURRENT_DATE and scores drift over time."""
     # Admin-only when auth is enabled
     from ..config import JWT_SECRET
     if JWT_SECRET:
@@ -786,6 +900,7 @@ def refresh_scorecard(request: Request):
             raise HTTPException(status_code=403, detail="Admin role required")
 
     import time
+    import json
     from ..database import get_raw_connection
     conn = get_raw_connection()
     conn.autocommit = True
@@ -796,12 +911,127 @@ def refresh_scorecard(request: Request):
         elapsed = time.time() - t0
         cur.execute("SELECT COUNT(*) FROM mv_organizing_scorecard")
         count = cur.fetchone()[0]
+
+        # Record score version with canonical metadata
+        version_id = None
+        cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'score_versions')")
+        if cur.fetchone()[0]:
+            # Fetch latest canonical metadata (or use fallbacks)
+            cur.execute("""
+                SELECT factor_weights, decay_params FROM score_versions
+                WHERE factor_weights ? 'industry_density'
+                ORDER BY version_id DESC LIMIT 1
+            """)
+            meta_row = cur.fetchone()
+            if meta_row:
+                factor_weights = meta_row[0] if isinstance(meta_row[0], dict) else json.loads(meta_row[0])
+                decay_params = meta_row[1] if isinstance(meta_row[1], dict) else json.loads(meta_row[1])
+            else:
+                factor_weights = _FALLBACK_FACTOR_WEIGHTS
+                decay_params = _FALLBACK_DECAY_PARAMS
+
+            # Compute full score stats
+            cur.execute("""
+                SELECT
+                    MIN(score_company_unions + score_industry_density + score_geographic +
+                        score_size + score_osha + score_nlrb + score_contracts +
+                        score_projections + score_similarity),
+                    ROUND(AVG(score_company_unions + score_industry_density + score_geographic +
+                        score_size + score_osha + score_nlrb + score_contracts +
+                        score_projections + score_similarity)::numeric, 1),
+                    MAX(score_company_unions + score_industry_density + score_geographic +
+                        score_size + score_osha + score_nlrb + score_contracts +
+                        score_projections + score_similarity),
+                    ROUND(AVG(osha_decay_factor)::numeric, 3)
+                FROM mv_organizing_scorecard
+            """)
+            min_s, avg_score, max_s, avg_decay = cur.fetchone()
+            score_stats = {
+                "min_score": int(min_s) if min_s is not None else None,
+                "avg_score": float(avg_score) if avg_score is not None else None,
+                "max_score": int(max_s) if max_s is not None else None,
+                "avg_osha_decay": float(avg_decay) if avg_decay is not None else None,
+            }
+
+            # Dedupe guard: skip if same row_count + avg_score within 5 minutes
+            avg_score_str = str(score_stats["avg_score"]) if score_stats["avg_score"] is not None else ""
+            cur.execute("""
+                SELECT version_id FROM score_versions
+                WHERE created_at > NOW() - INTERVAL '5 minutes'
+                  AND row_count = %s
+                  AND score_stats->>'avg_score' = %s
+                LIMIT 1
+            """, (count, avg_score_str))
+            existing = cur.fetchone()
+            if existing:
+                version_id = existing[0]
+            else:
+                cur.execute("""
+                    INSERT INTO score_versions (description, row_count, factor_weights, decay_params, score_stats)
+                    VALUES (%s, %s, %s::jsonb, %s::jsonb, %s::jsonb)
+                    RETURNING version_id
+                """, (
+                    "API concurrent refresh",
+                    count,
+                    json.dumps(factor_weights),
+                    json.dumps(decay_params),
+                    json.dumps(score_stats),
+                ))
+                version_id = cur.fetchone()[0]
     finally:
         conn.close()
-    return {
+    result = {
         "status": "ok",
         "rows": count,
         "elapsed_seconds": round(elapsed, 1)
+    }
+    if version_id:
+        result["score_version_id"] = version_id
+    return result
+
+
+@router.get("/api/admin/score-versions")
+def get_score_versions(
+    request: Request,
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Return score version history (most recent first)."""
+    from ..config import JWT_SECRET
+    if JWT_SECRET:
+        user = getattr(request.state, "user", None)
+        role = getattr(request.state, "role", None)
+        if not user or user == "anonymous" or role != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required")
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'score_versions') AS e")
+            if not cur.fetchone()["e"]:
+                return {"versions": [], "total": 0}
+            cur.execute("""
+                SELECT version_id, created_at, description, row_count,
+                       factor_weights, decay_params, score_stats
+                FROM score_versions
+                ORDER BY version_id DESC
+                LIMIT %s
+            """, (limit,))
+            rows = cur.fetchall()
+            cur.execute("SELECT COUNT(*) AS cnt FROM score_versions")
+            total = cur.fetchone()["cnt"]
+    return {
+        "versions": [
+            {
+                "version_id": r["version_id"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+                "description": r["description"],
+                "row_count": r["row_count"],
+                "factor_weights": r["factor_weights"],
+                "decay_params": r["decay_params"],
+                "score_stats": r["score_stats"],
+            }
+            for r in rows
+        ],
+        "total": total,
     }
 
 
@@ -875,3 +1105,303 @@ def refresh_freshness(request: Request):
         "elapsed_seconds": round(elapsed, 1),
         "output": result.stdout[:1000],
     }
+
+
+@router.get("/api/admin/match-quality")
+def get_match_quality():
+    """Return match quality summary from unified_match_log."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Total
+            cur.execute("SELECT COUNT(*) FROM unified_match_log WHERE status = 'active'")
+            total = cur.fetchone()['count']
+
+            # By source
+            cur.execute("""
+                SELECT source_system, COUNT(*) as cnt,
+                       COUNT(*) FILTER (WHERE confidence_band = 'HIGH') as high,
+                       COUNT(*) FILTER (WHERE confidence_band = 'MEDIUM') as medium,
+                       COUNT(*) FILTER (WHERE confidence_band = 'LOW') as low,
+                       ROUND(AVG(confidence_score)::numeric, 3) as avg_score
+                FROM unified_match_log WHERE status = 'active'
+                GROUP BY source_system ORDER BY cnt DESC
+            """)
+            by_source = cur.fetchall()
+
+            # By confidence
+            cur.execute("""
+                SELECT confidence_band, COUNT(*) as cnt
+                FROM unified_match_log WHERE status = 'active'
+                GROUP BY confidence_band ORDER BY confidence_band
+            """)
+            by_confidence = cur.fetchall()
+
+            # By tier
+            cur.execute("""
+                SELECT match_tier, COUNT(*) as cnt
+                FROM unified_match_log WHERE status = 'active'
+                GROUP BY match_tier ORDER BY match_tier
+            """)
+            by_tier = cur.fetchall()
+
+            # Match rates
+            match_rates = []
+            for src, tbl, id_col in [
+                ("osha", "osha_establishments", "establishment_id"),
+                ("whd", "whd_cases", "case_id"),
+                ("990", "national_990_filers", "id"),
+                ("sam", "sam_entities", "uei"),
+            ]:
+                try:
+                    cur.execute(f"SELECT COUNT(*) FROM {tbl}")
+                    src_total = cur.fetchone()['count']
+                    cur.execute("""
+                        SELECT COUNT(*) FROM unified_match_log
+                        WHERE source_system = %s AND status = 'active'
+                    """, [src])
+                    matched = cur.fetchone()['count']
+                    match_rates.append({
+                        "source": src, "total": src_total,
+                        "matched": matched,
+                        "rate_pct": round(matched / max(src_total, 1) * 100, 1),
+                    })
+                except Exception:
+                    pass
+
+            # Recent runs
+            cur.execute("""
+                SELECT run_id, scenario, source_system, method_type,
+                       started_at, total_matched, match_rate,
+                       high_count, medium_count, low_count
+                FROM match_runs
+                ORDER BY started_at DESC NULLS LAST LIMIT 5
+            """)
+            recent_runs = cur.fetchall()
+
+            return {
+                "total_matches": total,
+                "by_source": by_source,
+                "by_confidence": by_confidence,
+                "by_tier": by_tier,
+                "match_rates": match_rates,
+                "recent_runs": recent_runs,
+            }
+
+
+@router.get("/api/admin/match-review")
+def get_match_review(
+    source: str = None,
+    limit: int = Query(default=50, le=500),
+    offset: int = 0,
+):
+    """Return MEDIUM-confidence active matches for manual review."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["uml.status = 'active'", "uml.confidence_band = 'MEDIUM'"]
+            params = []
+
+            if source:
+                conditions.append("uml.source_system = %s")
+                params.append(source)
+
+            where = " AND ".join(conditions)
+            params.extend([limit, offset])
+
+            cur.execute(f"""
+                SELECT uml.id, uml.run_id, uml.source_system, uml.source_id, uml.target_id,
+                       uml.match_method, uml.match_tier, uml.confidence_band, uml.confidence_score,
+                       uml.evidence, uml.status, uml.created_at,
+                       COALESCE(
+                           o.estab_name,
+                           w.trade_name,
+                           m.company_name,
+                           g.entity_name,
+                           uml.source_id
+                       ) AS source_name,
+                       f.employer_name AS target_name
+                FROM unified_match_log uml
+                LEFT JOIN osha_establishments o
+                    ON uml.source_system = 'osha'
+                   AND o.establishment_id::text = uml.source_id
+                LEFT JOIN whd_cases w
+                    ON uml.source_system = 'whd'
+                   AND w.case_id::text = uml.source_id
+                LEFT JOIN mergent_employers m
+                    ON uml.source_system = 'mergent'
+                   AND m.duns::text = uml.source_id
+                LEFT JOIN gleif_us_entities g
+                    ON uml.source_system = 'gleif'
+                   AND g.id::text = uml.source_id
+                LEFT JOIN f7_employers_deduped f
+                    ON f.employer_id::text = uml.target_id
+                WHERE {where}
+                ORDER BY uml.created_at DESC, uml.id DESC
+                LIMIT %s OFFSET %s
+            """, params)
+            rows = cur.fetchall()
+
+            cur.execute(f"""
+                SELECT COUNT(*) FROM unified_match_log uml WHERE {where}
+            """, params[:-2] if params[:-2] else [])
+            total = cur.fetchone()['count']
+
+            return {
+                "matches": rows,
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
+
+
+@router.post("/api/admin/match-review/{match_id}")
+def review_match(match_id: int, payload: MatchReviewAction):
+    """Approve or reject a queued match review decision."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, status, confidence_band
+                FROM unified_match_log
+                WHERE id = %s
+            """, [match_id])
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Match not found")
+
+            if payload.action == "approve":
+                cur.execute("""
+                    UPDATE unified_match_log
+                    SET status = 'active',
+                        confidence_band = 'HIGH',
+                        evidence = COALESCE(evidence, '{}'::jsonb) ||
+                                   jsonb_build_object(
+                                       'reviewed_at', NOW(),
+                                       'review_action', 'approve'
+                                   )
+                    WHERE id = %s
+                    RETURNING id, run_id, source_system, source_id, target_id,
+                              confidence_band, status, evidence, created_at
+                """, [match_id])
+            else:
+                cur.execute("""
+                    UPDATE unified_match_log
+                    SET status = 'rejected',
+                        evidence = COALESCE(evidence, '{}'::jsonb) ||
+                                   jsonb_build_object(
+                                       'reviewed_at', NOW(),
+                                       'review_action', 'reject'
+                                   )
+                    WHERE id = %s
+                    RETURNING id, run_id, source_system, source_id, target_id,
+                              confidence_band, status, evidence, created_at
+                """, [match_id])
+
+            updated = cur.fetchone()
+            return {"ok": True, "match": updated}
+
+
+@router.get("/api/organizing/propensity/{employer_id}")
+def get_propensity(employer_id: str):
+    """Return propensity score for a specific employer.
+    Experimental: NLRB election outcome prediction."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Check if table exists
+            cur.execute("""
+                SELECT EXISTS(
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'ml_election_propensity_scores'
+                ) AS e
+            """)
+            if not cur.fetchone()["e"]:
+                raise HTTPException(status_code=404, detail="Propensity scores not available")
+
+            cur.execute("""
+                SELECT ps.propensity_score, ps.confidence_band, ps.model_name,
+                       ps.feature_values, ps.created_at,
+                       mv.model_type, mv.test_auc
+                FROM ml_election_propensity_scores ps
+                LEFT JOIN ml_model_versions mv ON mv.model_version_id = ps.model_version_id
+                WHERE ps.employer_id = %s
+                ORDER BY ps.confidence_band ASC
+                LIMIT 1
+            """, [employer_id])
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="No propensity score for this employer")
+
+            return {
+                "employer_id": employer_id,
+                "propensity_score": float(row["propensity_score"]),
+                "confidence_band": row["confidence_band"],
+                "model_name": row["model_name"],
+                "model_type": row.get("model_type"),
+                "model_auc": float(row["test_auc"]) if row.get("test_auc") else None,
+                "feature_values": row.get("feature_values"),
+                "scored_at": row["created_at"].isoformat() if row.get("created_at") else None,
+                "experimental": True,
+            }
+
+
+@router.get("/api/admin/propensity-models")
+def get_propensity_models(request: Request):
+    """Return propensity model versions and performance metrics."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT EXISTS(
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'ml_model_versions'
+                ) AS e
+            """)
+            if not cur.fetchone()["e"]:
+                return {"models": [], "total": 0}
+
+            cur.execute("""
+                SELECT model_version_id, model_name, version_string, model_type,
+                       training_date, training_rows, test_rows,
+                       test_auc, test_brier_score, calibration_error,
+                       feature_list, parameters, feature_importance,
+                       score_stats, is_active, notes
+                FROM ml_model_versions
+                ORDER BY model_version_id DESC
+            """)
+            rows = cur.fetchall()
+
+            # Get score counts per model
+            cur.execute("""
+                SELECT EXISTS(
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_name = 'ml_election_propensity_scores'
+                ) AS e
+            """)
+            has_scores = cur.fetchone()["e"]
+            score_counts = {}
+            if has_scores:
+                cur.execute("""
+                    SELECT model_name, COUNT(*) as cnt
+                    FROM ml_election_propensity_scores
+                    GROUP BY model_name
+                """)
+                score_counts = {r["model_name"]: r["cnt"] for r in cur.fetchall()}
+
+            return {
+                "models": [
+                    {
+                        "model_version_id": r["model_version_id"],
+                        "model_name": r["model_name"],
+                        "version_string": r["version_string"],
+                        "model_type": r["model_type"],
+                        "training_date": r["training_date"].isoformat() if r.get("training_date") else None,
+                        "training_rows": r["training_rows"],
+                        "test_rows": r["test_rows"],
+                        "test_auc": float(r["test_auc"]) if r.get("test_auc") else None,
+                        "test_brier_score": float(r["test_brier_score"]) if r.get("test_brier_score") else None,
+                        "calibration_error": float(r["calibration_error"]) if r.get("calibration_error") else None,
+                        "is_active": r["is_active"],
+                        "notes": r["notes"],
+                        "scored_employers": score_counts.get(r["model_name"], 0),
+                    }
+                    for r in rows
+                ],
+                "total": len(rows),
+            }
