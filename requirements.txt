@@ -23,6 +23,9 @@ splink>=4.0.12
 rapidfuzz>=3.14.0
 cleanco>=2.3
 
+# Machine learning
+scikit-learn>=1.6.0
+
 # ETL & scraping
 requests>=2.32.0
 beautifulsoup4>=4.14.0

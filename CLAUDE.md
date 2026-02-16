@@ -1,7 +1,7 @@
 # Labor Relations Research Platform - Claude Context
 
 ## Quick Reference
-**Last Updated:** 2026-02-14 (audit issues resolved, disk cleanup complete)
+**Last Updated:** 2026-02-16 (Phase 5 complete, all 359 tests passing)
 
 ### Database Connection
 ```python
@@ -28,7 +28,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | Federal Sector | 1.28M | 1.1M | 116% |
 | State/Local Public | 6.9M | 7.0M (EPI) | 98.3% |
 | States Reconciled | 50/51 | - | 98% |
-| F7 Employers | 113,713 | - | 60,953 post-2020 + 52,760 historical |
+| F7 Employers | 146,863 | - | 67,552 post-2020 + 79,311 historical |
 
 ---
 
@@ -38,7 +38,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | Table | Records | Description |
 |-------|---------|-------------|
 | `unions_master` | 26,665 | OLMS union filings (has local_number field) |
-| `f7_employers_deduped` | 113,713 | Private sector employers (60,953 post-2020 + 52,760 historical pre-2020) |
+| `f7_employers_deduped` | 146,863 | Private sector employers (67,552 post-2020 + 79,311 historical pre-2020) |
 | `nlrb_elections` | 33,096 | NLRB election records |
 | `nlrb_participants` | 1,906,542 | Union petitioners (95.7% matched to OLMS) |
 | `lm_data` | 331,238 | Historical filings (2010-2024) |
@@ -60,7 +60,7 @@ BLS check is WARNING-level in validation framework, not critical.
 |-------|---------|-------------|
 | `osha_establishments` | 1,007,217 | OSHA-covered workplaces |
 | `osha_violations_detail` | 2,245,020 | Violation records ($3.52B penalties) |
-| `osha_f7_matches` | 138,340 | Linkages to F-7 employers (13.7% of OSHA establishments / 47.3% of F7 employers) |
+| `osha_f7_matches` | 145,134 | Linkages to F-7 employers (14.4% of OSHA establishments) |
 | `v_osha_organizing_targets` | - | Organizing target view |
 
 ### WHD Tables (Wage & Hour Division - National)
@@ -71,17 +71,34 @@ BLS check is WARNING-level in validation framework, not critical.
 
 **Key columns:** `case_id`, `trade_name`, `legal_name`, `name_normalized`, `city`, `state`, `naics_code`, `total_violations`, `civil_penalties`, `backwages_amount`, `employees_violated`, `flsa_repeat_violator`, `flsa_child_labor_violations`, `findings_start_date`, `findings_end_date`
 
-**Match coverage:** F7: 24,610 (6.8%) via `whd_f7_matches`, Mergent: 1,170 (2.1%). Total backwages: $4.7B, penalties: $361M
+**Match coverage:** F7: 26,312 via `whd_f7_matches`, Mergent: 1,170 (2.1%). Total backwages: $4.7B, penalties: $361M
 
 ### Match Tables
 | Table | Records | Description |
 |-------|---------|-------------|
-| `osha_f7_matches` | 138,340 | OSHA-to-F7 employer matches (4-tier) |
-| `whd_f7_matches` | 24,610 | WHD-to-F7 employer matches (PK: f7_employer_id, case_id) |
-| `national_990_f7_matches` | 14,059 | 990-to-F7 employer matches (PK: f7_employer_id, ein) |
-| `sam_f7_matches` | 11,050 | SAM-to-F7 employer matches (PK: f7_employer_id, uei) |
+| `osha_f7_matches` | 145,134 | OSHA-to-F7 employer matches (6-tier deterministic + fuzzy) |
+| `whd_f7_matches` | 26,312 | WHD-to-F7 employer matches (PK: f7_employer_id, case_id) |
+| `national_990_f7_matches` | 14,428 | 990-to-F7 employer matches (PK: f7_employer_id, ein) |
+| `sam_f7_matches` | 15,010 | SAM-to-F7 employer matches (PK: f7_employer_id, uei) |
 | `nlrb_employer_xref` | 179,275 | NLRB-to-F7 cross-reference |
 | `employer_comparables` | 269,810 | Gower similarity results (5 comparables per employer) |
+
+### Phase 3-5 Tables (Added Feb 2026)
+| Table | Records | Description |
+|-------|---------|-------------|
+| `unified_match_log` | 265,526 | Central audit trail for all matches (source, tier, confidence, evidence JSONB) |
+| `employer_canonical_groups` | 16,209 groups | Canonical employer grouping (40,304 employers, 403 cross-state) |
+| `historical_merge_candidates` | 5,128 | Historical employer merge candidates (2,124 exact + 3,004 aggressive) |
+| `score_versions` | - | Score methodology version tracking (auto-insert on create/refresh) |
+| `ml_model_versions` | - | ML model metadata (partial unique index on is_active) |
+| `ml_election_propensity_scores` | 146,693 | NLRB election propensity scores (unique on employer_id+model_name) |
+| `bls_national_industry_density` | 9 | BLS national industry union density rates |
+| `bls_state_density` | 51 | BLS state-level union density |
+| `estimated_state_industry_density` | 459 | State x industry density estimates (national_rate x state_multiplier) |
+| `bls_industry_occupation_matrix` | 67,699 | BLS occupation-industry staffing patterns (422 industries x 832 occupations) |
+| `occupation_similarity` | 8,731 | Cosine similarity between occupations (threshold >= 0.30) |
+| `industry_occupation_overlap` | 130,638 | Weighted Jaccard industry overlap (threshold >= 0.05) |
+| `naics_to_bls_industry` | 2,035 | NAICS code to BLS industry mapping |
 
 ### SAM.gov Tables
 | Table | Records | Description |
@@ -175,7 +192,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | SEC | 1,948 | 517,403 | 0.4% |
 | GLEIF | 3,264 | 379,192 | 0.9% |
 | Mergent | 3,361 | 56,426 | 6.0% |
-| F7 | ~12,000 | 113,713 | 10.6% |
+| F7 | ~12,000 | 146,863 | 8.2% |
 | Federal contractors | 9,305 | 47,193 | 19.7% |
 | Public companies | 358 | - | - |
 
@@ -275,7 +292,7 @@ BLS check is WARNING-level in validation framework, not critical.
 - `employees_site`, `sales_amount`, `naics_primary`
 - `sector_category` - One of 21 sectors above
 - `has_union` - Boolean flag (F-7, NLRB win, or OSHA union status)
-- `organizing_score` - Composite score (0-62 for non-union targets)
+- `organizing_score` - [LEGACY] Composite score (0-62 Mergent-specific scale, superseded by `mv_organizing_scorecard` 0-80 unified scale)
 - `score_priority` - Tier: TOP, HIGH, MEDIUM, LOW
 
 **Match Columns:**
@@ -285,11 +302,12 @@ BLS check is WARNING-level in validation framework, not critical.
 - `nlrb_case_number`, `nlrb_election_date`, `nlrb_union_won`
 - `whd_violation_count`, `whd_backwages`, `whd_employees_violated`
 
-**Score Columns:**
+**Score Columns (LEGACY Mergent-specific -- superseded by unified MV scorecard):**
 - `score_geographic` (removed - set to 0), `score_size` (0-5), `score_industry_density` (0-10 BLS)
 - `score_nlrb_momentum` (0-10 by NAICS), `score_osha_violations` (0-4), `score_govt_contracts` (0-15)
 - `score_labor_violations` (0-10 NYC Comptroller), `sibling_union_bonus` (0-8)
 - Max score: 62 pts | Tiers: TOP >=30, HIGH >=25, MEDIUM >=20, LOW <20
+- **Current unified scorecard:** `mv_organizing_scorecard` -- 8 active factors, each 0-10, max 80 pts, observed range 12-54. See Key Features #1 above.
 
 **Labor Violation Columns:**
 - `nyc_wage_theft_cases`, `nyc_wage_theft_amount` - NYS/US DOL wage theft
@@ -449,7 +467,7 @@ Full Swagger docs: http://localhost:8001/docs
 **WHD:** `/api/whd/summary`, `/search`, `/by-state/{state}`, `/employer/{employer_id}`, `/top-violators`
 **VR:** `/api/vr/stats/{summary,by-year,by-state,by-affiliation}`, `/search`, `/map`, `/new-employers`, `/pipeline`, `/{case}`
 **Public Sector:** `/api/public-sector/{stats,parent-unions,locals,employers,employer-types,benchmarks}`
-**Organizing:** `/api/organizing/{summary,by-state}`, `/scorecard`, `/scorecard/{estab_id}`
+**Organizing:** `/api/organizing/{summary,by-state}`, `/scorecard`, `/scorecard/{estab_id}`, `/siblings/{estab_id}`, `/propensity/{employer_id}`
 **Sectors (21):** `/api/sectors/list`, `/{sector}/{summary,targets,targets/stats,targets/{id},targets/cities,unionized}`
 **Museums (Legacy):** `/api/museums/{summary,targets,targets/stats,targets/cities,targets/{id},unionized}`
 **Trends:** `/api/trends/{national,sectors,elections}`, `/by-state/{state}`, `/by-affiliation/{aff}`
@@ -459,18 +477,19 @@ Full Swagger docs: http://localhost:8001/docs
 **Density:** `/api/density/{all,by-state,by-county,county-summary,industry-rates}`, `/by-state/{state}/{history,counties}`, `/by-govt-level`, `/by-county/{fips}/{industry}`, `/state-industry-comparison/{state}`, `/naics/{code}`
 **NY Density:** `/api/density/ny/{summary,counties,zips,tracts}`, `/county/{fips}`, `/zip/{code}`, `/tract/{fips}`
 **NAICS:** `/api/naics/stats`
+**Admin:** `/api/admin/refresh-scorecard` (POST), `/data-freshness`, `/refresh-freshness` (POST), `/score-versions`, `/match-quality`, `/match-review`, `/match-review/{id}` (POST), `/propensity-models`, `/employer-groups`
 
 ---
 
 ## Key Features (What Exists - Don't Rebuild)
 
-1. **OSHA Organizing Scorecard** - 9-factor, 0-100 pts via `/api/organizing/scorecard`. Factors: safety violations (20), industry density (10), geographic favorability (15), size (10), NLRB patterns (10), govt contracts (15), company unions (10), employer similarity (5), WHD violations (5)
-2. **AFSCME NY Organizing Targets** - 5,428 targets from 990 + contract data, $18.35B funding. Tiers: TOP (70+), HIGH (50-69), MEDIUM (30-49), LOW (<30)
+1. **OSHA Organizing Scorecard** - 8 active factors (of 9 in MV -- company_unions always 0), each max 10 pts, theoretical max 80, observed range 12-54 with temporal decay, avg 31.9. Via `/api/organizing/scorecard`. Factors: industry_density (10), geographic (10), size (10), osha (10, with temporal decay), nlrb (10), contracts (10), projections (10), similarity (10). Tiers: TOP>=30, HIGH>=25, MEDIUM>=20, LOW<20.
+2. **AFSCME NY Organizing Targets** - [LEGACY] 5,428 targets from 990 + contract data, $18.35B funding. Uses old Mergent-specific scoring (0-62 scale), not the current unified MV scorecard.
 3. **Geographic Analysis** - MSA/metro density, city search, CBSA mapping (40.8%)
 4. **Membership Deduplication** - 70.1M raw -> 14.5M deduplicated (matches BLS within 1.5%)
 5. **Historical Trends** - 16 years OLMS LM filings (2010-2024), Chart.js visualizations
 6. **Public Sector Coverage** - 98.3% of EPI benchmark, 50/51 states within +/-15%
-7. **Multi-Sector Organizing Scorecard** - 56,426 Mergent employers, 21 sectors, 62 pts max. Components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). Tiers: TOP>=30, HIGH>=25, MEDIUM>=20, LOW<20. See `docs/METHODOLOGY_SUMMARY_v8.md` for full scoring details
+7. **Multi-Sector Organizing Scorecard** - [LEGACY Mergent-specific] 56,426 Mergent employers, 21 sectors, 62 pts max. Superseded by unified `mv_organizing_scorecard` (22,389 rows, 8 factors, 80 pts max). Legacy components: size (5), industry density (10), NLRB momentum (10), OSHA (4), contracts (15), labor violations (10), sibling bonus (8). See `docs/METHODOLOGY_SUMMARY_v8.md` for historical methodology
 8. **Industry Outlook** - BLS 2024-2034 projections in employer detail, 6-digit NAICS from OSHA, occupation breakdowns
 9. **Corporate Hierarchy** - SEC EDGAR (517K), GLEIF (379K entities, 499K ownership links), crosswalk linking SEC/GLEIF/Mergent/F7/USASpending/SAM/990 (25,177 rows: deterministic + Splink + USASpending + SAM + 990), hierarchy with 125K parent->child links from 13,929 distinct parent companies. QCEW industry density scores for 121K F7 employers. 9,305 F7 employers identified as federal contractors with scoring (0-15 pts).
 
@@ -515,7 +534,7 @@ FROM v_{sector}_organizing_targets WHERE priority_tier IN ('HIGH', 'MEDIUM');
 
 | Document | Purpose |
 |----------|---------|
-| `docs/LABOR_PLATFORM_ROADMAP_v10.md` | Current roadmap, future phases |
+| `Roadmap_TRUE_02_15.md` | Current roadmap (supersedes all prior roadmaps) |
 | `docs/METHODOLOGY_SUMMARY_v8.md` | Complete methodology reference |
 | `docs/EPI_BENCHMARK_METHODOLOGY.md` | EPI benchmark explanation |
 | `docs/PUBLIC_SECTOR_SCHEMA_DOCS.md` | Public sector schema reference |
@@ -595,17 +614,35 @@ python -m scripts.matching test mergent_to_f7 "ACME Hospital" --state NY
 ```
 scripts/matching/
   __init__.py
-  config.py          # MatchConfig, SCENARIOS, tier thresholds
-  normalizer.py      # Unified normalization (standard/aggressive/fuzzy)
-  pipeline.py        # MatchPipeline orchestrator
-  differ.py          # Diff report generation
-  cli.py             # Command-line interface
+  config.py                    # MatchConfig, SCENARIOS, tier thresholds
+  normalizer.py                # Unified normalization (standard/aggressive/fuzzy)
+  pipeline.py                  # MatchPipeline orchestrator
+  differ.py                    # Diff report generation
+  cli.py                       # Command-line interface
+  deterministic_matcher.py     # [Phase 3] Core v3 batch-optimized matcher (5-tier cascade)
+  run_deterministic.py         # [Phase 3] CLI runner: osha|whd|990|sam|sec|all
+  create_unified_match_log.py  # [Phase 3] Unified match log table creation
+  match_quality_report.py      # [Phase 3] Match quality metrics generator
+  resolve_historical_employers.py  # [Phase 3] Historical employer resolution
+  build_employer_groups.py     # [Phase 3] Canonical employer grouping
+  create_nlrb_bridge.py        # [Phase 3] v_nlrb_employer_history view
+  splink_pipeline.py           # [Phase 3] Splink v2 probabilistic matching (DuckDB)
+  splink_config.py             # Splink scenario configs
   matchers/
     base.py          # MatchResult, BaseMatcher
     exact.py         # EIN, Normalized, Aggressive matchers
     address.py       # Address matcher (fuzzy name + street number)
     fuzzy.py         # Trigram pg_trgm matcher
+  adapters/
+    osha_adapter.py            # [Phase 3] OSHA source adapter
+    whd_adapter.py             # [Phase 3] WHD source adapter
+    n990_adapter.py            # [Phase 3] 990 source adapter
+    sam_adapter.py             # [Phase 3] SAM source adapter
+    sec_adapter_module.py      # [Phase 4] SEC EDGAR adapter
+    bmf_adapter_module.py      # [Phase 4] IRS BMF adapter
 ```
+
+**Canonical name normalization:** `src/python/matching/name_normalization.py` -- 3 levels + soundex + metaphone + phonetic_similarity. 30+ abbreviation mappings.
 
 ---
 

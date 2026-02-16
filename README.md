@@ -1,7 +1,7 @@
 # Labor Relations Research Platform
 
-**Version:** 7.1 (Phase 1 Complete)
-**Last Updated:** February 15, 2026
+**Version:** 7.1 (Phase 5 Complete)
+**Last Updated:** February 16, 2026
 **Status:** Active Development
 **GitHub:** [TheOrganizer-Labor-Research-Platform](https://github.com/JacobWebsite/TheOrganizer-Labor-Research-Platform)
 
@@ -72,8 +72,8 @@ Auth is enforced when `LABOR_JWT_SECRET` is set in `.env`. Set `DISABLE_AUTH=tru
 
 ## Key Features
 
-### 1. Organizing Scorecard (9-factor, range 10-78)
-Data-driven target identification using 9 SQL-computed factors: OSHA violations, industry density, geographic presence, establishment size, NLRB momentum, government contracts, WHD violations, union presence, and membership trends. Served via materialized view (`mv_organizing_scorecard`, 24,841 rows).
+### 1. Organizing Scorecard (8 active factors, observed range 12-54)
+Data-driven target identification using 8 SQL-computed factors (of 9 in the MV -- company_unions is always 0): industry density, geographic favorability, employer size, OSHA violations (with temporal decay), NLRB election patterns, government contracts, industry growth projections, and similarity to unionized employers. Each factor scores 0-10, theoretical max 80. Served via materialized view (`mv_organizing_scorecard`, 22,389 rows).
 
 ### 2. ULP Context
 Unfair Labor Practice case tracking linked to employers via NLRB participant matching. ULP badges in scorecard list, detailed case info in employer detail view. Not a scoring factor -- context only.
@@ -97,7 +97,7 @@ BLS industry density, state-level density by government level, county estimates 
 | Source | Records | Description |
 |--------|---------|-------------|
 | **OLMS LM Filings** | 26,665 unions | Union financial reports (2010-2025) |
-| **F-7 Employer Notices** | 113,713 employers | Private sector bargaining units (60,953 current + 52,760 historical) |
+| **F-7 Employer Notices** | 146,863 employers | Private sector bargaining units (67,552 current + 79,311 historical) |
 | **NLRB Elections** | 33,096 elections | Election outcomes |
 | **NLRB Participants** | 30,399 unions | 95.7% matched to OLMS |
 | **OSHA Establishments** | 1,007,217 | Workplace safety data |
@@ -114,7 +114,7 @@ BLS industry density, state-level density by government level, county estimates 
 
 ---
 
-## API Endpoints (152 total, 17 routers)
+## API Endpoints (160 total, 17 routers)
 
 ### Auth (`/api/auth/`)
 - `POST /api/auth/login` - Login, returns JWT
@@ -153,8 +153,12 @@ BLS industry density, state-level density by government level, county estimates 
 - `GET /api/public-sector/employers` - Search employers
 
 ### Organizing (`/api/organizing/`)
-- `GET /api/organizing/scorecard` - 9-factor scorecard search
+- `GET /api/organizing/scorecard` - 8-factor scorecard search (with temporal decay)
 - `GET /api/organizing/scorecard/{id}` - Employer detail with score breakdown
+- `GET /api/organizing/summary` - Organizing summary statistics
+- `GET /api/organizing/by-state` - Organizing targets by state
+- `GET /api/organizing/siblings/{estab_id}` - Sibling establishments
+- `GET /api/organizing/propensity/{employer_id}` - ML propensity score
 
 ### Density (`/api/density/`)
 - `GET /api/density/by-state` - State-level density
@@ -176,6 +180,12 @@ BLS industry density, state-level density by government level, county estimates 
 - `POST /api/admin/refresh-scorecard` - Refresh materialized view (admin-only)
 - `GET /api/admin/data-freshness` - Data source freshness stats
 - `POST /api/admin/refresh-freshness` - Refresh freshness data (admin-only)
+- `GET /api/admin/score-versions` - Score version history (admin-only)
+- `GET /api/admin/match-quality` - Match quality metrics
+- `GET /api/admin/match-review` - Matches pending review
+- `POST /api/admin/match-review/{id}` - Approve/reject match
+- `GET /api/admin/propensity-models` - ML model versions
+- `GET /api/admin/employer-groups` - Canonical employer groups
 
 ### Additional Routers
 - **Lookups** - NAICS codes, state lists, reference data
@@ -188,7 +198,7 @@ BLS industry density, state-level density by government level, county estimates 
 
 ## Test Suite
 
-165 tests across 5 test files:
+359 tests across 19 test files:
 
 ```cmd
 py -m pytest tests/ -v
@@ -201,6 +211,20 @@ py -m pytest tests/ -v
 | `test_data_integrity.py` | 24 | Database constraint and referential integrity |
 | `test_matching.py` | 53 | Employer matching pipeline validation |
 | `test_scoring.py` | 39 | Scorecard computation and tier distribution |
+| `test_phase1_regression_guards.py` | 12 | Phase 1 regression guards |
+| `test_name_normalization.py` | 14 | Canonical name normalization |
+| `test_phase3_matching.py` | 17 | Unified match log and deterministic matcher |
+| `test_phase4_integration.py` | 13 | SEC EDGAR, BLS density, OEWS integration |
+| `test_employer_groups.py` | 10 | Canonical employer grouping |
+| `test_naics_hierarchy_scoring.py` | 12 | Hierarchical NAICS similarity |
+| `test_temporal_decay.py` | 29 | OSHA/NLRB temporal decay |
+| `test_score_versioning.py` | 14 | Score version tracking |
+| `test_propensity_model.py` | 22 | ML propensity model |
+| `test_occupation_integration.py` | 11 | Occupation overlap and similarity |
+| `test_similarity_fallback.py` | 12 | Gower similarity fallbacks |
+| `test_db_config_migration_guard.py` | 3 | db_config migration guard |
+| `test_frontend_xss_regressions.py` | 3 | Frontend XSS regression |
+| `test_scorecard_contract_field_parity.py` | 2 | Scorecard field parity |
 
 ---
 
@@ -217,18 +241,27 @@ labor-data-project/
 ├── files/                  # Frontend assets
 │   ├── organizer_v5.html   # Main SPA (2,138 lines, markup only)
 │   ├── css/organizer.css   # Styles (227 lines)
-│   └── js/                 # 10 JS modules (global scope, load-order dependent)
-│       ├── config.js       # API base URL
+│   └── js/                 # 19 JS modules (global scope, load-order dependent)
+│       ├── config.js       # API base URL, score factors, tiers
 │       ├── utils.js        # Shared utilities
 │       ├── maps.js         # Leaflet map integration
 │       ├── territory.js    # Territory mode
 │       ├── search.js       # Search functionality
 │       ├── deepdive.js     # Deep dive analysis
-│       ├── detail.js       # Employer detail view
-│       ├── scorecard.js    # Scorecard display
-│       ├── modals.js       # Modal dialogs
-│       └── app.js          # App initialization
-├── tests/                  # pytest test suite (165 tests)
+│       ├── detail.js       # Employer detail view (1,436 lines)
+│       ├── scorecard.js    # Scorecard display (871 lines)
+│       ├── uniondive.js    # Union profile mode
+│       ├── glossary.js     # Metrics glossary
+│       ├── modal-similar.js      # Similar employers modal
+│       ├── modal-corporate.js    # Corporate family modal
+│       ├── modal-analytics.js    # Analytics charts modal
+│       ├── modal-comparison.js   # Side-by-side comparison
+│       ├── modal-unified.js      # Unified search modal
+│       ├── modal-elections.js    # NLRB elections modal
+│       ├── modal-publicsector.js # Public sector modal
+│       ├── modal-trends.js       # Trends modal
+│       └── app.js          # App initialization (1,140 lines)
+├── tests/                  # pytest test suite (359 tests, 19 files)
 ├── scripts/                # ETL, matching, maintenance scripts
 ├── docs/                   # Documentation and audit reports
 ├── sql/                    # SQL scripts
@@ -247,8 +280,9 @@ labor-data-project/
 | [Roadmap_TRUE_02_15.md](Roadmap_TRUE_02_15.md) | Current roadmap (supersedes all prior) |
 | [docs/METHODOLOGY_SUMMARY_v8.md](docs/METHODOLOGY_SUMMARY_v8.md) | Complete methodology |
 | [docs/AUDIT_REPORT_ROUND2_CLAUDE.md](docs/AUDIT_REPORT_ROUND2_CLAUDE.md) | Round 2 audit report |
-| [PUBLIC_SECTOR_SCHEMA_DOCS.md](PUBLIC_SECTOR_SCHEMA_DOCS.md) | Public sector schema |
-| [EPI_BENCHMARK_METHODOLOGY.md](EPI_BENCHMARK_METHODOLOGY.md) | Benchmark methodology |
+| [docs/PUBLIC_SECTOR_SCHEMA_DOCS.md](docs/PUBLIC_SECTOR_SCHEMA_DOCS.md) | Public sector schema |
+| [docs/EPI_BENCHMARK_METHODOLOGY.md](docs/EPI_BENCHMARK_METHODOLOGY.md) | Benchmark methodology |
+| [docs/AUDIT_REPORT_CLAUDE_2026_R3.md](docs/AUDIT_REPORT_CLAUDE_2026_R3.md) | Round 3 comprehensive audit |
 
 ---
 
@@ -276,7 +310,7 @@ from db_config import get_connection
 conn = get_connection()
 ```
 
-Database: PostgreSQL `olms_multiyear` on localhost, ~160 tables, 186 views, 4 materialized views, ~20 GB, ~24M rows.
+Database: PostgreSQL `olms_multiyear` on localhost, ~174 tables, 186 views, 4 materialized views, ~20 GB, ~24M rows.
 
 ---
 
@@ -288,4 +322,4 @@ Database: PostgreSQL `olms_multiyear` on localhost, ~160 tables, 186 views, 4 ma
 
 ---
 
-*Last Updated: February 15, 2026*
+*Last Updated: February 16, 2026*

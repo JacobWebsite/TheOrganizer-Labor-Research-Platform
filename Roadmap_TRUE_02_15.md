@@ -31,45 +31,45 @@ This document is the result of comparing those two roadmaps, identifying every d
 
 The 60,000-orphan fix was the single biggest win — every employer-union relationship in the database now connects properly to a real record. Before this fix, roughly 60,000 employer records were pointing to unions that didn't exist in the system, which made huge chunks of the data unusable.
 
-The 9-factor scoring system is unified in the backend. There's one materialized view (think of it as a pre-calculated results table that the database keeps ready so it doesn't have to re-compute scores every time someone asks) that scores 24,841 employers. The score no longer changes depending on whether you see it in a list versus a detail page.
+The 9-factor scoring system is unified in the backend. There's one materialized view (think of it as a pre-calculated results table that the database keeps ready so it doesn't have to re-compute scores every time someone asks) that scores 22,389 employers. The score no longer changes depending on whether you see it in a list versus a detail page.
 
-The frontend was split from one massive 10,500-line file into 12 separate files. All the connections between the website interface and the backend data system are verified working.
+The frontend was split from one massive 10,500-line file into 21 separate files (1 HTML + 1 CSS + 19 JS). All the connections between the website interface and the backend data system are verified working.
 
 Match rates improved dramatically — the system can now connect 47.3% of current employers to OSHA safety records (up from almost nothing), 16% to wage theft records, 11.9% to nonprofit filings, and 28.7% to NLRB election records.
 
 Security improved significantly — the exposed password was removed, the system has JWT authentication (a way of verifying who's logged in using encrypted tokens), and all database queries are protected against injection attacks (a common hacking technique where someone types malicious code into a search box).
 
-165 automated tests pass, covering matching, scoring, the API, authentication, and data integrity.
+359 automated tests pass across 19 test files, covering matching, scoring, the API, authentication, data integrity, temporal decay, propensity models, and more.
 
-### Things That Are Broken Right Now
+### Things That Were Broken (Status as of Phase 5 Completion, Feb 16 2026)
 
-| What's Wrong | How Serious | What It Means in Plain Language |
-|-------------|-------------|-------------------------------|
-| 3 density endpoints crash | **CRITICAL** | When someone tries to see a density map (how concentrated union activity is in an area), the page crashes. The code is trying to read data from rows using a method that doesn't match how the rows are actually structured. |
-| Authentication is disabled by default | **CRITICAL** | Right now, if you turned this on for anyone else to use, there's no login requirement. Anyone who found the URL could access everything. The security system exists but isn't enforced unless you manually turn it on. |
-| 824 union file number orphans | **HIGH** | 824 employer records reference union file numbers that don't exist in the unions table. This got worse (was 195) when historical employers were imported. These broken references mean some employer-union connections silently fail. |
-| 29 scripts have a password bug | **HIGH** | These scripts have a coding mistake where the text `os.environ.get('DB_PASSWORD', '')` is being sent as the literal password instead of being executed as code that looks up the actual password. They work only by accident because the database currently has no password. |
-| GLEIF raw schema is 12 GB | **HIGH** | There's a massive set of global corporate ownership data taking up most of the database storage. Only a tiny fraction (310 MB) is actually used by the platform. The rest is dead weight. |
-| Only 37.7% of employers have industry codes | **MEDIUM** | Without a NAICS industry code, the scoring system can't calculate how unionized that industry is — a key factor in identifying good targets. Nearly two-thirds of scoreable employers are missing this. |
-| 299 unused database indexes wasting 1.67 GB | **MEDIUM** | Indexes are like a book's index — they help the database find things faster. But 299 of them are never used, meaning they take up space and slow down data updates for no benefit. |
-| Documentation is ~55% accurate | **MEDIUM** | The README file that explains how to start and use the platform is wrong about the startup command, the file locations, the number of scoring factors, and more. Anyone trying to follow it would get stuck. |
-| modals.js is 2,598 lines | **MEDIUM** | One JavaScript file handles all the popup windows in the interface. It's become a secondary monolith — hard to understand, hard to change, and easy to break accidentally. |
-| Frontend has old score label remnants | **LOW** | The backend scoring is unified, but the interface still has leftover references to old scoring scales (0-62, 0-100) that no longer exist. Not causing bugs but creates confusion. |
+| What Was Wrong | Status | Resolution |
+|---------------|--------|------------|
+| 3 density endpoints crash | **FIXED (Phase 1)** | Changed row[N] to row['col'] in all 6 density endpoints. |
+| Authentication is disabled by default | **FIXED (Phase 1)** | Auth enforced when JWT_SECRET set. Note: `.env` still has `DISABLE_AUTH=true` for local dev -- must be removed for production. |
+| 824 union file number orphans | **IMPROVED** | Reduced to 518 (37% reduction). Remaining are defunct unions not in unions_master. |
+| 29 scripts have a password bug | **FIXED (Phase 1)** | All migrated to use `db_config.get_connection()`. |
+| GLEIF raw schema is 12 GB | **NOT FIXED** | Still present. Target for Phase 6 cleanup. |
+| Only 37.7% of employers have industry codes | **IMPROVED (Phase 1)** | NAICS backfill from OSHA matches. Coverage improved but still partial. |
+| 299 unused database indexes wasting 1.67 GB | **NOT FIXED** | Still ~300 unused indexes. Target for Phase 6. |
+| Documentation is ~55% accurate | **IMPROVED** | README rewritten (Phase 1), updated again (Phase 5). Some staleness remains. |
+| modals.js is 2,598 lines | **FIXED (Phase 2)** | Split into 8 focused modal-*.js files. Largest is now ~400 lines. |
+| Frontend has old score label remnants | **FIXED (Phase 2)** | All references unified to 8-factor SCORE_FACTORS system in config.js. |
 
 ### Platform by the Numbers
 
 | What | Count |
 |------|-------|
 | Database size | ~20 GB (12 GB is the GLEIF raw data that should be archived) |
-| Tables | 169 total |
+| Tables | 174 total |
 | Views | 186 |
 | Total rows | ~23.9 million (public) / ~76.7 million (with GLEIF raw data) |
-| API endpoints | 152 across 17 route groups |
-| Automated tests | 165 (all passing) |
-| Current employers tracked | 60,953 |
-| Historical employers (no longer active) | 52,760 |
-| Python scripts | ~494 |
-| Frontend files | 12 (down from 1 monolith) |
+| API endpoints | 160 across 17 route groups |
+| Automated tests | 359 (all passing, 19 test files) |
+| Current employers tracked | 67,552 |
+| Historical employers (no longer active) | 79,311 |
+| Python scripts | ~548 |
+| Frontend files | 21 (down from 1 monolith) |
 
 ---
 
@@ -79,7 +79,7 @@ When three different auditors look at the same system, they sometimes measure th
 
 ### OSHA Match Rate: 47.3% or 25.37%?
 
-The auditors got different numbers because they divided by different things. Claude divided the number of successful OSHA matches by the 60,953 *current* employers (employers with active union contracts right now). Codex divided by 113,713 *all* employers (including 52,760 historical ones from expired contracts).
+The auditors got different numbers because they divided by different things. Claude divided the number of successful OSHA matches by the *current* employers (employers with active union contracts right now). Codex divided by *all* employers (including historical ones from expired contracts). As of Phase 5 completion: 67,552 current + 79,311 historical = 146,863 total.
 
 Both numbers are correct — they just answer different questions. The 47.3% answers "how many active employers can I look up safety records for?" The 25.37% answers "what fraction of our entire employer database has OSHA connections?"
 
@@ -163,7 +163,7 @@ Make the system require a login when running in anything other than local develo
 Time: 2-4 hours.
 
 **Exit criteria (how we know this phase is done):**
-- All 152 API endpoints respond without crashing
+- All 160 API endpoints respond without crashing
 - Authentication is required unless explicitly running in dev mode
 - Documentation matches what the platform actually does
 - No scripts with the password bug remain
@@ -272,7 +272,7 @@ When the API returns information about an employer's OSHA matches or 990 matches
 Create a unified view that brings together all NLRB case types (elections, unfair labor practice complaints, representation petitions) for a given employer. Clearly document which case types are expected to NOT have election records. This makes "show me this employer's complete NLRB history" actually answerable.
 
 **3.8 Resolve historical employers (Weeks 6-7)**
-The 52,760 historical employers (ones with expired union contracts) currently create confusion in dashboards because they inflate denominators without being relevant to active organizing. Options decided:
+The 79,311 historical employers (ones with expired union contracts) currently create confusion in dashboards because they inflate denominators without being relevant to active organizing. Options decided:
 - Merge the ~4,942 that appear to be duplicates of current employers (after manual review)
 - Keep the rest flagged as historical with a clear `is_historical` filter
 - Run matching against OSHA/WHD for historical trend analysis (answers questions like "what happened to working conditions after the union left?")
@@ -345,7 +345,7 @@ The decision here was "middle ground" — plan for the advanced scoring model bu
 **Core (ships):**
 
 **5.1 Temporal scoring decay**
-A safety violation from last year should matter more than one from 10 years ago. Right now, all violations count the same regardless of age. Add time-based decay so recent violations weigh more heavily. Apply to: OSHA violations, WHD wage theft cases, and NLRB elections.
+A safety violation from last year should matter more than one from 10 years ago. Right now, all violations count the same regardless of age. Add time-based decay so recent violations weigh more heavily. Apply to: OSHA violations (10-year half-life) and NLRB elections (7-year half-life). **Status: DONE.** WHD is not a scoring factor in the MV, so decay does not apply to it.
 
 Why this works: It uses a mathematical formula (exponential decay) where the weight drops off over time. A violation from 1 year ago might count at 90% weight, 5 years ago at 50%, 10 years ago at 15%. The exact rate is tunable per factor.
 
@@ -373,10 +373,10 @@ Success criteria: If the model's accuracy (measured by AUC) is above 0.65, publi
 **This ships as experimental** — visible to users as "Experimental: AI-suggested opportunity score" alongside the established 9-factor score. It does NOT replace the current scoring system until it's been validated.
 
 **Exit criteria:**
-- Temporal decay applied to OSHA, WHD, and NLRB factors
-- Hierarchical NAICS similarity replacing binary matching
-- Score versioning in place
-- Propensity model built and measured (even if experimental)
+- Temporal decay applied to OSHA and NLRB factors -- **DONE**
+- Hierarchical NAICS similarity replacing binary matching -- **DONE (6-digit gradient blend)**
+- Score versioning in place -- **DONE (`score_versions` table, auto-insert on create/refresh)**
+- Propensity model built and measured (even if experimental) -- **DONE (Model A AUC=0.72, Model B AUC=0.53, 146K employers scored)**
 
 ---
 
@@ -392,7 +392,7 @@ Docker is a tool that packages the entire platform — the code, the database, t
 Deliverable: A `docker-compose.yml` file that starts the API server, the PostgreSQL database, and a web server together.
 
 **6.2 CI/CD pipeline**
-CI/CD (Continuous Integration / Continuous Deployment) means that every time code changes are pushed to GitHub, the 165 automated tests run automatically. If any test fails, you know immediately what broke and when. This prevents the "it worked yesterday, now it doesn't, and nobody knows what changed" problem.
+CI/CD (Continuous Integration / Continuous Deployment) means that every time code changes are pushed to GitHub, the 359 automated tests run automatically. If any test fails, you know immediately what broke and when. This prevents the "it worked yesterday, now it doesn't, and nobody knows what changed" problem.
 
 Deliverable: GitHub Actions configuration that runs tests on every push and lints (checks for code style issues) on every pull request.
 
@@ -429,13 +429,13 @@ The AFSCME scraper proved the concept — 295 profiles crawled, 103 sites proces
 No open-source tools exist for scraping state Public Employee Relations Board data. Building scrapers for NY PERB, CA PERB, and IL ILRB would be the first of its kind and directly fills the gap where federal data doesn't cover public-sector employers. This is one of the platform's biggest potential differentiators.
 
 **7.3 "Union-lost" analysis**
-The 52,760 historical employers represent workplaces that once had union contracts but no longer do. Matching them against OSHA/WHD/NLRB could answer: "Which employers decertified? What happened to working conditions after the union left?" This is research-grade analysis that would be valuable for academic partners and strategic planning.
+The 79,311 historical employers represent workplaces that once had union contracts but no longer do. Matching them against OSHA/WHD/NLRB could answer: "Which employers decertified? What happened to working conditions after the union left?" This is research-grade analysis that would be valuable for academic partners and strategic planning.
 
 **7.4 Board report generation**
 One-click PDF/CSV exports for union board presentations: territory overview, top targets with evidence, trend charts, data freshness statement. This is a "last mile" feature that makes the platform useful for the actual meetings where organizing decisions get made.
 
-**7.5 Occupation-based similarity**
-Use BLS staffing patterns (from Phase 4.4) to compare employers by workforce composition rather than just industry code. Two employers with different NAICS codes but similar occupation mixes (lots of warehouse workers, lots of truck drivers) are highly comparable for organizing purposes.
+**7.5 Occupation-based similarity** -- **DONE (completed in Phases 4-5)**
+BLS staffing patterns used to compare employers by workforce composition. `occupation_similarity` table (8,731 pairs), `industry_occupation_overlap` table (130,638 rows), integrated into Gower as 14th feature (occupation_overlap, weight 1.5). Two employers with different NAICS codes but similar occupation mixes are now identified as comparable.
 
 **7.6 Expanding frontend to 5-area structure**
 When the platform is mature enough, expand from the initial 4-screen structure to V2's 5-area layout:
