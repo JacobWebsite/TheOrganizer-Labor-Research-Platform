@@ -10,8 +10,44 @@ Refresh: py scripts/scoring/create_scorecard_mv.py --refresh
 import sys
 import os
 import time
+import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from db_config import get_connection
+
+
+# ── Score versioning ──────────────────────────────────────────────────
+# Every MV create/refresh records a version with algorithm parameters.
+
+SCORE_VERSIONS_DDL = """
+CREATE TABLE IF NOT EXISTS score_versions (
+    version_id   SERIAL PRIMARY KEY,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    description  TEXT,
+    row_count    INTEGER,
+    factor_weights JSONB NOT NULL,
+    decay_params   JSONB NOT NULL,
+    score_stats    JSONB
+)
+"""
+
+CURRENT_FACTOR_WEIGHTS = {
+    "company_unions": {"max": 0, "note": "excluded - union shops filtered"},
+    "industry_density": {"max": 10, "method": "hierarchical_naics_blend"},
+    "geographic": {"max": 10, "components": ["nlrb_win_rate", "state_density", "rtw_bonus"]},
+    "size": {"max": 10, "sweet_spot": "50-250"},
+    "osha": {"max": 10, "method": "decayed_ratio + severity_bonus"},
+    "nlrb": {"max": 10, "method": "blended_state_industry_fallback"},
+    "contracts": {"max": 10, "source": "federal_obligations"},
+    "projections": {"max": 10, "source": "bls_industry_projections"},
+    "similarity": {"max": 10, "source": "gower_distance", "fallback": "industry_avg_similarity",
+                    "fallback_cap": 5, "note": "industry-avg capped at 50% of employer-specific max"},
+}
+
+CURRENT_DECAY_PARAMS = {
+    "osha": {"half_life_years": 10, "lambda_expr": "LN(2)/10", "applied_to": "violation_count_and_severity"},
+    "nlrb": {"half_life_years": 7, "lambda_expr": "LN(2)/7", "applied_in": "detail_endpoint_only",
+             "note": "MV excludes F7-matched rows; NLRB routes through F7"},
+}
 
 
 MV_SQL = """
@@ -21,6 +57,63 @@ WITH
 industry_density AS (
     SELECT naics_2digit, union_density_pct
     FROM v_naics_union_density
+),
+-- State x industry density estimates (Phase 4) with normalized codes
+state_industry_density AS (
+    SELECT
+        state,
+        year,
+        estimated_density::numeric AS estimated_density,
+        regexp_replace(COALESCE(industry_code::text, ''), '[^0-9]', '', 'g') AS industry_code_norm
+    FROM estimated_state_industry_density
+),
+-- Hierarchical NAICS blend: uses state-level density when available,
+-- weighted by NAICS digit-match similarity (6-digit=1.0 down to 2-digit=0.25)
+industry_density_blend AS (
+    SELECT
+        t.establishment_id,
+        COALESCE(id.union_density_pct, 0)::numeric AS national_density_pct,
+        sb.estimated_density AS state_density_pct,
+        COALESCE(sb.naics_similarity, 0.0)::numeric AS naics_similarity,
+        CASE
+            WHEN sb.estimated_density IS NULL THEN COALESCE(id.union_density_pct, 0)::numeric
+            ELSE
+                (COALESCE(id.union_density_pct, 0)::numeric * (1 - COALESCE(sb.naics_similarity, 0.0)::numeric))
+                + (sb.estimated_density * COALESCE(sb.naics_similarity, 0.0)::numeric)
+        END AS blended_density_pct
+    FROM v_osha_organizing_targets t
+    LEFT JOIN industry_density id
+        ON id.naics_2digit = LEFT(t.naics_code, 2)
+    CROSS JOIN LATERAL (
+        SELECT regexp_replace(COALESCE(t.naics_code::text, ''), '[^0-9]', '', 'g') AS naics_norm
+    ) tn
+    LEFT JOIN LATERAL (
+        SELECT
+            s.estimated_density,
+            CASE
+                WHEN tn.naics_norm = '' THEN 0.0
+                WHEN LENGTH(tn.naics_norm) >= 6
+                 AND LENGTH(s.industry_code_norm) >= 6
+                 AND LEFT(tn.naics_norm, 6) = LEFT(s.industry_code_norm, 6) THEN 1.0
+                WHEN LENGTH(tn.naics_norm) >= 5
+                 AND LENGTH(s.industry_code_norm) >= 5
+                 AND LEFT(tn.naics_norm, 5) = LEFT(s.industry_code_norm, 5) THEN 0.85
+                WHEN LENGTH(tn.naics_norm) >= 4
+                 AND LENGTH(s.industry_code_norm) >= 4
+                 AND LEFT(tn.naics_norm, 4) = LEFT(s.industry_code_norm, 4) THEN 0.65
+                WHEN LENGTH(tn.naics_norm) >= 3
+                 AND LENGTH(s.industry_code_norm) >= 3
+                 AND LEFT(tn.naics_norm, 3) = LEFT(s.industry_code_norm, 3) THEN 0.45
+                WHEN LENGTH(tn.naics_norm) >= 2
+                 AND LENGTH(s.industry_code_norm) >= 2
+                 AND LEFT(tn.naics_norm, 2) = LEFT(s.industry_code_norm, 2) THEN 0.25
+                ELSE 0.0
+            END AS naics_similarity
+        FROM state_industry_density s
+        WHERE s.state = t.site_state
+        ORDER BY naics_similarity DESC, COALESCE(s.year, 0) DESC, s.industry_code_norm
+        LIMIT 1
+    ) sb ON TRUE
 ),
 rtw_states AS (
     SELECT state FROM ref_rtw_states
@@ -80,6 +173,28 @@ mergent_data AS (
         WHERE me.similarity_score IS NOT NULL OR me.nlrb_predicted_win_pct IS NOT NULL
     ) sub
     GROUP BY establishment_id
+),
+-- NOTE: NLRB employer-specific decay is NOT applied in the MV because the
+-- WHERE clause (fm.establishment_id IS NULL) excludes F7-matched rows, and
+-- NLRB data routes through osha_f7_matches->nlrb_participants which requires
+-- an F7 match. Employer-specific NLRB decay is applied in the detail endpoint.
+nlrb_recent_placeholder AS (
+    SELECT NULL::bigint AS establishment_id, NULL::date AS last_election_date
+    WHERE FALSE
+),
+-- Industry-average similarity scores (powers Factor 9 fallback for unmatched establishments)
+-- Computed from mergent_employers similarity_score grouped by NAICS 2-digit sector.
+-- Bridges the gap: MV rows lack F7 matches so md.similarity_score is always NULL.
+industry_avg_similarity AS (
+    SELECT LEFT(me.naics_primary, 2) AS naics_2,
+           AVG(me.similarity_score)::numeric AS avg_similarity,
+           COUNT(*) AS sample_size
+    FROM mergent_employers me
+    WHERE me.has_union IS NOT TRUE
+      AND me.similarity_score IS NOT NULL
+      AND me.naics_primary IS NOT NULL
+    GROUP BY LEFT(me.naics_primary, 2)
+    HAVING COUNT(*) >= 10
 )
 
 SELECT
@@ -106,11 +221,13 @@ SELECT
     -- Kept as 0 for schema compatibility
     0 AS score_company_unions,
 
-    -- Factor 2: Industry density (10 pts)
+    -- Factor 2: Industry density with hierarchical NAICS blend (10 pts)
+    -- Uses state-level density when available, weighted by NAICS digit-match similarity
     CASE
-        WHEN COALESCE(id.union_density_pct, 0) > 20 THEN 10
-        WHEN COALESCE(id.union_density_pct, 0) > 10 THEN 8
-        WHEN COALESCE(id.union_density_pct, 0) > 5 THEN 5
+        WHEN t.naics_code IS NULL THEN 2
+        WHEN COALESCE(idb.blended_density_pct, 0) > 20 THEN 10
+        WHEN COALESCE(idb.blended_density_pct, 0) > 10 THEN 8
+        WHEN COALESCE(idb.blended_density_pct, 0) > 5 THEN 5
         ELSE 2
     END AS score_industry_density,
 
@@ -146,57 +263,56 @@ SELECT
         ELSE 2
     END AS score_size,
 
-    -- Factor 5: OSHA violations normalized (10 pts)
+    -- Factor 5: OSHA violations with temporal decay (10 pts)
+    -- Half-life: 10 years. Recent violations weigh more than old ones.
+    -- decay = exp(-LN(2)/10 * years_since_last_inspection)
     LEAST(10,
-        -- Base from ratio (0-7)
+        -- Base from decayed ratio (0-7)
         CASE
             WHEN COALESCE(t.total_violations, 0) = 0 THEN 0
-            WHEN COALESCE(t.total_violations, 0)::float / GREATEST(
+            WHEN COALESCE(t.total_violations, 0)::float * osha_decay.val / GREATEST(
                 COALESCE(oa4.avg_violations_per_estab, oa2.avg_violations_per_estab, oaall.avg_violations_per_estab, 2.23), 0.01
             ) >= 3.0 THEN 7
-            WHEN COALESCE(t.total_violations, 0)::float / GREATEST(
+            WHEN COALESCE(t.total_violations, 0)::float * osha_decay.val / GREATEST(
                 COALESCE(oa4.avg_violations_per_estab, oa2.avg_violations_per_estab, oaall.avg_violations_per_estab, 2.23), 0.01
             ) >= 2.0 THEN 5
-            WHEN COALESCE(t.total_violations, 0)::float / GREATEST(
+            WHEN COALESCE(t.total_violations, 0)::float * osha_decay.val / GREATEST(
                 COALESCE(oa4.avg_violations_per_estab, oa2.avg_violations_per_estab, oaall.avg_violations_per_estab, 2.23), 0.01
             ) >= 1.5 THEN 4
-            WHEN COALESCE(t.total_violations, 0)::float / GREATEST(
+            WHEN COALESCE(t.total_violations, 0)::float * osha_decay.val / GREATEST(
                 COALESCE(oa4.avg_violations_per_estab, oa2.avg_violations_per_estab, oaall.avg_violations_per_estab, 2.23), 0.01
             ) >= 1.0 THEN 3
             ELSE 1
         END
         +
-        -- Severity bonus (0-3)
-        LEAST(3, COALESCE(t.willful_count, 0) * 2 + COALESCE(t.repeat_count, 0))
+        -- Severity bonus with decay (0-3)
+        LEAST(3, ROUND(
+            (COALESCE(t.willful_count, 0) * 2 + COALESCE(t.repeat_count, 0))::float * osha_decay.val
+        )::int)
     ) AS score_osha,
 
-    -- OSHA industry ratio (for display)
-    ROUND(
-        COALESCE(t.total_violations, 0)::numeric / GREATEST(
+    -- OSHA industry ratio with temporal decay (for display)
+    ROUND((
+        COALESCE(t.total_violations, 0)::float * osha_decay.val / GREATEST(
             COALESCE(oa4.avg_violations_per_estab, oa2.avg_violations_per_estab, oaall.avg_violations_per_estab, 2.23), 0.01
-        ), 2
-    ) AS osha_industry_ratio,
+        )
+    )::numeric, 2) AS osha_industry_ratio,
 
     -- Factor 6: NLRB (10 pts)
+    -- Blended state + industry rate (no decay -- population averages, not employer-specific)
+    -- NOTE: Employer-specific NLRB decay (half-life 7yr) is applied in the detail
+    -- endpoint for establishments that DO have F7 matches + NLRB election history.
+    -- In the MV, all rows lack F7 matches (by design), so only the fallback applies.
     CASE
-        WHEN md.nlrb_predicted_win_pct >= 82 THEN 10
-        WHEN md.nlrb_predicted_win_pct >= 78 THEN 8
-        WHEN md.nlrb_predicted_win_pct >= 74 THEN 5
-        WHEN md.nlrb_predicted_win_pct >= 70 THEN 3
-        WHEN md.nlrb_predicted_win_pct IS NOT NULL THEN 1
-        ELSE
-            -- Fallback: blended state + industry rate
-            CASE
-                WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
-                    + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 82 THEN 10
-                WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
-                    + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 78 THEN 8
-                WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
-                    + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 74 THEN 5
-                WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
-                    + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 70 THEN 3
-                ELSE 1
-            END
+        WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
+            + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 82 THEN 10
+        WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
+            + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 78 THEN 8
+        WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
+            + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 74 THEN 5
+        WHEN (COALESCE(nsr.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_rate)) * 0.6
+            + COALESCE(ni.win_rate_pct, (SELECT win_rate_pct FROM nlrb_us_industry)) * 0.4) >= 70 THEN 3
+        ELSE 1
     END AS score_nlrb,
 
     -- Factor 7: Contracts (10 pts)
@@ -217,13 +333,25 @@ SELECT
     END AS score_projections,
 
     -- Factor 9: Similarity (10 pts)
+    -- Primary: employer-specific Gower similarity (via F7 match path)
+    -- Fallback: industry-average similarity by NAICS sector (for unmatched MV rows)
     CASE
         WHEN md.similarity_score >= 0.80 THEN 10
         WHEN md.similarity_score >= 0.60 THEN 7
         WHEN md.similarity_score >= 0.40 THEN 4
         WHEN md.similarity_score IS NOT NULL THEN 1
+        -- Industry-average fallback (reduced by 50% since it's population-level, not employer-specific)
+        WHEN ias.avg_similarity >= 0.90 THEN 5
+        WHEN ias.avg_similarity >= 0.80 THEN 3
+        WHEN ias.avg_similarity IS NOT NULL THEN 1
         ELSE 0
     END AS score_similarity,
+
+    -- Temporal decay factors (for transparency / API)
+    ROUND(osha_decay.val::numeric, 4) AS osha_decay_factor,
+    -- NLRB decay always 1.0 in MV (no employer-specific NLRB data for unmatched rows)
+    1.0::numeric AS nlrb_decay_factor,
+    NULL::date AS last_election_date,
 
     -- Metadata
     fm.establishment_id IS NOT NULL AS has_f7_match,
@@ -231,12 +359,23 @@ SELECT
     fc.federal_obligations,
     fc.federal_contract_count,
     md.nlrb_predicted_win_pct,
-    md.similarity_score
+    COALESCE(md.similarity_score, ias.avg_similarity) AS similarity_score,
+    CASE
+        WHEN md.similarity_score IS NOT NULL THEN 'employer'
+        WHEN ias.avg_similarity IS NOT NULL THEN 'industry_avg'
+        ELSE NULL
+    END AS similarity_source
 
 FROM v_osha_organizing_targets t
 
--- Factor 2: Industry density
-LEFT JOIN industry_density id ON id.naics_2digit = LEFT(t.naics_code, 2)
+-- Temporal decay: OSHA half-life 10 years. lambda = LN(2)/10
+-- Uses CURRENT_DATE, so scores are date-sensitive — refresh daily or weekly.
+CROSS JOIN LATERAL (
+    SELECT exp(-LN(2)/10 * GREATEST(0, (CURRENT_DATE - COALESCE(t.last_inspection_date, CURRENT_DATE))::float / 365.25)) AS val
+) osha_decay
+
+-- Factor 2: Industry density (hierarchical NAICS blend)
+LEFT JOIN industry_density_blend idb ON idb.establishment_id = t.establishment_id
 
 -- Factor 3: Geographic
 LEFT JOIN rtw_states rtw ON rtw.state = t.site_state
@@ -264,6 +403,8 @@ END AND bp.matrix_code IS NULL
 LEFT JOIN f7_matches fm ON fm.establishment_id = t.establishment_id
 LEFT JOIN fed_contracts fc ON fc.establishment_id = t.establishment_id
 LEFT JOIN mergent_data md ON md.establishment_id = t.establishment_id
+-- Factor 9 fallback: industry-average similarity for unmatched establishments
+LEFT JOIN industry_avg_similarity ias ON ias.naics_2 = LEFT(t.naics_code, 2)
 
 -- Exclude establishments already matched to F7 (union shops are not organizing targets)
 WHERE fm.establishment_id IS NULL
@@ -289,9 +430,59 @@ INDEX_SQL = [
 ]
 
 
+def _ensure_score_versions_table(cur):
+    """Create the score_versions table if it doesn't exist."""
+    cur.execute(SCORE_VERSIONS_DDL)
+
+
+def _record_version(cur, description, row_count):
+    """Insert a score_versions row and return the version_id."""
+    # Get score stats
+    cur.execute("""
+        SELECT
+            MIN(score_company_unions + score_industry_density + score_geographic +
+                score_size + score_osha + score_nlrb + score_contracts +
+                score_projections + score_similarity) AS min_score,
+            ROUND(AVG(score_company_unions + score_industry_density + score_geographic +
+                score_size + score_osha + score_nlrb + score_contracts +
+                score_projections + score_similarity)::numeric, 1) AS avg_score,
+            MAX(score_company_unions + score_industry_density + score_geographic +
+                score_size + score_osha + score_nlrb + score_contracts +
+                score_projections + score_similarity) AS max_score,
+            ROUND(AVG(osha_decay_factor)::numeric, 3) AS avg_osha_decay
+        FROM mv_organizing_scorecard
+    """)
+    stats_row = cur.fetchone()
+    score_stats = {
+        "min_score": int(stats_row[0]) if stats_row[0] is not None else None,
+        "avg_score": float(stats_row[1]) if stats_row[1] is not None else None,
+        "max_score": int(stats_row[2]) if stats_row[2] is not None else None,
+        "avg_osha_decay": float(stats_row[3]) if stats_row[3] is not None else None,
+    }
+
+    cur.execute("""
+        INSERT INTO score_versions (description, row_count, factor_weights, decay_params, score_stats)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING version_id, created_at
+    """, (
+        description,
+        row_count,
+        json.dumps(CURRENT_FACTOR_WEIGHTS),
+        json.dumps(CURRENT_DECAY_PARAMS),
+        json.dumps(score_stats),
+    ))
+    vid, created = cur.fetchone()
+    return vid, created, score_stats
+
+
 def create_mv(conn):
     """Drop and recreate the materialized view."""
     cur = conn.cursor()
+
+    print("Ensuring score_versions table...")
+    _ensure_score_versions_table(cur)
+    conn.commit()
+
     print("Dropping old MV if exists...")
     cur.execute("DROP VIEW IF EXISTS v_organizing_scorecard CASCADE")
     cur.execute("DROP MATERIALIZED VIEW IF EXISTS mv_organizing_scorecard CASCADE")
@@ -318,22 +509,11 @@ def create_mv(conn):
     conn.commit()
     print("  Done.")
 
-    # Stats
-    cur.execute("""
-        SELECT
-            MIN(score_company_unions + score_industry_density + score_geographic +
-                score_size + score_osha + score_nlrb + score_contracts +
-                score_projections + score_similarity) AS min_score,
-            AVG(score_company_unions + score_industry_density + score_geographic +
-                score_size + score_osha + score_nlrb + score_contracts +
-                score_projections + score_similarity) AS avg_score,
-            MAX(score_company_unions + score_industry_density + score_geographic +
-                score_size + score_osha + score_nlrb + score_contracts +
-                score_projections + score_similarity) AS max_score
-        FROM mv_organizing_scorecard
-    """)
-    row = cur.fetchone()
-    print(f"  Scores: min={row[0]}, avg={row[1]:.1f}, max={row[2]}")
+    # Record version
+    vid, created, stats = _record_version(cur, "MV full rebuild", count)
+    conn.commit()
+    print(f"  Score version: v{vid} ({created})")
+    print(f"  Scores: min={stats['min_score']}, avg={stats['avg_score']}, max={stats['max_score']}")
 
 
 def refresh_mv(conn):
@@ -341,6 +521,9 @@ def refresh_mv(conn):
     # REFRESH CONCURRENTLY cannot run inside a transaction block
     conn.autocommit = True
     cur = conn.cursor()
+
+    _ensure_score_versions_table(cur)
+
     print("Refreshing mv_organizing_scorecard CONCURRENTLY...")
     t0 = time.time()
     cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_organizing_scorecard")
@@ -349,6 +532,10 @@ def refresh_mv(conn):
     cur.execute("SELECT COUNT(*) FROM mv_organizing_scorecard")
     count = cur.fetchone()[0]
     print(f"  Refreshed in {elapsed:.1f}s ({count:,} rows)")
+
+    vid, created, stats = _record_version(cur, "MV concurrent refresh", count)
+    print(f"  Score version: v{vid} ({created})")
+    print(f"  Scores: min={stats['min_score']}, avg={stats['avg_score']}, max={stats['max_score']}")
 
 
 def main():
