@@ -2,86 +2,144 @@
 Splink probabilistic matching pipeline.
 
 Matches employer records across data sources using Splink 4.x with DuckDB backend.
-Only processes records that the deterministic pipeline failed to match.
+Writes output to both splink_match_results and unified_match_log.
 
 Usage:
+    py scripts/matching/splink_pipeline.py --scenario mergent_to_f7
     py scripts/matching/splink_pipeline.py mergent_to_f7
-    py scripts/matching/splink_pipeline.py gleif_to_f7
     py scripts/matching/splink_pipeline.py --all
 """
 import argparse
 import sys
 import time
+import uuid
 from pathlib import Path
 
 import pandas as pd
-import psycopg2
-import psycopg2.extras
+from psycopg2.extras import Json, execute_batch
+from splink import DuckDBAPI, Linker
 
-from splink import Linker, DuckDBAPI
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# Add parent for config imports
-sys.path.insert(0, str(Path(__file__).parent))
-import os
-from splink_config import (
-    SCENARIOS,
-    THRESHOLD_AUTO_ACCEPT,
-    THRESHOLD_REVIEW,
-)
-
-DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'localhost'),
-    'port': int(os.environ.get('DB_PORT', '5432')),
-    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
-    'user': os.environ.get('DB_USER', 'postgres'),
-    'password': os.environ.get('DB_PASSWORD', ''),
-}
-
-
-def get_conn():
-    return psycopg2.connect(**DB_CONFIG)
+from db_config import get_connection
+from splink_config import SCENARIOS, THRESHOLD_AUTO_ACCEPT, THRESHOLD_REVIEW
 
 
 def create_results_table(conn):
     """Create splink_match_results table if not exists."""
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS splink_match_results (
-            id SERIAL PRIMARY KEY,
-            scenario TEXT NOT NULL,
-            source_id TEXT NOT NULL,
-            source_name TEXT,
-            target_id TEXT NOT NULL,
-            target_name TEXT,
-            match_probability FLOAT NOT NULL,
-            match_weight FLOAT,
-            -- Per-column comparison levels
-            name_comparison_level INTEGER,
-            state_comparison_level INTEGER,
-            city_comparison_level INTEGER,
-            zip_comparison_level INTEGER,
-            naics_comparison_level INTEGER,
-            address_comparison_level INTEGER,
-            -- Review status
-            review_status TEXT DEFAULT 'pending',
-            -- auto_accept (>=0.85), needs_review (0.70-0.85), rejected (<0.70)
-            created_at TIMESTAMP DEFAULT NOW()
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS splink_match_results (
+                id SERIAL PRIMARY KEY,
+                scenario TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_name TEXT,
+                target_id TEXT NOT NULL,
+                target_name TEXT,
+                match_probability FLOAT NOT NULL,
+                match_weight FLOAT,
+                name_comparison_level INTEGER,
+                state_comparison_level INTEGER,
+                city_comparison_level INTEGER,
+                zip_comparison_level INTEGER,
+                naics_comparison_level INTEGER,
+                address_comparison_level INTEGER,
+                review_status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+            """
         )
-    """)
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_smr_scenario ON splink_match_results(scenario)
-    """)
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_smr_source ON splink_match_results(source_id)
-    """)
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_smr_target ON splink_match_results(target_id)
-    """)
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_smr_prob ON splink_match_results(match_probability DESC)
-    """)
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_smr_scenario ON splink_match_results(scenario)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_smr_source ON splink_match_results(source_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_smr_target ON splink_match_results(target_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_smr_prob ON splink_match_results(match_probability DESC)"
+        )
     conn.commit()
     print("  splink_match_results table ready")
+
+
+def _infer_source_system(scenario_name, cfg):
+    if cfg.get("source_system"):
+        return cfg["source_system"]
+    if scenario_name == "f7_self_dedup":
+        return "f7"
+    if scenario_name.endswith("_to_f7"):
+        return scenario_name.replace("_to_f7", "")
+    return scenario_name.split("_")[0]
+
+
+def _classification(prob):
+    if prob >= THRESHOLD_AUTO_ACCEPT:
+        return "auto_accept", "HIGH", "active"
+    if prob >= THRESHOLD_REVIEW:
+        return "needs_review", "MEDIUM", "active"
+    return "rejected", "LOW", "rejected"
+
+
+def _get_comparison_level(row, col_name):
+    gamma_col = f"gamma_{col_name}"
+    if gamma_col in row.index:
+        val = row[gamma_col]
+        return int(val) if pd.notna(val) else None
+    return None
+
+
+def _extract_comparison_levels(row):
+    levels = {}
+    for col in row.index:
+        if not col.startswith("gamma_"):
+            continue
+        val = row[col]
+        if pd.isna(val):
+            continue
+        key = col.replace("gamma_", "")
+        if key == "name_normalized":
+            key = "name"
+        levels[key] = int(val)
+    return levels
+
+
+def _register_run(conn, run_id, scenario_name, source_system):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO match_runs (run_id, scenario, started_at, source_system, method_type)
+            VALUES (%s, %s, NOW(), %s, %s)
+            ON CONFLICT (run_id) DO NOTHING
+            """,
+            [run_id, scenario_name, source_system, "probabilistic"],
+        )
+    conn.commit()
+
+
+def _finalize_run(conn, run_id, total_source, high_count, medium_count, low_count):
+    total_active = high_count + medium_count
+    match_rate = round(total_active / max(total_source, 1) * 100, 2)
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE match_runs
+            SET completed_at = NOW(),
+                total_source = %s,
+                total_matched = %s,
+                match_rate = %s,
+                high_count = %s,
+                medium_count = %s,
+                low_count = %s
+            WHERE run_id = %s
+            """,
+            [total_source, total_active, match_rate, high_count, medium_count, low_count, run_id],
+        )
+    conn.commit()
 
 
 def load_self_dedup_data(conn, scenario_name):
@@ -101,18 +159,22 @@ def load_self_dedup_data(conn, scenario_name):
     df = pd.read_sql(query, conn)
     print(f"    {len(df):,} records loaded")
 
-    # Ensure string ID
-    df['id'] = df['id'].astype(str)
-
-    # Clean NaN -> empty string for string columns
-    str_cols = ['name_normalized', 'state', 'city', 'zip', 'naics', 'street_address', 'original_name']
+    df["id"] = df["id"].astype(str)
+    str_cols = [
+        "name_normalized",
+        "state",
+        "city",
+        "zip",
+        "naics",
+        "street_address",
+        "original_name",
+    ]
     for col in str_cols:
         if col in df.columns:
-            df[col] = df[col].fillna('')
+            df[col] = df[col].fillna("")
 
-    # Uppercase state
-    if 'state' in df.columns:
-        df['state'] = df['state'].str.upper()
+    if "state" in df.columns:
+        df["state"] = df["state"].str.upper()
 
     return df
 
@@ -120,38 +182,51 @@ def load_self_dedup_data(conn, scenario_name):
 def load_unmatched_data(conn, scenario_name):
     """Load unmatched records from source and target tables into DataFrames."""
     cfg = SCENARIOS[scenario_name]
-    cur = conn.cursor()
 
-    # Build source query - only records NOT in crosswalk
     source_cols = cfg["source_columns"]
-    source_select = ", ".join(
-        f"{v} as {k}" for k, v in source_cols.items()
-    )
+    source_select = ", ".join(f"{v} as {k}" for k, v in source_cols.items())
+    source_filters = []
+    if cfg.get("source_unmatched_condition"):
+        source_filters.append(cfg["source_unmatched_condition"].strip())
+    elif cfg.get("crosswalk_source_col"):
+        source_filters.append(
+            f"""
+            NOT EXISTS (
+                SELECT 1 FROM corporate_identifier_crosswalk c
+                WHERE c.{cfg['crosswalk_source_col']} = s.{cfg['source_id']}
+            )
+            """.strip()
+        )
+    source_filters.append(f"{cfg['source_columns']['name_normalized']} IS NOT NULL")
+    source_filters.append(f"LENGTH({cfg['source_columns']['name_normalized']}) >= 3")
+    source_where = " AND ".join(f"({f})" for f in source_filters)
     source_query = f"""
         SELECT {source_select}
         FROM {cfg['source_table']} s
-        WHERE NOT EXISTS (
-            SELECT 1 FROM corporate_identifier_crosswalk c
-            WHERE c.{cfg['crosswalk_source_col']} = s.{cfg['source_id']}
-        )
-        AND {cfg['source_columns']['name_normalized']} IS NOT NULL
-        AND LENGTH({cfg['source_columns']['name_normalized']}) >= 3
+        WHERE {source_where}
     """
 
-    # Build target query - only records NOT in crosswalk
     target_cols = cfg["target_columns"]
-    target_select = ", ".join(
-        f"{v} as {k}" for k, v in target_cols.items()
-    )
+    target_select = ", ".join(f"{v} as {k}" for k, v in target_cols.items())
+    target_filters = []
+    if cfg.get("target_unmatched_condition"):
+        target_filters.append(cfg["target_unmatched_condition"].strip())
+    elif cfg.get("crosswalk_target_col"):
+        target_filters.append(
+            f"""
+            NOT EXISTS (
+                SELECT 1 FROM corporate_identifier_crosswalk c
+                WHERE c.{cfg['crosswalk_target_col']} = t.{cfg['target_id']}
+            )
+            """.strip()
+        )
+    target_filters.append(f"{cfg['target_columns']['name_normalized']} IS NOT NULL")
+    target_filters.append(f"LENGTH({cfg['target_columns']['name_normalized']}) >= 3")
+    target_where = " AND ".join(f"({f})" for f in target_filters)
     target_query = f"""
         SELECT {target_select}
         FROM {cfg['target_table']} t
-        WHERE NOT EXISTS (
-            SELECT 1 FROM corporate_identifier_crosswalk c
-            WHERE c.{cfg['crosswalk_target_col']} = t.{cfg['target_id']}
-        )
-        AND {cfg['target_columns']['name_normalized']} IS NOT NULL
-        AND LENGTH({cfg['target_columns']['name_normalized']}) >= 3
+        WHERE {target_where}
     """
 
     print(f"  Loading source ({cfg['source_table']})...")
@@ -162,23 +237,28 @@ def load_unmatched_data(conn, scenario_name):
     df_target = pd.read_sql(target_query, conn)
     print(f"    {len(df_target):,} unmatched target records")
 
-    # Ensure string types for ID columns (Splink needs consistent types)
-    df_source['id'] = df_source['id'].astype(str)
-    df_target['id'] = df_target['id'].astype(str)
+    df_source["id"] = df_source["id"].astype(str)
+    df_target["id"] = df_target["id"].astype(str)
 
-    # Clean NaN -> None for string columns
-    str_cols = ['name_normalized', 'state', 'city', 'zip', 'naics', 'street_address', 'original_name']
+    str_cols = [
+        "name_normalized",
+        "state",
+        "city",
+        "zip",
+        "naics",
+        "street_address",
+        "original_name",
+    ]
     for col in str_cols:
         if col in df_source.columns:
-            df_source[col] = df_source[col].fillna('')
+            df_source[col] = df_source[col].fillna("")
         if col in df_target.columns:
-            df_target[col] = df_target[col].fillna('')
+            df_target[col] = df_target[col].fillna("")
 
-    # Uppercase state for consistent matching
-    if 'state' in df_source.columns:
-        df_source['state'] = df_source['state'].str.upper()
-    if 'state' in df_target.columns:
-        df_target['state'] = df_target['state'].str.upper()
+    if "state" in df_source.columns:
+        df_source["state"] = df_source["state"].str.upper()
+    if "state" in df_target.columns:
+        df_target["state"] = df_target["state"].str.upper()
 
     return df_source, df_target
 
@@ -189,37 +269,29 @@ def run_splink_dedup(df, scenario_name):
     settings = cfg["settings"]
     em_blocking = cfg["em_blocking"]
 
-    print(f"\n  Initializing Splink Linker (dedupe_only, DuckDB backend)...")
-    db_api = DuckDBAPI()
-    linker = Linker(
-        [df],
-        settings,
-        db_api=db_api,
-    )
+    print("\n  Initializing Splink Linker (dedupe_only, DuckDB backend)...")
+    linker = Linker([df], settings, db_api=DuckDBAPI())
 
-    # Step 1: Estimate u probabilities
     print("  Estimating u probabilities (random sampling)...")
     start = time.time()
     linker.training.estimate_u_using_random_sampling(max_pairs=5_000_000)
-    print(f"    Done in {time.time()-start:.1f}s")
+    print(f"    Done in {time.time() - start:.1f}s")
 
-    # Step 2: EM training
     for i, br in enumerate(em_blocking):
-        print(f"  EM training pass {i+1}/{len(em_blocking)}...")
+        print(f"  EM training pass {i + 1}/{len(em_blocking)}...")
         start = time.time()
         linker.training.estimate_parameters_using_expectation_maximisation(
             br, fix_u_probabilities=True
         )
-        print(f"    Done in {time.time()-start:.1f}s")
+        print(f"    Done in {time.time() - start:.1f}s")
 
-    # Step 3: Predict
-    print(f"\n  Predicting duplicate pairs...")
+    print("\n  Predicting duplicate pairs...")
     start = time.time()
     results = linker.inference.predict(threshold_match_probability=THRESHOLD_REVIEW)
     df_results = results.as_pandas_dataframe()
-    print(f"    {len(df_results):,} candidate pairs above {THRESHOLD_REVIEW} threshold in {time.time()-start:.1f}s")
+    print(f"    {len(df_results):,} candidate pairs in {time.time() - start:.1f}s")
 
-    return df_results, linker
+    return df_results
 
 
 def run_splink_matching(df_source, df_target, scenario_name):
@@ -228,86 +300,111 @@ def run_splink_matching(df_source, df_target, scenario_name):
     settings = cfg["settings"]
     em_blocking = cfg["em_blocking"]
 
-    print(f"\n  Initializing Splink Linker (DuckDB backend)...")
-    db_api = DuckDBAPI()
-    linker = Linker(
-        [df_source, df_target],
-        settings,
-        db_api=db_api,
-    )
+    print("\n  Initializing Splink Linker (DuckDB backend)...")
+    linker = Linker([df_source, df_target], settings, db_api=DuckDBAPI())
 
-    # Step 1: Estimate u probabilities using random sampling
     print("  Estimating u probabilities (random sampling)...")
     start = time.time()
     linker.training.estimate_u_using_random_sampling(max_pairs=5_000_000)
-    print(f"    Done in {time.time()-start:.1f}s")
+    print(f"    Done in {time.time() - start:.1f}s")
 
-    # Step 2: Estimate m probabilities using EM with blocking rules
     for i, br in enumerate(em_blocking):
-        print(f"  EM training pass {i+1}/{len(em_blocking)}...")
+        print(f"  EM training pass {i + 1}/{len(em_blocking)}...")
         start = time.time()
         linker.training.estimate_parameters_using_expectation_maximisation(
             br, fix_u_probabilities=True
         )
-        print(f"    Done in {time.time()-start:.1f}s")
+        print(f"    Done in {time.time() - start:.1f}s")
 
-    # Step 3: Predict match probabilities
-    print(f"\n  Predicting matches...")
+    print("\n  Predicting matches...")
     start = time.time()
     results = linker.inference.predict(threshold_match_probability=THRESHOLD_REVIEW)
     df_results = results.as_pandas_dataframe()
-    print(f"    {len(df_results):,} candidate pairs above {THRESHOLD_REVIEW} threshold in {time.time()-start:.1f}s")
+    print(f"    {len(df_results):,} candidate pairs in {time.time() - start:.1f}s")
 
-    return df_results, linker
+    return df_results
 
 
-def save_results(conn, df_results, scenario_name):
-    """Save Splink results to database."""
+def save_results(conn, df_results, scenario_name, run_id, dry_run=False):
+    """Save Splink results to splink_match_results and unified_match_log."""
     if len(df_results) == 0:
         print("  No results to save.")
-        return 0, 0
+        return 0, 0, 0
 
     cfg = SCENARIOS[scenario_name]
-    cur = conn.cursor()
+    source_system = _infer_source_system(scenario_name, cfg)
 
-    # Delete previous results for this scenario
-    cur.execute("DELETE FROM splink_match_results WHERE scenario = %s", (scenario_name,))
-    old_count = cur.rowcount
-    if old_count > 0:
-        print(f"  Cleared {old_count:,} previous results")
-
-    # Map Splink output columns to our schema
-    # Splink uses "id_l" and "id_r" for left/right record IDs
-    inserted = 0
-    auto_accepted = 0
-    needs_review = 0
+    counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    splink_rows = []
+    unified_rows = []
 
     for _, row in df_results.iterrows():
-        prob = row.get('match_probability', 0)
-        weight = row.get('match_weight', None)
+        source_id = str(row.get("id_l", ""))
+        target_id = str(row.get("id_r", ""))
+        prob = float(row.get("match_probability") or 0.0)
+        weight_raw = row.get("match_weight")
+        weight = float(weight_raw) if pd.notna(weight_raw) else None
 
-        if prob >= THRESHOLD_AUTO_ACCEPT:
-            status = 'auto_accept'
-            auto_accepted += 1
-        elif prob >= THRESHOLD_REVIEW:
-            status = 'needs_review'
-            needs_review += 1
-        else:
-            continue  # Skip below review threshold
+        review_status, confidence_band, status = _classification(prob)
+        counts[confidence_band] += 1
 
-        # Extract comparison levels (column names vary by scenario)
-        name_level = _get_comparison_level(row, 'name_normalized')
-        state_level = _get_comparison_level(row, 'state')
-        city_level = _get_comparison_level(row, 'city')
-        zip_level = _get_comparison_level(row, 'zip')
-        naics_level = _get_comparison_level(row, 'naics')
-        addr_level = _get_comparison_level(row, 'street_address')
+        comparison_levels = _extract_comparison_levels(row)
+        evidence = {
+            "scenario": scenario_name,
+            "match_probability": round(prob, 6),
+            "match_weight": weight,
+            "comparison_levels": comparison_levels,
+        }
 
-        # Get names from the result
-        source_name = row.get('original_name_l', row.get('name_normalized_l', ''))
-        target_name = row.get('original_name_r', row.get('name_normalized_r', ''))
+        source_name = row.get("original_name_l", row.get("name_normalized_l", ""))
+        target_name = row.get("original_name_r", row.get("name_normalized_r", ""))
 
-        cur.execute("""
+        splink_rows.append(
+            (
+                scenario_name,
+                source_id,
+                str(source_name) if source_name else None,
+                target_id,
+                str(target_name) if target_name else None,
+                prob,
+                weight,
+                _get_comparison_level(row, "name_normalized"),
+                _get_comparison_level(row, "state"),
+                _get_comparison_level(row, "city"),
+                _get_comparison_level(row, "zip"),
+                _get_comparison_level(row, "naics"),
+                _get_comparison_level(row, "street_address"),
+                review_status,
+            )
+        )
+        unified_rows.append(
+            (
+                run_id,
+                source_system,
+                source_id,
+                "f7",
+                target_id,
+                "SPLINK_PROBABILISTIC",
+                "probabilistic",
+                confidence_band,
+                prob,
+                Json(evidence),
+                status,
+            )
+        )
+
+    if dry_run:
+        print(
+            f"\n  Dry run classification: HIGH={counts['HIGH']:,}, "
+            f"MEDIUM={counts['MEDIUM']:,}, LOW={counts['LOW']:,}"
+        )
+        return counts["HIGH"], counts["MEDIUM"], counts["LOW"]
+
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM splink_match_results WHERE scenario = %s", (scenario_name,))
+        execute_batch(
+            cur,
+            """
             INSERT INTO splink_match_results
                 (scenario, source_id, source_name, target_id, target_name,
                  match_probability, match_weight,
@@ -316,143 +413,145 @@ def save_results(conn, df_results, scenario_name):
                  naics_comparison_level, address_comparison_level,
                  review_status)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            scenario_name,
-            str(row.get('id_l', '')),
-            str(source_name) if source_name else None,
-            str(row.get('id_r', '')),
-            str(target_name) if target_name else None,
-            float(prob),
-            float(weight) if weight is not None else None,
-            name_level, state_level, city_level, zip_level, naics_level, addr_level,
-            status,
-        ))
-        inserted += 1
-
+            """,
+            splink_rows,
+            page_size=1000,
+        )
+        execute_batch(
+            cur,
+            """
+            INSERT INTO unified_match_log
+                (run_id, source_system, source_id, target_system, target_id,
+                 match_method, match_tier, confidence_band, confidence_score,
+                 evidence, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (run_id, source_system, source_id, target_id) DO NOTHING
+            """,
+            unified_rows,
+            page_size=1000,
+        )
     conn.commit()
-    print(f"\n  Saved {inserted:,} results:")
-    print(f"    Auto-accept (>={THRESHOLD_AUTO_ACCEPT}): {auto_accepted:,}")
-    print(f"    Needs review ({THRESHOLD_REVIEW}-{THRESHOLD_AUTO_ACCEPT}): {needs_review:,}")
 
-    return auto_accepted, needs_review
-
-
-def _get_comparison_level(row, col_name):
-    """Extract comparison level from Splink result row."""
-    # Splink names gamma columns as "gamma_{column_name}"
-    gamma_col = f"gamma_{col_name}"
-    if gamma_col in row.index:
-        val = row[gamma_col]
-        return int(val) if pd.notna(val) else None
-    return None
+    print(
+        f"\n  Saved {len(splink_rows):,} results:"
+        f"\n    HIGH (>= {THRESHOLD_AUTO_ACCEPT}): {counts['HIGH']:,}"
+        f"\n    MEDIUM ({THRESHOLD_REVIEW}-{THRESHOLD_AUTO_ACCEPT}): {counts['MEDIUM']:,}"
+        f"\n    LOW (< {THRESHOLD_REVIEW}): {counts['LOW']:,}"
+    )
+    return counts["HIGH"], counts["MEDIUM"], counts["LOW"]
 
 
 def print_sample_matches(conn, scenario_name, limit=15):
-    """Print sample high-probability matches for review."""
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT source_name, target_name, match_probability, review_status,
-               name_comparison_level, state_comparison_level, city_comparison_level
-        FROM splink_match_results
-        WHERE scenario = %s
-        ORDER BY match_probability DESC
-        LIMIT %s
-    """, (scenario_name, limit))
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT source_name, target_name, match_probability, review_status,
+                   name_comparison_level, state_comparison_level, city_comparison_level
+            FROM splink_match_results
+            WHERE scenario = %s
+            ORDER BY match_probability DESC
+            LIMIT %s
+            """,
+            (scenario_name, limit),
+        )
+        rows = cur.fetchall()
 
-    rows = cur.fetchall()
     if not rows:
         print("  No matches to display.")
         return
 
     print(f"\n  Top {len(rows)} matches:")
-    print(f"  {'Source':<40} {'Target':<40} {'Prob':>6} {'Status':<12} {'Name':>4} {'St':>2} {'Cty':>3}")
-    print(f"  {'-'*40} {'-'*40} {'-'*6} {'-'*12} {'-'*4} {'-'*2} {'-'*3}")
+    print(
+        f"  {'Source':<40} {'Target':<40} {'Prob':>6} {'Status':<12} {'Name':>4} {'St':>2} {'Cty':>3}"
+    )
+    print(f"  {'-' * 40} {'-' * 40} {'-' * 6} {'-' * 12} {'-' * 4} {'-' * 2} {'-' * 3}")
     for row in rows:
-        src = (row[0] or '')[:40]
-        tgt = (row[1] or '')[:40]
+        src = (row[0] or "")[:40]
+        tgt = (row[1] or "")[:40]
         prob = row[2]
         status = row[3]
-        name_lvl = row[4] if row[4] is not None else '-'
-        state_lvl = row[5] if row[5] is not None else '-'
-        city_lvl = row[6] if row[6] is not None else '-'
+        name_lvl = row[4] if row[4] is not None else "-"
+        state_lvl = row[5] if row[5] is not None else "-"
+        city_lvl = row[6] if row[6] is not None else "-"
         print(f"  {src:<40} {tgt:<40} {prob:>6.3f} {status:<12} {name_lvl:>4} {state_lvl:>2} {city_lvl:>3}")
 
 
-def run_scenario(scenario_name):
-    """Run a complete Splink matching scenario."""
-    print(f"\n{'='*70}")
+def run_scenario(scenario_name, dry_run=False):
+    print(f"\n{'=' * 70}")
     print(f"SPLINK MATCHING: {scenario_name}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     overall_start = time.time()
     cfg = SCENARIOS[scenario_name]
+    source_system = _infer_source_system(scenario_name, cfg)
+    run_id = str(uuid.uuid4())
     is_dedup = cfg.get("link_type") == "dedupe_only"
+    total_source = 0
+    high = medium = low = 0
 
-    conn = get_conn()
-    create_results_table(conn)
+    conn = get_connection()
+    try:
+        create_results_table(conn)
+        if not dry_run:
+            _register_run(conn, run_id, scenario_name, source_system)
 
-    if is_dedup:
-        # Self-dedup: single DataFrame
-        print(f"\n--- Loading data (self-dedup) ---")
-        df = load_self_dedup_data(conn, scenario_name)
+        if is_dedup:
+            print("\n--- Loading data (self-dedup) ---")
+            df = load_self_dedup_data(conn, scenario_name)
+            total_source = len(df)
+            if len(df) == 0:
+                print("  No records to process. Skipping.")
+                if not dry_run:
+                    _finalize_run(conn, run_id, total_source, high, medium, low)
+                return
 
-        if len(df) == 0:
-            print("  No records to process. Skipping.")
-            conn.close()
-            return
+            print("\n--- Running Splink (dedupe_only) ---")
+            df_results = run_splink_dedup(df, scenario_name)
+        else:
+            print("\n--- Loading data ---")
+            df_source, df_target = load_unmatched_data(conn, scenario_name)
+            total_source = len(df_source)
+            if len(df_source) == 0 or len(df_target) == 0:
+                print("  No unmatched records to process. Skipping.")
+                if not dry_run:
+                    _finalize_run(conn, run_id, total_source, high, medium, low)
+                return
 
-        print(f"\n--- Running Splink (dedupe_only) ---")
-        df_results, linker = run_splink_dedup(df, scenario_name)
+            print("\n--- Running Splink ---")
+            df_results = run_splink_matching(df_source, df_target, scenario_name)
 
-        record_count = len(df)
-    else:
-        # Cross-source link: two DataFrames
-        print(f"\n--- Loading data ---")
-        df_source, df_target = load_unmatched_data(conn, scenario_name)
+        print("\n--- Saving results ---")
+        high, medium, low = save_results(
+            conn, df_results, scenario_name, run_id=run_id, dry_run=dry_run
+        )
+        if not dry_run:
+            _finalize_run(conn, run_id, total_source, high, medium, low)
+            print_sample_matches(conn, scenario_name)
 
-        if len(df_source) == 0 or len(df_target) == 0:
-            print("  No unmatched records to process. Skipping.")
-            conn.close()
-            return
-
-        print(f"\n--- Running Splink ---")
-        df_results, linker = run_splink_matching(df_source, df_target, scenario_name)
-
-        record_count = len(df_source) + len(df_target)
-
-    if len(df_results) == 0:
-        print("  No matches found above threshold.")
+        elapsed = time.time() - overall_start
+        print("\n--- Summary ---")
+        print(f"  Run ID: {run_id}")
+        print(f"  Scenario: {scenario_name}")
+        if is_dedup:
+            print(f"  Records: {total_source:,} (self-dedup)")
+        else:
+            print(f"  Source records: {len(df_source):,}")
+            print(f"  Target records: {len(df_target):,}")
+        print(f"  Active matches: {high + medium:,}")
+        print(f"    HIGH: {high:,}")
+        print(f"    MEDIUM: {medium:,}")
+        print(f"    LOW (rejected): {low:,}")
+        print(f"  Total time: {elapsed:.1f}s")
+    finally:
         conn.close()
-        return
-
-    # Save results
-    print(f"\n--- Saving results ---")
-    auto_accepted, needs_review = save_results(conn, df_results, scenario_name)
-
-    # Show samples
-    print_sample_matches(conn, scenario_name)
-
-    # Summary stats
-    elapsed = time.time() - overall_start
-    print(f"\n--- Summary ---")
-    print(f"  Scenario: {scenario_name}")
-    if is_dedup:
-        print(f"  Records: {record_count:,} (self-dedup)")
-    else:
-        print(f"  Source records: {len(df_source):,}")
-        print(f"  Target records: {len(df_target):,}")
-    print(f"  Matches found: {auto_accepted + needs_review:,}")
-    print(f"    Auto-accept: {auto_accepted:,}")
-    print(f"    Needs review: {needs_review:,}")
-    print(f"  Total time: {elapsed:.1f}s")
-
-    conn.close()
 
 
 def main():
     parser = argparse.ArgumentParser(description="Splink probabilistic matching pipeline")
-    parser.add_argument("scenario", nargs="?", help="Scenario name (e.g., mergent_to_f7)")
+    parser.add_argument("scenario_pos", nargs="?", help="Scenario name (e.g., mergent_to_f7)")
+    parser.add_argument("--scenario", help="Scenario name (e.g., mergent_to_f7)")
     parser.add_argument("--all", action="store_true", help="Run all scenarios")
+    parser.add_argument("--dry-run", action="store_true", help="Do not write results to database")
     parser.add_argument("--list", action="store_true", help="List available scenarios")
     args = parser.parse_args()
 
@@ -460,24 +559,27 @@ def main():
         print("Available scenarios:")
         for name in SCENARIOS:
             cfg = SCENARIOS[name]
-            print(f"  {name}: {cfg['source_table']} -> {cfg['target_table']}")
+            src = cfg.get("source_table", "n/a")
+            tgt = cfg.get("target_table", cfg.get("source_table", "n/a"))
+            print(f"  {name}: {src} -> {tgt}")
         return
 
     if args.all:
         for name in SCENARIOS:
-            run_scenario(name)
+            run_scenario(name, dry_run=args.dry_run)
         return
 
-    if not args.scenario:
+    scenario_name = args.scenario or args.scenario_pos
+    if not scenario_name:
         parser.print_help()
         return
 
-    if args.scenario not in SCENARIOS:
-        print(f"Unknown scenario: {args.scenario}")
+    if scenario_name not in SCENARIOS:
+        print(f"Unknown scenario: {scenario_name}")
         print(f"Available: {', '.join(SCENARIOS.keys())}")
         return
 
-    run_scenario(args.scenario)
+    run_scenario(scenario_name, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

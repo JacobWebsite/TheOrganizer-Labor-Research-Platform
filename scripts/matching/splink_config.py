@@ -106,6 +106,66 @@ NLRB_F7_EM_BLOCKING = [
 
 
 # ============================================================================
+# SCENARIO: OSHA -> F7
+# ============================================================================
+# OSHA: estab_name, site_state, site_city, site_zip, naics_code, site_address
+# F7: name_aggressive, state, city, zip, naics, street
+
+OSHA_F7_SETTINGS = SettingsCreator(
+    link_type="link_only",
+    unique_id_column_name="id",
+    comparisons=[
+        cl.JaroWinklerAtThresholds("name_normalized", [0.95, 0.88, 0.80, 0.70]),
+        cl.ExactMatch("state"),
+        cl.LevenshteinAtThresholds("city", [1, 2]),
+        cl.JaroWinklerAtThresholds("zip", [0.95, 0.80]),
+        cl.ExactMatch("naics").configure(term_frequency_adjustments=True),
+    ],
+    blocking_rules_to_generate_predictions=[
+        block_on("state", "substr(name_normalized, 1, 3)"),
+        block_on("state", "city"),
+    ],
+    retain_intermediate_calculation_columns=True,
+    retain_matching_columns=True,
+)
+
+OSHA_F7_EM_BLOCKING = [
+    block_on("state", "city"),
+    block_on("substr(name_normalized, 1, 5)"),
+]
+
+
+# ============================================================================
+# SCENARIO: WHD -> F7
+# ============================================================================
+# WHD: trade_name, state, city, zip_code, naics_code, street_address
+# F7:  name_aggressive, state, city, zip, naics
+
+WHD_F7_SETTINGS = SettingsCreator(
+    link_type="link_only",
+    unique_id_column_name="id",
+    comparisons=[
+        cl.JaroWinklerAtThresholds("name_normalized", [0.95, 0.88, 0.80, 0.70]),
+        cl.ExactMatch("state"),
+        cl.LevenshteinAtThresholds("city", [1, 2]),
+        cl.JaroWinklerAtThresholds("zip", [0.95, 0.80]),
+        cl.ExactMatch("naics").configure(term_frequency_adjustments=True),
+    ],
+    blocking_rules_to_generate_predictions=[
+        block_on("state", "substr(name_normalized, 1, 3)"),
+        block_on("state", "city"),
+    ],
+    retain_intermediate_calculation_columns=True,
+    retain_matching_columns=True,
+)
+
+WHD_F7_EM_BLOCKING = [
+    block_on("state", "city"),
+    block_on("substr(name_normalized, 1, 5)"),
+]
+
+
+# ============================================================================
 # SCENARIO: F7 Self-Deduplication
 # ============================================================================
 # Single-source dedup using Splink's dedupe_only mode.
@@ -205,11 +265,86 @@ SCENARIOS = {
         "settings": F7_SELF_DEDUP_SETTINGS,
         "em_blocking": F7_SELF_DEDUP_EM_BLOCKING,
         "link_type": "dedupe_only",
+        "source_system": "f7",
         "source_table": "f7_employers_deduped",
         "source_id": "employer_id",
         "columns": {
             "id": "employer_id",
             "name_normalized": "employer_name_aggressive",
+            "state": "state",
+            "city": "city",
+            "zip": "zip",
+            "naics": "naics",
+            "street_address": "street",
+            "original_name": "employer_name",
+        },
+    },
+    "osha_to_f7": {
+        "settings": OSHA_F7_SETTINGS,
+        "em_blocking": OSHA_F7_EM_BLOCKING,
+        "source_system": "osha",
+        "source_table": "osha_establishments",
+        "target_table": "f7_employers_deduped",
+        "source_id": "establishment_id",
+        "target_id": "employer_id",
+        "source_unmatched_condition": """
+            NOT EXISTS (
+                SELECT 1 FROM unified_match_log u
+                WHERE u.source_system = 'osha'
+                  AND u.source_id = s.establishment_id::text
+                  AND u.status = 'active'
+            )
+        """,
+        "source_columns": {
+            "id": "establishment_id",
+            "name_normalized": "estab_name",
+            "state": "site_state",
+            "city": "site_city",
+            "zip": "site_zip",
+            "naics": "naics_code",
+            "street_address": "site_address",
+            "original_name": "estab_name",
+        },
+        "target_columns": {
+            "id": "employer_id",
+            "name_normalized": "name_aggressive",
+            "state": "state",
+            "city": "city",
+            "zip": "zip",
+            "naics": "naics",
+            "street_address": "street",
+            "original_name": "employer_name",
+        },
+    },
+    "whd_to_f7": {
+        "settings": WHD_F7_SETTINGS,
+        "em_blocking": WHD_F7_EM_BLOCKING,
+        "source_system": "whd",
+        "source_table": "whd_cases",
+        "target_table": "f7_employers_deduped",
+        "source_id": "case_id",
+        "target_id": "employer_id",
+        "source_unmatched_condition": """
+            NOT EXISTS (
+                SELECT 1 FROM unified_match_log u
+                WHERE u.source_system = 'whd'
+                  AND u.source_id = s.case_id::text
+                  AND u.status = 'active'
+            )
+        """,
+        "source_columns": {
+            "id": "case_id",
+            "name_normalized": "trade_name",
+            "state": "state",
+            "city": "city",
+            "zip": "zip_code",
+            "naics": "naics_code",
+            "street_address": "street_address",
+            "original_name": "trade_name",
+        },
+        "target_columns": {
+            "id": "employer_id",
+            "name_normalized": "name_aggressive",
             "state": "state",
             "city": "city",
             "zip": "zip",
