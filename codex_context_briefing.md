@@ -13,35 +13,35 @@ I'm building a research platform that pulls together data from multiple U.S. gov
 
 ## Tech Stack (What Everything Runs On)
 
-- **Database:** PostgreSQL (called `olms_multiyear`), about 33GB, ~207 tables, ~13.5 million records
-- **Backend API:** Python with FastAPI, about 142 endpoints (web addresses the frontend calls to get data)
-- **Frontend:** HTML/JavaScript app — `organizer_v5.html` (markup) + 10 JS files + CSS (split in Sprint 6)
+- **Database:** PostgreSQL (called `olms_multiyear`), about 20 GB, ~161 tables, 186 views, 4 materialized views, ~23.9M records
+- **Backend API:** Python with FastAPI, 152+ endpoints across 17 routers. Entry point: `api/main.py`. Start: `py -m uvicorn api.main:app --reload --port 8001`
+- **Frontend:** HTML/JavaScript app — `organizer_v5.html` (2,300 lines markup) + 21 JS files + CSS
 - **Data Processing:** Python scripts for importing, cleaning, and matching data
-- **Matching Library:** `pg_trgm` (PostgreSQL extension for fuzzy text matching — finds similar-but-not-identical names)
+- **Matching Library:** `pg_trgm` (PostgreSQL extension for fuzzy text matching), plus Splink for probabilistic matching
+- **Tests:** 240 passing (33 API + 16 auth + 25 data integrity + 53 matching + 39 scoring + 6 XSS + 24 name norm + 12 employer groups + 17 phase3 + 15 misc). Run: `py -m pytest tests/`
 
 ---
 
 ## The Core Tables (Where The Important Data Lives)
 
-When you see code referencing these table names, here's what they contain:
-
 | Table Name | What It Holds | Row Count |
 |------------|--------------|-----------|
 | `unions_master` | Every union that files financial reports with the government | 26,665 |
-| `f7_employers_deduped` | Employers that have collective bargaining agreements (current + historical) | 113,713 |
-| `f7_union_employer_relations` | The links between unions and employers (who represents who) | ~120,000 |
+| `f7_employers_deduped` | Employers with collective bargaining agreements (current + historical) | 146,863 |
+| `f7_union_employer_relations` | Links between unions and employers (who represents who) | ~120,000 |
 | `nlrb_elections` | Union election results (votes to form or remove a union) | 33,096 |
 | `osha_establishments` | Workplaces tracked by OSHA (safety agency) | 1,007,217 |
 | `osha_violations_detail` | Safety violations with penalty amounts | 2,245,020 |
-| `osha_f7_matches` | Connections we've built between OSHA workplaces and our employer list | ~80,000 |
+| `osha_f7_matches` | Connections between OSHA workplaces and our employer list | ~145,000 |
 | `whd_cases` | Wage theft cases (stolen wages, child labor, etc.) | 363,365 |
-| `ps_employers` | Public sector employers (governments, school districts, etc.) | 7,987 |
-| `corporate_hierarchy` | Corporate parent-child relationships | 125,120 |
-| `corporate_identifier_crosswalk` | Links between different ID systems (SEC, DUNS, EIN, etc.) | 14,561 |
-| `mv_employer_search` | A pre-built search index combining all employer sources | 120,169 |
-| `mv_organizing_scorecard` | Materialized view: 9-factor employer organizing scores | 24,841 |
-| `v_organizing_scorecard` | Wrapper view adding total `organizing_score` (sum of 9 factors) | 24,841 |
+| `unified_match_log` | All matches across all sources in one table | ~258,000 |
+| `employer_canonical_groups` | Canonical employer grouping (dedup by name+state) | 16,179 |
+| `corporate_identifier_crosswalk` | Links between ID systems (SEC, DUNS, EIN, etc.) | 14,561 |
+| `mv_employer_search` | Pre-built search index combining all employer sources | 120,169 |
+| `mv_organizing_scorecard` | 8-factor employer organizing scores (**union shops excluded**) | 22,389 |
+| `v_organizing_scorecard` | Wrapper view adding total `organizing_score` | 22,389 |
 | `mergent_employers` | Private company data from a commercial database | ~200,000 |
+| `data_source_freshness` | Tracks 15 data sources, ~7M records total | 15 |
 
 ---
 
@@ -49,97 +49,94 @@ When you see code referencing these table names, here's what they contain:
 
 The biggest technical challenge is connecting the same employer across different government databases. "Walmart" in the OSHA database might be "WAL-MART STORES INC" in the NLRB database and "Wal-Mart Associates, Inc." in the union filings.
 
-**The matching approach uses multiple steps:**
-1. **Exact match** on normalized names (lowercase, remove "inc", "llc", punctuation, etc.)
-2. **Fuzzy match** using trigram similarity (a score from 0 to 1 measuring how similar two text strings look — we typically use 0.75-0.85 thresholds)
-3. **Geographic verification** — names must match AND be in the same city/state
-4. **Manual review flags** — humans can mark matches as correct, incorrect, or needing review
+**Current match rates (F7 employer perspective):** OSHA 28.0%, WHD 9.7%, 990 6.7%, SAM 10.2%, NLRB 8.2%. Overall: 42.6% of F7 employers matched to at least one source.
+
+**Matching pipeline (Phase 3 — COMPLETE):**
+
+1. **Canonical name normalization** — 3 levels: `name_standard` (basic cleanup), `name_aggressive` (strip suffixes, abbreviations), `name_fuzzy` (phonetic). Pre-computed on f7_employers_deduped (146K rows indexed).
+2. **Deterministic matcher v3** — 6-tier cascade: exact name+state+city, exact name+state, aggressive+state, EIN, fuzzy (pg_trgm >= 0.65). In-memory indexes (108K+ keys). 868K OSHA records in ~20s.
+3. **Probabilistic matching** — Splink for Mergent-to-F7, GLEIF-to-F7, F7 self-dedup.
+4. **Unified match log** — All matches written to `unified_match_log` with source_system, match_tier, confidence_band (HIGH/MEDIUM/LOW), confidence_score, evidence JSONB, status.
+5. **Match quality dashboard** — `GET /api/admin/match-quality`, `GET /api/admin/match-review`.
+
+**Employer canonical grouping (NEW):**
+- Groups employers by `(name_aggressive, UPPER(state))` — same real-world employer appearing as multiple rows gets one canonical representative
+- 16,179 groups covering 40,304 employer rows. 403 cross-state groups.
+- Canonical rep selected by: current (+100), not-excluded (+50), largest unit (+size/100), recent filing (+10)
+- Consolidated workers = SUM of MAX(unit_size) per distinct union within group
+- Script: `py scripts/matching/build_employer_groups.py [--dry-run]`
 
 **When reviewing matching code, watch for:**
 - Threshold values (too low = false matches, too high = missed matches)
 - Whether geographic constraints are applied (matching by name alone produces lots of false positives)
 - Proper text normalization before comparison
-- Whether the code handles common edge cases: DBA names ("doing business as"), abbreviations, parent vs. subsidiary names
+- Whether the code handles common edge cases: DBA names, abbreviations, parent vs. subsidiary names
+- `f7_employer_id` is TEXT type — type mismatch in JOINs causes silent failures
+- `psycopg2 %%` for pg_trgm `%` operator — must escape when params tuple is passed
 
 ---
 
 ## API Structure
 
-The API (v7.0) was decomposed from a monolith into 16 focused routers under `api/routers/`. Entry point is `api/main.py`. Start command: `py -m uvicorn api.main:app --reload --port 8001`.
+The API (v7.1) has 17 routers under `api/routers/`. Entry point is `api/main.py`.
 
-| File | What It Handles | Endpoint Count |
-|------|----------------|----------------|
-| `employers.py` | Employer search, profiles, comparables | 24 |
+| File | What It Handles | Key Endpoints |
+|------|----------------|---------------|
+| `employers.py` | Employer search, profiles, comparables, related filings, employer groups | 26+ |
 | `nlrb.py` | Union election data, case details | 10 |
 | `osha.py` | Safety violations, establishment lookup | 7 |
-| `unions.py` | Union profiles, financial data | 8 |
+| `unions.py` | Union profiles, financial data (with consolidated employer view) | 10 |
 | `trends.py` | Historical membership trends | 8 |
-| `corporate.py` | Corporate family trees (uses `corporate_hierarchy` + `corporate_identifier_crosswalk`) | 8 |
+| `corporate.py` | Corporate family trees | 8 |
 | `whd.py` | Wage theft cases | 5 |
-| `organizing.py` | Organizing target scoring | 5 |
+| `organizing.py` | Organizing target scoring, score explanations, match quality/review | 10+ |
 | `public_sector.py` | Public employers and unions | 6 |
 | `sectors.py` | Industry sector analysis | 7 |
 | `auth.py` | JWT login, register, refresh, /me | 4 |
-| `admin.py` | Scorecard refresh, admin operations | 1+ |
+| `admin.py` | Scorecard refresh, data freshness, admin operations | 3+ |
 
-**Authentication:** JWT auth is available (disabled by default). Enable by setting `LABOR_JWT_SECRET` in `.env` (32+ chars). First registered user bootstraps as admin. Login rate limiting (10/5min/IP).
+**Authentication:** JWT auth enabled by default (`LABOR_JWT_SECRET` in `.env`). Set `DISABLE_AUTH=true` to bypass. First registered user bootstraps as admin. Login rate limiting (10/5min/IP).
 
-**Test suite:** 162 tests passing (30 API + 16 auth + 24 data integrity + 51 matching + 39 scoring). Run with `py -m pytest tests/`.
-
-**Frontend structure (Sprint 6 split):**
+**Frontend structure (Phase 2 — COMPLETE):**
 The frontend was split from a 10,506-line monolith into:
-- `files/organizer_v5.html` (2,139 lines — markup only)
-- `files/css/organizer.css` (228 lines)
-- 10 JS files under `files/js/` loaded in strict order via plain `<script>` tags (NOT ES modules):
-  `config.js` -> `utils.js` -> `maps.js` -> `territory.js` -> `search.js` -> `deepdive.js` -> `detail.js` -> `scorecard.js` -> `modals.js` -> `app.js`
-- All functions are global (no import/export). 103 inline `onclick=` handlers in HTML.
-- Global state in `config.js`, module-scoped state (`let` vars) in individual files.
+- `files/organizer_v5.html` (~2,300 lines — markup only, zero inline handlers)
+- `files/css/organizer.css` (227 lines)
+- 21 JS files under `files/js/` loaded in strict order via plain `<script>` tags (NOT ES modules):
+  `config.js` -> `utils.js` -> `maps.js` -> `territory.js` -> `search.js` -> `deepdive.js` -> `detail.js` -> `scorecard.js` -> 8x `modal-*.js` -> `uniondive.js` -> `glossary.js` -> `app.js`
+- All functions are global (no import/export). Zero inline `onclick=` handlers — all use `data-action` event delegation.
+- **5 app modes:** territory, search, deepdive, uniondive, admin. Wired via `setAppMode()` in app.js.
 - **Key constraint:** Duplicate `let`/`const` declarations across files cause `SyntaxError` that kills the entire later file.
-
-**Score explanations (Sprint 6):**
-- 10 helper functions in `api/routers/organizing.py` (lines ~97-238) generate plain-language explanation strings
-- `_build_explanations(row, is_rtw, win_rate)` aggregates all 9 into a dict
-- API returns `score_explanations` in scorecard list + detail responses
-- Frontend `getScoreReason()` in `scorecard.js` prefers server explanations, falls back to client-side logic
-
-**Remaining known issues:**
-- 3 density endpoints crash (RealDictRow access by index instead of name)
-- 29 scripts have literal-string password bug (`os.environ.get('DB_PASSWORD', '')` as text, not code)
-- 824 union file number orphans (worsened from historical import)
-- Only 37.7% of current employers have NAICS codes (scoring gap)
-- 299 unused indexes wasting 1.67 GB
-- GLEIF raw schema is 12 GB (only 310 MB distilled data used)
-- modals.js is 2,598 lines (secondary monolith)
-- Auth disabled by default (security risk if deployed)
-- Documentation ~55% accurate
-- F7 employer duplicates — multi-employer agreements (SAG-AFTRA) create duplicate rows with inflated worker counts
-- F7 `unit_size` ≠ actual employees — misleading when sorted by "workers"
 
 ---
 
 ## The Organizing Scorecard (Key Feature)
 
-The scorecard is now a **materialized view** (`mv_organizing_scorecard`) with 24,841 rows, computed entirely in SQL. A wrapper view (`v_organizing_scorecard`) adds the total `organizing_score` (sum of 9 factors). Score range is 10-78, average 32.3.
+The scorecard is a **materialized view** (`mv_organizing_scorecard`) with **22,389 rows** (down from 24,841 after removing union shops). A wrapper view (`v_organizing_scorecard`) adds the total `organizing_score`. Score range is 10-51, average 30.
 
-**The 9 scoring factors (each computed in SQL):**
-1. OSHA violations (safety problems = worker dissatisfaction)
-2. Industry union density (how unionized is this industry already?)
-3. Geographic presence (are there unions nearby?)
-4. Establishment size (bigger = more potential members)
-5. NLRB momentum (recent election activity in the area)
-6. Government contracts (leverage point — contractors must follow labor laws)
-7. WHD wage violations (wage theft history)
-8. Multi-establishment presence (employer has multiple locations)
-9. Corporate complexity (depth of corporate hierarchy)
+**CRITICAL CHANGE (Feb 15, 2026): Union shops excluded from scorecard.**
+- Establishments matched to F7 employers (already unionized) are now filtered out via `WHERE fm.establishment_id IS NULL`
+- `score_company_unions` factor REMOVED (was giving 20pts to union shops only — backwards)
+- 170 signatory pattern entries flagged as excluded (e.g., "All Signatories to SAG-AFTRA...")
+
+**The 8 active scoring factors (each computed in SQL):**
+1. Industry density — union membership rate in NAICS sector (10 pts)
+2. Geographic favorability — state win rate + membership + non-RTW bonus (10 pts)
+3. Establishment size — 50-250 employee sweet spot (10 pts)
+4. OSHA violations — normalized against industry average (10 pts)
+5. NLRB patterns — predicted win rate or blended state+industry rate (10 pts)
+6. Government contracts — federal contract obligations (10 pts)
+7. Industry growth — BLS employment projections (10 pts)
+8. Union similarity — Gower distance to unionized employers (10 pts)
 
 **Score tiers:** TOP >= 30, HIGH >= 25, MEDIUM >= 20, LOW < 20
 
-**Admin refresh:** `POST /api/admin/refresh-scorecard` uses `REFRESH MATERIALIZED VIEW CONCURRENTLY` (requires autocommit via `get_raw_connection()`). The unique index on `establishment_id` enables concurrent refresh without locking.
+**Admin refresh:** `POST /api/admin/refresh-scorecard` uses `REFRESH MATERIALIZED VIEW CONCURRENTLY` (requires autocommit via `get_raw_connection()`).
 
 **When reviewing scorecard code, check:**
-- That the detail endpoint reads base scores from the MV (no score drift from recalculation)
+- That union shops (has_f7_match=TRUE) are excluded from the MV
+- That the detail endpoint reads base scores from the MV (no score drift)
 - That null/missing data is handled via COALESCE in SQL
-- That `get_raw_connection()` is used for REFRESH CONCURRENTLY (not the connection pool)
+- Frontend `SCORE_FACTORS` in config.js has 8 factors (company_unions removed)
 
 ---
 
@@ -157,21 +154,52 @@ Your job is to be a **second pair of eyes on code** that Claude (my primary AI) 
 
 **You do NOT need to:**
 - Understand the full platform architecture (Claude handles that)
-- Suggest major redesigns or new features (e.g., splitting modals.js into 11 files — we considered and rejected this)
+- Suggest major redesigns or new features
 - Know the history of why things were built a certain way
 
 ## Previous Review History
 
-**Sprint 6 review** (`docs/review_codex.md`): You found 7 issues, 5 were fixed:
-1. FIXED: `renderTrendsChart(financials)` — undefined variable at detail.js:1055
-2. FIXED: Scorecard field mismatches (`state_density`→`geographic`, `contract_count`→`federal_contract_count`)
-3. FIXED: Duplicate `getSourceBadge()` in utils.js and modals.js
-4. FIXED: XSS raw innerHTML in scorecard.js
-5. FIXED: Stale `getScoreReason()` fallback (old 100-500 sweet spot, wrong NLRB/OSHA buckets)
-6. DEFERRED: Score explanation helpers not fully aligned with scoring sub-factors (intentionally simplified)
-7. DEFERRED: Inconsistent `response.ok` checks in some fetch paths
+**Sprint 6 review** (`docs/review_codex.md`): 7 issues found, 5 fixed (undefined variable, field mismatches, duplicate function, XSS, stale fallback). 2 deferred.
 
 When reviewing future sprints, check `docs/review_codex.md` for the response table format we use.
+
+---
+
+## Completed Work (What's Already Built and Reviewed)
+
+### Phase 1: Fix Broken (COMPLETE)
+- 6 density endpoint crashes fixed (RealDictRow access by index -> by name)
+- 29 literal-string password bugs fixed (migrated to `db_config.get_connection()`)
+- Auth enforced by default (JWT secret in `.env`, `DISABLE_AUTH=true` to bypass)
+- NAICS backfill from OSHA matches
+- ANALYZE run on all tables
+- README rewritten
+- 824 orphan union file numbers tracked (195 from defunct unions)
+
+### Phase 2: Frontend Cleanup (COMPLETE)
+- Dual-score remnants fixed (unified `SCORE_FACTORS` + `SCORE_MAX` in config.js)
+- modals.js split into 8 modal files
+- 68 inline onclick handlers migrated to `data-action` event delegation
+- 4-screen structure (territory, search, deepdive/uniondive, admin)
+- Confidence/freshness indicators, metrics glossary
+
+### Phase 3: Matching Overhaul (COMPLETE)
+- `unified_match_log` (258K entries) — standardized match output
+- Canonical name normalization (3 levels + phonetic)
+- Deterministic matcher v3 (6-tier cascade, batch-optimized, 868K OSHA in ~20s)
+- Splink pipeline v2 (Mergent, GLEIF, F7 self-dedup)
+- Match quality dashboard + API
+- NLRB bridge view (13K rows, 5.5K employers)
+- Historical employer resolution (5,128 merge candidates)
+- Employer canonical grouping (16,179 groups, 40K+ employers)
+- Scorecard misclassification fix (union shops removed, signatories excluded)
+
+### Next: Phase 4 (New Data Sources)
+- SEC EDGAR full index (300K+ companies)
+- IRS Business Master File (all nonprofits)
+- CPS microdata via IPUMS
+- OEWS staffing patterns
+- BLOCKED until Phase 3 done (NOW DONE)
 
 ---
 
@@ -182,7 +210,16 @@ When reviewing future sprints, check `docs/review_codex.md` for the response tab
 cur.execute("SELECT * FROM employers WHERE state = %s AND name ILIKE %s", (state, f"%{query}%"))
 ```
 
-### Dynamic WHERE clauses (this pattern is safe — conditions are hardcoded, only values are parameters):
+### RealDictCursor (pool default) — access by column name, not index:
+```python
+conn = get_connection()  # from db_config
+cur = conn.cursor()  # RealDictCursor by default
+row = cur.fetchone()
+name = row['employer_name']  # CORRECT
+# name = row[0]  # WRONG — causes crashes
+```
+
+### Dynamic WHERE clauses (safe pattern):
 ```python
 conditions = []
 params = []
@@ -193,65 +230,37 @@ where_clause = " AND ".join(conditions)
 cur.execute(f"SELECT ... WHERE {where_clause}", params)
 ```
 
-### Fuzzy matching with pg_trgm:
-```python
-cur.execute("""
-    SELECT *, similarity(name_normalized, %s) as sim
-    FROM employers
-    WHERE similarity(name_normalized, %s) > 0.75
-    ORDER BY sim DESC
-""", (normalized_name, normalized_name))
+### Event delegation (frontend pattern):
+```html
+<button data-action="openDeepDive" data-action-arg="emp_123">View</button>
 ```
-
----
+```javascript
+// In app.js initEventListeners()
+document.addEventListener('click', e => {
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (action === 'openDeepDive') openDeepDive(e.target.dataset.actionArg);
+});
+```
 
 ---
 
 ## Current Roadmap (TRUE Roadmap — February 15, 2026)
 
-**Source document:** `Roadmap_TRUE_02_15.md` — supersedes ALL prior roadmaps. Built from Codex+Claude dual-roadmap comparison + 6 owner decisions on disagreements.
+**Source document:** `Roadmap_TRUE_02_15.md`
 
-**7 Phases, 14 Weeks:**
+| Phase | Status | Weeks |
+|-------|--------|-------|
+| 1: Fix Broken | **COMPLETE** | Week 1 |
+| 2: Frontend Cleanup | **COMPLETE** | Weeks 2-4 |
+| 3: Matching Overhaul | **COMPLETE** | Weeks 3-7 |
+| 4: New Data Sources | **NEXT** | Weeks 8-10 |
+| 5: Scoring Evolution | Planned | Weeks 10-12 |
+| 6: Deployment Prep | Planned | Weeks 11-14 |
+| 7: Intelligence | Planned | Week 14+ |
 
-| Phase | What | Weeks | Key Deliverable |
-|-------|------|-------|-----------------|
-| 1: Fix Broken | Crashes, security, data integrity | Week 1 | Zero critical bugs |
-| 2: Frontend Cleanup | Interface trust and usability | Weeks 2-4 | 4 clear screens, no contradictory scores |
-| 3: Matching Overhaul | Standardize all matching | Weeks 3-7 | Auditable, confidence-scored matching pipeline |
-| 4: New Data Sources | SEC, IRS, CPS, OEWS | Weeks 8-10 | High-value data integrated through standard pipeline |
-| 5: Scoring Evolution | Better scoring model | Weeks 10-12 | Temporal decay + experimental propensity model |
-| 6: Deployment Prep | Docker, CI/CD, scheduling | Weeks 11-14 | Ready for remote access when needed |
-| 7: Intelligence | Scrapers, PERB, reports | Week 14+ | Strategic intelligence features |
-
-**Phase 1 specifics (what you'll review first):**
-- Fix 3 crashing density endpoints (RealDictRow access pattern)
-- Fix 29 scripts with literal-string password bug (replace with `db_config.get_connection()`)
-- Investigate/fix 824 union file number orphans
-- Backfill NAICS codes from OSHA matches (37.7% → 50%+ coverage)
-- Archive 12 GB GLEIF raw schema
-- Enforce authentication by default
-- Fix documentation to match reality
-
-**Phase 3 specifics (major matching work):**
-- Standardized match output format: source, target, method, confidence (HIGH/MEDIUM/LOW), score, run_id, evidence
-- Single canonical name-normalization function (3 levels: standard, aggressive, fuzzy)
-- Deterministic matching improvements (tie-breakers, audit trail of rejected matches)
-- Probabilistic matching via Splink for unresolved cases
-- Match quality dashboard (weekly reports)
-- NLRB bridge view unifying all case types
-
-**Critical path:** Phase 1 → Phase 3 → Phase 4 → Phase 5 Advanced
-**Parallel track:** Phase 2 (frontend) alongside Phase 3 (matching)
-
-**Key owner decisions that shaped this roadmap:**
-1. 14-week timeline (thorough, not rushed)
-2. Frontend cleanup EARLY (organizers need trust in what they see)
-3. New data sources WAIT until matching is standardized
-4. Scoring model planned but doesn't block release
-5. Deployment planned but not urgent (couple months out)
-6. Start with 4 screens, architect for later expansion to 5 areas
+**Critical path:** P1 -> P3 -> P4 -> P5 Advanced. P6 independent after P1.
 
 ---
 
-*Last updated: February 15, 2026 (TRUE Roadmap committed)*
+*Last updated: February 15, 2026 (Phase 3 complete, scorecard misclassification fixed)*
 *Context: This briefing was written so you can effectively review code without needing the full project history.*
