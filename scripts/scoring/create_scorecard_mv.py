@@ -102,8 +102,9 @@ SELECT
     t.fatality_count,
     t.risk_level,
 
-    -- Factor 1: Company unions (20 pts)
-    CASE WHEN fm.establishment_id IS NOT NULL THEN 20 ELSE 0 END AS score_company_unions,
+    -- Factor 1: Company unions -- REMOVED: union shops now excluded from MV entirely
+    -- Kept as 0 for schema compatibility
+    0 AS score_company_unions,
 
     -- Factor 2: Industry density (10 pts)
     CASE
@@ -259,10 +260,13 @@ LEFT JOIN bls_proj bp_alias ON bp_alias.matrix_code = CASE LEFT(t.naics_code, 2)
     ELSE NULL
 END AND bp.matrix_code IS NULL
 
--- Factors 1, 7, 9: F7 match, contracts, similarity
+-- Factors 7, 9: contracts, similarity
 LEFT JOIN f7_matches fm ON fm.establishment_id = t.establishment_id
 LEFT JOIN fed_contracts fc ON fc.establishment_id = t.establishment_id
 LEFT JOIN mergent_data md ON md.establishment_id = t.establishment_id
+
+-- Exclude establishments already matched to F7 (union shops are not organizing targets)
+WHERE fm.establishment_id IS NULL
 """
 
 
