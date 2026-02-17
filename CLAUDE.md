@@ -1,18 +1,16 @@
 # Labor Relations Research Platform - Claude Context
 
 ## Quick Reference
-**Last Updated:** 2026-02-16 (Phase 5 complete, all 359 tests passing)
+**Last Updated:** 2026-02-16 (Phase 5 complete, folder reorg complete, all 358 tests passing)
+
+**Start here:** Read `PROJECT_STATE.md` for quick start, DB inventory, known issues, and recent decisions. Read `PIPELINE_MANIFEST.md` for the active script manifest.
 
 ### Database Connection
 ```python
-import psycopg2
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password='<password in .env file>'
-)
+from db_config import get_connection
+conn = get_connection()
 ```
+Credentials are in `.env` at project root. The `db_config.py` module (project root) is imported by all scripts — never use inline `psycopg2.connect()` with hardcoded credentials.
 
 ### Core Principle: Data Quality Over External Benchmarks
 **Always prefer accurate, deduplicated data over hitting BLS/EPI coverage targets.**
@@ -29,6 +27,54 @@ BLS check is WARNING-level in validation framework, not critical.
 | State/Local Public | 6.9M | 7.0M (EPI) | 98.3% |
 | States Reconciled | 50/51 | - | 98% |
 | F7 Employers | 146,863 | - | 67,552 post-2020 + 79,311 historical |
+
+### Project Directory Structure
+
+```
+labor-data-project/
+├── api/                        # FastAPI backend (17 routers + middleware + auth)
+│   └── routers/                # 17 router files
+├── files/                      # Frontend (organizer_v5.html + 21 JS + 1 CSS)
+│   ├── css/
+│   └── js/
+├── scripts/
+│   ├── etl/           (24)     # Stage 1: Data loading (OSHA, WHD, SAM, SEC, BLS, etc.)
+│   ├── matching/      (20+)    # Stage 2: Record linkage (deterministic + Splink)
+│   │   ├── adapters/  (7)      # Source-specific data loaders
+│   │   └── matchers/  (5)      # Matching algorithm implementations
+│   ├── scoring/       (4)      # Stage 3: Score computation (MV, Gower, NLRB)
+│   ├── ml/            (4)      # Stage 3: Machine learning (propensity model)
+│   ├── maintenance/   (3)      # Stage 4: Periodic refresh + DB inventory
+│   ├── scraper/       (7)      # Stage 5: Web intelligence (AFSCME)
+│   ├── analysis/      (51)     # Ad-hoc analysis templates (not pipeline)
+│   ├── setup/         (1)      # Database initialization
+│   └── performance/   (1)      # Performance profiling
+├── src/python/matching/        # Shared library (name_normalization.py)
+├── tests/                      # 358 automated tests
+├── docs/                       # Documentation and audit reports
+├── sql/                        # SQL scripts
+├── data/                       # Small reference files (NAICS crosswalks, EPI benchmarks)
+├── archive/                    # Everything archived (not deleted)
+│   ├── old_scripts/            # Dead/superseded scripts (~400 files)
+│   ├── old_api/                # Dead API monoliths
+│   ├── old_roadmaps/           # Superseded roadmap versions
+│   ├── old_docs/               # Consolidated docs
+│   ├── imported_data/          # Data files already in PostgreSQL (~8.5 GB)
+│   └── ...                     # Other archived artifacts
+├── db_config.py                # Shared DB connection (imported by all scripts)
+├── .env                        # Credentials (never commit)
+├── CLAUDE.md                   # This file
+├── PROJECT_STATE.md            # Shared AI context (DB inventory, status, decisions)
+├── PIPELINE_MANIFEST.md        # Active script manifest (69 pipeline + 51 analysis)
+├── UNIFIED_ROADMAP_2026_02_17.md  # Single source of truth for roadmap
+└── README.md
+```
+
+**Key organizational rules:**
+- `PIPELINE_MANIFEST.md` lists every active script. If it's not there, it's archived.
+- `archive/` holds everything moved during reorganization — nothing was permanently deleted.
+- `db_config.py` stays at project root (500+ imports depend on it).
+- All old roadmaps are in `archive/old_roadmaps/` — only `UNIFIED_ROADMAP_2026_02_17.md` is current.
 
 ---
 
@@ -115,30 +161,13 @@ BLS check is WARNING-level in validation framework, not critical.
 | `ar_disbursements_total` | 216,372 | Annual report: total disbursements |
 | `ar_assets_investments` | 304,816 | Annual report: assets and investments |
 
-### Unified Employer Tables (NEW)
+### Unified Employer Tables (Legacy)
 | Table | Records | Description |
 |-------|---------|-------------|
-| `unified_employers_osha` | 100,768 | All employer sources combined |
-| `osha_unified_matches` | 42,812 | OSHA matches to unified employers |
+| `unified_employers_osha` | 100,768 | All employer sources combined (legacy, pre-Phase 3) |
+| `osha_unified_matches` | 42,812 | OSHA matches to unified employers (legacy) |
 
-**Unified Employers by Source:**
-| Source | Count | Description |
-|--------|-------|-------------|
-| F7 | 63,118 | F-7 employers (private sector CBAs) |
-| NLRB | 28,839 | NLRB participants not in F-7 |
-| PUBLIC | 7,987 | Public sector employers |
-| VR | 824 | Voluntary recognition not in F-7 |
-
-**OSHA Matches by Source:**
-| Source | Establishments | Employers |
-|--------|---------------|-----------|
-| F7 | 38,024 | 13,400 |
-| NLRB | 4,607 | 2,306 |
-| VR | 94 | 31 |
-| PUBLIC | 87 | 43 |
-| **Total** | **42,812** | **15,780** |
-
-86% of matches (36,814) have a union connection via `union_fnum`.
+**Note:** These legacy tables predate the Phase 3 matching pipeline overhaul. The current matching system uses `unified_match_log` (265K entries) as the central audit trail and `osha_f7_matches` / `whd_f7_matches` / etc. as the active match tables.
 
 ### Corporate Hierarchy Tables
 | Table | Records | Description |
@@ -147,7 +176,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | `gleif_us_entities` | 379,192 | GLEIF/Open Ownership US entities (100% with LEI) |
 | `gleif_ownership_links` | 498,963 | GLEIF parent→child ownership links |
 | `corporate_identifier_crosswalk` | 25,177 | Unified ID mapping across SEC/GLEIF/Mergent/F7/USASpending/SAM/990 |
-| ~~`splink_match_results`~~ | ARCHIVED | Was 5,761,285 rows — archived to `~/splink_match_results_archive.sql.gz` and dropped |
+| ~~`splink_match_results`~~ | ARCHIVED | Was 5,761,285 rows — archived to `archive/imported_data/splink/` and dropped |
 | `corporate_hierarchy` | 125,120 | Parent-to-subsidiary relationships |
 | `qcew_annual` | 1,943,426 | BLS QCEW industry x geography data (2020-2023) |
 | `qcew_industry_density` | 7,143 | State-level NAICS density (private sector, 2023) |
@@ -204,18 +233,7 @@ BLS check is WARNING-level in validation framework, not critical.
 | Mergent domestic_parent | 1,185 | Domestic ultimate parent |
 | **Total** | **125,120** | 13,929 distinct parents, 54,924 distinct children |
 
-**ETL Scripts:**
-- `scripts/etl/load_gleif_bods.py` - Restore GLEIF pgdump + extract US entities
-- `scripts/etl/extract_gleif_us_optimized.py` - Optimized 2-step US extraction (use this)
-- `scripts/etl/build_crosswalk.py` - Build crosswalk + hierarchy tables
-- `scripts/etl/update_normalization.py` - Apply cleanco normalization to GLEIF/SEC name_normalized columns
-- `scripts/matching/splink_config.py` - Splink scenario configs (comparisons, blocking rules, thresholds)
-- `scripts/matching/splink_pipeline.py` - Splink probabilistic matching pipeline (DuckDB backend)
-- `scripts/matching/splink_integrate.py` - Integrate Splink results into crosswalk (1:1 dedup + quality filter)
-- `scripts/etl/fetch_qcew.py` - Download BLS QCEW annual data (2020-2023)
-- `scripts/etl/_integrate_qcew.py` - QCEW industry density scoring for F7 employers
-- `scripts/etl/_fetch_usaspending_api.py` - Fetch federal contract recipients via paginated API
-- `scripts/etl/_match_usaspending.py` - Match USASpending recipients to F7 and integrate crosswalk
+**ETL/Matching Scripts:** See `PIPELINE_MANIFEST.md` for the complete active script inventory with run order and dependencies.
 
 ### Web Scraper Tables (AFSCME)
 | Table | Records | Description |
@@ -235,13 +253,7 @@ BLS check is WARNING-level in validation framework, not critical.
 
 **Match coverage:** 73/160 employers matched (46%). 87 unmatched are predominantly public-sector (confirming F7's private-sector-only gap).
 
-**Scripts:**
-- `scripts/etl/setup_afscme_scraper.py` — Checkpoint 1: table creation + CSV load + OLMS matching
-- `scripts/scraper/fetch_union_sites.py` — Checkpoint 2: Crawl4AI website fetching
-- `scripts/scraper/extract_union_data.py` — Checkpoint 3: heuristic extraction + JSON insert
-- `scripts/scraper/fix_extraction.py` — Boilerplate detection + false positive cleanup
-- `scripts/scraper/match_web_employers.py` — Checkpoint 4: 5-tier employer matching
-- `scripts/scraper/export_html.py` — Generate browsable HTML data viewer
+**Scripts:** See Stage 5 in `PIPELINE_MANIFEST.md` for the full web scraping pipeline.
 
 **Data viewer:** `files/afscme_scraper_data.html` — 6-tab HTML with sortable tables
 
@@ -501,7 +513,7 @@ Full Swagger docs: http://localhost:8001/docs
 |------|---------|
 | **`files/organizer_v5.html`** | **PRIMARY FRONTEND - All new features go here** |
 
-**IMPORTANT:** All frontend and backend development should target the Organizer interface (`files/organizer_v5.html`). Legacy frontend archived to `archive/frontend/`.
+**IMPORTANT:** All frontend and backend development should target the Organizer interface (`files/organizer_v5.html`). Legacy frontends archived to `archive/frontend/`.
 
 ---
 
@@ -534,13 +546,13 @@ FROM v_{sector}_organizing_targets WHERE priority_tier IN ('HIGH', 'MEDIUM');
 
 | Document | Purpose |
 |----------|---------|
-| `Roadmap_TRUE_02_15.md` | Current roadmap (supersedes all prior roadmaps) |
+| `UNIFIED_ROADMAP_2026_02_17.md` | **Current roadmap** — supersedes ALL prior roadmaps (archived in `archive/old_roadmaps/`) |
+| `PROJECT_STATE.md` | Shared AI context — quick start, DB inventory, status, decisions, design rationale |
+| `PIPELINE_MANIFEST.md` | Active script manifest — every pipeline script, what it does, when to run it |
 | `docs/METHODOLOGY_SUMMARY_v8.md` | Complete methodology reference |
 | `docs/EPI_BENCHMARK_METHODOLOGY.md` | EPI benchmark explanation |
 | `docs/PUBLIC_SECTOR_SCHEMA_DOCS.md` | Public sector schema reference |
 | `docs/AFSCME_NY_CASE_STUDY.md` | Organizing targets feature docs |
-| `docs/FORM_990_FINAL_RESULTS.md` | 990 methodology results |
-| `docs/EXTENDED_ROADMAP.md` | Future checkpoints H-O |
 | `docs/session-summaries/SESSION_LOG_2026.md` | Full session history |
 
 ---
@@ -650,10 +662,11 @@ scripts/matching/
 
 When matching records between tables/datasets, always verify the join key exists in both sources before implementing. Check for null/empty values in join columns first.
 
-**Archived source data:**
-- `990_2025_archive.7z` — 650K IRS Form 990 XML files (1.2 GB compressed, was 20 GB). Already loaded into `national_990_filers` and `employers_990_deduped`.
-- `data/free_company_dataset.csv.7z` — Company dataset (1.6 GB compressed, was 5.1 GB). Future use for employer email lookup.
-- `backup_20260209.dump.7z` — PostgreSQL backup (2.0 GB compressed, was 2.1 GB). Recreatable with `pg_dump`.
+**Archived source data** (in `archive/imported_data/`):
+- `990/990_2025_archive.7z` — 650K IRS Form 990 XML files (1.2 GB). Already loaded into `national_990_filers` and `employers_990_deduped`.
+- `backup_20260209.dump.7z` — PostgreSQL backup (2.0 GB). Recreatable with `pg_dump`.
+- `whd/`, `lm2/`, `nlrb/` — Source data files already imported into PostgreSQL.
+- See `archive/imported_data/` for full list of archived data.
 
 **Match quality flags:**
 - `osha_f7_matches.low_confidence` — TRUE for 32,243 matches (23.3%) with match_confidence < 0.6
@@ -690,8 +703,9 @@ Then open: http://localhost:8080/organizer_v5.html
 When modifying scoring/ranking logic, always update associated documentation to reflect methodology changes. Treat code changes and doc updates as a single unit of work.
 
 **Files to update when scoring changes:**
-- `CLAUDE.md` - Scoring Components table
-- `docs/METHODOLOGY_SUMMARY_v8.md` - If methodology fundamentally changes
+- `CLAUDE.md` — Scoring Components table
+- `PROJECT_STATE.md` — Section 4 if status changes
+- `docs/METHODOLOGY_SUMMARY_v8.md` — If methodology fundamentally changes
 
 ---
 
@@ -710,3 +724,16 @@ API docs: http://localhost:8001/docs
 ## Session Log
 
 See `docs/session-summaries/SESSION_LOG_2026.md` for full session history.
+
+## Folder Reorganization (2026-02-16)
+
+The project was reorganized from 530+ scripts to ~120 active. Key changes:
+- **~400 scripts archived** to `archive/old_scripts/` (ETL, matching, scoring, maintenance, root scripts)
+- **~8.5 GB data archived** to `archive/imported_data/` (SQLite DBs, CSVs, dumps already in PostgreSQL)
+- **64 root Python files** moved to `archive/old_scripts/root_scripts/`
+- **17 old roadmaps** moved to `archive/old_roadmaps/`
+- **472 .pyc files** deleted from 30 `__pycache__/` directories
+- **25 credential patterns fixed** (`os.environ.get` -> `db_config.get_connection`)
+- **`PIPELINE_MANIFEST.md`** created — lists every active script with dependencies and run order
+- **`PROJECT_STATE.md`** created — shared AI context with auto-generated DB inventory
+- **Nothing was permanently deleted** — everything moved to `archive/`

@@ -3,14 +3,10 @@ import os
 Multi-employer agreement handling - Phase 1: Schema and Grouping
 """
 import psycopg2
+from db_config import get_connection
 from psycopg2.extras import RealDictCursor
 
-conn = psycopg2.connect(
-    host='localhost',
-    dbname='olms_multiyear',
-    user='postgres',
-    password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 cur = conn.cursor()
 
 print('='*70)

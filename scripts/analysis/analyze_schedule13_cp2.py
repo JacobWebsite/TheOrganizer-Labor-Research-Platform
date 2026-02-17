@@ -4,12 +4,10 @@ Schedule 13 Membership Analysis - Checkpoint 2
 Compare active members vs total members by national union
 """
 import psycopg2
+from db_config import get_connection
 import pandas as pd
 
-conn = psycopg2.connect(
-    host='localhost', port=5432, database='olms_multiyear',
-    user='postgres', password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 
 print("="*80)
 print("CHECKPOINT 2: ACTIVE vs TOTAL MEMBERS BY NATIONAL UNION (2024)")

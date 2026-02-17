@@ -1,4 +1,3 @@
-import os
 """
 Command-line interface for the unified matching module.
 
@@ -14,6 +13,7 @@ import argparse
 import sys
 import logging
 from datetime import datetime
+from db_config import get_connection
 
 # Setup logging
 logging.basicConfig(
@@ -21,17 +21,6 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-def get_connection():
-    """Get database connection."""
-    import psycopg2
-    return psycopg2.connect(
-        host='localhost',
-        dbname='olms_multiyear',
-        user='postgres',
-        password=os.environ.get('DB_PASSWORD', '')
-    )
 
 
 def cmd_list_scenarios(args):

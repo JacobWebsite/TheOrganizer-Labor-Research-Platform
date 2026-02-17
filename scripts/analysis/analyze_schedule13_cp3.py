@@ -5,12 +5,10 @@ Calculate TRUE ACTIVE membership by national union
 Compare to headline LM total members
 """
 import psycopg2
+from db_config import get_connection
 import pandas as pd
 
-conn = psycopg2.connect(
-    host='localhost', port=5432, database='olms_multiyear',
-    user='postgres', password=os.environ.get('DB_PASSWORD', '')
-)
+conn = get_connection()
 
 print("="*80)
 print("CHECKPOINT 3: TRUE ACTIVE MEMBERSHIP BY NATIONAL UNION (2024)")
