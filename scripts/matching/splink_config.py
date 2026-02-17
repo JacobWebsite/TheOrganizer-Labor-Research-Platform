@@ -166,6 +166,39 @@ WHD_F7_EM_BLOCKING = [
 
 
 # ============================================================================
+# SCENARIO: Adaptive Fuzzy (Deterministic Tier 5 replacement)
+# ============================================================================
+# Used by deterministic_matcher._fuzzy_batch_splink() for unresolved records.
+# Source and target are prepared in-memory with unified column names:
+#   id, name_normalized, state, city, zip, naics, street_address, original_name
+
+ADAPTIVE_FUZZY_SETTINGS = SettingsCreator(
+    link_type="link_only",
+    unique_id_column_name="id",
+    comparisons=[
+        cl.JaroWinklerAtThresholds("name_normalized", [0.95, 0.88, 0.80, 0.70]),
+        cl.ExactMatch("state"),
+        cl.LevenshteinAtThresholds("city", [1, 2]),
+        cl.JaroWinklerAtThresholds("zip", [0.95, 0.80]),
+        cl.ExactMatch("naics").configure(term_frequency_adjustments=True),
+        cl.JaroWinklerAtThresholds("street_address", [0.90, 0.75]),
+    ],
+    blocking_rules_to_generate_predictions=[
+        block_on("state", "substr(name_normalized, 1, 3)"),
+        block_on("state", "city"),
+        block_on("substr(zip, 1, 3)", "substr(name_normalized, 1, 2)"),
+    ],
+    retain_intermediate_calculation_columns=True,
+    retain_matching_columns=True,
+)
+
+ADAPTIVE_FUZZY_EM_BLOCKING = [
+    block_on("state", "city"),
+    block_on("substr(name_normalized, 1, 5)"),
+]
+
+
+# ============================================================================
 # SCENARIO: F7 Self-Deduplication
 # ============================================================================
 # Single-source dedup using Splink's dedupe_only mode.
@@ -278,6 +311,11 @@ SCENARIOS = {
             "street_address": "street",
             "original_name": "employer_name",
         },
+    },
+    "adaptive_fuzzy": {
+        "settings": ADAPTIVE_FUZZY_SETTINGS,
+        "em_blocking": ADAPTIVE_FUZZY_EM_BLOCKING,
+        "model_path": "scripts/matching/models/adaptive_fuzzy_model.json",
     },
     "osha_to_f7": {
         "settings": OSHA_F7_SETTINGS,
