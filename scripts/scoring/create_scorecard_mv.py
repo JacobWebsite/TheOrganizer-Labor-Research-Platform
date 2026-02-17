@@ -50,6 +50,61 @@ CURRENT_DECAY_PARAMS = {
 }
 
 
+# The source view that feeds the MV. Includes all non-union OSHA establishments
+# with significant violations. union_status='Y' (confirmed union) is excluded;
+# statuses 'N' (non-union), 'A' (not available), 'B' (both/mixed) are included.
+# NOTE: OSHA switched from N/Y to A/B codes around 2015-2016.
+VIEW_SQL = """
+CREATE OR REPLACE VIEW v_osha_organizing_targets AS
+SELECT o.establishment_id,
+    o.estab_name,
+    o.site_address,
+    o.site_city,
+    o.site_state,
+    o.site_zip,
+    o.naics_code,
+    o.employee_count,
+    o.total_inspections,
+    o.last_inspection_date,
+    COALESCE(vs.willful_count, 0::bigint) AS willful_count,
+    COALESCE(vs.repeat_count, 0::bigint) AS repeat_count,
+    COALESCE(vs.serious_count, 0::bigint) AS serious_count,
+    COALESCE(vs.total_violations, 0::bigint) AS total_violations,
+    COALESCE(vs.total_penalties, 0::numeric) AS total_penalties,
+    COALESCE(a.accident_count, 0::bigint) AS accident_count,
+    COALESCE(a.fatality_count, 0::bigint) AS fatality_count,
+    CASE
+        WHEN COALESCE(vs.willful_count, 0::bigint) > 0 THEN 'CRITICAL'
+        WHEN COALESCE(vs.repeat_count, 0::bigint) > 0 OR COALESCE(a.fatality_count, 0::bigint) > 0 THEN 'HIGH'
+        WHEN COALESCE(vs.serious_count, 0::bigint) >= 5 THEN 'MODERATE'
+        ELSE 'LOW'
+    END AS risk_level
+FROM osha_establishments o
+LEFT JOIN (
+    SELECT establishment_id,
+        SUM(CASE WHEN violation_type = 'W' THEN violation_count ELSE 0 END) AS willful_count,
+        SUM(CASE WHEN violation_type = 'R' THEN violation_count ELSE 0 END) AS repeat_count,
+        SUM(CASE WHEN violation_type = 'S' THEN violation_count ELSE 0 END) AS serious_count,
+        SUM(violation_count) AS total_violations,
+        SUM(total_penalties) AS total_penalties
+    FROM osha_violation_summary
+    GROUP BY establishment_id
+) vs ON o.establishment_id = vs.establishment_id
+LEFT JOIN (
+    SELECT establishment_id,
+        COUNT(*) AS accident_count,
+        SUM(CASE WHEN is_fatality THEN 1 ELSE 0 END) AS fatality_count
+    FROM osha_accidents
+    GROUP BY establishment_id
+) a ON o.establishment_id = a.establishment_id
+WHERE o.union_status != 'Y'
+AND (COALESCE(vs.willful_count, 0) > 0
+     OR COALESCE(vs.repeat_count, 0) > 0
+     OR COALESCE(vs.serious_count, 0) >= 3
+     OR COALESCE(a.fatality_count, 0) > 0)
+"""
+
+
 MV_SQL = """
 CREATE MATERIALIZED VIEW mv_organizing_scorecard AS
 WITH
@@ -486,6 +541,10 @@ def create_mv(conn):
     print("Dropping old MV if exists...")
     cur.execute("DROP VIEW IF EXISTS v_organizing_scorecard CASCADE")
     cur.execute("DROP MATERIALIZED VIEW IF EXISTS mv_organizing_scorecard CASCADE")
+    conn.commit()
+
+    print("Creating/updating v_osha_organizing_targets...")
+    cur.execute(VIEW_SQL)
     conn.commit()
 
     print("Creating mv_organizing_scorecard...")

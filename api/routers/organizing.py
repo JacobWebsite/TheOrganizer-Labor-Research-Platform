@@ -1112,39 +1112,49 @@ def get_match_quality():
     """Return match quality summary from unified_match_log."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Total
-            cur.execute("SELECT COUNT(*) FROM unified_match_log WHERE status = 'active'")
-            total = cur.fetchone()['count']
-
-            # By source
+            # Total (both row count and distinct employers)
             cur.execute("""
-                SELECT source_system, COUNT(*) as cnt,
+                SELECT COUNT(*) AS total_rows,
+                       COUNT(DISTINCT target_id) AS unique_employers
+                FROM unified_match_log WHERE status = 'active'
+            """)
+            totals = cur.fetchone()
+
+            # By source (distinct employers + row counts)
+            cur.execute("""
+                SELECT source_system,
+                       COUNT(*) as total_rows,
+                       COUNT(DISTINCT target_id) as unique_employers,
                        COUNT(*) FILTER (WHERE confidence_band = 'HIGH') as high,
                        COUNT(*) FILTER (WHERE confidence_band = 'MEDIUM') as medium,
                        COUNT(*) FILTER (WHERE confidence_band = 'LOW') as low,
                        ROUND(AVG(confidence_score)::numeric, 3) as avg_score
                 FROM unified_match_log WHERE status = 'active'
-                GROUP BY source_system ORDER BY cnt DESC
+                GROUP BY source_system ORDER BY unique_employers DESC
             """)
             by_source = cur.fetchall()
 
-            # By confidence
+            # By confidence (distinct employers)
             cur.execute("""
-                SELECT confidence_band, COUNT(*) as cnt
+                SELECT confidence_band,
+                       COUNT(*) as total_rows,
+                       COUNT(DISTINCT target_id) as unique_employers
                 FROM unified_match_log WHERE status = 'active'
                 GROUP BY confidence_band ORDER BY confidence_band
             """)
             by_confidence = cur.fetchall()
 
-            # By tier
+            # By tier (distinct employers)
             cur.execute("""
-                SELECT match_tier, COUNT(*) as cnt
+                SELECT match_tier,
+                       COUNT(*) as total_rows,
+                       COUNT(DISTINCT target_id) as unique_employers
                 FROM unified_match_log WHERE status = 'active'
                 GROUP BY match_tier ORDER BY match_tier
             """)
             by_tier = cur.fetchall()
 
-            # Match rates
+            # Match rates (distinct source records and distinct employers)
             match_rates = []
             for src, tbl, id_col in [
                 ("osha", "osha_establishments", "establishment_id"),
@@ -1156,14 +1166,17 @@ def get_match_quality():
                     cur.execute(f"SELECT COUNT(*) FROM {tbl}")
                     src_total = cur.fetchone()['count']
                     cur.execute("""
-                        SELECT COUNT(*) FROM unified_match_log
+                        SELECT COUNT(DISTINCT source_id) AS matched_sources,
+                               COUNT(DISTINCT target_id) AS matched_employers
+                        FROM unified_match_log
                         WHERE source_system = %s AND status = 'active'
                     """, [src])
-                    matched = cur.fetchone()['count']
+                    row = cur.fetchone()
                     match_rates.append({
                         "source": src, "total": src_total,
-                        "matched": matched,
-                        "rate_pct": round(matched / max(src_total, 1) * 100, 1),
+                        "matched_sources": row['matched_sources'],
+                        "matched_employers": row['matched_employers'],
+                        "source_rate_pct": round(row['matched_sources'] / max(src_total, 1) * 100, 1),
                     })
                 except Exception:
                     pass
@@ -1179,7 +1192,8 @@ def get_match_quality():
             recent_runs = cur.fetchall()
 
             return {
-                "total_matches": total,
+                "total_match_rows": totals['total_rows'],
+                "unique_employers_matched": totals['unique_employers'],
                 "by_source": by_source,
                 "by_confidence": by_confidence,
                 "by_tier": by_tier,

@@ -179,9 +179,9 @@ class TestScorecardMV:
     def test_mv_exists_and_populated(self, db):
         count = query_one(db, "SELECT COUNT(*) FROM mv_organizing_scorecard")
         assert count is not None
-        # Should be approximately 24,841 rows (+/- 1000 for data pipeline changes)
-        assert count > 20000, f"MV has only {count} rows, expected ~24,841"
-        assert count < 30000, f"MV has {count} rows, suspiciously high"
+        # After A2 fix (union_status != 'Y'), MV covers ~201K rows (was ~22K when filtered to status='N')
+        assert count > 100000, f"MV has only {count} rows, expected ~201K"
+        assert count < 300000, f"MV has {count} rows, suspiciously high"
 
     def test_wrapper_view_exists(self, db):
         exists = query_one(db, """

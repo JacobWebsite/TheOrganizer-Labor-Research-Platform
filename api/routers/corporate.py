@@ -258,29 +258,71 @@ def get_corporate_hierarchy_stats():
             stats['by_source'] = [dict(r) for r in cur.fetchall()]
 
             # Count distinct ultimate parents from hierarchy
-            cur.execute("SELECT COUNT(DISTINCT parent_duns) FROM corporate_hierarchy WHERE is_direct = false")
-            stats['total_ultimate_parents'] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(DISTINCT parent_duns) AS cnt FROM corporate_hierarchy WHERE is_direct = false")
+            stats['total_ultimate_parents'] = cur.fetchone()['cnt']
 
             # Corporate families and SEC linkages via crosswalk
-            cur.execute("SELECT COUNT(DISTINCT corporate_family_id) FROM corporate_identifier_crosswalk WHERE corporate_family_id IS NOT NULL")
-            stats['f7_families'] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(DISTINCT corporate_family_id) AS cnt FROM corporate_identifier_crosswalk WHERE corporate_family_id IS NOT NULL")
+            stats['f7_families'] = cur.fetchone()['cnt']
 
-            cur.execute("SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE sec_cik IS NOT NULL")
-            stats['f7_with_sec'] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) AS cnt FROM corporate_identifier_crosswalk WHERE sec_cik IS NOT NULL")
+            stats['f7_with_sec'] = cur.fetchone()['cnt']
 
-            cur.execute("SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE is_public = TRUE")
-            stats['f7_public_companies'] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) AS cnt FROM corporate_identifier_crosswalk WHERE is_public = TRUE")
+            stats['f7_public_companies'] = cur.fetchone()['cnt']
 
-            cur.execute("SELECT COUNT(*) FROM sec_companies")
-            stats['total_sec_companies'] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) AS cnt FROM sec_companies")
+            stats['total_sec_companies'] = cur.fetchone()['cnt']
 
-            cur.execute("SELECT COUNT(*) FROM gleif_us_entities")
-            stats['total_gleif_us_entities'] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) AS cnt FROM gleif_us_entities")
+            stats['total_gleif_us_entities'] = cur.fetchone()['cnt']
 
-            cur.execute("SELECT COUNT(*) FROM corporate_identifier_crosswalk")
-            stats['total_crosswalk_entries'] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) AS cnt FROM corporate_identifier_crosswalk")
+            stats['total_crosswalk_entries'] = cur.fetchone()['cnt']
 
             return stats
+
+
+@router.get("/api/corporate/hierarchy/search")
+def search_corporate_hierarchy(
+    name: str = Query(None),
+    ein: str = Query(None),
+    ticker: str = Query(None),
+    limit: int = Query(20, le=100)
+):
+    """Search corporate hierarchy by name, EIN, or ticker"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            if ticker:
+                cur.execute("""
+                    SELECT cik, company_name, ein, lei, sic_code, sic_description,
+                           state, city, ticker, exchange, is_public
+                    FROM sec_companies WHERE UPPER(ticker) = UPPER(%s)
+                    LIMIT %s
+                """, [ticker, limit])
+            elif ein:
+                clean = ein.replace('-', '')
+                cur.execute("""
+                    SELECT cik, company_name, ein, lei, sic_code, sic_description,
+                           state, city, ticker, exchange, is_public
+                    FROM sec_companies WHERE ein = %s
+                    LIMIT %s
+                """, [clean, limit])
+            elif name:
+                cur.execute("""
+                    SELECT cik, company_name, ein, lei, sic_code, sic_description,
+                           state, city, ticker, exchange, is_public,
+                           similarity(name_normalized, %s) as sim
+                    FROM sec_companies
+                    WHERE name_normalized %% %s
+                    ORDER BY similarity(name_normalized, %s) DESC
+                    LIMIT %s
+                """, [name.lower(), name.lower(), name.lower(), limit])
+            else:
+                return {"results": [], "total": 0}
+
+            results = [dict(r) for r in cur.fetchall()]
+            return {"results": results, "total": len(results)}
 
 
 @router.get("/api/corporate/hierarchy/{employer_id}")
@@ -408,48 +450,6 @@ def get_corporate_hierarchy(employer_id: str, source: str = Query("f7")):
                 }
 
             return result
-
-
-@router.get("/api/corporate/hierarchy/search")
-def search_corporate_hierarchy(
-    name: str = Query(None),
-    ein: str = Query(None),
-    ticker: str = Query(None),
-    limit: int = Query(20, le=100)
-):
-    """Search corporate hierarchy by name, EIN, or ticker"""
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            if ticker:
-                cur.execute("""
-                    SELECT cik, company_name, ein, lei, sic_code, sic_description,
-                           state, city, ticker, exchange, is_public
-                    FROM sec_companies WHERE UPPER(ticker) = UPPER(%s)
-                    LIMIT %s
-                """, [ticker, limit])
-            elif ein:
-                clean = ein.replace('-', '')
-                cur.execute("""
-                    SELECT cik, company_name, ein, lei, sic_code, sic_description,
-                           state, city, ticker, exchange, is_public
-                    FROM sec_companies WHERE ein = %s
-                    LIMIT %s
-                """, [clean, limit])
-            elif name:
-                cur.execute("""
-                    SELECT cik, company_name, ein, lei, sic_code, sic_description,
-                           state, city, ticker, exchange, is_public,
-                           similarity(name_normalized, %s) as sim
-                    FROM sec_companies
-                    WHERE name_normalized %% %s
-                    ORDER BY similarity(name_normalized, %s) DESC
-                    LIMIT %s
-                """, [name.lower(), name.lower(), name.lower(), limit])
-            else:
-                return {"results": [], "total": 0}
-
-            results = [dict(r) for r in cur.fetchall()]
-            return {"results": results, "total": len(results)}
 
 
 @router.get("/api/corporate/sec/{cik}")

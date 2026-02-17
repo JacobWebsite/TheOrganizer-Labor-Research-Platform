@@ -60,9 +60,11 @@ def generate_report(conn):
             for r in cur.fetchall()
         ]
 
-        # 3. By confidence band
+        # 3. By confidence band (distinct employers + total rows)
         cur.execute("""
-            SELECT source_system, confidence_band, COUNT(*) as cnt
+            SELECT source_system, confidence_band,
+                   COUNT(*) as total_rows,
+                   COUNT(DISTINCT target_id) as unique_employers
             FROM unified_match_log
             WHERE status = 'active'
             GROUP BY source_system, confidence_band
@@ -73,20 +75,22 @@ def generate_report(conn):
             src = r[0]
             if src not in confidence_data:
                 confidence_data[src] = {}
-            confidence_data[src][r[1]] = r[2]
+            confidence_data[src][r[1]] = {"rows": r[2], "unique_employers": r[3]}
         report["sections"]["confidence_distribution"] = confidence_data
 
-        # 4. By match method (top 20)
+        # 4. By match method (top 20, distinct employers + total rows)
         cur.execute("""
-            SELECT match_method, match_tier, COUNT(*) as cnt
+            SELECT match_method, match_tier,
+                   COUNT(*) as total_rows,
+                   COUNT(DISTINCT target_id) as unique_employers
             FROM unified_match_log
             WHERE status = 'active'
             GROUP BY match_method, match_tier
-            ORDER BY cnt DESC
+            ORDER BY unique_employers DESC
             LIMIT 20
         """)
         report["sections"]["top_methods"] = [
-            {"method": r[0], "tier": r[1], "count": r[2]}
+            {"method": r[0], "tier": r[1], "total_rows": r[2], "unique_employers": r[3]}
             for r in cur.fetchall()
         ]
 
