@@ -9,6 +9,7 @@ Key improvements over v3:
   - Multi-value indexes: collisions tracked, not silently dropped
   - Best-match-wins: all tiers evaluated, highest-specificity match returned
   - City disambiguation: 83% of name+state collisions resolved by city match
+  - Splink disambiguation: unresolved collisions scored by multi-field model
 
 Cascade tiers (evaluated most-specific to least-specific):
   1. EIN exact match (confidence 1.0)
@@ -16,6 +17,12 @@ Cascade tiers (evaluated most-specific to least-specific):
   3. name_standard + state (confidence 0.90)
   4. name_aggressive + state (confidence 0.75)
   5. Fuzzy trigram similarity >= 0.4 (confidence = similarity score)
+
+Collision resolution order:
+  - Single candidate: accept directly
+  - City match narrows to 1: accept with CITY_RESOLVED suffix
+  - Splink disambiguation: compare source against 2-10 candidates, pick winner
+  - Still ambiguous: flag as AMBIGUOUS with LOW confidence
 
 All matches are logged to unified_match_log.
 """
@@ -226,7 +233,8 @@ class DeterministicMatcher:
             candidates = self._name_state_idx.get((name_std, state))
             if candidates:
                 resolved = self._disambiguate(candidates, city, source_id, name, state,
-                                               "NAME_STATE_EXACT", 0.90)
+                                               "NAME_STATE_EXACT", 0.90,
+                                               source_rec=rec)
                 if resolved:
                     new_rank = TIER_RANK["NAME_STATE_EXACT"]
                     if best is None or new_rank > best[0]:
@@ -237,7 +245,8 @@ class DeterministicMatcher:
             candidates = self._agg_state_idx.get((name_agg, state))
             if candidates:
                 resolved = self._disambiguate(candidates, city, source_id, name, state,
-                                               "NAME_AGGRESSIVE_STATE", 0.75)
+                                               "NAME_AGGRESSIVE_STATE", 0.75,
+                                               source_rec=rec)
                 if resolved:
                     new_rank = TIER_RANK["NAME_AGGRESSIVE_STATE"]
                     if best is None or new_rank > best[0]:
@@ -247,13 +256,16 @@ class DeterministicMatcher:
 
     def _disambiguate(self, candidates: List[Tuple], source_city: str,
                       source_id: str, source_name: str, state: str,
-                      method: str, base_score: float) -> Optional[Dict]:
+                      method: str, base_score: float,
+                      source_rec: Optional[Dict] = None) -> Optional[Dict]:
         """
-        Resolve multi-candidate collisions using city matching.
+        Resolve multi-candidate collisions: city -> Splink -> ambiguous.
 
-        If only one candidate: return it directly.
-        If multiple candidates and source has city: pick city match when unique.
-        If still ambiguous: flag, do not silently choose one.
+        Resolution order:
+        1. Single candidate: accept directly.
+        2. City narrows to 1: accept with CITY_RESOLVED suffix.
+        3. Splink disambiguation: compare source against remaining candidates.
+        4. Still ambiguous: flag as AMBIGUOUS with LOW confidence.
         """
         if len(candidates) == 1:
             eid, ename = candidates[0][0], candidates[0][1]
@@ -263,6 +275,8 @@ class DeterministicMatcher:
                 {"source_name": source_name, "target_name": ename, "state": state}
             )
 
+        # Step 1: Try city disambiguation
+        remaining = candidates
         if source_city:
             city_matches = [c for c in candidates if c[2] == source_city]
             if len(city_matches) == 1:
@@ -281,135 +295,86 @@ class DeterministicMatcher:
                     }
                 )
             if len(city_matches) > 1:
-                self.stats["collisions_ambiguous"] += 1
-                return self._make_result(
-                    source_id, "AMBIGUOUS", f"AMBIGUOUS_{method}", "deterministic", "LOW", 0.0,
-                    {
-                        "source_name": source_name,
-                        "state": state,
-                        "city": source_city,
-                        "candidate_count": len(candidates),
-                        "city_matches": len(city_matches),
-                        "candidate_ids": sorted(str(c[0]) for c in city_matches),
-                        "ambiguous": True,
-                    }
-                )
+                remaining = city_matches
 
+        # Step 2: Try Splink disambiguation (small candidate set)
+        if source_rec and len(remaining) <= 10:
+            splink_result = self._splink_disambiguate(
+                source_rec, remaining, source_id, source_name, state, method
+            )
+            if splink_result:
+                return splink_result
+
+        # Step 3: Give up -- flag as ambiguous
         self.stats["collisions_ambiguous"] += 1
         return self._make_result(
             source_id, "AMBIGUOUS", f"AMBIGUOUS_{method}", "deterministic", "LOW", 0.0,
             {
                 "source_name": source_name,
                 "state": state,
-                "candidate_count": len(candidates),
-                "candidate_ids": sorted(str(c[0]) for c in candidates),
+                "candidate_count": len(remaining),
+                "candidate_ids": sorted(str(c[0]) for c in remaining),
                 "ambiguous": True,
             }
         )
 
-    def _fuzzy_batch(self, records: List[Dict], batch_size: int = 200) -> List[Dict]:
+    def _splink_disambiguate(self, source_rec: Dict, candidates: List[Tuple],
+                             source_id: str, source_name: str, state: str,
+                             method: str) -> Optional[Dict]:
         """
-        Tier 5 fuzzy matching with Splink-first strategy and trigram fallback.
+        Use Splink multi-field comparison to pick the best candidate from a
+        small collision set (2-10 candidates).
+
+        Returns a match result if Splink finds a clear winner (top probability
+        significantly above second-best). Returns None if Splink is unavailable
+        or candidates remain tied.
         """
-        try:
-            return self._fuzzy_batch_splink(records, batch_size=batch_size)
-        except Exception as exc:
-            print(f"  WARNING: Splink fuzzy matching failed ({exc}); falling back to trigram")
-            self.conn.rollback()
-            return self._fuzzy_batch_trigram(records, batch_size=batch_size)
-
-    def _fuzzy_batch_splink(self, records: List[Dict], batch_size: int = 200) -> List[Dict]:
-        """
-        Tier 5: adaptive fuzzy matching with pre-trained Splink model.
-
-        Design:
-          - Load pre-trained model JSON once per run (`adaptive_fuzzy` scenario)
-          - Reuse model parameters for each batch (no EM retraining on small batches)
-          - Fallback to trigram if model/config/dependencies are unavailable
-        """
-        from scripts.matching.splink_config import SCENARIOS, THRESHOLD_REVIEW
-
-        cfg = SCENARIOS.get("adaptive_fuzzy")
-        if not cfg:
-            raise RuntimeError("adaptive_fuzzy scenario missing from splink_config.py")
-
-        model_path = cfg.get("model_path")
-        if not model_path:
-            raise RuntimeError("adaptive_fuzzy.model_path is not configured")
-
-        model_file = Path(model_path)
-        if not model_file.is_absolute():
-            model_file = Path(__file__).resolve().parent.parent.parent / model_file
-        if not model_file.exists():
-            raise RuntimeError(f"pre-trained Splink model not found: {model_file}")
+        if not self._splink_available():
+            return None
 
         import pandas as pd
         from splink import DuckDBAPI, Linker
 
-        prepped = []
-        states = set()
-        for rec in records:
-            source_id = str(rec["id"])
-            name_std = normalize_name_standard(rec.get("name") or "")
-            state = (rec.get("state") or "").upper().strip()
-            city = (rec.get("city") or "").upper().strip()
-            zip_code = (rec.get("zip") or "").strip()
-            naics = (rec.get("naics") or "").strip()
-            address = (rec.get("address") or "").strip()
+        model_file = self._get_splink_model_path()
+        if not model_file:
+            return None
 
-            if name_std and state and len(name_std) >= 3:
-                prepped.append({
-                    "id": source_id,
-                    "name_normalized": name_std,
-                    "state": state,
-                    "city": city,
-                    "zip": zip_code,
-                    "naics": naics,
-                    "street_address": address,
-                    "original_name": rec.get("name") or "",
-                })
-                states.add(state)
+        name_std = normalize_name_standard(source_rec.get("name") or "")
+        source_city = (source_rec.get("city") or "").upper().strip()
+        zip_code = (source_rec.get("zip") or "").strip()
+        naics = (source_rec.get("naics") or "").strip()
+        address = (source_rec.get("address") or "").strip()
 
-        if not prepped:
-            return []
+        df_source = pd.DataFrame([{
+            "id": str(source_id),
+            "name_normalized": name_std,
+            "state": state,
+            "city": source_city,
+            "zip": zip_code,
+            "naics": naics,
+            "street_address": address,
+        }])
 
-        print(f"  Fuzzy(Splink): processing {len(prepped):,} candidates in batches of {batch_size}")
+        # Build target DataFrame from candidate tuples: (eid, ename, city)
+        # Also build a lookup for candidate names by ID
+        cand_names = {}
+        target_rows = []
+        for cand in candidates:
+            eid, ename = str(cand[0]), str(cand[1])
+            cand_city = str(cand[2]) if len(cand) > 2 else ""
+            cand_names[eid] = ename
+            target_rows.append({
+                "id": eid,
+                "name_normalized": normalize_name_standard(ename),
+                "state": state,
+                "city": cand_city,
+                "zip": "",
+                "naics": "",
+                "street_address": "",
+            })
+        df_target = pd.DataFrame(target_rows)
 
-        with self.conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT
-                    employer_id::text AS id,
-                    name_standard AS name_normalized,
-                    UPPER(COALESCE(state, '')) AS state,
-                    UPPER(COALESCE(city, '')) AS city,
-                    COALESCE(zip, '') AS zip,
-                    COALESCE(naics, '') AS naics,
-                    COALESCE(street, '') AS street_address,
-                    employer_name AS original_name
-                FROM f7_employers_deduped
-                WHERE name_standard IS NOT NULL
-                  AND LENGTH(name_standard) >= 3
-                  AND UPPER(COALESCE(state, '')) = ANY(%s)
-                """,
-                (list(states),),
-            )
-            target_rows = cur.fetchall()
-
-        df_target = pd.DataFrame(
-            target_rows,
-            columns=["id", "name_normalized", "state", "city", "zip", "naics", "street_address", "original_name"],
-        )
-        if df_target.empty:
-            return []
-
-        results = []
-        for batch_start in range(0, len(prepped), batch_size):
-            batch = prepped[batch_start:batch_start + batch_size]
-            df_source = pd.DataFrame(batch)
-            if df_source.empty:
-                continue
-
+        try:
             linker = Linker(
                 [df_source, df_target],
                 settings=str(model_file),
@@ -417,58 +382,74 @@ class DeterministicMatcher:
                 set_up_basic_logging=False,
             )
             df_matches = linker.inference.predict(
-                threshold_match_probability=THRESHOLD_REVIEW
+                threshold_match_probability=0.01  # low threshold -- we want to rank all candidates
             ).as_pandas_dataframe()
-            if df_matches.empty:
-                continue
+        except Exception:
+            return None
 
-            for source_id, grp in df_matches.groupby("id_l"):
-                grp = grp.sort_values("match_probability", ascending=False)
-                top = grp.iloc[0]
-                top_prob = float(top["match_probability"])
+        if df_matches.empty:
+            return None
 
-                if len(grp) > 1:
-                    second_prob = float(grp.iloc[1]["match_probability"])
-                    if second_prob >= max(THRESHOLD_REVIEW, top_prob - 0.01):
-                        candidates = []
-                        for _, cand in grp.head(5).iterrows():
-                            candidates.append({
-                                "target_id": str(cand.get("id_r", "")),
-                                "target_name": str(cand.get("original_name_r", "")),
-                                "match_probability": round(float(cand["match_probability"]), 4),
-                            })
-                        results.append(self._make_result(
-                            source_id, "AMBIGUOUS", "AMBIGUOUS_FUZZY_SPLINK",
-                            "probabilistic", "LOW", 0.0,
-                            {
-                                "source_name": str(top.get("original_name_l", "")),
-                                "candidate_count": len(grp),
-                                "candidates": candidates,
-                                "ambiguous": True,
-                            },
-                        ))
-                        continue
+        df_matches = df_matches.sort_values("match_probability", ascending=False)
+        top = df_matches.iloc[0]
+        top_prob = float(top["match_probability"])
 
-                target_id = str(top.get("id_r", ""))
-                target_name = str(top.get("original_name_r", ""))
-                source_name = str(top.get("original_name_l", ""))
-                band = self._band_for_score(top_prob)
-                results.append(self._make_result(
-                    source_id, target_id, "FUZZY_SPLINK_ADAPTIVE", "probabilistic",
-                    band, top_prob,
-                    {
-                        "source_name": source_name,
-                        "target_name": target_name,
-                        "state": str(top.get("state_l", "")),
-                        "match_probability": round(top_prob, 4),
-                    },
-                ))
+        # Require clear winner: top must beat second by >= 0.10
+        if len(df_matches) > 1:
+            second_prob = float(df_matches.iloc[1]["match_probability"])
+            if top_prob - second_prob < 0.10:
+                return None  # too close -- let caller flag as ambiguous
 
-            done = min(batch_start + batch_size, len(prepped))
-            if done % 2000 == 0 or done == len(prepped):
-                print(f"    Fuzzy(Splink): {done:,}/{len(prepped):,} -- {len(results):,} matches")
+        target_id = str(top.get("id_r", ""))
+        target_name = cand_names.get(target_id, "")
 
-        return results
+        self.stats["collisions_resolved"] += 1
+        return self._make_result(
+            source_id, target_id, method + "_SPLINK_RESOLVED", "deterministic",
+            self._band_for_score(top_prob), top_prob,
+            {
+                "source_name": source_name,
+                "target_name": target_name,
+                "state": state,
+                "candidates": len(candidates),
+                "match_probability": round(top_prob, 4),
+                "resolved_by": "splink",
+            }
+        )
+
+    def _splink_available(self) -> bool:
+        """Check if Splink + model are available (cached after first check)."""
+        if hasattr(self, "_splink_ok"):
+            return self._splink_ok
+        try:
+            import splink  # noqa: F401
+            self._splink_ok = self._get_splink_model_path() is not None
+        except ImportError:
+            self._splink_ok = False
+        return self._splink_ok
+
+    def _get_splink_model_path(self) -> Optional[Path]:
+        """Resolve path to pre-trained Splink model JSON."""
+        if hasattr(self, "_splink_model_path"):
+            return self._splink_model_path
+        try:
+            from scripts.matching.splink_config import SCENARIOS
+            cfg = SCENARIOS.get("adaptive_fuzzy", {})
+            mp = cfg.get("model_path")
+            if not mp:
+                self._splink_model_path = None
+                return None
+            model_file = Path(mp)
+            if not model_file.is_absolute():
+                model_file = Path(__file__).resolve().parent.parent.parent / model_file
+            self._splink_model_path = model_file if model_file.exists() else None
+        except Exception:
+            self._splink_model_path = None
+        return self._splink_model_path
+
+    def _fuzzy_batch(self, records: List[Dict], batch_size: int = 200) -> List[Dict]:
+        """Tier 5 fuzzy matching using pg_trgm."""
+        return self._fuzzy_batch_trigram(records, batch_size=batch_size)
 
     def _fuzzy_batch_trigram(self, records: List[Dict], batch_size: int = 200) -> List[Dict]:
         """
