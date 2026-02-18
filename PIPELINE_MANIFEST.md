@@ -111,6 +111,8 @@ These scripts build the organizing scorecard and related analysis. Run after mat
 | `scripts/scoring/compute_nlrb_patterns.py` | Analyzes 33K NLRB elections for win patterns by industry/size/state. Creates ref_nlrb_industry_win_rates, ref_nlrb_size_win_rates. | NLRB tables | Before scorecard build |
 | `scripts/scoring/update_whd_scores.py` | Updates labor violation scores using WHD + NYC Comptroller data | WHD matching complete | Before scorecard build |
 | `scripts/scoring/create_scorecard_mv.py` | **Creates/refreshes mv_organizing_scorecard** (22,389 rows, 9 factors, temporal decay). Use `--refresh` for concurrent update. Auto-inserts score_versions. | All matching + NLRB patterns | After matching stabilizes. `py scripts/scoring/create_scorecard_mv.py [--refresh]` |
+| `scripts/scoring/build_employer_data_sources.py` | **Creates/refreshes mv_employer_data_sources** (146,863 rows). Aggregates source availability per F7 employer (8 boolean flags + corporate crosswalk). Foundation for E3 unified scorecard. Use `--refresh` for concurrent update. | All matching complete, employer groups built | After matching stabilizes. `py scripts/scoring/build_employer_data_sources.py [--refresh]` |
+| `scripts/scoring/build_unified_scorecard.py` | **Creates/refreshes mv_unified_scorecard** (146,863 rows). Signal-strength scoring: 7 factors (OSHA, NLRB, WHD, contracts, union proximity, financial, size), each 0-10. Missing factors excluded. Unified score = avg of available factors. Use `--refresh` for concurrent update. | mv_employer_data_sources, all matching, BLS projections | After data sources MV built. `py scripts/scoring/build_unified_scorecard.py [--refresh]` |
 | `scripts/scoring/compute_gower_similarity.py` | Gower distance similarity — finds top-5 comparable employers per employer (269K comparables). 14 features including occupation overlap. | mv_organizing_scorecard, industry_occupation_overlap | After scorecard built. `py scripts/scoring/compute_gower_similarity.py [--refresh-view]` |
 
 ### ML Pipeline (scripts/ml/)
@@ -164,15 +166,17 @@ Sequential pipeline for extracting data from union websites.
 ## Typical Full Pipeline Run Order
 
 ```
-1. ETL: Load/refresh source data (OSHA, WHD, SAM, SEC, 990, BLS, GLEIF)
-2. Matching: py scripts/matching/run_deterministic.py all
-3. Matching: py scripts/matching/splink_pipeline.py (optional fuzzy)
-4. Matching: py scripts/matching/build_employer_groups.py
-5. Scoring: py scripts/scoring/compute_nlrb_patterns.py
-6. Scoring: py scripts/scoring/create_scorecard_mv.py --refresh
-7. Scoring: py scripts/scoring/compute_gower_similarity.py --refresh-view
-8. ML: py scripts/ml/train_propensity_model.py --score-only
-9. Maintenance: py scripts/maintenance/create_data_freshness.py --refresh
+1.  ETL: Load/refresh source data (OSHA, WHD, SAM, SEC, 990, BLS, GLEIF)
+2.  Matching: py scripts/matching/run_deterministic.py all
+3.  Matching: py scripts/matching/splink_pipeline.py (optional fuzzy)
+4.  Matching: py scripts/matching/build_employer_groups.py
+4.5 Scoring: py scripts/scoring/build_employer_data_sources.py --refresh
+4.6 Scoring: py scripts/scoring/build_unified_scorecard.py --refresh
+5.  Scoring: py scripts/scoring/compute_nlrb_patterns.py
+6.  Scoring: py scripts/scoring/create_scorecard_mv.py --refresh
+7.  Scoring: py scripts/scoring/compute_gower_similarity.py --refresh-view
+8.  ML: py scripts/ml/train_propensity_model.py --score-only
+9.  Maintenance: py scripts/maintenance/create_data_freshness.py --refresh
 ```
 
 ---

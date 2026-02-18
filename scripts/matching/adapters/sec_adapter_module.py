@@ -26,7 +26,7 @@ def load_unmatched(conn, limit=None):
             s.sic_code
         FROM sec_companies s
         LEFT JOIN unified_match_log uml
-            ON uml.source_system = 'sec_edgar'
+            ON uml.source_system = 'sec'
             AND uml.source_id = s.cik::text
             AND uml.status = 'active'
         WHERE uml.id IS NULL

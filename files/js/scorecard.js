@@ -9,20 +9,35 @@ let selectedScorecardItem = null;
 // Current data source mode
 let scorecardDataSource = 'osha';
 let currentSectorCities = [];
+let scorecardOffset = 0;
+let scorecardPageSize = 50;
+let scorecardHasMore = false;
+
+function formatNaicsDisplay(naicsCode, naicsDescription, fallbackLabel) {
+    const code = naicsCode ? String(naicsCode).trim() : '';
+    const description = naicsDescription ? String(naicsDescription).trim() : '';
+    if (code && description) return `NAICS ${escapeHtml(code)} - ${escapeHtml(description)}`;
+    if (code) return `NAICS ${escapeHtml(code)}`;
+    return escapeHtml(String(fallbackLabel || 'N/A'));
+}
 
 async function openOrganizingScorecard() {
     document.getElementById('scorecardModal').classList.remove('hidden');
     document.getElementById('scorecardModal').classList.add('flex');
     document.body.classList.add('modal-open');
 
-    // Populate state dropdown with same states as main filter
+    // Populate scorecard state filter from scorecard data itself.
+    await loadScorecardStates();
+    await loadCurrentScorecardVersion();
+
     const stateSelect = document.getElementById('scorecardState');
-    if (stateSelect.options.length <= 1) {
-        const mainStateSelect = document.getElementById('stateFilter');
-        for (let i = 1; i < mainStateSelect.options.length; i++) {
-            const opt = mainStateSelect.options[i];
-            stateSelect.add(new Option(opt.text, opt.value));
-        }
+    if (stateSelect && !stateSelect.dataset.bound) {
+        stateSelect.addEventListener('change', () => {
+            if (document.getElementById('scorecardDataSource').value === 'osha') {
+                loadScorecardResults();
+            }
+        });
+        stateSelect.dataset.bound = '1';
     }
 
     // Initialize filter visibility
@@ -105,6 +120,8 @@ async function updateScorecardFilters() {
     const statsEl = document.getElementById('sectorStatsDisplay');
 
     if (isSector) {
+        scorecardHasMore = false;
+        updateScorecardLoadMoreButton();
         const sector = dataSource.replace('sector:', '');
         try {
             // Load sector summary
@@ -145,6 +162,8 @@ async function updateScorecardFilters() {
 
 async function loadScorecardResults() {
     const dataSource = document.getElementById('scorecardDataSource').value;
+    scorecardOffset = 0;
+    selectedScorecardItem = null;
 
     // Show loading
     document.getElementById('scorecardLoading').classList.remove('hidden');
@@ -177,20 +196,32 @@ async function loadOshaResults() {
         min_employees: minEmp,
         max_employees: maxEmp,
         min_score: minScore,
-        limit: 100
+        offset: String(scorecardOffset),
+        page_size: String(scorecardPageSize)
     });
 
     if (state) params.append('state', state);
     if (industry) params.append('naics_2digit', industry);
     if (hasContracts) params.append('has_contracts', hasContracts);
 
-    const response = await fetch(`${API_BASE}/organizing/scorecard?${params}`);
+    const response = await fetch(`${API_BASE}/scorecard/?${params}`);
     if (!response.ok) throw new Error('API error');
 
     const data = await response.json();
-    scorecardResults = data.results || [];
+    const rows = data.data || [];
+    if (scorecardOffset === 0) {
+        scorecardResults = rows;
+    } else {
+        scorecardResults = scorecardResults.concat(rows);
+    }
+    scorecardHasMore = Boolean(data.has_more);
+    updateScorecardLoadMoreButton();
 
-    renderScorecardResults(data, 'osha');
+    renderScorecardResults({
+        results: scorecardResults,
+        scored_count: data.total || scorecardResults.length,
+        shown_count: scorecardResults.length,
+    }, 'osha');
 }
 
 async function loadSectorResults(sector) {
@@ -226,6 +257,7 @@ async function loadSectorResults(sector) {
         employee_count: t.best_employee_count || t.employee_count,
         organizing_score: t.total_score,
         naics_code: t.naics_primary,
+        naics_description: t.naics_description || t.naics_primary_description || null,
         total_violations: t.osha_violation_count,
         contract_info: {
             contract_count: (t.ny_state_contracts || 0) + (t.nyc_contracts || 0),
@@ -257,8 +289,11 @@ async function loadSectorResults(sector) {
     renderScorecardResults({
         results: scorecardResults,
         scored_count: data.total,
+        shown_count: scorecardResults.length,
         sector: data.sector
     }, 'sector');
+    scorecardHasMore = false;
+    updateScorecardLoadMoreButton();
 }
 
 function renderScorecardResults(data, source = 'osha') {
@@ -266,10 +301,16 @@ function renderScorecardResults(data, source = 'osha') {
     const resultsEl = document.getElementById('scorecardResults');
 
     const sourceLabel = source === 'sector' ? `${data.sector || 'Sector'} targets` : 'establishments';
-    infoEl.textContent = `${formatNumber(data.scored_count || data.results?.length || 0)} ${sourceLabel} scored (showing top ${data.results?.length || 0})`;
+    const totalCount = data.scored_count || data.total || data.results?.length || 0;
+    const shownCount = data.shown_count || data.results?.length || 0;
+    infoEl.textContent = `${formatNumber(totalCount)} ${sourceLabel} scored (showing ${shownCount})`;
 
     if (!data.results || data.results.length === 0) {
         resultsEl.innerHTML = '<div class="p-8 text-center text-warmgray-400">No results found. Try adjusting filters.</div>';
+        if (source !== 'sector') {
+            scorecardHasMore = false;
+            updateScorecardLoadMoreButton();
+        }
         return;
     }
 
@@ -291,7 +332,7 @@ function renderScorecardResults(data, source = 'osha') {
                         ${item.labor_violations?.wage_theft_cases > 0 ? '<span class="badge bg-pink-100 text-pink-700">Labor Viol</span>' : ''}
                     </div>
                     <div class="text-sm text-warmgray-500 truncate">
-                        ${escapeHtml(item.site_city || '')}, ${item.site_state || ''} \u00B7 ${item.industry || 'NAICS ' + (item.naics_code || 'N/A')}
+                        ${escapeHtml(item.site_city || '')}, ${item.site_state || ''} \u00B7 ${formatNaicsDisplay(item.naics_code, item.naics_description, item.industry)}
                     </div>
                 </div>
                 <div class="text-right ml-3">
@@ -310,6 +351,7 @@ function renderScorecardResults(data, source = 'osha') {
             </div>
         </div>
     `}).join('');
+    updateScorecardLoadMoreButton();
 }
 
 function renderMiniScoreBar(breakdown) {
@@ -343,7 +385,7 @@ async function selectScorecardItem(estabId, source = 'osha') {
     } else {
         // Load detailed scorecard from OSHA API
         try {
-            const response = await fetch(`${API_BASE}/organizing/scorecard/${estabId}`);
+            const response = await fetch(`${API_BASE}/scorecard/${estabId}`);
             if (!response.ok) throw new Error('API error');
 
             const detail = await response.json();
@@ -352,6 +394,58 @@ async function selectScorecardItem(estabId, source = 'osha') {
             console.error('Scorecard detail failed:', e);
             renderScorecardDetail({ establishment: item, organizing_score: item.organizing_score, score_breakdown: item.score_breakdown });
         }
+    }
+}
+
+function updateScorecardLoadMoreButton() {
+    const btn = document.getElementById('scorecardLoadMoreBtn');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !scorecardHasMore || scorecardDataSource !== 'osha');
+}
+
+async function loadMoreScorecardResults() {
+    if (!scorecardHasMore || scorecardDataSource !== 'osha') return;
+    scorecardOffset += scorecardPageSize;
+    await loadOshaResults();
+}
+
+async function loadScorecardStates() {
+    const stateSelect = document.getElementById('scorecardState');
+    if (!stateSelect) return;
+    stateSelect.innerHTML = '<option value="">All States</option>';
+    try {
+        const resp = await fetch(`${API_BASE}/scorecard/states`);
+        if (!resp.ok) return;
+        const rows = await resp.json();
+        (rows || []).forEach(r => {
+            const state = String(r.state || '').trim();
+            if (!state) return;
+            const count = Number(r.count || 0);
+            stateSelect.add(new Option(`${state} (${formatNumber(count)})`, state));
+        });
+    } catch (e) {
+        console.error('Failed to load scorecard states:', e);
+    }
+}
+
+async function loadCurrentScorecardVersion() {
+    const el = document.getElementById('scorecardVersionText');
+    if (!el) return;
+    try {
+        const resp = await fetch(`${API_BASE}/scorecard/versions/current`);
+        if (!resp.ok) {
+            el.textContent = 'Score version: unavailable';
+            return;
+        }
+        const payload = await resp.json();
+        const current = payload.current || {};
+        const v = current.version_name || current.version || current.id || 'N/A';
+        const tsRaw = current.created_at || current.refreshed_at || null;
+        const ts = tsRaw ? new Date(tsRaw).toLocaleString() : 'unknown';
+        el.textContent = `Score ${v} - last refreshed ${ts}`;
+    } catch (e) {
+        console.error('Failed to load scorecard version:', e);
+        el.textContent = 'Score version: unavailable';
     }
 }
 
@@ -366,7 +460,7 @@ function renderSectorDetail(item) {
             <p class="text-warmgray-500">${escapeHtml(item.site_city || '')}, ${escapeHtml(item.site_state || '')}</p>
             <div class="flex gap-2 mt-2 flex-wrap">
                 ${item.priority_tier ? `<span class="badge ${getTierBadgeClass(item.priority_tier)}">${escapeHtml(item.priority_tier)} Priority</span>` : ''}
-                <span class="badge badge-industry">${escapeHtml(item.industry || 'NAICS ' + (item.naics_code || 'N/A'))}</span>
+                <span class="badge badge-industry">${formatNaicsDisplay(item.naics_code, item.naics_description, item.industry)}</span>
                 <span class="badge badge-private">${formatNumber(item.employee_count || 0)} employees</span>
                 ${item.contract_info?.contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Has Govt Contracts</span>' : ''}
             </div>
@@ -500,7 +594,7 @@ function renderScorecardDetail(detail) {
             <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(estab.estab_name || 'Unknown')}</h3>
             <p class="text-warmgray-500">${escapeHtml(estab.site_city || '')}, ${escapeHtml(estab.site_state || '')} ${escapeHtml(estab.site_zip || '')}</p>
             <div class="flex gap-2 mt-2 flex-wrap">
-                <span class="badge badge-industry">NAICS ${escapeHtml(estab.naics_code || 'N/A')}</span>
+                <span class="badge badge-industry">${formatNaicsDisplay(estab.naics_code, estab.naics_description, 'N/A')}</span>
                 <span class="badge badge-private">${formatNumber(estab.employee_count || 0)} employees</span>
                 ${contracts.federal_contract_count > 0 ? '<span class="badge bg-orange-100 text-orange-700">Has Govt Contracts</span>' : ''}
             </div>

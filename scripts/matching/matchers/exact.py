@@ -148,7 +148,12 @@ class NormalizedMatcher(BaseMatcher):
               city: Optional[str] = None,
               ein: Optional[str] = None,
               address: Optional[str] = None) -> Optional[MatchResult]:
-        """Match by normalized name + location."""
+        """Match by normalized name + location.
+
+        Fetches all candidates (up to 20) and disambiguates by city when
+        multiple targets share the same normalized name.  Returns None for
+        truly ambiguous cases so that a later tier can try with more info.
+        """
         if not source_name:
             return None
 
@@ -172,8 +177,13 @@ class NormalizedMatcher(BaseMatcher):
                 ))) = %s
             """
 
+        # Select city column for disambiguation when available
+        select_cols = f"{cfg.target_id_col}, {cfg.target_name_col}"
+        if cfg.target_city_col:
+            select_cols += f", {cfg.target_city_col}"
+
         query = f"""
-            SELECT {cfg.target_id_col}, {cfg.target_name_col}
+            SELECT {select_cols}
             FROM {cfg.target_table}
             WHERE {name_condition}
         """
@@ -192,25 +202,49 @@ class NormalizedMatcher(BaseMatcher):
         if cfg.target_filter:
             query += f" AND ({cfg.target_filter})"
 
-        query += " LIMIT 1"
+        query += " LIMIT 20"
 
         cursor.execute(query, params)
-        row = cursor.fetchone()
+        rows = cursor.fetchall()
 
-        if row:
+        if not rows:
+            return None
+
+        # Single candidate — return directly
+        if len(rows) == 1:
             return self._create_result(
                 source_id=source_id,
                 source_name=source_name,
-                target_id=row[0],
-                target_name=row[1],
+                target_id=rows[0][0],
+                target_name=rows[0][1],
                 score=1.0,
                 metadata={"normalized": normalized, "state": state, "city": city}
             )
 
+        # Multiple candidates — try city disambiguation
+        if city and cfg.target_city_col:
+            city_upper = city.upper().strip()
+            city_matches = [r for r in rows
+                            if r[2] and r[2].upper().strip() == city_upper]
+            if len(city_matches) == 1:
+                return self._create_result(
+                    source_id=source_id,
+                    source_name=source_name,
+                    target_id=city_matches[0][0],
+                    target_name=city_matches[0][1],
+                    score=1.0,
+                    metadata={
+                        "normalized": normalized, "state": state, "city": city,
+                        "disambiguated_by": "city",
+                        "candidates": len(rows),
+                    }
+                )
+
+        # Cannot disambiguate — skip so a later tier can try with more info
         return None
 
     def batch_match(self, source_records: List[Dict]) -> List[MatchResult]:
-        """Batch normalized matching."""
+        """Batch normalized matching with city disambiguation."""
         results = []
         cfg = self.config
         cursor = self.conn.cursor()
@@ -246,8 +280,13 @@ class NormalizedMatcher(BaseMatcher):
                     ))) = %s
                 """
 
+            # Select city for disambiguation
+            select_cols = f"{cfg.target_id_col}, {cfg.target_name_col}"
+            if cfg.target_city_col:
+                select_cols += f", {cfg.target_city_col}"
+
             query = f"""
-                SELECT {cfg.target_id_col}, {cfg.target_name_col}
+                SELECT {select_cols}
                 FROM {cfg.target_table}
                 WHERE {name_condition}
             """
@@ -260,22 +299,47 @@ class NormalizedMatcher(BaseMatcher):
             if cfg.target_filter:
                 query += f" AND ({cfg.target_filter})"
 
-            query += " LIMIT 1"
+            query += " LIMIT 20"
 
             cursor.execute(query, params)
-            row = cursor.fetchone()
+            rows = cursor.fetchall()
 
-            if row:
-                # Match found - create results for all sources with this key
+            if not rows:
+                continue
+
+            if len(rows) == 1:
+                # Single target — match all sources to it
                 for source in sources:
                     results.append(self._create_result(
                         source_id=source[cfg.source_id_col],
                         source_name=source[cfg.source_name_col],
-                        target_id=row[0],
-                        target_name=row[1],
+                        target_id=rows[0][0],
+                        target_name=rows[0][1],
                         score=1.0,
                         metadata={"normalized": normalized}
                     ))
+            else:
+                # Multiple targets — disambiguate per source record by city
+                for source in sources:
+                    src_city = (source.get(cfg.source_city_col) or "").upper().strip() if cfg.source_city_col else ""
+                    if src_city and cfg.target_city_col:
+                        city_matches = [r for r in rows
+                                        if r[2] and r[2].upper().strip() == src_city]
+                        if len(city_matches) == 1:
+                            results.append(self._create_result(
+                                source_id=source[cfg.source_id_col],
+                                source_name=source[cfg.source_name_col],
+                                target_id=city_matches[0][0],
+                                target_name=city_matches[0][1],
+                                score=1.0,
+                                metadata={
+                                    "normalized": normalized,
+                                    "disambiguated_by": "city",
+                                    "candidates": len(rows),
+                                }
+                            ))
+                            continue
+                    # Cannot disambiguate — skip this source record
 
         return results
 
@@ -297,7 +361,12 @@ class AggressiveMatcher(BaseMatcher):
               city: Optional[str] = None,
               ein: Optional[str] = None,
               address: Optional[str] = None) -> Optional[MatchResult]:
-        """Match by aggressively normalized name."""
+        """Match by aggressively normalized name.
+
+        Collects ALL matching candidates and disambiguates instead of
+        returning the first hit.  Returns None for ambiguous cases so
+        that a later tier (fuzzy) can try with more info.
+        """
         if not source_name:
             return None
 
@@ -309,9 +378,13 @@ class AggressiveMatcher(BaseMatcher):
         cursor = self.conn.cursor()
 
         # For aggressive matching, we query all potential matches
-        # and compare normalized forms
+        # and compare normalized forms.  Also select city for disambiguation.
+        select_cols = f"{cfg.target_id_col}, {cfg.target_name_col}"
+        if cfg.target_city_col:
+            select_cols += f", {cfg.target_city_col}"
+
         query = f"""
-            SELECT {cfg.target_id_col}, {cfg.target_name_col}
+            SELECT {select_cols}
             FROM {cfg.target_table}
             WHERE 1=1
         """
@@ -322,18 +395,13 @@ class AggressiveMatcher(BaseMatcher):
             query += f" AND UPPER({cfg.target_state_col}) = UPPER(%s)"
             params.append(state)
 
-        # City filter (important for aggressive matching)
-        if city and cfg.target_city_col:
-            query += f" AND UPPER({cfg.target_city_col}) = UPPER(%s)"
-            params.append(city)
-
         if cfg.target_filter:
             query += f" AND ({cfg.target_filter})"
 
         # Use trigram to narrow candidates if available
         if cfg.target_normalized_col:
             query += f"""
-                AND {cfg.target_normalized_col} % %s
+                AND {cfg.target_normalized_col} %% %s
             """
             params.append(normalized)
 
@@ -343,9 +411,10 @@ class AggressiveMatcher(BaseMatcher):
             cursor.execute(query, params)
         except Exception:
             # Trigram extension might not be available
-            # Fall back to LIKE
+            # Fall back without trigram filter
+            self.conn.rollback()
             query = f"""
-                SELECT {cfg.target_id_col}, {cfg.target_name_col}
+                SELECT {select_cols}
                 FROM {cfg.target_table}
                 WHERE 1=1
             """
@@ -353,32 +422,61 @@ class AggressiveMatcher(BaseMatcher):
             if state and cfg.target_state_col:
                 query += f" AND UPPER({cfg.target_state_col}) = UPPER(%s)"
                 params.append(state)
-            if city and cfg.target_city_col:
-                query += f" AND UPPER({cfg.target_city_col}) = UPPER(%s)"
-                params.append(city)
             if cfg.target_filter:
                 query += f" AND ({cfg.target_filter})"
             query += " LIMIT 500"
             cursor.execute(query, params)
 
+        # Collect ALL aggressive-normalized matches
+        matches = []
         for row in cursor.fetchall():
-            target_id, target_name = row
+            target_id, target_name = row[0], row[1]
+            target_city = row[2] if len(row) > 2 else None
             target_normalized = normalize_employer_name(target_name, "aggressive")
 
             if normalized == target_normalized:
+                matches.append((target_id, target_name, target_city))
+
+        if not matches:
+            return None
+
+        # Single match — return directly
+        if len(matches) == 1:
+            return self._create_result(
+                source_id=source_id,
+                source_name=source_name,
+                target_id=matches[0][0],
+                target_name=matches[0][1],
+                score=0.95,
+                metadata={
+                    "normalized": normalized,
+                    "target_normalized": normalized,
+                    "city": city,
+                }
+            )
+
+        # Multiple matches — disambiguate by city
+        if city and cfg.target_city_col:
+            city_upper = city.upper().strip()
+            city_matches = [m for m in matches
+                            if m[2] and m[2].upper().strip() == city_upper]
+            if len(city_matches) == 1:
                 return self._create_result(
                     source_id=source_id,
                     source_name=source_name,
-                    target_id=target_id,
-                    target_name=target_name,
+                    target_id=city_matches[0][0],
+                    target_name=city_matches[0][1],
                     score=0.95,
                     metadata={
                         "normalized": normalized,
-                        "target_normalized": target_normalized,
-                        "city": city
+                        "target_normalized": normalized,
+                        "city": city,
+                        "disambiguated_by": "city",
+                        "candidates": len(matches),
                     }
                 )
 
+        # Cannot disambiguate — skip so fuzzy tier can try
         return None
 
     def batch_match(self, source_records: List[Dict]) -> List[MatchResult]:

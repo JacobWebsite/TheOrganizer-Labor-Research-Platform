@@ -1,7 +1,7 @@
 """
 JWT authentication middleware.
 
-Disabled by default. Set LABOR_JWT_SECRET in .env to enable.
+Enabled by default. Set DISABLE_AUTH=true in .env to bypass for development.
 Token format: {"sub": "username", "role": "admin|read", "iat": ..., "exp": ...}
 
 CLI token generator:

@@ -199,6 +199,7 @@ function renderEmployerDetail(item) {
 
     // Load unified detail (cross-references + flags)
     loadUnifiedDetail(canonicalId);
+    loadEmployerMatchInfo(canonicalId, srcType);
 }
 
 // ==========================================
@@ -354,10 +355,25 @@ async function loadRelatedFilings(employerId) {
 // ==========================================
 // UNIFIED SEARCH HELPERS
 // ==========================================
+function getMatchConfidenceBadge(confidenceBand) {
+    const band = String(confidenceBand || '').toUpperCase();
+    if (band === 'MEDIUM') {
+        return '<span class="match-confidence-badge match-confidence-medium">Probable match</span>';
+    }
+    if (band === 'LOW') {
+        return '<span class="match-confidence-badge match-confidence-low">Verify match</span>';
+    }
+    return '';
+}
+
 async function loadUnifiedDetail(canonicalId) {
     const srcContent = document.getElementById('sourceRecordsContent');
+    const matchContent = document.getElementById('matchInfoContent');
     const flagsContent = document.getElementById('existingFlags');
     srcContent.innerHTML = '<div class="text-sm text-warmgray-400">Loading cross-references...</div>';
+    if (matchContent) {
+        matchContent.innerHTML = '<div class="text-sm text-warmgray-400">Loading match info...</div>';
+    }
     flagsContent.innerHTML = '';
 
     try {
@@ -380,6 +396,7 @@ async function loadUnifiedDetail(canonicalId) {
                             <div class="flex items-center gap-2 mb-1">
                                 ${getSourceBadge(ref.source_type)}
                                 <span class="font-medium">${escapeHtml(ref.employer_name || '')}</span>
+                                ${getMatchConfidenceBadge(ref.confidence_band)}
                                 ${ref.election_result ? `<span class="text-xs px-1.5 py-0.5 rounded ${ref.election_result === 'Won' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${ref.election_result}</span>` : ''}
                             </div>
                             <div class="text-warmgray-500 text-xs flex gap-3">
@@ -399,6 +416,58 @@ async function loadUnifiedDetail(canonicalId) {
     } catch (e) {
         console.error('Failed to load unified detail:', e);
         srcContent.innerHTML = '<div class="text-sm text-warmgray-400">Failed to load cross-references</div>';
+    }
+}
+
+async function loadEmployerMatchInfo(employerId, sourceType) {
+    const matchContent = document.getElementById('matchInfoContent');
+    if (!matchContent) return;
+
+    if (sourceType !== 'F7') {
+        matchContent.innerHTML = '<div class="text-sm text-warmgray-400">Match provenance available for F7 employers only.</div>';
+        return;
+    }
+
+    try {
+        const resp = await fetch(`${API_BASE}/employers/${encodeURIComponent(employerId)}/matches`);
+        if (!resp.ok) {
+            matchContent.innerHTML = '<div class="text-sm text-warmgray-400">No match provenance available</div>';
+            return;
+        }
+        const data = await resp.json();
+        const rows = data.matches || [];
+        if (!rows.length) {
+            matchContent.innerHTML = '<div class="text-sm text-warmgray-400">No active source matches found</div>';
+            return;
+        }
+
+        matchContent.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-xs">
+                    <thead>
+                        <tr class="text-warmgray-500 border-b border-warmgray-200">
+                            <th class="text-left py-1 pr-3">Source</th>
+                            <th class="text-left py-1 pr-3">Method</th>
+                            <th class="text-left py-1 pr-3">Band</th>
+                            <th class="text-right py-1">Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr class="border-b border-warmgray-100">
+                                <td class="py-1 pr-3">${escapeHtml(String(r.source_system || ''))}</td>
+                                <td class="py-1 pr-3">${escapeHtml(String(r.match_method || ''))}</td>
+                                <td class="py-1 pr-3">${escapeHtml(String(r.confidence_band || ''))}</td>
+                                <td class="py-1 text-right">${r.confidence_score != null ? Number(r.confidence_score).toFixed(3) : ''}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (e) {
+        console.error('Failed to load match provenance:', e);
+        matchContent.innerHTML = '<div class="text-sm text-warmgray-400">Failed to load match provenance</div>';
     }
 }
 

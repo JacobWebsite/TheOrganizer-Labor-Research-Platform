@@ -15,10 +15,10 @@ PROJECT_ROOT = _project_root
 FILES_DIR = _project_root / "files"
 
 # JWT auth -- requires LABOR_JWT_SECRET in .env (32+ chars).
-# Set DISABLE_AUTH=true to bypass auth in development.
-_disable_auth = os.environ.get("DISABLE_AUTH", "").lower() == "true"
+# Set DISABLE_AUTH=true to explicitly bypass auth in development.
+AUTH_DISABLED = os.environ.get("DISABLE_AUTH", "").lower() == "true"
 _jwt_from_env = os.environ.get("LABOR_JWT_SECRET") or ""
-JWT_SECRET = "" if _disable_auth else _jwt_from_env
+JWT_SECRET = "" if AUTH_DISABLED else _jwt_from_env
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 8
 

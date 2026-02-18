@@ -1,8 +1,9 @@
 import os
-from fastapi import APIRouter, Query, HTTPException, Request
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Literal, Optional
 from pydantic import BaseModel
 from ..database import get_db
+from ..dependencies import require_admin, require_auth
 from ..helpers import safe_sort_col, safe_order_dir
 
 router = APIRouter()
@@ -373,7 +374,9 @@ def get_organizing_scorecard(
 
             # Fetch paginated results sorted by score
             cur.execute(f"""
-                SELECT * FROM v_organizing_scorecard
+                SELECT v.*, nc.description AS naics_description
+                FROM v_organizing_scorecard v
+                LEFT JOIN naics_codes nc ON nc.code = v.naics_code
                 WHERE {where_clause}
                 ORDER BY organizing_score DESC, total_penalties DESC NULLS LAST
                 LIMIT %s OFFSET %s
@@ -424,6 +427,7 @@ def get_organizing_scorecard(
                     'site_state': r['site_state'],
                     'site_zip': r['site_zip'],
                     'naics_code': r['naics_code'],
+                    'naics_description': r.get('naics_description'),
                     'employee_count': r['employee_count'],
                     'total_inspections': r['total_inspections'],
                     'last_inspection_date': str(r['last_inspection_date']) if r['last_inspection_date'] else None,
@@ -477,7 +481,10 @@ def get_scorecard_detail(estab_id: str):
         with conn.cursor() as cur:
             # Read base scores from MV -- guarantees list/detail consistency
             cur.execute("""
-                SELECT * FROM v_organizing_scorecard WHERE establishment_id = %s
+                SELECT mv.*, nc.description AS naics_description
+                FROM v_organizing_scorecard mv
+                LEFT JOIN naics_codes nc ON nc.code = mv.naics_code
+                WHERE mv.establishment_id = %s
             """, [estab_id])
             mv = cur.fetchone()
             if not mv:
@@ -687,6 +694,7 @@ def get_scorecard_detail(estab_id: str):
                     'site_state': mv['site_state'],
                     'site_zip': mv['site_zip'],
                     'naics_code': mv['naics_code'],
+                    'naics_description': mv.get('naics_description'),
                     'employee_count': mv['employee_count'],
                     'total_inspections': mv['total_inspections'],
                     'last_inspection_date': str(mv['last_inspection_date']) if mv['last_inspection_date'] else None,
@@ -886,18 +894,11 @@ def get_sibling_employers(estab_id: str, limit: int = Query(default=5, le=20)):
 
 
 @router.post("/api/admin/refresh-scorecard")
-def refresh_scorecard(request: Request):
+def refresh_scorecard(user=Depends(require_admin)):
     """Refresh the mv_organizing_scorecard materialized view.
     Requires admin role when auth is enabled.
     Call after data pipeline updates OR periodically (daily/weekly) since
     temporal decay uses CURRENT_DATE and scores drift over time."""
-    # Admin-only when auth is enabled
-    from ..config import JWT_SECRET
-    if JWT_SECRET:
-        user = getattr(request.state, "user", None)
-        role = getattr(request.state, "role", None)
-        if not user or user == "anonymous" or role != "admin":
-            raise HTTPException(status_code=403, detail="Admin role required")
 
     import time
     import json
@@ -1074,15 +1075,9 @@ def get_data_freshness():
 
 
 @router.post("/api/admin/refresh-freshness")
-def refresh_freshness(request: Request):
+def refresh_freshness(user=Depends(require_admin)):
     """Re-query all data sources to update freshness counts and dates.
     Requires admin role when auth is enabled."""
-    from ..config import JWT_SECRET
-    if JWT_SECRET:
-        user = getattr(request.state, "user", None)
-        role = getattr(request.state, "role", None)
-        if not user or user == "anonymous" or role != "admin":
-            raise HTTPException(status_code=403, detail="Admin role required")
 
     import time
     import subprocess
@@ -1268,7 +1263,7 @@ def get_match_review(
 
 
 @router.post("/api/admin/match-review/{match_id}")
-def review_match(match_id: int, payload: MatchReviewAction):
+def review_match(match_id: int, payload: MatchReviewAction, user=Depends(require_admin)):
     """Approve or reject a queued match review decision."""
     with get_db() as conn:
         with conn.cursor() as cur:

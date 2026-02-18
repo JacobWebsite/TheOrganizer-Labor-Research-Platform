@@ -74,12 +74,21 @@ def load_all(conn, limit=None):
 
 
 def write_legacy(conn, matches):
-    """Write matches back to national_990_f7_matches for backward compat."""
+    """Write matches back to national_990_f7_matches for backward compat.
+
+    Uses ON CONFLICT DO UPDATE so re-runs can upgrade match quality.
+    Targets the unique index on n990_id.
+    """
     from psycopg2.extras import execute_batch
     sql = """
         INSERT INTO national_990_f7_matches (n990_id, ein, f7_employer_id, match_method, match_confidence, match_source)
         VALUES (%s, %s, %s, %s, %s, 'DETERMINISTIC_V2')
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (n990_id) DO UPDATE SET
+            ein = EXCLUDED.ein,
+            f7_employer_id = EXCLUDED.f7_employer_id,
+            match_method = EXCLUDED.match_method,
+            match_confidence = EXCLUDED.match_confidence,
+            match_source = EXCLUDED.match_source
     """
     # Deduplicate by (f7_employer_id, ein) to avoid within-batch conflicts
     seen = set()

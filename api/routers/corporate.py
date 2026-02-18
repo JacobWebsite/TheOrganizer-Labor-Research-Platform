@@ -106,6 +106,36 @@ def get_employer_agreement_info(employer_id: str):
             }
 
 
+@router.get("/api/employers/{employer_id}/matches")
+def get_employer_match_provenance(employer_id: str):
+    """Get match provenance rows for an F7 employer from unified_match_log."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT employer_id
+                FROM f7_employers_deduped
+                WHERE employer_id = %s
+            """, [employer_id])
+            exists = cur.fetchone()
+            if not exists:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            cur.execute("""
+                SELECT source_system, match_method, confidence_band, confidence_score
+                FROM unified_match_log
+                WHERE target_id = %s
+                  AND target_system = 'f7'
+                  AND status = 'active'
+                ORDER BY confidence_score DESC NULLS LAST
+            """, [employer_id])
+            rows = cur.fetchall()
+
+            return {
+                "employer_id": employer_id,
+                "matches": rows,
+            }
+
+
 @router.get("/api/corporate/family/{employer_id}")
 def get_corporate_family(employer_id: str):
     """Get related employers (corporate family) - ownership hierarchy + name similarity + multi-employer groups"""

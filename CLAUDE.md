@@ -1,7 +1,7 @@
 # Labor Relations Research Platform - Claude Context
 
 ## Quick Reference
-**Last Updated:** 2026-02-16 (Phase 5 complete, folder reorg complete, all 358 tests passing)
+**Last Updated:** 2026-02-17 (Phase B in progress, 380 tests passing)
 
 **Start here:** Read `PROJECT_STATE.md` for quick start, DB inventory, known issues, and recent decisions. Read `PIPELINE_MANIFEST.md` for the active script manifest.
 
@@ -50,7 +50,7 @@ labor-data-project/
 │   ├── setup/         (1)      # Database initialization
 │   └── performance/   (1)      # Performance profiling
 ├── src/python/matching/        # Shared library (name_normalization.py)
-├── tests/                      # 358 automated tests
+├── tests/                      # 380 automated tests
 ├── docs/                       # Documentation and audit reports
 ├── sql/                        # SQL scripts
 ├── data/                       # Small reference files (NAICS crosswalks, EPI benchmarks)
@@ -597,7 +597,9 @@ python -m scripts.matching run mergent_to_f7 --limit 1000 --skip-fuzzy
 python -m scripts.matching test mergent_to_f7 "ACME Hospital" --state NY
 ```
 
-### 5-Tier Matching Pipeline
+### 5-Tier Matching Pipeline (Legacy — `scripts/matching/pipeline.py`)
+
+Used for NLRB, Mergent, VR, and contract scenarios via `scripts/matching/cli.py`.
 
 | Tier | Method | Score | Confidence | Speed |
 |------|--------|-------|------------|-------|
@@ -606,6 +608,21 @@ python -m scripts.matching test mergent_to_f7 "ACME Hospital" --state NY
 | 3 | Address (fuzzy name + street # + city + state) | 0.4+ | HIGH | Medium |
 | 4 | Aggressive name + city | 0.95 | MEDIUM | Medium |
 | 5 | Trigram fuzzy + state | 0.65+ | LOW | Slow |
+
+### 6-Tier Deterministic Matcher v4 (`scripts/matching/deterministic_matcher.py`)
+
+Used for OSHA, WHD, 990, SAM, SEC, BMF via `scripts/matching/run_deterministic.py`. Best-match-wins (keeps highest tier per source record).
+
+| Tier | Method | Rank | Band | Speed |
+|------|--------|------|------|-------|
+| 1 | EIN exact | 100 | HIGH | Fast |
+| 2 | Name + city + state exact | 90 | HIGH | Fast |
+| 3 | Name + state exact | 80 | HIGH | Fast |
+| 4 | Aggressive name + state | 60 | MEDIUM | Fast |
+| 5a | Splink probabilistic (adaptive fuzzy model + name floor >= 0.65) | 45 | MEDIUM | Medium |
+| 5b | Trigram pg_trgm (fallback for Splink misses) | 40 | LOW | Slow |
+
+**Splink calibration note:** The pre-trained model overweights geography (state+city+zip BF ~8.5M). A `rapidfuzz.fuzz.token_sort_ratio >= 0.65` post-filter is required to prevent false positives. Without it, match rate inflates from ~4% to ~81%.
 
 ### Available Scenarios
 
@@ -631,7 +648,7 @@ scripts/matching/
   pipeline.py                  # MatchPipeline orchestrator
   differ.py                    # Diff report generation
   cli.py                       # Command-line interface
-  deterministic_matcher.py     # [Phase 3] Core v3 batch-optimized matcher (5-tier cascade)
+  deterministic_matcher.py     # [Phase 3+B] Core v4 batch-optimized matcher (6-tier cascade, best-match-wins, Splink tier 5a)
   run_deterministic.py         # [Phase 3] CLI runner: osha|whd|990|sam|sec|all
   create_unified_match_log.py  # [Phase 3] Unified match log table creation
   match_quality_report.py      # [Phase 3] Match quality metrics generator

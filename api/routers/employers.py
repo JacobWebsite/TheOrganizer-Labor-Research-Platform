@@ -5,10 +5,11 @@ Extracted from labor_api_v6.py.
 import re
 
 import psycopg2.errors
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional, List
 
 from ..database import get_db
+from ..dependencies import require_auth
 from ..models.schemas import FlagCreate
 
 router = APIRouter()
@@ -253,6 +254,47 @@ def normalized_search_employers(
 
 
 # ============================================================================
+# DATA SOURCE COVERAGE
+# ============================================================================
+
+@router.get("/api/employers/data-coverage")
+def get_data_coverage():
+    """Aggregate stats: how many employers have 0/1/2/3+ external data sources."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) AS cnt FROM mv_employer_data_sources")
+            total = cur.fetchone()['cnt']
+
+            cur.execute("""
+                SELECT source_count, COUNT(*) AS cnt
+                FROM mv_employer_data_sources
+                GROUP BY source_count
+                ORDER BY source_count
+            """)
+            distribution = cur.fetchall()
+
+            cur.execute("""
+                SELECT
+                    SUM(has_osha::int) AS osha,
+                    SUM(has_nlrb::int) AS nlrb,
+                    SUM(has_whd::int) AS whd,
+                    SUM(has_990::int) AS n990,
+                    SUM(has_sam::int) AS sam,
+                    SUM(has_sec::int) AS sec,
+                    SUM(has_gleif::int) AS gleif,
+                    SUM(has_mergent::int) AS mergent
+                FROM mv_employer_data_sources
+            """)
+            by_source = cur.fetchone()
+
+            return {
+                "total_employers": total,
+                "source_count_distribution": distribution,
+                "by_source": by_source,
+            }
+
+
+# ============================================================================
 # UNIFIED EMPLOYER SEARCH (mv_employer_search + review flags)
 # ============================================================================
 
@@ -378,13 +420,17 @@ def unified_employer_detail(canonical_id: str):
                     cross_refs.extend(cur.fetchall())
 
             elif source_type == "NLRB":
+                try:
+                    source_id_int = int(source_id)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=404, detail="Employer not found")
                 cur.execute("""
                     SELECT p.id, p.participant_name as employer_name, p.city, p.state,
                            p.address_1 as street, p.zip, p.case_number,
                            'NLRB' as source_type
                     FROM nlrb_participants p
                     WHERE p.id = %s
-                """, [int(source_id)])
+                """, [source_id_int])
                 primary = cur.fetchone()
 
                 if primary:
@@ -415,11 +461,15 @@ def unified_employer_detail(canonical_id: str):
                 primary = cur.fetchone()
 
             elif source_type == "MANUAL":
+                try:
+                    source_id_int = int(source_id)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=404, detail="Employer not found")
                 cur.execute("""
                     SELECT m.*, 'MANUAL' as source_type
                     FROM manual_employers m
                     WHERE m.id = %s
-                """, [int(source_id)])
+                """, [source_id_int])
                 primary = cur.fetchone()
 
             if not primary:
@@ -442,7 +492,7 @@ def unified_employer_detail(canonical_id: str):
 
 
 @router.post("/api/employers/flags")
-def create_flag(flag: FlagCreate):
+def create_flag(flag: FlagCreate, user=Depends(require_auth)):
     """Create a review flag for an employer."""
     valid_types = ['ALREADY_UNION', 'DUPLICATE', 'LABOR_ORG_NOT_EMPLOYER',
                    'DEFUNCT', 'DATA_QUALITY', 'NEEDS_REVIEW', 'VERIFIED_OK']
@@ -505,7 +555,7 @@ def get_pending_flags(
 
 
 @router.post("/api/employers/refresh-search")
-def refresh_unified_search():
+def refresh_unified_search(user=Depends(require_auth)):
     """Refresh the materialized view for unified employer search."""
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -517,7 +567,7 @@ def refresh_unified_search():
 
 
 @router.delete("/api/employers/flags/{flag_id}")
-def delete_flag(flag_id: int):
+def delete_flag(flag_id: int, user=Depends(require_auth)):
     """Remove a review flag."""
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -790,6 +840,21 @@ def get_similar_employers(
                   employer_id, emp['naics'], emp['state'], emp['latest_union_fnum'], limit])
 
             return {"similar_employers": cur.fetchall()}
+
+
+@router.get("/api/employers/{employer_id}/data-sources")
+def get_employer_data_sources(employer_id: str):
+    """Get data source availability and corporate crosswalk for one employer."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT * FROM mv_employer_data_sources
+                WHERE employer_id = %s
+            """, [employer_id])
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Employer not found")
+            return dict(row)
 
 
 @router.get("/api/employers/{employer_id}/osha")

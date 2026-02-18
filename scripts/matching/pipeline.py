@@ -24,15 +24,17 @@ logger = logging.getLogger(__name__)
 
 class MatchPipeline:
     """
-    Unified 4-tier matching pipeline.
+    Unified 5-tier matching pipeline (best-match-wins).
 
-    Runs matching attempts in order of confidence:
+    Evaluates all tiers and returns the most specific (highest-confidence) match:
     1. EIN (if available)
     2. Normalized name + state
-    3. Aggressive name + city
-    4. Fuzzy trigram + state
+    3. Address-enhanced
+    4. Aggressive name + city
+    5. Fuzzy trigram + state
 
-    Stops at first successful match.
+    All tiers are evaluated; the match with the lowest tier number wins.
+    Within the same tier, the highest score wins.
     """
 
     def __init__(self, conn, config: MatchConfig = None, scenario: str = None,
@@ -91,6 +93,11 @@ class MatchPipeline:
         """
         source_id = source_id or source_name
 
+        # Best-match-wins: evaluate ALL tiers and return the most specific match.
+        # Lower tier number = higher specificity = preferred.
+        # Within the same tier, higher score wins.
+        best = None
+
         for matcher in self.matchers:
             try:
                 result = matcher.match(
@@ -102,7 +109,11 @@ class MatchPipeline:
                     address=address,
                 )
                 if result and result.matched:
-                    return result
+                    if (best is None
+                            or result.tier < best.tier
+                            or (result.tier == best.tier
+                                and result.score > best.score)):
+                        best = result
             except Exception as e:
                 logger.warning(f"Matcher {matcher.method} failed: {e}")
                 # Rollback to clear aborted transaction state
@@ -111,6 +122,9 @@ class MatchPipeline:
                 except:
                     pass
                 continue
+
+        if best:
+            return best
 
         # No match found
         return MatchResult(

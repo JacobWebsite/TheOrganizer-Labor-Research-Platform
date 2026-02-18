@@ -155,9 +155,9 @@ def get_stats_breakdown(
             }
 
 
-@router.get("/api/health")
+@router.get("/api/health/details")
 def health_check():
-    """API health check"""
+    """Detailed API health diagnostics."""
     try:
         with get_db() as conn:
             with conn.cursor() as cur:

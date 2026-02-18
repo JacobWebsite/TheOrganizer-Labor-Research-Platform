@@ -44,6 +44,18 @@ def run_source(conn, source_name, adapter, args):
                 VALUES (%s, %s, NOW(), %s, %s)
                 ON CONFLICT (run_id) DO NOTHING
             """, [run_id, f"deterministic_{source_name}", source_name, "deterministic_v2"])
+
+            # When re-matching all, mark old active entries as superseded
+            if not args.unmatched_only:
+                cur.execute("""
+                    UPDATE unified_match_log
+                    SET status = 'superseded'
+                    WHERE source_system = %s AND status = 'active'
+                """, [source_name])
+                superseded = cur.rowcount
+                if superseded:
+                    print(f"Superseded {superseded:,} old active matches in unified_match_log")
+
             conn.commit()
 
     # Load source records

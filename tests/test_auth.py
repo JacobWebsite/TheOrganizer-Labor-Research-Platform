@@ -21,12 +21,14 @@ def auth_client():
     import api.config as config
     import api.middleware.auth as auth_mod
     import api.routers.auth as auth_router
+    import api.dependencies as deps
 
     # Enable auth -- must patch all modules that imported JWT_SECRET by value
     original_secret = config.JWT_SECRET
     config.JWT_SECRET = TEST_JWT_SECRET
     auth_mod.JWT_SECRET = TEST_JWT_SECRET
     auth_router.JWT_SECRET = TEST_JWT_SECRET
+    deps.JWT_SECRET = TEST_JWT_SECRET
 
     # Disable login rate limiting for tests
     original_max = auth_router._LOGIN_MAX
@@ -41,6 +43,7 @@ def auth_client():
     config.JWT_SECRET = original_secret
     auth_mod.JWT_SECRET = original_secret
     auth_router.JWT_SECRET = original_secret
+    deps.JWT_SECRET = original_secret
     auth_router._LOGIN_MAX = original_max
 
 
@@ -286,3 +289,76 @@ def test_register_invalid_username(auth_client):
         headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 422
+
+
+# ============================================================================
+# Role-based admin endpoint protection
+# ============================================================================
+
+def _get_admin_token(auth_client):
+    r = auth_client.post("/api/auth/login", json={
+        "username": "test_admin", "password": "adminpass123"
+    })
+    return r.json()["access_token"]
+
+
+def _get_reader_token(auth_client):
+    r = auth_client.post("/api/auth/login", json={
+        "username": "test_reader", "password": "readerpass1"
+    })
+    return r.json()["access_token"]
+
+
+def test_admin_refresh_scorecard_requires_admin(auth_client):
+    """Read-only user cannot refresh scorecard."""
+    token = _get_reader_token(auth_client)
+    r = auth_client.post("/api/admin/refresh-scorecard",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 403
+
+
+def test_admin_refresh_scorecard_admin_ok(auth_client):
+    """Admin user can refresh scorecard (or at least gets past auth)."""
+    token = _get_admin_token(auth_client)
+    r = auth_client.post("/api/admin/refresh-scorecard",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    # 200 or 500 (if DB view doesn't exist in test) -- NOT 401/403
+    assert r.status_code != 403
+
+
+def test_admin_refresh_freshness_requires_admin(auth_client):
+    """Read-only user cannot refresh freshness."""
+    token = _get_reader_token(auth_client)
+    r = auth_client.post("/api/admin/refresh-freshness",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 403
+
+
+def test_admin_match_review_requires_admin(auth_client):
+    """Read-only user cannot review matches."""
+    token = _get_reader_token(auth_client)
+    r = auth_client.post("/api/admin/match-review/1",
+        json={"action": "approve"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 403
+
+
+def test_admin_endpoints_no_token_returns_401(auth_client):
+    """Admin endpoints return 401 without a token."""
+    r = auth_client.post("/api/admin/refresh-scorecard")
+    assert r.status_code == 401
+
+
+def test_write_endpoints_require_auth(auth_client):
+    """POST/DELETE write endpoints require authentication."""
+    r = auth_client.post("/api/employers/flags", json={
+        "source_type": "F7", "source_id": "test", "flag_type": "NEEDS_REVIEW"
+    })
+    assert r.status_code == 401
+
+    r = auth_client.delete("/api/employers/flags/99999")
+    assert r.status_code == 401

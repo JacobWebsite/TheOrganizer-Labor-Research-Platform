@@ -74,12 +74,18 @@ def load_all(conn, limit=None):
 
 
 def write_legacy(conn, matches):
-    """Write matches back to osha_f7_matches for backward compat."""
+    """Write matches back to osha_f7_matches for backward compat.
+
+    Uses ON CONFLICT DO UPDATE so re-runs can upgrade match quality.
+    """
     from psycopg2.extras import execute_batch
     sql = """
         INSERT INTO osha_f7_matches (establishment_id, f7_employer_id, match_method, match_confidence)
         VALUES (%s, %s, %s, %s)
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (establishment_id) DO UPDATE SET
+            f7_employer_id = EXCLUDED.f7_employer_id,
+            match_method = EXCLUDED.match_method,
+            match_confidence = EXCLUDED.match_confidence
     """
     rows = [(m["source_id"], m["target_id"], m["method"], m["score"]) for m in matches]
     with conn.cursor() as cur:

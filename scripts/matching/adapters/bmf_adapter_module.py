@@ -26,7 +26,7 @@ def load_unmatched(conn, limit=None):
             b.zip_code
         FROM irs_bmf b
         LEFT JOIN unified_match_log uml
-            ON uml.source_system = 'irs_bmf'
+            ON uml.source_system = 'bmf'
             AND uml.source_id = b.ein
             AND uml.status = 'active'
         WHERE uml.id IS NULL

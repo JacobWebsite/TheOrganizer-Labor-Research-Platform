@@ -2,6 +2,40 @@
 
 Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
+### 2026-02-17b (Phase D1: Auth Hardening — Claude Code)
+**Tasks:** Harden authentication to be enforced by default, add role-based authorization to admin and write endpoints.
+
+**Changes:**
+- Created `api/dependencies.py` — shared `require_admin(request)` and `require_auth(request)` FastAPI dependencies. When auth is disabled (JWT_SECRET empty), returns synthetic dev user. When enabled, validates JWT claims and enforces roles.
+- **Startup guard:** `api/main.py` now calls `sys.exit(1)` if `LABOR_JWT_SECRET` is not set AND `DISABLE_AUTH` is not true. Previously only logged a warning — the API would silently serve all data publicly.
+- **Admin endpoint protection:** `POST /api/admin/refresh-scorecard`, `POST /api/admin/refresh-freshness`, `POST /api/admin/match-review/{id}` now use `Depends(require_admin)`. Replaced 2 inline role checks + added protection to `match-review` (previously had NO auth check at all).
+- **Write endpoint protection:** `POST /api/employers/flags`, `DELETE /api/employers/flags/{id}`, `POST /api/employers/refresh-search` now require authentication via `Depends(require_auth)` — previously unprotected (anyone could create/delete flags or refresh the MV).
+- Exported `AUTH_DISABLED` boolean from `api/config.py` (was private `_disable_auth`).
+- `.env` updated with clear documentation: auth is enforced by default, `DISABLE_AUTH=true` is an explicit dev opt-in.
+- `tests/conftest.py` sets `os.environ["DISABLE_AUTH"] = "true"` to prevent startup guard crash in test env.
+- `tests/test_auth.py`: added `api.dependencies` to JWT_SECRET fixture patch (4th module), added 6 new tests:
+  - `test_admin_refresh_scorecard_requires_admin` — read user gets 403
+  - `test_admin_refresh_scorecard_admin_ok` — admin passes auth
+  - `test_admin_refresh_freshness_requires_admin` — read user gets 403
+  - `test_admin_match_review_requires_admin` — read user gets 403
+  - `test_admin_endpoints_no_token_returns_401` — unauthenticated gets 401
+  - `test_write_endpoints_require_auth` — flags POST/DELETE require token
+
+**Security posture change:**
+| Aspect | Before | After |
+|--------|--------|-------|
+| Default behavior | Auth off, warning logged | Auth on, hard crash if no secret |
+| Admin endpoints | 2/3 inline checks, 1 unprotected | All 3 via `require_admin` |
+| Write endpoints | 3 unprotected | All 3 via `require_auth` |
+| Deploy without config | Silently public | Refuses to start |
+
+**Tests:** 22/22 auth tests pass (16 existing + 6 new). 375/396 total (21 pre-existing failures: scorecard 503s, rate limiting 429s, hospital abbreviation).
+
+**Files created:** `api/dependencies.py`
+**Files modified:** `api/config.py`, `api/main.py`, `api/middleware/auth.py`, `api/routers/organizing.py`, `api/routers/employers.py`, `.env`, `tests/conftest.py`, `tests/test_auth.py`
+
+---
+
 ### 2026-02-14b (AFSCME Web Scraper — Full Pipeline)
 **Tasks:** Build end-to-end union website scraper pipeline for AFSCME national directory
 

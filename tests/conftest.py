@@ -9,8 +9,9 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 # Ensure auth is disabled for general API tests (middleware no-op when JWT_SECRET empty).
-# Set to empty rather than pop, so db_config.setdefault won't reload from .env.
-# Auth-specific tests set their own secret via monkeypatch.
+# DISABLE_AUTH=true prevents the startup guard from calling sys.exit().
+# Auth-specific tests set their own secret via fixture patching.
+os.environ["DISABLE_AUTH"] = "true"
 os.environ["LABOR_JWT_SECRET"] = ""
 
 from starlette.testclient import TestClient
