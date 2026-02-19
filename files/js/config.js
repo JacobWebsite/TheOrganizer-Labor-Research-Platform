@@ -15,6 +15,18 @@ const SCORE_FACTORS = [
 ];
 const SCORE_MAX = SCORE_FACTORS.reduce((sum, f) => sum + f.max, 0); // 80
 
+// Unified scorecard factors (Phase E3 — signal-strength scoring, 0-10 per factor)
+const UNIFIED_SCORE_FACTORS = [
+    { key: 'score_osha',            label: 'OSHA Safety',       max: 10, color: 'bg-red-500',    desc: 'Workplace safety violations (10yr decay)' },
+    { key: 'score_nlrb',            label: 'NLRB Activity',     max: 10, color: 'bg-green-500',  desc: 'Election count + recency bonus' },
+    { key: 'score_whd',             label: 'Wage & Hour',       max: 10, color: 'bg-pink-500',   desc: 'WHD violations, backwages, repeat status' },
+    { key: 'score_contracts',       label: 'Fed Contracts',     max: 10, color: 'bg-orange-500', desc: 'Federal contract obligation tiers' },
+    { key: 'score_union_proximity', label: 'Union Proximity',   max: 10, color: 'bg-indigo-500', desc: 'Canonical group size & cross-state presence' },
+    { key: 'score_financial',       label: 'Financial',         max: 10, color: 'bg-teal-500',   desc: 'BLS growth + public/nonprofit boost' },
+    { key: 'score_size',            label: 'Employer Size',     max: 10, color: 'bg-yellow-500', desc: 'Sweet spot 50-500 workers' },
+];
+const UNIFIED_SCORE_MAX = 10; // scale is 0-10 (average, not sum)
+
 let currentMode = 'employers'; // 'employers' or 'unions'
 let currentResults = [];
 let selectedItem = null;

@@ -110,19 +110,24 @@ def write_legacy(conn, matches):
             f7_id = match['target_id']
             ein = match['source_id']
 
-            # Insert or update crosswalk
-            # Link F7 employer to IRS EIN
+            # Upsert crosswalk: update EIN if row exists, otherwise insert
             cur.execute("""
-                INSERT INTO corporate_identifier_crosswalk (f7_employer_id, ein)
-                SELECT %s, %s
-                WHERE EXISTS (
-                    SELECT 1 FROM f7_employers_deduped
-                    WHERE employer_id = %s
-                )
-                ON CONFLICT (f7_employer_id)
-                DO UPDATE SET
-                    ein = COALESCE(corporate_identifier_crosswalk.ein, EXCLUDED.ein)
-            """, (f7_id, ein, f7_id))
+                UPDATE corporate_identifier_crosswalk
+                SET ein = COALESCE(ein, %s)
+                WHERE f7_employer_id = %s AND ein IS NULL
+            """, (ein, f7_id))
+            if cur.rowcount == 0:
+                # No existing row to update (or already has EIN) — insert if missing
+                cur.execute("""
+                    INSERT INTO corporate_identifier_crosswalk (f7_employer_id, ein)
+                    SELECT %s, %s
+                    WHERE EXISTS (
+                        SELECT 1 FROM f7_employers_deduped WHERE employer_id = %s
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM corporate_identifier_crosswalk WHERE f7_employer_id = %s
+                    )
+                """, (f7_id, ein, f7_id, f7_id))
 
             if cur.rowcount > 0:
                 updated += 1

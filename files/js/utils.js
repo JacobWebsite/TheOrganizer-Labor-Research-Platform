@@ -187,3 +187,10 @@ function getScoreColor(score) {
     if (score >= 20) return 'text-yellow-600';  // MEDIUM
     return 'text-warmgray-400';                 // LOW
 }
+
+function getUnifiedScoreColor(score) {
+    if (score >= 7) return 'text-green-600';     // TOP
+    if (score >= 5) return 'text-blue-600';      // HIGH
+    if (score >= 3.5) return 'text-yellow-600';  // MEDIUM
+    return 'text-warmgray-400';                  // LOW
+}

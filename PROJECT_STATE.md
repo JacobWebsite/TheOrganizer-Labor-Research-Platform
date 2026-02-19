@@ -2,7 +2,7 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-18 (Phase B UI/API follow-up)
+**Last manually updated:** 2026-02-18c (B4 OSHA all 4 batches DONE, BMF+SEC+990 re-run partial, WHD+SAM need re-run, frontend unified scorecard wired up)
 
 ---
 
@@ -52,7 +52,7 @@ py -m pytest tests/ -q
 | Tables | 178 |
 | Views | 186 |
 | Materialized views | 6 |
-| Indexes | 559 (total size: 2,718 MB) |
+| Indexes | ~223 (total size: ~1,700 MB) -- 336 unused dropped 2026-02-18 |
 | Estimated total rows | 25,358,111 |
 
 **Materialized Views:**
@@ -151,7 +151,7 @@ See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 
 6. ~~**Matching pipeline has two bugs.**~~ **FIXED (Phase B1-B2).** Tier ordering corrected (strict-to-broad: EIN > name+city+state > name+state > aggressive > Splink fuzzy > trigram). First-hit-wins replaced with best-match-wins (keeps highest-tier match per source record). Splink re-integrated as tier 5a with name similarity floor (token_sort_ratio >= 0.65) after discovering Splink model overweights geography.
 
-7. **195 missing unions covering 92,627 workers.** Relations reference file numbers not in the unions master table.
+7. **166 missing unions covering 61,743 workers.** (Was 195/92,627 — 29 resolved via crosswalk remaps. Case 12590 CWA District 7 deferred for geographic devolution.)
 
 8. ~~**Corporate hierarchy endpoints are broken.**~~ **FIXED (Phase A3).** 7 RealDictCursor indexing bugs fixed, route shadowing resolved (search before parameterized).
 
@@ -164,7 +164,7 @@ See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 12. Model B propensity score is basically random (AUC 0.53).
 13. Documentation keeps falling behind (19 known inaccuracies in CLAUDE.md).
 14. ~~778 Python files with no manifest.~~ **PARTIALLY ADDRESSED** — Pipeline manifest created, dead scripts archived, credential pattern fixed. ~120 active scripts remain, down from 530+.
-15. Database is twice as big as needed (~12 GB raw GLEIF + ~1.67 GB unused indexes).
+15. Database is twice as big as needed (~12 GB raw GLEIF). ~~~1.67 GB unused indexes~~ **FIXED:** 336 unused indexes dropped, 3.0 GB recovered.
 
 ---
 
@@ -213,7 +213,7 @@ From the Feb 16-17, 2026 planning session (full list in UNIFIED_ROADMAP Appendix
 | B1 | DONE | Tier reordering: strict-to-broad cascade (EIN 100 > name+city+state 90 > name+state 80 > aggressive 60 > Splink 45 > trigram 40) |
 | B2 | DONE | Name collision fix: best-match-wins replaces first-hit-wins |
 | B3 | DONE | Splink re-integrated as tier 5a with name similarity floor. Trigram fallback as tier 5b |
-| B4 | IN PROGRESS | Re-run affected match tables. OSHA first run reverted (quality problem). SEC/BMF adapter source_system bugs fixed. All adapters upgraded to ON CONFLICT DO UPDATE. Supersede logic added for --rematch-all |
+| B4 | IN PROGRESS | Re-run affected match tables. Batched re-run added (--batch N/M). OSHA batch 1/4 running (252K records). Quality looks OK -- not the 81% overmatching disaster. See B4 Batch Re-run section below. |
 | B5 | DONE | Added confidence flags to UI (HIGH hidden, MEDIUM=Probable match, LOW=Verify match) |
 
 **Critical Finding — Splink Model Calibration:**
@@ -223,6 +223,42 @@ The pre-trained Splink model (`adaptive_fuzzy_model.json`) overweights geographi
 - unified_match_log: 119,747 active + 119,451 rejected (verified matches pre-run state)
 - osha_f7_matches: 147,271 (unchanged)
 - Bad run entries (860K) deleted, 119,747 superseded entries restored to active
+
+### B4 Batched Re-run (2026-02-18) — OSHA
+
+**Approach:** Added `--batch N/M` flag to `run_deterministic.py`. Processes records in 25% slices with per-batch supersede (only touches current batch's old matches). Checkpoint file at `checkpoints/osha_rerun.json` tracks progress and per-batch stats.
+
+**Command:** `py scripts/matching/run_deterministic.py osha --rematch-all --batch 1/4`
+
+**OSHA Batch 1/4 Interim Quality Check (~252K records, still running):**
+
+| Category | Count | Notes |
+|----------|-------|-------|
+| Exact tiers 1-4 (HIGH/MED) | ~11,900 | Solid: name+city+state, name+state, aggressive |
+| Splink HIGH | ~12,270 | 94% scored 0.95+. Name floor 0.65 working. |
+| Splink MEDIUM | ~612 | OK |
+| Trigram HIGH+MED | ~1,058 | Marginal |
+| Trigram LOW (rejected) | ~29,486 | Garbage -- correctly rejected, not in legacy |
+| Ambiguous (rejected) | ~2,459 | Correctly flagged |
+| **Active match rate** | **~9%** | Higher than old 4.2% baseline but not the 81% disaster |
+
+**Verdict:** Name similarity floor (token_sort_ratio >= 0.65) is working. The 81% overmatching catastrophe from the first attempt is gone. Active rate of ~9% is higher than old baseline (~4%) mainly from Splink finding ~12K legitimate new matches (Supreme Steel, Teva Pharmaceuticals, etc.).
+
+**Known concern:** A few Splink false positives at the 0.65 name floor -- e.g., "nex transport" matched to "cassens transport" (0.733 name sim but different companies). Splink probability is 1.0 because geography overweights. Could tighten floor to 0.70 for stricter matching, but would lose some good matches.
+
+**To resume:** Run batches 2-4:
+```
+py scripts/matching/run_deterministic.py osha --rematch-all --batch 2/4
+py scripts/matching/run_deterministic.py osha --rematch-all --batch 3/4
+py scripts/matching/run_deterministic.py osha --rematch-all --batch 4/4
+```
+Check progress: `py scripts/matching/run_deterministic.py osha --batch-status`
+
+**Pre-run DB state (for rollback reference):**
+- UML osha active: 62,903
+- UML osha rejected: 132,430
+- UML osha superseded: 147,865
+- osha_f7_matches: 147,271
 
 ---
 
@@ -244,7 +280,124 @@ The DOL F-7 filing is the only comprehensive registry of union-employer bargaini
 ### Why the master employer key is deferred
 A master employer key (one platform ID per real-world employer, mapped to all source IDs) is the ideal architecture. But building it too early bakes in matching errors that are hard to undo. The current approach uses `f7_employer_id` as the de facto key with match tables linking other sources. The master key will be built during Phase E (scorecard rebuild) when matching quality is higher and confidence thresholds are established.
 
-## Section 8: Session Handoff Notes (2026-02-18, Codex)
+## Section 8: Session Handoff Notes (2026-02-18c, Claude Code — Frontend Unified Scorecard + B4 Completion + Source Re-runs)
+
+### Completed in this session
+- **B4 OSHA All 4 Batches COMPLETE.** Remarkably consistent results:
+  - Batch 1: 251,804 records, 40.3%, 24,349 H+M
+  - Batch 2: 251,804 records, 40.4%, 24,178 H+M
+  - Batch 3: 251,804 records, 40.4%, 24,252 H+M
+  - Batch 4: 251,805 records, 40.3%, 24,363 H+M
+  - **Total: 1,007,217 records, 97,142 HIGH+MEDIUM active matches (9.6%)**
+- **BMF re-run COMPLETE.** 15/25 matched (60%), 9 H+M. Fixed `bmf_adapter_module.py` ON CONFLICT bug (corporate_identifier_crosswalk has no unique constraint on f7_employer_id due to 2,306 duplicates — switched to UPDATE-then-INSERT pattern).
+- **SEC re-run PARTIAL.** Was in final trigram tail when stopped. Active: 6,750, rejected: ~25K. Needs re-run.
+- **990 re-run PARTIAL.** Was writing legacy tables when stopped. Active: 34,000, rejected: ~14K. Needs re-run.
+- **WHD re-run FAILED (OOM).** PostgreSQL ran out of memory during trigram batch write when running 4 sources in parallel. Needs re-run solo.
+- **SAM re-run FAILED (OOM).** numpy OOM on Splink pass — 826K records is too large for parallel. Needs batched re-run (`--batch` flag) or solo run.
+- **Frontend unified scorecard DONE.** Wired up `scorecard.js` to use `/api/scorecard/unified` endpoints:
+  - `loadUnifiedResults()` — calls unified API, maps data, supports pagination
+  - `renderUnifiedDetail()` — 7 factors (0-10) with color bars, explanations, OSHA/NLRB/WHD/contracts context
+  - `loadUnifiedStates()` — state filter from unified endpoint with avg scores
+  - Dynamic tier labels (TOP 7+, HIGH 5+, MEDIUM 3.5+, LOW <3.5)
+  - Dynamic legend using UNIFIED_SCORE_FACTORS
+  - Unified-specific badges (OSHA/NLRB/WHD/Fed Contractor), coverage stats
+  - 439/441 tests pass (same 2 pre-existing failures)
+
+### To resume
+1. **Re-run SEC:** `py scripts/matching/run_deterministic.py sec --rematch-all`
+2. **Re-run 990:** `py scripts/matching/run_deterministic.py 990 --rematch-all`
+3. **Re-run WHD:** `py scripts/matching/run_deterministic.py whd --rematch-all` (run SOLO, not in parallel — OOM risk)
+4. **Re-run SAM:** `py scripts/matching/run_deterministic.py sam --rematch-all` (run SOLO — 826K records, OOM risk. Consider `--batch 1/2` and `--batch 2/2` if still OOM)
+5. **After all sources complete:** Refresh MVs:
+   ```
+   py scripts/scoring/create_scorecard_mv.py --refresh
+   py scripts/scoring/build_employer_data_sources.py --refresh
+   py scripts/scoring/build_unified_scorecard.py --refresh
+   ```
+6. **Important:** Run sources ONE AT A TIME to avoid OOM. Do NOT run WHD or SAM in parallel with anything.
+
+---
+
+## Previous: Session Handoff Notes (2026-02-18b, Claude Code — B4 + Quick Wins + Crosswalk)
+
+### Completed in this session
+- **B4 OSHA Batch 1/4 COMPLETE.** 251,804 records processed. 24,349 HIGH+MEDIUM matches written (9.7% active rate). Name similarity floor working -- not repeating 81% disaster. Batch 2/4 running.
+- **Task 3 (Unused indexes):** Dropped 336 unused non-unique indexes, recovered 3.0 GB. 43 indexes on protected pipeline tables preserved. VACUUM ANALYZE on 15 major tables.
+- **Task 4 (Freshness "3023" bug):** Fixed 1 row in `ny_state_contracts` (3023-03-31 -> 2023-03-31). Fixed Unicode in `create_data_freshness.py`. Refreshed freshness table.
+- **Crosswalk remaps (Issue #7):** Applied 29 remaps (24 one-to-one + 5 manual picks). Orphans: 195 -> 166, workers: 92,627 -> 61,743. Case 12590 (CWA District 7) deferred -- needs geographic devolution across 5 successor locals.
+- **Codex review:** Reviewed Codex tasks 1, 2, 5 deliverables. Task 1 (missing unions) and Task 5 (NLRB ULP gap) were good research. Task 2 (WHD fix) fixed f7_employers_deduped correctly but left a script targeting deprecated Mergent scorecard.
+
+### Crosswalk remap decisions (for audit trail)
+| Old Fnum | New Fnum | Reasoning |
+|----------|----------|-----------|
+| 18001 (USW multistate) | 51950 (Nitro, WV) | 8 shared employers, 80% of old relations in WV |
+| 23547 (GCC/IBT 14-M) | 521560 (PPPWU) | Higher confidence (0.85), 35 existing rels, GCC successor |
+| 49490 (1199SEIU 123) | 83 (Falls Church, VA) | Membership size match (4,254 vs 130), DC metro coverage |
+| 56148 (GCC/IBT 705) | 542772 (PPPWU) | Higher confidence (0.85), 17 existing rels, GCC successor |
+| 65266 (UFCW 800) | 544266 (Dayton, OH) | 2 of 3 old employers in OH, both targets cover OH+PA |
+
+### Still deferred
+- **12590 (CWA District 7, 80 rels, 38K workers):** District council split into 5 CWA locals across CO, MN, TX, OR, CA. Employer relations span 19 states. Needs geographic assignment logic -- not a simple remap.
+
+### Future: OLMS Annual Report Integration
+Cataloged 4 OLMS annual report tables (see `docs/OLMS_ANNUAL_REPORT_CATALOG.md`). High-value data for a future "union organizing capacity" scoring factor:
+- `ar_disbursements_total` (216K rows): $71.8B representational spend across 18K unions
+- `ar_membership` (217K rows): 5,511 unions with multi-year membership trends (47% growing, 51% declining)
+- `ar_assets_investments` (305K rows): $77.8B cash, financial health indicator
+- `ar_disbursements_emp_off` (2.8M rows): officer/staff compensation and time allocation
+- Join path: `ar_* -> lm_data (rpt_id) -> unions_master (f_num) -> f7_union_employer_relations`
+- NOT integrating now -- note for future scoring phase.
+
+### To resume
+1. Check OSHA batch 2/4: `py scripts/matching/run_deterministic.py osha --batch-status`
+2. If good, run batch 3/4: `py scripts/matching/run_deterministic.py osha --rematch-all --batch 3/4`
+3. After all 4 OSHA batches: run SEC, BMF, WHD, SAM, 990 (smaller, unbatched)
+4. Refresh MVs after all matching complete
+
+---
+
+## Session Handoff Notes (2026-02-18, Codex)
+
+### Completed in this session (parallel tasks 1, 2, 5)
+- **Task 1 (Missing unions analysis):**
+  - Investigated orphaned union file numbers in `f7_union_employer_relations` against `unions_master` and `f7_fnum_crosswalk`.
+  - Confirmed **195** orphaned file numbers covering **92,627** workers.
+  - Found **30** orphaned file numbers with crosswalk mappings to existing `unions_master` records (covering **69,076** workers).
+  - Remaining unresolved: **165** file numbers covering **23,551** workers.
+  - Identified one-to-many crosswalk ambiguity for key high-worker file numbers (for example `12590`, `18001`, `23547`) requiring tie-break/manual review before remap updates.
+  - Wrote report: `docs/MISSING_UNIONS_ANALYSIS.md`.
+
+- **Task 2 (WHD score factor backfill on `f7_employers_deduped`):**
+  - Verified baseline issue: `whd_violation_count > 0` was **0** rows.
+  - Checked live schema and adapted join/column names to actual tables:
+    - Match table key: `whd_f7_matches(case_id, f7_employer_id, ...)`
+    - Case metrics column: `whd_cases.backwages_amount` (not `bw_amt`)
+    - Employer target column: `f7_employers_deduped.whd_backwages`
+  - Executed update aggregating `COUNT(DISTINCT case_id)` + `SUM(backwages_amount)` from `whd_f7_matches` + `whd_cases`.
+  - Update affected **11,297** employers.
+  - Post-update verification:
+    - Employers with WHD data (`whd_violation_count > 0`): **11,297**
+    - Average violations (among matched employers): **2.4007**
+    - Max `whd_backwages`: **8,284,055.45**
+
+- **Task 5 (NLRB ULP matching gap analysis):**
+  - Quantified participant-type linkage gap in `nlrb_participants`.
+  - `Charged Party / Respondent`: **866,037 total, 0 matched**
+  - `Charged%` total (including `Charged Party`): **871,725**
+  - Name+state deterministic matchability among unmatched `Charged%`: **146** participants.
+  - Major data quality blocker discovered:
+    - Placeholder city/state literals dominate (`'Charged Party Address City'`, `'Charged Party Address State'`) plus large blank-share rows.
+  - Recommendation documented: clean/repair participant geography first, then run deterministic matching for `Charged%`.
+  - Wrote report: `docs/NLRB_ULP_MATCHING_GAP.md`.
+
+### File references
+- Reports:
+  - `docs/MISSING_UNIONS_ANALYSIS.md`
+  - `docs/NLRB_ULP_MATCHING_GAP.md`
+
+### Notes
+- Task 1 and Task 5 were research-only; no table updates were made for those tasks.
+- Task 2 performed a targeted data update in `f7_employers_deduped` and was verified with post-update checks.
 
 ### Completed in this session
 - Added scorecard namespace endpoints in new router `api/routers/scorecard.py`:
@@ -303,3 +456,74 @@ A master employer key (one platform ID per real-world employer, mapped to all so
 - New: `api/dependencies.py`
 - Modified: `api/config.py`, `api/main.py`, `api/middleware/auth.py`, `api/routers/organizing.py`, `api/routers/employers.py`, `.env`, `tests/conftest.py`, `tests/test_auth.py`
 
+## Session Handoff Notes (2026-02-18, Gemini)
+
+### Completed in this session
+- **Conducted research for "State PERB Data" project (Wave 2):**
+  - Inventoried data availability for 12 states (NY, CA, IL, MA, OH, PA, MI, WA, MN, CT, OR).
+  - Findings show no consistency; each state requires a different scraping strategy.
+  - Grouped states into three categories: Modern Portals (difficult to automate), Static Lists (scraping required), and Structured Data (best for automation).
+  - **Ohio** and **Minnesota** are the most promising sources for bulk/structured data.
+  - Created detailed report: `docs/STATE_PERB_RESEARCH.md`.
+- **Conducted research for "Occupation-Based Similarity + Workforce Estimation" project (Wave 1-3):**
+  - **BLS OEWS Data:** Confirmed API access and annual updates. Identified limitations of NAICS granularity. Report: `docs/BLS_OEWS_DATA_RESEARCH.md`.
+  - **Cosine Similarity:** Found Python code examples and evaluated alternatives. Recommended starting with cosine similarity. Report: `docs/COSINE_SIMILARITY_RESEARCH.md`.
+  - **Revenue-per-Employee:** Identified Economic Census as the best free source. Report: `docs/REVENUE_PER_EMPLOYEE_RESEARCH.md`.
+  - **ACS PUMS Data:** Confirmed feasibility of using IPUMS for free to create custom demographic profiles. Report: `docs/ACS_PUMS_FEASIBILITY_RESEARCH.md`.
+  - **Calibration Engine:** Validated the approach of using NLRB data as an "answer key". Report: `docs/CALIBRATION_ENGINE_FEASIBILITY.md`.
+  - **O*NET Integration:** Confirmed ease of access to bulk downloads and provided a list of useful tables. Report: `docs/ONET_INTEGRATION_RESEARCH.md`.
+
+
+
+## Session Handoff Notes (2026-02-18, Gemini CLI)
+
+### Completed in this session
+- **Conducted research for Project 3 (Workforce Estimation):**
+  - Confirmed **May 2024** as the latest BLS OEWS release; next expected March 2026.
+  - Identified **Economic Census Table EC2200BASIC** as the definitive free source for Revenue-per-Employee (RPE) ratios.
+  - Verified that SUSB does not contain revenue data.
+- **Conducted research for Project 4 (On-Demand Deep Dive):**
+  - Estimated deep dive processing time at **45-90 seconds**; recommended asynchronous architecture (Celery/Redis).
+  - Proposed **Playwright-based search adapters** or metadata pre-indexing for non-API contract repositories (SeeThroughNY, NJ PERC, Ohio SERB).
+  - Recommended **ll-mpnet-base-v2** for employer embeddings.
+- **Conducted Project 5 (Frontend Expansion) research:**
+  - Recommended **Shadcn UI + TanStack Table** for high-density employer lists (virtualized scrolling).
+  - Recommended **React Leaflet** for 2D territory mapping.
+- **Documentation Updated:**
+  - Created docs/PROJECT_4_DEEP_DIVE_RESEARCH.md.
+  - Created docs/PROJECT_5_FRONTEND_RESEARCH.md.
+  - Updated docs/REVENUE_PER_EMPLOYEE_RESEARCH.md.
+  - Updated docs/BLS_OEWS_DATA_RESEARCH.md.
+- **Session Summary Saved:** docs/session-summaries/SESSION_SUMMARY_2026-02-18_gemini_research_3_4_5.md.
+
+## Session Handoff Notes (2026-02-18, Claude Code — B4 Batched OSHA Re-run)
+
+### Completed in this session
+- **Batched re-run feature** added to `scripts/matching/run_deterministic.py`:
+  - `--batch N/M` flag processes records in slices (e.g., `--batch 1/4` for first 25%)
+  - Per-batch supersede (only touches current batch's old matches, preserves rest)
+  - Checkpoint file at `checkpoints/{source}_rerun.json` with per-batch stats
+  - `--batch-status` flag to check progress
+  - Quality report with warnings, method breakdown, cross-batch comparison
+- **OSHA batch 1/4 started** (252K of 1M records). Still running at session end.
+- **Interim quality check:** Active match rate ~9% (vs 81% disaster of first attempt). Name similarity floor (0.65) is working. Splink matches are 94% HIGH confidence. Trigram LOW matches correctly rejected.
+- **Codex parallel tasks** documented in `docs/CODEX_PARALLEL_TASKS_2026_02_18.md` (7 tasks).
+
+### To resume
+1. Check batch 1: `py scripts/matching/run_deterministic.py osha --batch-status`
+2. If batch 1 completed and quality OK, run batches 2-4:
+   ```
+   py scripts/matching/run_deterministic.py osha --rematch-all --batch 2/4
+   py scripts/matching/run_deterministic.py osha --rematch-all --batch 3/4
+   py scripts/matching/run_deterministic.py osha --rematch-all --batch 4/4
+   ```
+3. After all OSHA batches: run other sources (SEC, BMF, WHD, SAM, 990) -- smaller, can run unbatched
+4. Decision pending: tighten Splink name floor from 0.65 to 0.70?
+
+### Known concern
+A few Splink false positives at the 0.65 name similarity floor (e.g., "nex transport" -> "cassens transport"). The Splink probability is 1.0 because geography overweights, and name_similarity of 0.733 clears the 0.65 floor despite being a wrong match. Consider tightening to 0.70 after reviewing all 4 batches.
+
+### File references
+- Modified: `scripts/matching/run_deterministic.py`
+- New: `checkpoints/` directory, `docs/CODEX_PARALLEL_TASKS_2026_02_18.md`
+- Session summary: `docs/session-summaries/SESSION_SUMMARY_2026-02-18_claude_B4_batch.md`

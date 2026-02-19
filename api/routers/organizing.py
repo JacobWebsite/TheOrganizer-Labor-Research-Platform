@@ -374,9 +374,13 @@ def get_organizing_scorecard(
 
             # Fetch paginated results sorted by score
             cur.execute(f"""
-                SELECT v.*, nc.description AS naics_description
+                SELECT v.*, nc.naics_title AS naics_description
                 FROM v_organizing_scorecard v
-                LEFT JOIN naics_codes nc ON nc.code = v.naics_code
+                LEFT JOIN LATERAL (
+                    SELECT naics_title FROM naics_codes_reference
+                    WHERE naics_code = v.naics_code
+                    ORDER BY naics_version DESC LIMIT 1
+                ) nc ON true
                 WHERE {where_clause}
                 ORDER BY organizing_score DESC, total_penalties DESC NULLS LAST
                 LIMIT %s OFFSET %s
@@ -481,9 +485,13 @@ def get_scorecard_detail(estab_id: str):
         with conn.cursor() as cur:
             # Read base scores from MV -- guarantees list/detail consistency
             cur.execute("""
-                SELECT mv.*, nc.description AS naics_description
+                SELECT mv.*, nc.naics_title AS naics_description
                 FROM v_organizing_scorecard mv
-                LEFT JOIN naics_codes nc ON nc.code = mv.naics_code
+                LEFT JOIN LATERAL (
+                    SELECT naics_title FROM naics_codes_reference
+                    WHERE naics_code = mv.naics_code
+                    ORDER BY naics_version DESC LIMIT 1
+                ) nc ON true
                 WHERE mv.establishment_id = %s
             """, [estab_id])
             mv = cur.fetchone()

@@ -108,10 +108,10 @@ SOURCES = [
     ),
     (
         'bls_state_industry_estimates',
-        'BLS State×Industry Estimates',
+        'BLS State x Industry Estimates',
         "SELECT COUNT(*) FROM estimated_state_industry_density",
         None,
-        'BLS state×industry union density estimates (51 states × 9 industries)',
+        'BLS state x industry union density estimates (51 states x 9 industries)',
     ),
     (
         'oews_occupation_matrix',
