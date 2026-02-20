@@ -1,4 +1,5 @@
 // search.js -- Search mode, typeahead, and results functions
+const PAGE_SIZE = 15;
 
 function setSearchMode(mode) {
     currentMode = mode;
@@ -28,6 +29,18 @@ function setSearchMode(mode) {
     document.getElementById('detailEmptyText').textContent = mode === 'employers'
         ? 'Select an employer to view details'
         : 'Select a union to view details';
+
+    // Metro filtering is not yet supported on unified employer search.
+    const metroFilter = document.getElementById('metroFilter');
+    if (metroFilter) {
+        metroFilter.disabled = mode === 'employers';
+        if (mode === 'employers') {
+            metroFilter.value = '';
+            metroFilter.title = 'Metro filter is not available for unified employer search yet';
+        } else {
+            metroFilter.title = '';
+        }
+    }
     
     // Clear results
     clearResults();
@@ -478,7 +491,7 @@ async function executeSearch() {
 
     // Geography
     if (state) params.append('state', state);
-    if (metro) params.append('metro', metro);
+    if (metro && currentMode !== 'employers') params.append('metro', metro);
     if (city) params.append('city', city);
 
     // Sector filter - supported for both modes (PUBLIC_SECTOR queries ps_employers)
@@ -503,10 +516,10 @@ async function executeSearch() {
     }
 
     // Pagination
-    params.append('limit', '15');
-    params.append('offset', String((currentPage - 1) * 15));
+    params.append('limit', String(PAGE_SIZE));
+    params.append('offset', String((currentPage - 1) * PAGE_SIZE));
 
-    // Use unified search for employers, standard for unions
+    // Use canonical unified employer search + standard union search
     const endpoint = currentMode === 'employers' ? 'employers/unified-search' : 'unions/search';
 
     try {
@@ -754,7 +767,7 @@ function displaySampleResults() {
 
 function displayResults(data) {
     currentResults = data.results || [];
-    totalPages = Math.ceil((data.total_count || 0) / 50);
+    totalPages = Math.ceil((data.total_count || 0) / PAGE_SIZE);
     resetKeyboardFocus();
     
     // Update counts based on mode

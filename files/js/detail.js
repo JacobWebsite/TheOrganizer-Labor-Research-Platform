@@ -635,14 +635,17 @@ async function deleteScorecardFlag(flagId) {
 // Navigate to union detail from employer view
 async function loadUnionDetail(fNum) {
     setSearchMode('unions');
-    document.getElementById('mainSearch').value = fNum;
-    await executeSearch();
-    // Try to select the union from results
-    if (currentResults.length > 0) {
-        const union = currentResults.find(u => u.f_num === fNum);
-        if (union) {
-            selectItem(union.f_num);
+    try {
+        const response = await fetch(`${API_BASE}/unions/${fNum}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.union) {
+                currentResults = [data.union];
+                selectItem(fNum);
+            }
         }
+    } catch (e) {
+        console.error('Failed to load union:', e);
     }
 }
 
@@ -1289,9 +1292,12 @@ async function renderUnionDetail(item) {
     // Update map
     updateDetailMap(item);
 
-    // Fetch detailed union info
+    // Fetch detailed union info from canonical profile endpoint.
     try {
-        const response = await fetch(`${API_BASE}/unions/${item.f_num}`);
+        let response = await fetch(`${API_BASE}/profile/unions/${item.f_num}`);
+        if (!response.ok) {
+            response = await fetch(`${API_BASE}/unions/${item.f_num}`);
+        }
         if (response.ok) {
             const detail = await response.json();
             renderUnionDetailData(detail, item);
@@ -1575,13 +1581,13 @@ async function selectUnionByFnum(fNum) {
     if (existing) {
         selectItem(fNum);
     } else {
-        // Fetch and select
+        // Fetch directly by file number
         try {
-            const response = await fetch(`${API_BASE}/unions/search?f_num=${fNum}&limit=1`);
+            const response = await fetch(`${API_BASE}/unions/${fNum}`);
             if (response.ok) {
                 const data = await response.json();
-                if (data.unions && data.unions.length > 0) {
-                    currentResults.push(data.unions[0]);
+                if (data.union) {
+                    currentResults.push(data.union);
                     selectItem(fNum);
                 }
             }

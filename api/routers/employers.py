@@ -47,11 +47,11 @@ def search_employers(
     aff_abbr: Optional[str] = None,
     metro: Optional[str] = None,
     sector: Optional[str] = None,
-    has_nlrb: Optional[bool] = None,
+    has_nlrb: Optional[bool] = None,  # DEPRECATED: declared but never used in query
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Search employers with filters. Use sector=PUBLIC_SECTOR to search public sector employers."""
+    """DEPRECATED: Superseded by /api/employers/unified-search. Kept for potential external consumers."""
     with get_db() as conn:
         with conn.cursor() as cur:
             # Handle public sector search separately
@@ -155,7 +155,7 @@ def fuzzy_search_employers(
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Fuzzy search using pg_trgm similarity - catches typos and variations"""
+    """DEPRECATED: Superseded by /api/employers/unified-search (has built-in similarity). Kept for potential external consumers."""
     with get_db() as conn:
         with conn.cursor() as cur:
             state_filter = "AND e.state = %s" if state else ""
@@ -197,7 +197,7 @@ def normalized_search_employers(
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Search with normalized names - strips Inc, LLC, Corp, etc."""
+    """DEPRECATED: Superseded by /api/employers/unified-search. Kept for potential external consumers."""
     normalized_search = re.sub(r'\b(inc|llc|corp|corporation|company|co|ltd|limited|the)\b', '',
                                name.lower(), flags=re.IGNORECASE).strip()
     normalized_search = re.sub(r'[^\w\s]', '', normalized_search)
@@ -303,6 +303,10 @@ def unified_employer_search(
     name: Optional[str] = None,
     state: Optional[str] = None,
     city: Optional[str] = None,
+    metro: Optional[str] = None,
+    sector: Optional[str] = None,
+    naics: Optional[str] = None,
+    aff_abbr: Optional[str] = None,
     source_type: Optional[str] = None,
     has_union: Optional[bool] = None,
     limit: int = Query(50, le=500),
@@ -325,6 +329,26 @@ def unified_employer_search(
             if city:
                 conditions.append("UPPER(city) = %s")
                 params.append(city.upper())
+            if metro:
+                # mv_employer_search does not yet carry reliable CBSA for all sources.
+                raise HTTPException(
+                    status_code=422,
+                    detail="metro filter is not supported on unified search yet",
+                )
+            if sector:
+                sv = sector.upper()
+                if sv == "PUBLIC_SECTOR":
+                    conditions.append("source_type = 'PUBLIC'")
+                elif sv == "PRIVATE":
+                    conditions.append("source_type = 'F7'")
+            if naics:
+                conditions.append("naics LIKE %s")
+                params.append(f"{naics}%")
+            if aff_abbr:
+                conditions.append(
+                    "EXISTS (SELECT 1 FROM unions_master um WHERE um.f_num = m.union_fnum::text AND um.aff_abbr = %s)"
+                )
+                params.append(aff_abbr.upper())
             if source_type:
                 conditions.append("source_type = %s")
                 params.append(source_type.upper())
@@ -335,7 +359,7 @@ def unified_employer_search(
             where_clause = " AND ".join(conditions)
 
             # Count
-            cur.execute(f"SELECT COUNT(*) FROM mv_employer_search WHERE {where_clause}", params)
+            cur.execute(f"SELECT COUNT(*) FROM mv_employer_search m WHERE {where_clause}", params)
             total = cur.fetchone()['count']
 
             # Results with flag count
@@ -1041,6 +1065,70 @@ def get_employer_nlrb_history(employer_id: str):
             }
 
 
+@router.get("/api/employers/{employer_id}/workforce-profile")
+def get_employer_workforce_profile(
+    employer_id: str,
+    limit: int = Query(50, ge=1, le=500),
+):
+    """Return typical workforce composition from BLS occupation matrix for employer NAICS."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT employer_name, naics, naics_detailed
+                FROM f7_employers_deduped
+                WHERE employer_id = %s
+            """, [employer_id])
+            employer = cur.fetchone()
+
+            if not employer:
+                raise HTTPException(status_code=404, detail="Employer not found")
+
+            raw_naics = (employer.get("naics_detailed") or employer.get("naics") or "").strip()
+            naics_code = re.sub(r"[^0-9]", "", raw_naics)
+
+            if not naics_code:
+                return {
+                    "employer_id": employer_id,
+                    "employer_name": employer.get("employer_name"),
+                    "naics_code": None,
+                    "workforce_profile": [],
+                    "note": "Employer has no NAICS code",
+                }
+
+            cur.execute("""
+                SELECT
+                    occupation_code,
+                    occupation_title,
+                    occupation_type,
+                    employment_2024,
+                    percent_of_industry
+                FROM bls_industry_occupation_matrix
+                WHERE industry_code LIKE %s
+                ORDER BY percent_of_industry DESC NULLS LAST,
+                         employment_2024 DESC NULLS LAST,
+                         occupation_title
+                LIMIT %s
+            """, [f"{naics_code}%", limit])
+            rows = cur.fetchall()
+
+            return {
+                "employer_id": employer_id,
+                "employer_name": employer.get("employer_name"),
+                "naics_code": naics_code,
+                "workforce_profile": [
+                    {
+                        "occupation_code": row["occupation_code"],
+                        "occupation_title": row["occupation_title"],
+                        "occupation_type": row["occupation_type"],
+                        "employment_2024": float(row["employment_2024"]) if row.get("employment_2024") is not None else None,
+                        "employment_share_pct": float(row["percent_of_industry"]) if row.get("percent_of_industry") is not None else None,
+                    }
+                    for row in rows
+                ],
+                "note": None if rows else "No BLS occupation data found for NAICS code",
+            }
+
+
 # ============================================================================
 # NAICS STATS
 # ============================================================================
@@ -1191,7 +1279,7 @@ def search_unified_employers(
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Search all unified employers across all sources (F7, NLRB, VR, PUBLIC)"""
+    """DEPRECATED: Legacy endpoint querying old unified_employers_osha table. Use /api/employers/unified-search instead."""
     with get_db() as conn:
         with conn.cursor() as cur:
             conditions = ["1=1"]
