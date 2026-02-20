@@ -80,15 +80,12 @@ def write_legacy(conn, matches):
     Targets the unique index on n990_id.
     """
     from psycopg2.extras import execute_batch
+    # Two overlapping unique constraints: PK(f7_employer_id, ein) + UNIQUE(n990_id).
+    # Use DO NOTHING here; rebuild_legacy_tables.py produces the correct final state from UML.
     sql = """
         INSERT INTO national_990_f7_matches (n990_id, ein, f7_employer_id, match_method, match_confidence, match_source)
         VALUES (%s, %s, %s, %s, %s, 'DETERMINISTIC_V2')
-        ON CONFLICT (n990_id) DO UPDATE SET
-            ein = EXCLUDED.ein,
-            f7_employer_id = EXCLUDED.f7_employer_id,
-            match_method = EXCLUDED.match_method,
-            match_confidence = EXCLUDED.match_confidence,
-            match_source = EXCLUDED.match_source
+        ON CONFLICT DO NOTHING
     """
     # Deduplicate by (f7_employer_id, ein) to avoid within-batch conflicts
     seen = set()
