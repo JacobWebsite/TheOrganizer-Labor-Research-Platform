@@ -2,7 +2,53 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-18c (B4 OSHA all 4 batches DONE, BMF+SEC+990 re-run partial, WHD+SAM need re-run, frontend unified scorecard wired up)
+**Last manually updated:** 2026-02-20c (Claude Code: NY export v2 deduplicated CSV)
+
+---
+
+## Latest Update (2026-02-20c)
+
+- **NY employer CSV export v2 (`export_ny_deduped.py` rewrite).**
+  - Collapsed canonical groups: 3,642 employers -> 1,641 rows (SUM workers, dedup union names, collect locations)
+  - Flagged 78 multi-employer agreements (SAG-AFTRA, Joint Policy, RAB, etc.) via regex pattern detection
+  - Public sector (20 entries: NYSUT 467K, CSEA 250K, DC37 150K) placed at top of CSV
+  - Fuzzy dedup for 10K+ ungrouped employers (no additional collapses found)
+  - Total rows: 18,482 -> 15,509 (16% reduction)
+  - New columns: `employer_type`, `union_names`, `union_count`, `location_count`, `locations`
+  - Methodology document: `docs/NY_EXPORT_METHODOLOGY.md`
+
+### Previous: 2026-02-20b
+
+- **PHASE B COMPLETE. All B4 source re-runs done (9h 15m total).**
+  - OSHA 4/4: 1,007,217 records, 97,142 active (9.6%)
+  - SEC 5/5: 517,403 records, 5,339 active (1.0%)
+  - 990 5/5: 586,767 records, 20,215 active (3.4%)
+  - WHD: 363,365 records, 19,462 active (5.4%)
+  - SAM 5/5: 826,042 records, 28,816 active (3.5%)
+  - BMF: 25 records, 9 active
+- **Legacy match tables rebuilt from UML:** osha(97,142), sam(28,816), 990(20,005), whd(19,462), nlrb_xref(13,031)
+- **All 3 MVs refreshed:**
+  - `mv_organizing_scorecard`: 212,441 rows
+  - `mv_employer_data_sources`: 146,863 rows
+  - `mv_unified_scorecard`: 146,863 rows (avg=3.28, WHD coverage 8.2%, score_whd avg=1.18)
+- **Fixed 3 frontend bugs:** cross-nav (`loadUnionDetail`, `selectUnionByFnum`), pagination (PAGE_SIZE=15 not 50).
+- **Marked 4 dead API endpoints as DEPRECATED** in `employers.py`.
+- **Misclassification audit:** 2,776 employer records are likely labor orgs. Only 3 flagged. Remediation deferred.
+- **990 adapter bug fixed:** dual unique constraints, changed to `ON CONFLICT DO NOTHING`.
+- **Tests:** 456 pass / 1 fail (pre-existing hospital abbreviation only).
+- **UML:** 1,738,115 rows.
+
+### Previous: 2026-02-19g
+
+- Fixed `test_union_detail` 503 failure introduced by Codex 2026-02-19f session.
+  - Root cause: `ns.naics_sector_name` used in SQL queries but actual column is `ns.sector_name`.
+  - Fixed in `api/routers/unions.py` and `api/routers/profile.py`.
+
+### Previous: 2026-02-19f
+
+- Added canonical profile endpoints (`/api/profile/employers/{employer_id}`, `/api/profile/unions/{f_num}`).
+- Frontend scorecard UX unified-only. Deep-dive routing collapsed into unified Search detail flow.
+- `GET /api/employers/unified-search` now handles `sector`, `naics`, `aff_abbr` filters; rejects unsupported `metro` with 422.
 
 ---
 
@@ -28,7 +74,7 @@ The API serves at `http://localhost:8001`. API docs at `http://localhost:8001/do
 ```bash
 py -m pytest tests/ -q
 ```
-380 tests. All should pass except `test_expands_hospital_abbreviation` (pre-existing name normalization edge case).
+457 tests. All should pass except `test_expands_hospital_abbreviation` (pre-existing name normalization edge case).
 
 ### Key Files
 | File | Purpose |
@@ -213,7 +259,7 @@ From the Feb 16-17, 2026 planning session (full list in UNIFIED_ROADMAP Appendix
 | B1 | DONE | Tier reordering: strict-to-broad cascade (EIN 100 > name+city+state 90 > name+state 80 > aggressive 60 > Splink 45 > trigram 40) |
 | B2 | DONE | Name collision fix: best-match-wins replaces first-hit-wins |
 | B3 | DONE | Splink re-integrated as tier 5a with name similarity floor. Trigram fallback as tier 5b |
-| B4 | IN PROGRESS | Re-run affected match tables. Batched re-run added (--batch N/M). OSHA batch 1/4 running (252K records). Quality looks OK -- not the 81% overmatching disaster. See B4 Batch Re-run section below. |
+| B4 | DONE | All source re-runs complete. OSHA(97,142), SEC(5,339), 990(20,215), WHD(19,462), SAM(28,816), BMF(9). Legacy tables rebuilt. All MVs refreshed. 9h15m total. |
 | B5 | DONE | Added confidence flags to UI (HIGH hidden, MEDIUM=Probable match, LOW=Verify match) |
 
 **Critical Finding — Splink Model Calibration:**
@@ -280,7 +326,77 @@ The DOL F-7 filing is the only comprehensive registry of union-employer bargaini
 ### Why the master employer key is deferred
 A master employer key (one platform ID per real-world employer, mapped to all source IDs) is the ideal architecture. But building it too early bakes in matching errors that are hard to undo. The current approach uses `f7_employer_id` as the de facto key with match tables linking other sources. The master key will be built during Phase E (scorecard rebuild) when matching quality is higher and confidence thresholds are established.
 
-## Section 8: Session Handoff Notes (2026-02-18c, Claude Code — Frontend Unified Scorecard + B4 Completion + Source Re-runs)
+## Section 8: Session Handoff Notes (2026-02-20c, Claude Code — NY Export v2)
+
+### Completed in this session
+- **Rewrote `export_ny_deduped.py`** — collapsed, one-row-per-real-employer CSV for NY.
+  - 5-step pipeline: canonical group collapse -> multi-employer detection -> fuzzy dedup -> public sector at top -> NLRB append
+  - Rows: 18,482 -> 15,509 (16% reduction)
+  - Starbucks: 20+ rows -> 3 (1 canonical group, 513 workers, 19 locations)
+  - SAG-AFTRA: 6+ rows -> 2 (1 office + 1 flagged multi-employer agreement)
+  - 78 multi-employer agreements detected and flagged
+  - 20 public-sector entries at top of CSV
+- **Created methodology document:** `docs/NY_EXPORT_METHODOLOGY.md` (detailed methodology, problems, alternatives)
+
+### Output file
+- `ny_employers_deduped.csv` — 15,509 rows, 23 columns
+
+### What's next
+- Consider expanding canonical grouping to catch more duplicates upstream
+- Consider address-based or EIN-based dedup as supplementary signals
+- Multi-employer agreement member enumeration (list individual employers under each agreement)
+- Corporate hierarchy collapsing (SEC/GLEIF parent-subsidiary data)
+
+### File references
+- Modified: `export_ny_deduped.py`
+- New: `docs/NY_EXPORT_METHODOLOGY.md`, `docs/session-summaries/SESSION_SUMMARY_2026-02-20c_claude_ny_export_v2.md`
+
+---
+
+## Previous: Session Handoff Notes (2026-02-20, Claude Code — Phase B COMPLETE + Frontend Fixes)
+
+### Completed in this session
+- **PHASE B COMPLETE.** All B4 source re-runs finished (9h 15m via `run_remaining_reruns.py`):
+  - 990 5/5: 586,767 records, 20,215 active (3.4%)
+  - WHD: 363,365 records, 19,462 active (5.4%). No OOM (ran solo).
+  - SAM 5/5: 826,042 records, 28,816 active (3.5%). No OOM (batched to 165K each).
+- **Legacy match tables rebuilt** from UML: osha(97,142), sam(28,816), 990(20,005), whd(19,462), nlrb_xref(13,031).
+- **All 3 MVs refreshed:** scorecard(212,441), data_sources(146,863), unified(146,863).
+- **Frontend cross-nav bugs fixed.** `loadUnionDetail()` and `selectUnionByFnum()` now call `/api/unions/{fNum}` directly.
+- **Pagination fix.** `totalPages` divided by 50 not 15. Extracted `PAGE_SIZE` constant.
+- **4 dead API endpoints marked DEPRECATED** in `employers.py`.
+- **Misclassification audit.** 2,776 employer records = labor orgs (only 3 flagged). Remediation deferred.
+- **990 adapter bug fixed.** Dual unique constraints on legacy table. Changed to `ON CONFLICT DO NOTHING`.
+- **UML:** 1,738,115 rows. Tests: 456/457.
+
+### Active match counts (post-B4)
+| Source | Active | Rate |
+|--------|--------|------|
+| OSHA | 97,142 | 9.6% |
+| SAM | 28,816 | 3.5% |
+| 990 | 20,215 | 3.4% |
+| crosswalk | 19,293 | — |
+| WHD | 19,462 | 5.4% |
+| NLRB | 13,031 | — |
+| SEC | 5,339 | 1.0% |
+| GLEIF | 1,840 | — |
+| mergent | 1,045 | — |
+| BMF | 9 | — |
+
+### What's next (per roadmap)
+- **Phase C:** 166 missing unions (61,743 workers). CWA District 7 geographic devolution.
+- **Phase D remaining:** D2 (GLEIF archive, ~12GB), D6 (redundant files, ~9.3GB), D7 (credential fixes), D9 (docs refresh).
+- **Phase F:** Docker, CI/CD, hosting, beta testers. Critical path: A -> B -> E -> **F** (we're here).
+- **Misclassification:** 2,776 labor orgs in employer table need bulk flagging.
+
+### File references
+- Committed + pushed: `files/js/detail.js`, `files/js/search.js`, `api/routers/employers.py`
+- Modified (not committed): `scripts/matching/adapters/n990_adapter.py`, `run_remaining_reruns.py`
+- New: `docs/session-summaries/SESSION_SUMMARY_2026-02-20_claude_b4_completion.md`
+
+---
+
+## Previous: Session Handoff Notes (2026-02-18c, Claude Code — Frontend Unified Scorecard + B4 Completion + Source Re-runs)
 
 ### Completed in this session
 - **B4 OSHA All 4 Batches COMPLETE.** Remarkably consistent results:
