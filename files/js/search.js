@@ -812,10 +812,13 @@ function displayResults(data) {
     if (currentMode === 'employers') {
         listContainer.innerHTML = currentResults.map((item, index) => {
             const itemId = item.canonical_id || item.employer_id;
-            const workers = item.unit_size || item.latest_unit_size || 0;
+            const workers = item.consolidated_workers || item.unit_size || item.latest_unit_size || 0;
             const unionInfo = item.union_name || item.latest_union_name || item.aff_abbr || '';
             const srcBadge = getSourceBadge(item.source_type);
             const flagIcon = item.flag_count > 0 ? '<span class="ml-1 text-orange-500" title="Has review flags">&#9873;</span>' : '';
+            const groupBadge = item.group_member_count > 1
+                ? `<span class="text-xs text-warmgray-400 font-normal ml-1">(${item.group_member_count} locations)</span>`
+                : '';
             return `
             <div class="list-item p-4 cursor-pointer border-b border-warmgray-100 ${index === 0 ? 'selected' : ''}"
                  onclick="selectItem('${escapeHtml(itemId)}')"
@@ -824,7 +827,7 @@ function displayResults(data) {
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5">
                             ${srcBadge}${flagIcon}
-                            <span class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.employer_name || 'Unknown')}</span>
+                            <span class="font-semibold text-warmgray-900 truncate">${escapeHtml(item.employer_name || 'Unknown')}${groupBadge}</span>
                         </div>
                         <div class="text-sm text-warmgray-500 mt-1 truncate">
                             ${unionInfo ? escapeHtml(unionInfo) + ' · ' : ''}${escapeHtml(item.city || '')}, ${escapeHtml(item.state || '')}

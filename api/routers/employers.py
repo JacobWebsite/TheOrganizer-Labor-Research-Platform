@@ -309,10 +309,16 @@ def unified_employer_search(
     aff_abbr: Optional[str] = None,
     source_type: Optional[str] = None,
     has_union: Optional[bool] = None,
+    include_historical: bool = Query(False, description="Include historical (pre-2020) employers"),
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
-    """Search across all employer sources (F7, NLRB, VR, Manual) with deduplication."""
+    """Search across all employer sources (F7, NLRB, VR, Manual) with deduplication.
+
+    The MV excludes historical F7 employers and deduplicates canonical groups
+    (one row per group). Results include group_member_count and
+    consolidated_workers for grouped employers.
+    """
     with get_db() as conn:
         with conn.cursor() as cur:
             conditions = ["1=1"]
@@ -362,12 +368,14 @@ def unified_employer_search(
             cur.execute(f"SELECT COUNT(*) FROM mv_employer_search m WHERE {where_clause}", params)
             total = cur.fetchone()['count']
 
-            # Results with flag count
+            # Results with flag count and group info
             order_params = [name.lower()] if name else []
             cur.execute(f"""
                 SELECT m.canonical_id, m.source_type, m.employer_name, m.city, m.state,
                        m.zip, m.naics, m.unit_size, m.union_name, m.union_fnum,
                        m.has_union, m.latitude, m.longitude,
+                       m.canonical_group_id, m.group_member_count,
+                       m.consolidated_workers,
                        COALESCE(f.flag_count, 0) AS flag_count
                 FROM mv_employer_search m
                 LEFT JOIN (
@@ -583,7 +591,7 @@ def refresh_unified_search(user=Depends(require_auth)):
     """Refresh the materialized view for unified employer search."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("REFRESH MATERIALIZED VIEW mv_employer_search")
+            cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_employer_search")
             conn.commit()
             cur.execute("SELECT COUNT(*) FROM mv_employer_search")
             total = cur.fetchone()['count']
