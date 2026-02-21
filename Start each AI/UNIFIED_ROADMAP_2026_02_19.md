@@ -131,7 +131,7 @@ Every match goes into a central log (1,738,115 entries â€” post-B4 re-runs 
 
 ~~**Problem 6: The matching pipeline has two bugs.**~~ **FIXED (Phase B1-B3, hardening updated 2026-02-19).** Tier ordering corrected (strict-to-broad: EIN > name+city+state > name+state > aggressive > Splink > trigram). Best-match-wins replaces first-hit-wins. Splink name-similarity floor is now enforced in both main fuzzy matching and collision disambiguation (`token_sort_ratio >= 0.70` default, configurable via `MATCH_MIN_NAME_SIM`).
 
-**Problem 7: 166 missing unions covering 61,743 workers.** (Was 195/92,627 â€” 29 resolved via crosswalk remaps in Phase C work. Case 12590 CWA District 7 deferred for geographic devolution across 5 successor locals.) *Confirmed accurate by all three audits, 2026-02-19.*
+~~**Problem 7: 166 missing unions covering 61,743 workers.**~~ **RESOLVED (2026-02-21).** All active orphans resolved. 29 crosswalk remaps + CWA District 7 devolution + 27 manual adds to unions_master. 138 historical (pre-2021) remain as expected. Active orphans: 0.
 
 ~~**Problem 8: Corporate hierarchy endpoints are broken.**~~ **FIXED (Phase A3).** 7 RealDictCursor indexing bugs fixed, route shadowing resolved.
 
@@ -287,9 +287,10 @@ Tag every match with a confidence level. Matches above 0.9 confidence get no fla
 
 ~~**Task C3: Categorize and resolve.**~~ **DONE (2026-02-21).** Resolution script (`scripts/maintenance/resolve_missing_unions.py`) applied:
 - **CWA_GEO:** 12590 resolved -- 38 relations remapped to 5 state-matched successors (CO, MN, TX, CA, OR), 42 relations in unmapped states kept under 12590 (added to unions_master). 38,192 workers restored.
-- **DATA_QUALITY:** 165 ghost fnums logged (no lm_data, no crosswalk, no name matches). 497 rows, 23,551 workers.
-- **Audit trail:** 166 entries in `union_fnum_resolution_log` table.
-- **Result:** Orphans 166->165 fnums, 61,743->23,551 workers. 7 new tests (464 total, 463 pass).
+- **HISTORICAL:** 138 ghost fnums (pre-2021) classified as historical defunct unions. Relations preserved for record.
+- **MANUAL_ADD:** 27 active (post-2021) ghost fnums manually identified as locals of known national affiliates (AFSCME, SEIU, ATU, IBT/GCC, IATSE, UAW, USW, IBB, IAM, IUOE, SPFPA, NABET-CWA, Workers United) and added to `unions_master`.
+- **Audit trail:** 166 entries in `union_fnum_resolution_log` table (CWA_GEO:1, HISTORICAL:138, MANUAL_ADD:27).
+- **Result:** Active orphans: **0**. Historical orphans: 138 fnums, 344 rows, 19,155 workers. 7 new tests (464 total, 463 pass).
 
 **Task C4: Catalog the unused OLMS annual report tables.**
 Document what's in the four annual report tables that aren't being used yet. Determine which fields are most valuable for the platform. Priority ranking based on our planning session:
@@ -648,7 +649,7 @@ These are the key design decisions made during the roadmap review session. They'
 | 11 | BLS projections | Add industry growth/decline as component of financial indicators factor |
 | 12 | Propensity model | Needs more non-union training data before improvement |
 | 13 | Membership display | Distinguish "covered workers" vs "dues-paying members" in UI |
-| 14 | 195 missing unions | Check crosswalk first, categorize, remap. **Status:** Phase C resolution done (2026-02-21). 165 remaining (23,551 workers). CWA District 7 resolved (38 remapped to successors, 42 added to master). 165 ghost fnums logged as DATA_QUALITY. |
+| 14 | 195 missing unions | **RESOLVED (2026-02-21).** 29 crosswalk remaps, CWA District 7 geographic devolution, 138 historical classified, 27 active manually added to unions_master. Active orphans: **0**. Historical: 138 (19,155 workers, pre-2021 defunct). |
 | 15 | Corporate hierarchy | Fix broken API, improve crosswalk coverage. Master key deferred to long-term/when confident |
 | 16 | FMCS data | Removed from roadmap |
 | 17 | Web scraper | On-demand deep-dive tool, not always-running crawler |

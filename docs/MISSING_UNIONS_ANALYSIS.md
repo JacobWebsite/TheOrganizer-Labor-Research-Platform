@@ -104,10 +104,41 @@ The 165 remaining ghost fnums were split by latest notice date:
 | Category | Fnums | Rows | Workers | Decision |
 |----------|------:|-----:|--------:|----------|
 | **HISTORICAL** (pre-2021) | 138 | 344 | 19,155 | Classified as historical. These are defunct/inactive unions with no recent activity. Relations preserved for historical record but excluded from active data gaps. |
-| **DATA_QUALITY** (2021+) | 27 | 153 | 4,396 | Active data gap. These fnums have recent employer relations but no OLMS filing history. Candidates for manual OLMS lookup. |
+| **MANUAL_ADD** (2021+) | 27 | 153 | 4,396 | Resolved. All 27 identified as legitimate locals of known national affiliates and added to `unions_master`. |
 
-Resolution log updated: 138 entries reclassified from DATA_QUALITY to HISTORICAL.
+Resolution log updated: 138 entries reclassified from DATA_QUALITY to HISTORICAL. 27 entries classified as MANUAL_ADD.
 
-### Remaining Work
+### Manual Union Identification (2026-02-21)
 
-27 active orphan fnums (4,396 workers) are the only unresolved active gap. The largest are fnum 47349 (1,158 workers, 11 states, last notice 2021-05) and 517317 (650 workers, last notice 2025-01). See `orphan_fnums_no_olms.csv` for the full list with OLMS lookup URLs.
+All 27 active (post-2021) orphan fnums were manually reviewed using `orphan_fnums_no_olms.csv` and identified as locals of known national affiliates:
+
+- **AFSCME locals:** 517317, 540431, 516033, 56459
+- **PSSU/SEIU 668:** 22733 (Pennsylvania public sector)
+- **ATU locals:** 26360, 1923
+- **1199 SEIU:** 12262
+- **GCC/IBT locals:** 47349, 7096, 41097, 4988
+- **IATSE Local 33:** 526761
+- **UAW Local 1976:** 508720
+- **UA Local 565:** 507513
+- **IBT Local 970:** 9070
+- **IBB locals:** 9619, 25597, 68689
+- **USW locals:** 526924, 1987, 12790
+- **Workers United Local 75:** 6738
+- **IAM Lodge 66:** 4744
+- **IUOE Local 701:** 1095
+- **SPFPA Local 10:** 39597
+- **SEIU Local 1:** 55925
+- **NABET-CWA Local 51024:** 526757
+
+All 27 added to `unions_master` with appropriate abbreviations and affiliate names. Resolution log entries created with category MANUAL_ADD.
+
+### Final Results
+
+| Metric | Before (2026-02-18) | After crosswalk | After CWA | After manual |
+|--------|--------------------:|----------------:|----------:|-----------:|
+| Orphan fnums | 195 | 166 | 165 | 138 |
+| Orphan rows | 824 | 577 | 497 | 344 |
+| Orphan workers | 92,627 | 61,743 | 23,551 | 19,155 |
+| Active orphans | - | - | 27 | **0** |
+
+**All active (post-2021) orphans are now resolved.** The remaining 138 orphan fnums are historical (pre-2021) defunct/inactive unions with no recent activity. Relations preserved for historical record.
