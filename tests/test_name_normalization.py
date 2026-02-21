@@ -168,3 +168,74 @@ def test_legal_suffixes_has_common_entries():
     assert "inc" in LEGAL_SUFFIXES
     assert "llc" in LEGAL_SUFFIXES
     assert "corp" in LEGAL_SUFFIXES
+
+
+# ============================================================================
+# Expanded normalization tests (Layer 1 improvements)
+# ============================================================================
+
+def test_plural_suffixes():
+    """'ABC Corporations' normalizes same as 'ABC Corporation'."""
+    assert normalize_name_aggressive("ABC Corporations") == normalize_name_aggressive("ABC Corporation")
+
+
+def test_misspellings():
+    """Common corporate misspellings normalize to same result."""
+    base = normalize_name_aggressive("ABC Corporation")
+    assert normalize_name_aggressive("ABC Corportation") == base
+    assert normalize_name_aggressive("ABC Coporation") == base
+    assert normalize_name_aggressive("ABC Coropration") == base
+
+
+def test_dba_space_separated():
+    """'d/b/a' (which becomes 'd b a' after cleanup) strips DBA portion."""
+    result = normalize_name_standard("Acme Corp d/b/a Midtown Labs")
+    assert "midtown" not in result
+    assert "acme" in result
+
+
+def test_aka_space_separated():
+    """'a/k/a' (which becomes 'a k a' after cleanup) strips AKA portion."""
+    result = normalize_name_standard("Acme Corp a/k/a Midtown Labs")
+    assert "midtown" not in result
+    assert "acme" in result
+
+
+def test_noise_tokens_expanded():
+    """Expanded noise tokens are properly stripped."""
+    result = normalize_name_aggressive("ABC Holdings USA")
+    assert result == "abc"
+
+    result = normalize_name_aggressive("XYZ Enterprises International")
+    assert result == "xyz"
+
+
+def test_abbreviation_expansions():
+    """Abbreviations expand, then noise tokens strip the expansions."""
+    # "svcs" expands to "services", then "services" is a noise token -> removed
+    result = normalize_name_aggressive("ABC Svcs")
+    assert result == "abc"
+
+    # "mgmt" -> "management" (noise), "group" (noise) -> just "xyz"
+    result = normalize_name_aggressive("XYZ Mgmt Group")
+    assert result == "xyz"
+
+
+def test_cooperative_suffix():
+    """'cooperative' and 'coop' are treated as legal suffixes."""
+    result = normalize_name_aggressive("Workers Cooperative")
+    assert "cooperative" not in result
+    assert "workers" in result
+
+    result = normalize_name_aggressive("Food Coop Inc")
+    assert "coop" not in result
+    assert "food" in result
+
+
+def test_trust_foundation_suffixes():
+    """'trust' and 'foundation' are treated as legal suffixes."""
+    result = normalize_name_aggressive("Smith Family Trust")
+    assert "trust" not in result
+
+    result = normalize_name_aggressive("Gates Foundation")
+    assert "foundation" not in result

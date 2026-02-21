@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db_config import get_connection
+from src.python.matching.name_normalization import normalize_name_aggressive
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +106,75 @@ def _consolidated_workers(members):
     return sum(by_union.values())
 
 
+def _fuzzy_post_merge(rows, groups, min_ratio=90):
+    """Phase 4: Merge ungrouped singletons into existing groups via fuzzy name match.
+
+    Uses token_set_ratio >= min_ratio (default 90) to find near-exact matches
+    after normalization. Only merges singletons INTO existing groups.
+    Skips names <= 4 chars (too short for reliable fuzzy matching).
+    """
+    from rapidfuzz import fuzz
+
+    # Build set of grouped employer IDs
+    grouped_ids = set()
+    for g in groups:
+        for m in g['members']:
+            grouped_ids.add(m['employer_id'])
+
+    # Build per-state index: state -> [(group_index, name_aggressive)]
+    group_by_state = defaultdict(list)
+    for idx, g in enumerate(groups):
+        # Use canonical rep's name_aggressive
+        canon_na = None
+        for m in g['members']:
+            if m['employer_id'] == g['canonical_employer_id']:
+                canon_na = m['name_aggressive']
+                break
+        if not canon_na:
+            canon_na = g['members'][0]['name_aggressive']
+
+        if g['is_cross_state']:
+            for st in (g['states'] or []):
+                group_by_state[st].append((idx, canon_na))
+        else:
+            st = (g['state'] or '').upper()
+            group_by_state[st].append((idx, canon_na))
+
+    # Find ungrouped singletons
+    singletons = [r for r in rows
+                  if r['employer_id'] not in grouped_ids
+                  and r['name_aggressive'] and r['name_aggressive'].strip()
+                  and r.get('exclude_reason') not in SKIP_REASONS]
+
+    merged = 0
+    for r in singletons:
+        na = r['name_aggressive']
+        if len(na) <= 4:
+            continue
+        st = (r['state'] or '').upper().strip()
+
+        best_ratio = 0
+        best_idx = None
+
+        for idx, canon_na in group_by_state.get(st, []):
+            if len(canon_na) <= 4:
+                continue
+            ratio = fuzz.token_set_ratio(na, canon_na)
+            if ratio >= min_ratio and ratio > best_ratio:
+                best_ratio = ratio
+                best_idx = idx
+
+        if best_idx is not None:
+            g = groups[best_idx]
+            g['members'].append(r)
+            g['member_count'] += 1
+            g['consolidated_workers'] = _consolidated_workers(g['members'])
+            grouped_ids.add(r['employer_id'])
+            merged += 1
+
+    return merged
+
+
 # ---------------------------------------------------------------------------
 # Main algorithm
 # ---------------------------------------------------------------------------
@@ -125,11 +195,22 @@ def load_employers(conn):
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
 
-def build_groups(rows, skip_cross_state=False, min_states=3):
+def build_groups(rows, skip_cross_state=False, min_states=2):
     """Group rows by (name_aggressive, UPPER(state)).
 
     Returns list of group dicts with members, canonical rep, etc.
     """
+    # Phase 0: Recompute name_aggressive in-memory with latest normalizer
+    recomputed = 0
+    for r in rows:
+        old_na = r['name_aggressive']
+        new_na = normalize_name_aggressive(r['employer_name'] or '')
+        if new_na != old_na:
+            recomputed += 1
+        r['name_aggressive'] = new_na
+    if recomputed:
+        print(f"[group] Phase 0: recomputed {recomputed:,} name_aggressive values in-memory")
+
     # Phase 1: group by (name_aggressive, state)
     state_groups = defaultdict(list)
     for r in rows:
@@ -216,6 +297,11 @@ def build_groups(rows, skip_cross_state=False, min_states=3):
             'states': [st] if st else [],
             'members': members,
         })
+
+    # Phase 4: Fuzzy post-merge (merge singletons into existing groups)
+    merged = _fuzzy_post_merge(rows, final_groups)
+    if merged:
+        print(f"[group] Phase 4: fuzzy-merged {merged:,} singletons into existing groups")
 
     return final_groups
 
@@ -320,7 +406,7 @@ def main():
     parser = argparse.ArgumentParser(description="Build canonical employer groups")
     parser.add_argument('--dry-run', action='store_true', help="Print stats without writing")
     parser.add_argument('--skip-cross-state', action='store_true', help="Skip cross-state merge")
-    parser.add_argument('--min-states', type=int, default=3, help="Min states for cross-state merge")
+    parser.add_argument('--min-states', type=int, default=2, help="Min states for cross-state merge")
     args = parser.parse_args()
 
     conn = get_connection()

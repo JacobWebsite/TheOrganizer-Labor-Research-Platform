@@ -26,21 +26,33 @@ from typing import Optional
 # ============================================================================
 
 LEGAL_SUFFIXES = {
-    "inc", "incorporated", "corp", "corporation", "co", "company",
+    "inc", "incorporated", "corp", "corporation", "corporations",
+    "co", "company",
     "llc", "l l c", "ltd", "limited", "lp", "llp", "pllc", "pc",
-    "plc", "pa", "na", "sa", "gmbh", "ag", "pty",
+    "plc", "pa", "na", "sa", "gmbh", "ag", "pty", "pvt", "nv", "bv",
+    "gp", "np",
+    "trust", "fund", "foundation", "cooperative", "coop",
+    "limitedliabilitycompany", "limitedliability",
+    # Common misspellings
+    "corportation", "coporation", "coropration",
+    "incoporated", "incorperated",
 }
 
 NOISE_TOKENS = {
-    "the", "of", "and", "services", "service", "group",
-    "holdings", "holding", "management", "international", "national",
+    "the", "of", "and",
+    "services", "service", "group", "holdings", "holding",
+    "management", "international", "national", "global",
+    "usa",
+    "enterprises", "enterprise", "associates", "partners",
+    "industries", "industry",
+    "consulting", "consultants",
+    "solutions", "solution",
 }
 
 DBA_PATTERNS = [
-    r"\bdba\b.*$",
+    r"\bd\s*b\s*a\b.*$",          # dba, d b a, d  b  a (after slash removal)
     r"\bdoing business as\b.*$",
-    r"\ba k a\b.*$",
-    r"\baka\b.*$",
+    r"\ba\s*k\s*a\b.*$",          # aka, a k a (after slash removal)
 ]
 
 # Employer abbreviation expansions for aggressive normalization
