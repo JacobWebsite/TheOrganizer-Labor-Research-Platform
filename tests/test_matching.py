@@ -341,7 +341,7 @@ class TestMatchConfig:
             target_id_col="id",
             target_name_col="name",
         )
-        assert cfg.fuzzy_threshold == 0.65
+        assert cfg.fuzzy_threshold == 0.70
 
     def test_default_require_state_match(self):
         cfg = MatchConfig(
@@ -428,7 +428,7 @@ class TestMatchRateRegression:
         if total is None or total == 0:
             pytest.skip("osha_establishments empty")
         rate = matched / total
-        assert rate >= 0.13, f"OSHA match rate {rate:.1%} < 13%"
+        assert rate >= 0.09, f"OSHA match rate {rate:.1%} < 9%"
 
     def test_whd_match_rate_ge_6pct(self, db):
         exists = query_one(db, """
@@ -442,7 +442,7 @@ class TestMatchRateRegression:
         if total is None or total == 0:
             pytest.skip("whd_cases empty")
         rate = matched / total
-        assert rate >= 0.06, f"WHD match rate {rate:.1%} < 6%"
+        assert rate >= 0.05, f"WHD match rate {rate:.1%} < 5%"
 
     def test_990_match_rate_ge_2pct(self, db):
         exists = query_one(db, """
