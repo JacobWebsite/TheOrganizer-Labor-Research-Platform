@@ -629,13 +629,12 @@ def test_scorecard_mv_refreshable(db):
 # ============================================================================
 
 def test_union_file_number_orphans_bounded(db):
-    """Union file number orphans should stay below 1000.
+    """Union file number orphans should stay below 600.
 
-    824 records in f7_union_employer_relations reference union_file_number
-    values not found in unions_master.f_num. Root cause: 195 distinct
-    file numbers from defunct/removed unions with no LM filing history.
-    Type mismatch (INTEGER vs VARCHAR) is handled via cast.
-    These are tracked but not deleted -- they contain valid employer data.
+    After Phase C resolution: 165 orphan fnums remain (down from 166/195).
+    CWA District 7 (12590) resolved via geographic devolution to successor
+    locals. Remaining 165 are ghost file numbers with no lm_data history.
+    497 relation rows, 23,551 workers. Logged in union_fnum_resolution_log.
     """
     orphans = query_one(db, """
         SELECT COUNT(*)
@@ -643,7 +642,7 @@ def test_union_file_number_orphans_bounded(db):
         LEFT JOIN unions_master u ON r.union_file_number::text = u.f_num
         WHERE u.f_num IS NULL
     """)
-    assert orphans <= 1000, (
-        f"Found {orphans:,} union file number orphans. Expected <= 1000 "
-        f"(195 defunct union file numbers producing ~824 records)."
+    assert orphans <= 600, (
+        f"Found {orphans:,} union file number orphans. Expected <= 600 "
+        f"(165 ghost file numbers producing ~497 records)."
     )
