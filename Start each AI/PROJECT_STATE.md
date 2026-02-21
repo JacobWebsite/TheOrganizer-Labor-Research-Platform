@@ -200,7 +200,7 @@ See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 
 6. ~~**Matching pipeline has two bugs.**~~ **FIXED (Phase B1-B2).** Tier ordering corrected (strict-to-broad: EIN > name+city+state > name+state > aggressive > Splink fuzzy > trigram). First-hit-wins replaced with best-match-wins (keeps highest-tier match per source record). Splink re-integrated as tier 5a with name similarity floor (token_sort_ratio >= 0.70, raised from 0.65 on 2026-02-19) after discovering Splink model overweights geography.
 
-7. **165 missing unions covering 23,551 workers.** (Was 195/92,627 -> 166/61,743 after crosswalk remaps -> 165/23,551 after Phase C resolution. CWA District 7 resolved: 38 relations remapped to 5 successor locals by state, 42 kept under fnum 12590 added to unions_master. Remaining 165 are ghost file numbers with no lm_data history, logged as DATA_QUALITY in `union_fnum_resolution_log`.)
+7. **27 active missing unions covering 4,396 workers.** (Was 195/92,627 -> 166/61,743 after crosswalk remaps -> 165/23,551 after Phase C CWA resolution. Of the 165 remaining: 138 pre-2021 classified HISTORICAL, 27 recent (2021+) remain as DATA_QUALITY. All logged in `union_fnum_resolution_log`.)
 
 8. ~~**Corporate hierarchy endpoints are broken.**~~ **FIXED (Phase A3).** 7 RealDictCursor indexing bugs fixed, route shadowing resolved (search before parameterized).
 

@@ -633,8 +633,9 @@ def test_union_file_number_orphans_bounded(db):
 
     After Phase C resolution: 165 orphan fnums remain (down from 166/195).
     CWA District 7 (12590) resolved via geographic devolution to successor
-    locals. Remaining 165 are ghost file numbers with no lm_data history.
-    497 relation rows, 23,551 workers. Logged in union_fnum_resolution_log.
+    locals. Of the remaining 165: 138 are pre-2021 historical (decision:
+    treat as historical, not active gap), 27 are recent (2021+) DATA_QUALITY
+    issues. All logged in union_fnum_resolution_log.
     """
     orphans = query_one(db, """
         SELECT COUNT(*)
@@ -644,5 +645,5 @@ def test_union_file_number_orphans_bounded(db):
     """)
     assert orphans <= 600, (
         f"Found {orphans:,} union file number orphans. Expected <= 600 "
-        f"(165 ghost file numbers producing ~497 records)."
+        f"(165 ghost file numbers: 138 historical, 27 active)."
     )

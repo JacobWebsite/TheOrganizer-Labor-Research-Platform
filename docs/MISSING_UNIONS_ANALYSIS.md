@@ -97,9 +97,17 @@ This means an automatic UPDATE needs a deterministic tie-break rule (or manual r
 - Resolution script: `scripts/maintenance/resolve_missing_unions.py`
 - Tests: `tests/test_missing_unions_resolution.py` (7 tests)
 
+### Historical Classification (2026-02-21)
+
+The 165 remaining ghost fnums were split by latest notice date:
+
+| Category | Fnums | Rows | Workers | Decision |
+|----------|------:|-----:|--------:|----------|
+| **HISTORICAL** (pre-2021) | 138 | 344 | 19,155 | Classified as historical. These are defunct/inactive unions with no recent activity. Relations preserved for historical record but excluded from active data gaps. |
+| **DATA_QUALITY** (2021+) | 27 | 153 | 4,396 | Active data gap. These fnums have recent employer relations but no OLMS filing history. Candidates for manual OLMS lookup. |
+
+Resolution log updated: 138 entries reclassified from DATA_QUALITY to HISTORICAL.
+
 ### Remaining Work
 
-The 165 ghost fnums (23,551 workers) cannot be resolved programmatically. Options:
-- **Manual OLMS lookup** for the top 20 by worker count (see table above)
-- **Accept as data gap** -- these may be defunct locals from decades past with no digital records
-- **Future data load** -- if OLMS provides a historical union registry, these could be resolved
+27 active orphan fnums (4,396 workers) are the only unresolved active gap. The largest are fnum 47349 (1,158 workers, 11 states, last notice 2021-05) and 517317 (650 workers, last notice 2025-01). See `orphan_fnums_no_olms.csv` for the full list with OLMS lookup URLs.
