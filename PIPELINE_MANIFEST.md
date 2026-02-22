@@ -1,7 +1,7 @@
 # Pipeline Manifest — Labor Relations Research Platform
 
-**Last updated:** 2026-02-16
-**Active scripts:** 120 (down from 530+ before reorganization)
+**Last updated:** 2026-02-22
+**Active scripts:** 134 (down from 530+ before reorganization)
 
 ## How to Use This Document
 
@@ -24,7 +24,8 @@ These scripts load external data into PostgreSQL. Run them when new source data 
 | `scripts/etl/load_sec_edgar.py` | Loads 517K SEC company records | SEC submissions.zip | Annual or when SEC updates |
 | `scripts/etl/sec_edgar_full_index.py` | Alternative SEC loader from bulk submissions | SEC bulk data | Annual |
 | `scripts/etl/load_national_990.py` | Loads 586K IRS 990 nonprofit filers (dedup by EIN) | national_990_extract.csv | When 990 data refreshed |
-| `scripts/etl/irs_bmf_loader.py` | Loads ~1.8M tax-exempt orgs from IRS BMF | IRS BMF database | Phase 4 or refresh |
+| `scripts/etl/irs_bmf_loader.py` | Loads ~1.8M tax-exempt orgs from IRS BMF (small test batches) | IRS BMF database | Phase 4 or refresh |
+| `scripts/etl/load_bmf_bulk.py` | Bulk loads 2M+ IRS BMF records (full production load) | IRS BMF flat files | Phase G master employer seeding |
 | `scripts/etl/load_gleif_bods.py` | Restores GLEIF pgdump (52.7M rows) + extracts US entities | GLEIF pgdump.sql.gz | Initial load |
 | `scripts/etl/extract_gleif_us_optimized.py` | Optimized US entity extraction (use instead of above for extraction only) | gleif schema in DB | After GLEIF dump restored |
 | `scripts/etl/update_normalization.py` | Applies cleanco normalization to GLEIF/SEC name columns | GLEIF + SEC tables | After loading GLEIF/SEC |
@@ -40,6 +41,9 @@ These scripts load external data into PostgreSQL. Run them when new source data 
 | `scripts/etl/build_crosswalk.py` | Builds corporate identifier crosswalk (SEC/GLEIF/Mergent/F7) + hierarchy | SEC, GLEIF, Mergent, F7 tables | After all source data loaded |
 | `scripts/etl/_fetch_usaspending_api.py` | Fetches federal contract recipients via paginated API | USASpending API | Phase 4 or refresh |
 | `scripts/etl/_match_usaspending.py` | Matches USASpending recipients to F7 + updates crosswalk | federal_contract_recipients | After _fetch_usaspending_api.py |
+| `scripts/etl/load_onet_data.py` | Loads O*NET occupation data for workforce demographics | O*NET database files | Phase 4 workforce demographics |
+| `scripts/etl/seed_master_chunked.py` | Seeds master_employers table from F7/SAM/Mergent/BMF (chunked for large tables) | All source tables | Phase G master employer seeding |
+| `scripts/etl/seed_master_from_sources.py` | Seeds master_employers from individual sources with EIN/name dedup | All source tables | Phase G master employer seeding |
 | `scripts/etl/setup_afscme_scraper.py` | Creates web scraper tables + loads AFSCME directory + OLMS matching | AFSCME CSV directory | Phase 7 (web intelligence) |
 
 ---
@@ -52,14 +56,17 @@ These scripts link records across databases. Run after ETL is complete. Order ma
 
 | Script | What It Does | Depends On | Run When |
 |--------|-------------|------------|----------|
-| `scripts/matching/run_deterministic.py` | **Main CLI** — runs 6-tier deterministic matching. Usage: `py scripts/matching/run_deterministic.py osha\|whd\|990\|sam\|sec\|all [--dry-run] [--limit N] [--skip-fuzzy]` | All ETL complete | After loading/refreshing any source |
-| `scripts/matching/deterministic_matcher.py` | Core v3 batch-optimized matching engine. In-memory indexes for exact tiers, batched SQL for fuzzy | Imported by run_deterministic.py | Not run directly |
+| `scripts/matching/run_deterministic.py` | **Main CLI** — runs 6-tier deterministic matching. Usage: `py scripts/matching/run_deterministic.py osha\|whd\|990\|sam\|sec\|bmf\|all [--dry-run] [--limit N] [--skip-fuzzy] [--rematch-all] [--batch N/M]` | All ETL complete | After loading/refreshing any source |
+| `scripts/matching/deterministic_matcher.py` | Core v4 batch-optimized matching engine. 6-tier cascade with best-match-wins, Splink as tier 5a, trigram as 5b | Imported by run_deterministic.py | Not run directly |
 | `scripts/matching/splink_pipeline.py` | Splink probabilistic matching (DuckDB backend). Scenarios: mergent_to_f7, gleif_to_f7, f7_self_dedup | Splink library, DuckDB | After deterministic matching for high-confidence fuzzy |
 | `scripts/matching/splink_integrate.py` | Integrates Splink results into corporate_identifier_crosswalk | splink_pipeline.py output | After splink_pipeline.py |
+| `scripts/matching/splink_config.py` | Splink model configuration and parameters | Imported by splink_pipeline.py | Not run directly |
+| `scripts/matching/train_adaptive_fuzzy_model.py` | Trains/calibrates the adaptive Splink fuzzy model | Splink library, training data | When model retraining needed |
 | `scripts/matching/create_unified_match_log.py` | Creates/resets unified_match_log table (audit trail for all matches) | Database | Once during setup (idempotent) |
 | `scripts/matching/create_nlrb_bridge.py` | Creates v_nlrb_employer_history view (13K rows, 5.5K employers) | NLRB tables matched | After NLRB matching |
 | `scripts/matching/resolve_historical_employers.py` | Identifies historical F7 employers matching current ones | Name normalization, F7 data | Phase 3 |
-| `scripts/matching/build_employer_groups.py` | Canonical employer grouping (16,209 groups, 40,304 employers) | f7_employers_deduped | Phase 3 |
+| `scripts/matching/backfill_name_columns.py` | Backfills normalized name columns on f7_employers_deduped (146,863 rows) | Name normalization | Before building employer groups |
+| `scripts/matching/build_employer_groups.py` | Canonical employer grouping (16,786 groups, 66,859 employers). 4-phase: exact name+state, cross-state merge, single-state, fuzzy post-merge | f7_employers_deduped with name columns | Phase 3. `py scripts/matching/build_employer_groups.py` |
 | `scripts/matching/match_quality_report.py` | Generates match quality metrics from unified_match_log | unified_match_log populated | After any matching run |
 
 ### Matching Framework (imported, not run directly)
@@ -89,7 +96,7 @@ Each adapter loads unmatched records from one source and normalizes them for the
 
 | Matcher | Tier | Method |
 |---------|------|--------|
-| `base.py` | — | Abstract BaseMatcher + MatchResult dataclasses |
+| `base.py` | -- | Abstract BaseMatcher + MatchResult dataclasses |
 | `exact.py` | 1, 2, 4 | EIN exact, normalized name+state, aggressive name+state |
 | `address.py` | 3 | Fuzzy name + street number + city + state |
 | `fuzzy.py` | 5 | pg_trgm similarity >= 0.4, composite JW+token_set+ratio |
@@ -110,10 +117,11 @@ These scripts build the organizing scorecard and related analysis. Run after mat
 |--------|-------------|------------|----------|
 | `scripts/scoring/compute_nlrb_patterns.py` | Analyzes 33K NLRB elections for win patterns by industry/size/state. Creates ref_nlrb_industry_win_rates, ref_nlrb_size_win_rates. | NLRB tables | Before scorecard build |
 | `scripts/scoring/update_whd_scores.py` | Updates labor violation scores using WHD + NYC Comptroller data | WHD matching complete | Before scorecard build |
-| `scripts/scoring/create_scorecard_mv.py` | **Creates/refreshes mv_organizing_scorecard** (22,389 rows, 9 factors, temporal decay). Use `--refresh` for concurrent update. Auto-inserts score_versions. | All matching + NLRB patterns | After matching stabilizes. `py scripts/scoring/create_scorecard_mv.py [--refresh]` |
-| `scripts/scoring/build_employer_data_sources.py` | **Creates/refreshes mv_employer_data_sources** (146,863 rows). Aggregates source availability per F7 employer (8 boolean flags + corporate crosswalk). Foundation for E3 unified scorecard. Use `--refresh` for concurrent update. | All matching complete, employer groups built | After matching stabilizes. `py scripts/scoring/build_employer_data_sources.py [--refresh]` |
-| `scripts/scoring/build_unified_scorecard.py` | **Creates/refreshes mv_unified_scorecard** (146,863 rows). Signal-strength scoring: 7 factors (OSHA, NLRB, WHD, contracts, union proximity, financial, size), each 0-10. Missing factors excluded. Unified score = avg of available factors. Use `--refresh` for concurrent update. | mv_employer_data_sources, all matching, BLS projections | After data sources MV built. `py scripts/scoring/build_unified_scorecard.py [--refresh]` |
-| `scripts/scoring/compute_gower_similarity.py` | Gower distance similarity — finds top-5 comparable employers per employer (269K comparables). 14 features including occupation overlap. | mv_organizing_scorecard, industry_occupation_overlap | After scorecard built. `py scripts/scoring/compute_gower_similarity.py [--refresh-view]` |
+| `scripts/scoring/create_scorecard_mv.py` | **Creates/refreshes mv_organizing_scorecard** (212,441 rows, 9 factors, temporal decay). Use `--refresh` for concurrent update. Auto-inserts score_versions. | All matching + NLRB patterns | After matching stabilizes. `py scripts/scoring/create_scorecard_mv.py [--refresh]` |
+| `scripts/scoring/build_employer_data_sources.py` | **Creates/refreshes mv_employer_data_sources** (146,863 rows). Aggregates source availability per F7 employer (8 boolean flags + corporate crosswalk). Foundation for E3 unified scorecard. Use `--refresh` for concurrent update. | All matching complete, employer groups built | Pipeline step 4.5. `py scripts/scoring/build_employer_data_sources.py [--refresh]` |
+| `scripts/scoring/build_unified_scorecard.py` | **Creates/refreshes mv_unified_scorecard** (146,863 rows). Signal-strength scoring: 7 factors (OSHA, NLRB, WHD, contracts, union proximity, financial, size), each 0-10. Missing factors excluded. Unified score = avg of available factors. Use `--refresh` for concurrent update. | mv_employer_data_sources, all matching, BLS projections | Pipeline step 4.6. `py scripts/scoring/build_unified_scorecard.py [--refresh]` |
+| `scripts/scoring/rebuild_search_mv.py` | **Rebuilds mv_employer_search** (107,025 rows). Deduped search index with canonical group collapse + historical exclusion. 4 sources: F7, NLRB, VR, MANUAL. | f7_employers_deduped, employer groups, NLRB | After grouping changes. `py scripts/scoring/rebuild_search_mv.py` |
+| `scripts/scoring/compute_gower_similarity.py` | Gower distance similarity -- finds top-5 comparable employers per employer (269K comparables). 14 features including occupation overlap. | mv_organizing_scorecard, industry_occupation_overlap | After scorecard built. `py scripts/scoring/compute_gower_similarity.py [--refresh-view]` |
 
 ### ML Pipeline (scripts/ml/)
 
@@ -131,6 +139,10 @@ These scripts build the organizing scorecard and related analysis. Run after mat
 |--------|-------------|----------|
 | `scripts/maintenance/create_data_freshness.py` | Tracks 15 data sources: record counts, date ranges, last-updated timestamps. UPSERT refresh. | Monthly. `py scripts/maintenance/create_data_freshness.py --refresh` |
 | `scripts/maintenance/fix_signatories_and_groups.py` | Flags signatory entries as excluded, merges split canonical groups | As needed. `--dry-run` flag available |
+| `scripts/maintenance/rebuild_legacy_tables.py` | Rebuilds legacy match tables (osha_f7_matches, sam, 990, whd, nlrb_xref) from unified_match_log | After matching re-runs. `py scripts/maintenance/rebuild_legacy_tables.py` |
+| `scripts/maintenance/resolve_missing_unions.py` | Resolves orphaned employer-union relationships (crosswalk remaps, manual adds, historical classification) | After union data changes. `py scripts/maintenance/resolve_missing_unions.py` |
+| `scripts/maintenance/drop_orphan_industry_views.py` | Drops orphaned industry-specific views left from old scoring pipeline (186->121 views cleaned) | One-time cleanup |
+| `scripts/maintenance/generate_db_inventory.py` | Generates database inventory (table counts, sizes, indexes, MVs) for PROJECT_STATE.md | Before documentation updates. `py scripts/maintenance/generate_db_inventory.py` |
 | `scripts/scoring/create_scorecard_mv.py --refresh` | Concurrent refresh of organizing scorecard (zero downtime) | After any data update. Also via `POST /api/admin/refresh-scorecard` |
 | `scripts/maintenance/create_data_freshness.py --refresh` | Refresh data source freshness tracking | After any ETL run. Also via `POST /api/admin/refresh-freshness` |
 
@@ -148,8 +160,9 @@ Sequential pipeline for extracting data from union websites.
 | 4 | `scripts/scraper/fix_extraction.py` | Removes boilerplate false positives | After extraction |
 | 5 | `scripts/scraper/match_web_employers.py` | 5-tier employer matching against F7 + OSHA | After extraction |
 | 6 | `scripts/scraper/export_html.py` | Generates browsable HTML data viewer | Ad-hoc reporting |
-| — | `scripts/scraper/fetch_summary.py` | Status report on scraping progress | Monitoring |
-| — | `scripts/scraper/read_profiles.py` | Utility to inspect raw scraped text | Manual inspection |
+| -- | `scripts/scraper/extract_ex21.py` | Extracts SEC Exhibit 21 subsidiary data | After SEC data loaded |
+| -- | `scripts/scraper/fetch_summary.py` | Status report on scraping progress | Monitoring |
+| -- | `scripts/scraper/read_profiles.py` | Utility to inspect raw scraped text | Manual inspection |
 
 ---
 
@@ -160,23 +173,26 @@ Sequential pipeline for extracting data from union websites.
 | `scripts/setup/init_database.py` | Database initialization and schema setup | Once during initial setup |
 | `scripts/performance/profile_matching.py` | Performance profiling for matching pipeline queries | Ad-hoc bottleneck analysis |
 | `db_config.py` (root) | Shared database connection module. `from db_config import get_connection, DB_CONFIG` | Imported by all scripts |
+| `export_ny_deduped.py` (root) | Exports deduplicated NY employer CSV with canonical group collapse, multi-employer detection, fuzzy dedup | Ad-hoc export. `py export_ny_deduped.py` |
 
 ---
 
 ## Typical Full Pipeline Run Order
 
 ```
-1.  ETL: Load/refresh source data (OSHA, WHD, SAM, SEC, 990, BLS, GLEIF)
-2.  Matching: py scripts/matching/run_deterministic.py all
-3.  Matching: py scripts/matching/splink_pipeline.py (optional fuzzy)
-4.  Matching: py scripts/matching/build_employer_groups.py
-4.5 Scoring: py scripts/scoring/build_employer_data_sources.py --refresh
-4.6 Scoring: py scripts/scoring/build_unified_scorecard.py --refresh
-5.  Scoring: py scripts/scoring/compute_nlrb_patterns.py
-6.  Scoring: py scripts/scoring/create_scorecard_mv.py --refresh
-7.  Scoring: py scripts/scoring/compute_gower_similarity.py --refresh-view
-8.  ML: py scripts/ml/train_propensity_model.py --score-only
-9.  Maintenance: py scripts/maintenance/create_data_freshness.py --refresh
+1.   ETL: Load/refresh source data (OSHA, WHD, SAM, SEC, 990, BLS, GLEIF)
+2.   Matching: py scripts/matching/run_deterministic.py all
+3.   Matching: py scripts/matching/splink_pipeline.py (optional fuzzy)
+3.5  Matching: py scripts/matching/backfill_name_columns.py
+4.   Matching: py scripts/matching/build_employer_groups.py
+4.5  Scoring: py scripts/scoring/build_employer_data_sources.py --refresh
+4.6  Scoring: py scripts/scoring/build_unified_scorecard.py --refresh
+4.7  Scoring: py scripts/scoring/rebuild_search_mv.py
+5.   Scoring: py scripts/scoring/compute_nlrb_patterns.py
+6.   Scoring: py scripts/scoring/create_scorecard_mv.py --refresh
+7.   Scoring: py scripts/scoring/compute_gower_similarity.py --refresh-view
+8.   ML: py scripts/ml/train_propensity_model.py --score-only
+9.   Maintenance: py scripts/maintenance/create_data_freshness.py --refresh
 ```
 
 ---
@@ -185,18 +201,18 @@ Sequential pipeline for extracting data from union websites.
 
 ```
 scripts/
-├── etl/           (24 scripts) — Stage 1: Data loading
-├── matching/      (29 scripts) — Stage 2: Record linkage
+├── etl/           (28 scripts) — Stage 1: Data loading
+├── matching/      (19 scripts) — Stage 2: Record linkage
 │   ├── adapters/  (7 files)   — Source-specific data loaders
 │   └── matchers/  (5 files)   — Matching algorithm implementations
-├── scoring/        (4 scripts) — Stage 3: Score computation
-├── ml/             (4 scripts) — Stage 3: Machine learning models
-├── maintenance/    (2 scripts) — Stage 4: Periodic refresh
-├── scraper/        (7 scripts) — Stage 5: Web intelligence
-├── analysis/      (51 scripts) — Ad-hoc analysis templates (not pipeline)
-├── setup/          (1 script)  — Database initialization
-└── performance/    (1 script)  — Performance profiling
+├── scoring/       (7 scripts)  — Stage 3: Score computation
+├── ml/            (4 scripts)  — Stage 3: Machine learning models
+├── maintenance/   (6 scripts)  — Stage 4: Periodic refresh + cleanup
+├── scraper/       (8 scripts)  — Stage 5: Web intelligence
+├── analysis/      (54 scripts) — Ad-hoc analysis templates (not pipeline)
+├── setup/         (1 script)   — Database initialization
+└── performance/   (1 script)   — Performance profiling
 ```
 
-**Total active pipeline scripts:** 69 (excluding analysis templates)
-**Total including analysis:** 120
+**Total active pipeline scripts:** 80 (excluding analysis templates)
+**Total including analysis:** 134
