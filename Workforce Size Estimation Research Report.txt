@@ -1,0 +1,255 @@
+﻿Comprehensive Methodologies for External Workforce Estimation and Labor Compositional Analysis
+The capacity to accurately estimate the size, role distribution, and demographic composition of a workforce from the exterior of a firm is a foundational requirement for modern labor organizing and industrial relations research. In an era characterized by complex corporate structures, multi-layered subsidiary arrangements, and a general decline in the transparency of private sector employment, organizers must rely on a sophisticated synthesis of administrative data, economic proxies, and digital footprints. This report provides a detailed examination of the methodologies available to estimate these parameters without access to internal payroll or HRIS records, prioritizing free government data and open-source computational tools.
+The Administrative Foundation: Traditional Estimation Methodologies
+Traditional estimation relies on the statistical output of government agencies tasked with tracking the macro and micro-economy. These methods are generally the most reliable for setting "anchor" points—high-confidence numbers that serve as the boundaries for more granular, speculative estimates. Understanding why these methods work requires an appreciation of the administrative "hooks" the government uses to collect data, typically tied to taxation or regulatory compliance.
+The Quarterly Census of Employment and Wages (QCEW)
+The QCEW, managed by the Bureau of Labor Statistics (BLS), is the most comprehensive census of employment in the United States, covering approximately 95% of all jobs.1 It is derived from Unemployment Insurance (UI) tax records that nearly every employer is legally mandated to file.
+* How it Works: Every quarter, businesses submit reports detailing their total headcount and total wages paid. The BLS aggregates this by industry (using the North American Industry Classification System or NAICS) and geography (down to the county level). The data is anchored to the "pay period including the 12th of the month," which serves as a universal snapshot to prevent double-counting workers who move between jobs.2
+* Accuracy: For aggregate counts at the county or industry level, the QCEW is nearly 100% accurate because it is a census, not a survey. However, the BLS applies "confidentiality filters." If a county has only one or two large employers in a specific industry, the BLS will suppress the data to prevent identifying the specific headcount of a single firm.
+* Blind Spots: The QCEW excludes the self-employed, proprietors, domestic workers, and railroad workers.2 Furthermore, it captures the location where the taxes are filed, which for a multi-site company might be a corporate headquarters rather than the actual worksite. There is also a significant time lag, typically five to seven months, between the end of a quarter and the release of the data.
+Occupational Employment and Wage Statistics (OEWS) and Staffing Patterns
+If the QCEW tells an organizer how many people are in a county, the OEWS explains who those people are in terms of their job functions.
+* How it Works: The OEWS program conducts a semi-annual survey of approximately 1.1 million establishments over a three-year cycle.3 This massive sample size allows the BLS to create "staffing patterns"—mathematical matrices that show, for any given industry, what percentage of the workforce belongs to specific occupations (Standard Occupational Classification or SOC codes).5 For example, a staffing pattern for "General Medical and Surgical Hospitals" (NAICS 622110) might show that 30% of the workforce are Registered Nurses, 15% are Nursing Assistants, and 5% are Janitors.
+* Accuracy: The OEWS has transitioned to a "Model-Based Estimation" method (MB3) to improve reliability for small geographic areas.3 Accuracy for large industries is high (error margins within    5%), but for niche occupations in small counties, the margin can expand to    15-20%.
+* Blind Spots: Like the QCEW, it is a lagging indicator. Because it uses a three-year rolling cycle, a sudden shift in an industry—such as the rapid automation of a warehouse—might not show up in the staffing pattern for several years.6 It also measures "jobs," not "people," meaning a person working two jobs is counted twice.7
+Census County Business Patterns (CBP) and SUSB
+The Census Bureau provides the County Business Patterns (CBP) and the Statistics of U.S. Businesses (SUSB), which offer a different cut of the employment data.
+   * How it Works: CBP provides data on the number of establishments, employment, and first-quarter payroll by industry and county. SUSB adds a critical layer: "size class." It breaks down employment in a county by how many people work at the firm (e.g., 1-19 employees, 20-99 employees, 100-499 employees).
+   * Utility: This is vital for an organizer to determine if a target is the "big fish" in a small pond. If SUSB data shows there is only one firm in a county with 500+ employees in the "Plastic Product Manufacturing" industry, and the organizer knows their target is in that industry, the SUSB count effectively reveals that target's local headcount.
+Revenue-Per-Employee (RPE) Triangulation
+Revenue-per-employee is a productivity metric that serves as a powerful proxy for headcount when financial data is available but employment data is not.
+   * How it Works: Different industries have different "labor intensities." A software company requires few people to generate millions in revenue, while a nursing home requires many people to generate the same amount. By taking the total revenue of a firm and dividing it by the industry-standard RPE, an organizer can solve for the missing headcount:   .
+   * Accuracy: This method is generally accurate within    20-30%.8 It is most effective for public companies where revenue is disclosed in SEC filings, but it can be used for private firms if revenue estimates can be found in news reports or trade journals.
+   * Blind Spots: RPE is skewed by outsourcing. If a company outsources its janitorial and security staff to a third party, its revenue-per-employee will appear artificially high because those workers aren't on its own payroll.
+Industry Type
+	NAICS (Sample)
+	Benchmark RPE (Approx.)
+	Accuracy Range
+	Software/SaaS
+	511210
+	$200,000 - $500,000
+	  
+ 30%
+	High-Tech Mfg
+	334111
+	$1.5M - $2.4M
+	  
+ 15%
+	General Retail
+	452210
+	$300,000 - $340,000
+	  
+ 20%
+	Healthcare/Hosps
+	622110
+	$150,000 - $250,000
+	  
+ 25%
+	Fast Food
+	722513
+	$80,000 - $120,000
+	  
+ 40%
+	Operational Coverage Math
+For establishments with a physical output or service capacity, "operational ratios" provide the most localized estimates. These are essentially "physics-based" headcount models.
+      * Healthcare (Hospital Beds): There is a direct relationship between the number of beds in a facility and the staff required to service them. Nationally, there are roughly 2.35 hospital beds per 1,000 people, but more importantly, a general private hospital in an urban area has a specific "employee income" and staffing footprint per bed.9 Large-scale hospitals have higher capacity for "idle" facilities, meaning the staff-to-bed ratio might be lower than in smaller, high-efficiency clinics.11
+      * Education (Enrollment Ratios): Public and private schools report student enrollment. Pupil-to-teacher ratios are highly stable: approximately 15.4 to 15.9 students per teacher in public schools.12 Pupil-to-all-staff ratios (including janitors, admins, and support) generally hover around 7.1 to 7.3.13
+Newer and Emerging Digital Methodologies
+Digital transformation has created new "signals" that reflect employment levels in real-time. While these signals are often biased toward specific types of workers, they provide high-frequency updates that government data lacks.
+Job Posting Math and Vacancy Rates
+Analyzing the "flow" of job postings allows for a reconstruction of the "stock" of employees. This method uses the relationship between open roles (  ), vacancy rates (  ), and total employment (  ).
+      * Mechanism: If you know how many positions are open and the standard "vacancy rate" for that industry (provided by the BLS JOLTS program), you can solve for    using the formula:   .15 For example, if a firm has 100 open roles and the industry vacancy rate is 5%, the implied total workforce is 1,900.
+      * Little's Law: This principle from queueing theory states that the number of items in a system equals the arrival rate multiplied by the average time spent in the system. In labor terms:   .15 If a company has 50 open roles and it takes 2 months to fill a role, they are hiring 25 people a month.
+      * Biases: "Evergreen" postings—roles that are always open to collect resumes—can inflate these numbers by 30-45%.15 Additionally, some firms post "ghost jobs" to appear healthy to investors.
+LinkedIn Profile Counting and Reweighting
+LinkedIn is essentially a self-reported census of the professional workforce. However, it is not a representative sample.
+         * Utility: It allows for a bottom-up count of employees by location and job title.16 It is excellent for identifying management structures and "white-collar" departments.
+         * Bias and Correction: Profile density is highest in big cities and tech-heavy occupations.16 To correct this, researchers use "sampling weights." If research shows that 80% of software engineers have LinkedIn profiles but only 20% of warehouse workers do, an organizer must multiply the number of warehouse workers they find on LinkedIn by 5 to get a realistic estimate.16
+SEC Human Capital Disclosures (Regulation S-K Item 101)
+Since 2020, the SEC has required public companies to disclose "human capital" metrics that are "material" to understanding the business.
+         * What is Disclosed: Most companies now report their total number of employees, the full-time/part-time split, and often the number or percentage of employees covered by collective bargaining agreements.19
+         * Context: These disclosures have grown in length and detail, with many S&P 100 companies now discussing diversity goals, turnover rates, and specific training investments.20 This data is "ground truth" for the entire corporation, but it rarely breaks down employment by individual worksite.
+Satellite Imagery and Parking Lot Occupancy
+For industrial facilities, the number of cars in the parking lot is the most literal way to count workers from the outside.
+         * Mechanism: Using computer vision models (like U-Net or Transformers), researchers can detect individual cars in satellite images.22 By taking images at different times (e.g., 10:00 AM on a Tuesday vs. 10:00 PM on a Saturday), they can estimate the size of different shifts.24
+         * Accuracy: High-resolution imagery can achieve a Mean Intersection over Union (mIoU) of 85% in detecting parking spaces.23
+         * Biases: This method fails to account for carpooling, public transit, or bike-to-work programs. It also cannot distinguish between employees, contractors, and visitors.
+Method
+	Accuracy Range
+	Primary Bias
+	Why it Works
+	LinkedIn
+	  
+ 15-40%
+	White-collar/Urban bias
+	Social signaling & professional networking
+	Job Postings
+	  
+ 20-30%
+	Evergreen/Ghost job inflation
+	Operational need for recruitment
+	SEC Filings
+	  
+ 0-5%
+	Global vs. Local ambiguity
+	Legal mandate for investor transparency
+	Satellite
+	  
+ 10-25%
+	Transit/Carpooling noise
+	Physical presence required for labor
+	Reviews
+	  
+ 40-60%
+	Selection/Dissatisfaction bias
+	Employee desire to vent or praise
+	Commercial Providers: Methodologies and Claims
+While commercial services like Revelio Labs and People Data Labs are expensive, their methodologies are based on public data that can be partially replicated.
+Revelio Labs
+Revelio Labs standardizes hundreds of millions of public professional profiles and job postings to create a "universal workforce database".17
+         * Core Innovation: They use "Company Mapping" to resolve millions of different name variations (e.g., "BofA," "Bank of America," "BofA Merrill") into a single corporate ID.16
+         * Lag Correction: They use "transition models" to predict current headcount by observing how long it usually takes for a worker to update their profile after a layoff or a new hire.18 They claim their "Revelio Public Labor Statistics" (RPLS) closely track BLS national employment trends.18
+People Data Labs (PDL)
+PDL focuses on the "person" level, aggregating data from over 1.5 billion unique profiles.27
+         * Entity Resolution: They focus on avoiding "Frankenstein merges"—combining two different people into one record—which they view as more detrimental than missing a record.29
+         * Employee Count Fields: They provide "bottom-up" counts by finding all profiles whose current experience matches a company ID.30 They acknowledge discrepancies with LinkedIn's own counts because they use stricter deduplication and separate subsidiary accounting.30
+Diffbot
+Diffbot does not rely solely on social media; it uses an AI that "reads" the entire public web.
+         * Knowledge Graph: It identifies over 246 million organizations by extracting facts from news, blogs, and "About Us" pages.31
+         * Estimated Revenue: For private firms, Diffbot uses machine learning to "estimate" revenue based on firmographics (location, industry, founding year), which can then be used in RPE math.33
+The Open Source Toolkit: GitHub Projects for Labor Research
+The most important section for a platform developer is the set of tools that can bridge the gap between "messy data" and "actionable insights."
+1. Entity Resolution and Name Matching
+The single biggest technical hurdle is realizing that "Target #123" in an OSHA table is the same as "Target Corporation" in an NLRB table.
+         * Splink (GitHub: moj-analytical-services/splink)
+         * What it is: A Python library for fast, probabilistic record linkage (entity resolution).35
+         * Stats: 2.8k+ stars, actively maintained by the UK Ministry of Justice.
+         * Mechanism: It uses the Fellegi-Sunter model to calculate the probability that two records are a match based on multiple columns (Name, City, Industry).35
+         * Integration: It can plug directly into a PostgreSQL database and deduplicate 1 million records in about a minute on a standard laptop.37 This is the "connective tissue" your 207 tables need.
+         * Zentity (GitHub: fintechstudios/zentity)
+         * What it is: An entity resolution plugin for Elasticsearch/OpenSearch.
+         * Utility: If your platform uses a search engine for organizers to look up companies, Zentity provides "real-time" matching of messy names to a canonical list.38
+2. Job Posting Scraping and Analysis
+         * JobSpy (GitHub: speedyapply/JobSpy)
+         * What it is: A library that scrapes LinkedIn, Indeed, Glassdoor, and ZipRecruiter concurrently.40
+         * Stats: 2.8k+ stars, very active.
+         * Integration: It outputs data directly into a Pandas DataFrame, which can then be written to your PostgreSQL tables. It includes proxy support, which is essential because LinkedIn aggressively blocks scrapers.40
+         * Levergreen (GitHub: adgramigna/job-board-scraper)
+         * What it is: Specifically targets Greenhouse and Lever job boards, which many mid-market and tech companies use.42
+         * Integration: It uses Scrapy and can be scheduled via GitHub Actions to refresh your database daily.
+3. Accessing Public Data Programmatically
+         * Census (GitHub: datamade/census)
+         * What it is: A simple Python wrapper for the US Census API.43
+         * Integration: Use this to pull local demographic data (like the ACS 5-year estimates) for the census tract where a target facility is located. This helps an organizer understand the potential racial and economic makeup of the workforce they are trying to reach.
+         * PyBLS (GitHub: addisonlynch/pyBLS)
+         * What it is: A wrapper for the BLS Public Data API.44
+         * Integration: Allows you to pull the latest QCEW and OEWS data directly into your tables without manual CSV downloads.
+4. Labor and Industry Embeddings
+Embeddings are numerical "maps" of concepts. In a "Company2Vec" space, "FedEx" and "UPS" would be physically close to each other because their "meaning" (as logistics firms) is similar.
+         * Company2Vec (GitHub: eddiepease/company2vec)
+         * What it does: Scrapes a company's website and converts the text into a vector using GloVe embeddings.45
+         * Utility: This allows your platform to offer a "Find Similar Companies" feature. If an organizer has a successful campaign at one factory, they can find other factories with similar "semantic signatures".46
+         * Industry2Vec (GitHub: ing-bank/industry2vec)
+         * What it does: Learns representations of NAICS/SIC codes based on company structures and descriptions.47
+         * Utility: It detects similarities between industries that might have different codes but similar labor needs (e.g., "Automobile Dealers" and "Automotive Repair").47
+5. Occupation and Skill Extraction
+         * Skills-ML (GitHub: workforce-data-initiative/skills-ml)
+         * What it does: A tool for extracting skills from job postings and mapping them to the O*NET taxonomy.48
+         * Integration: This is crucial for "Composition Analysis." If you scrape 500 job postings for a hospital, Skills-ML can tell you the exact proportion of roles that require specific licenses or technical skills.
+         * OJD Daps Skills (GitHub: nestauk/ojd_daps_skills)
+         * What it does: Maps skill phrases onto European (ESCO) or commercial (Lightcast) taxonomies.49
+         * Utility: Provides a high-quality, explainable system for ranking candidates or understanding the "skill density" of a firm.50
+Layering Methods: Strategic "Recipes" for Estimation
+Accuracy is achieved by "stacking" signals. Any single signal (like a LinkedIn count) is easily skewed, but three signals that agree create a defensible estimate.
+Recipe A: The Public Corporation (Macro View)
+For a large, publicly traded company (e.g., Amazon, Starbucks, Delta Airlines), start with the SEC filings.
+         1. Anchor: Use the SEC 10-K to find the global headcount and the percentage of unionized staff.20
+         2. Geographic Distribution: Use LinkedIn's "Company Insights" (or a scraped count via JobSpy) to find the ratio of employees in the US vs. International.
+         3. Localize: Pull the QCEW county-level data for that company's primary NAICS code in the target region. If the company is the dominant employer, the QCEW industry count will effectively be their local headcount.
+         4. Validate: Compare the revenue-per-employee (Total Revenue / Total Headcount) against the industry benchmark. If the company's RPE is 50% higher than peers, they are likely over-reporting headcount or using massive amounts of hidden contract labor.8
+Recipe B: The Mid-Market Private Firm (Regional View)
+For a private company with no SEC filings, the process is more detective-oriented.
+         1. Demand Signal: Use JobSpy to count their total open job postings.
+         2. The Formula: Apply the Vacancy Rate Math (  ). Use the BLS JOLTS vacancy rate for their specific sector (e.g., 6.4% for Information).15
+         3. Staffing Pattern: Apply the OEWS Staffing Pattern for their NAICS code to the estimated total headcount. This tells you how many are in "Production" vs. "Management."
+         4. The "Review" Check: Count the volume of reviews on Glassdoor or Indeed. There is a rough correlation (varying by industry) between the number of reviews and the total workforce size.
+Recipe C: The Physical Establishment (Micro/Worksite View)
+This is the most critical for an organizer planning a campaign at a specific warehouse or plant.
+            1. Ground Truth: Check your NLRB election database. If there was an election five years ago, it will list the "number of employees in the unit" and often the "total number of eligible voters." This is your baseline.51
+            2. OSHA Records: Cross-reference the site's name in your OSHA violation table. OSHA inspectors often record the "number of employees" at the facility during an inspection. Use Splink to ensure the name matches the NLRB record.53
+            3. Physical Count: Use Satellite Imagery to count cars in the parking lot during a Tuesday morning shift. Multiply by 1.15 to account for people who don't drive or are on vacation.23
+            4. Enrollment/Bed Math: If it's a school or hospital, use the Pupil/Bed ratios described above to provide a theoretical ceiling for the workforce.9
+Calibration: Using NLRB Data as the "Truth Set"
+The user possesses a powerful asset: ground-truth counts from NLRB elections. This can be used to "train" or "calibrate" all the other speculative methods.
+How to Calibrate
+            1. The Comparison: For every facility in your database that had an NLRB election in the last 24 months, run your "Satellite Count" and your "Job Posting Math."
+            2. Calculating the Error:
+            * NLRB Count: 450 workers.
+            * Job Posting Math: 520 workers.
+            * Error: +15%.
+            3. The Adjustment Factor: If you find that Job Posting math consistently overestimates by 15% across 100 known facilities, you should apply a "0.85 multiplier" to all other estimates where you don't have NLRB data.
+            4. Bargaining Unit Boundaries: Use the "Community of Interest" analysis from NLRB decisions (like the Boeing case) to understand how the board decides who is in or out of a unit.54 This allows the platform to predict not just how many people work at a plant, but how many would likely be included in a legal bargaining unit.
+What is Missing: Gaps in the Open Source Ecosystem
+Despite the wealth of tools, several gaps exist that would need to be built from scratch to create a "world-class" platform for organizers.
+            1. The Subsidiary Graph: While there are tools to match names, there is no open-source project that maps corporate hierarchies. SEC "Exhibit 21" lists subsidiaries, but it is often a flat text file. A tool that turns these into a searchable "Parent-Child" graph would be revolutionary for identifying the ultimate owners of "shell company" employers.
+            2. Labor-Specific Embeddings: Current embeddings (Company2Vec) are trained on general business text. The labor movement needs a "Union2Vec"—an embedding model trained on Collective Bargaining Agreements (CBAs) and NLRB decisions. This would allow an organizer to search for "contracts that contain strong subcontracting protections" using semantic search rather than just keyword search.
+            3. Establishment-to-Company Linkage: Linking a physical address (from OSHA) to a corporate entity (from the SEC) is still a manual-heavy process. An automated "Geographic Entity Resolution" engine that looks at property tax records and maps them to corporate owners is missing from the open-source space.
+            4. Shift-Work Predictors: There is no open-source tool that analyzes "Review Timing." By looking at when employees post reviews on Glassdoor (e.g., a cluster of reviews at 3:00 AM), one could theoretically predict shift times and shift-change windows—critical information for "salting" or leafleting campaigns.
+Conclusion
+External workforce estimation is moving from an art to a data science. By leveraging the foundational accuracy of the QCEW and OEWS, the real-time flow of Job Postings, and the physical grounding of Satellite Imagery, a research platform can provide organizers with a high-fidelity map of their targets. The key to success lies not in finding a "perfect" data source—as all are biased—but in using open-source tools like Splink and JobSpy to layer these signals and calibrate them against the ground-truth of NLRB election data. This "triangulation" methodology provides a robust, defensible, and scalable way to evaluate the labor landscape from the outside in.
+Works cited
+            1. Comparing employment from the BLS household and payroll surveys, accessed February 17, 2026, https://www.bls.gov/web/empsit/ces_cps_trends.htm
+            2. jjchern/qcewAPI: An R client for BLS's API for Quarterly Census of Employment and Wages (QCEW) - GitHub, accessed February 17, 2026, https://github.com/jjchern/qcewAPI
+            3. Survey Methods and Reliability Statement for the May 2023 Occupational Employment and Wage Statistics Survey, accessed February 17, 2026, https://www.bls.gov/oes/methods_23.pdf
+            4. Survey methods and reliability statement for the May 2022 Occupational Employment and Wage Statistics survey, accessed February 17, 2026, https://www.bls.gov/oes/methods_22.pdf
+            5. Occupation Employment Process | Lightcast Knowledge Base, accessed February 17, 2026, https://kb.lightcast.io/en/articles/6957580-occupation-employment-process
+            6. Frequently Asked Questions - Bureau of Labor Statistics, accessed February 17, 2026, https://www.bls.gov/oes/oes_ques.htm
+            7. Long-Term Occupational Employment Projections Methodology, accessed February 17, 2026, https://www.pa.gov/content/dam/copapwp-pagov/en/dli/documents/cwia/products/projections-occupational-industries/ep_ltop_methodology.pdf
+            8. Revenue per Employee (RPE): Lifecycle Trends and Industry Benchmarks - FRANKI T, accessed February 17, 2026, https://www.francescatabor.com/articles/2025/6/1/revenue-per-employee-rpe-lifecycle-trends-and-industry-benchmarks
+            9. Urban-rural differences in hospital beds and employee income: a study using the rurality index for healthcare research in Japan - PMC, accessed February 17, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12816959/
+            10. Assessing Hospital Bed Supply in Metropolitan Markets - Trilliant Health, accessed February 17, 2026, https://www.trillianthealth.com/market-research/studies/assessing-hospital-bed-supply-metropolitan-markets
+            11. Does increasing the number of beds or health workers contribute to the rational use of scarce public health resources? - PMC, accessed February 17, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC9974230/
+            12. Teachers and Staff - National Center for Education Statistics (NCES), accessed February 17, 2026, https://nces.ed.gov/surveys/annualreports/topical-studies/covid/theme/elementary-and-secondary-education-teachers-and-staff/
+            13. Business Intelligence: Fewer Students and More Staff Signal New Paradigms - NBOA, accessed February 17, 2026, https://www.nboa.org/net-assets/article/business-intelligence-fewer-students-and-more-staf
+            14. The Big Bet on Adding Staff to Improve Schools Is Breaking the Bank - Edunomics Lab, accessed February 17, 2026, https://edunomicslab.org/wp-content/uploads/2020/03/roza_webreadypdf_revised.pdf
+            15. How to Estimate the Number of Employees with Job-Posting Math, accessed February 17, 2026, https://www.jobspikr.com/blog/estimate-number-of-employees-with-job-posting-math/
+            16. Methodologies - Revelio Labs Data Dictionary, accessed February 17, 2026, https://www.data-dictionary.reveliolabs.com/methodology.html
+            17. Revelio Labs vs Lightcast Talent Analyst - Comparison - AMS Verified, accessed February 17, 2026, https://app.getamsverified.com/comparison/revelio-labs-2-vs-lightcast-talent-analyst
+            18. Revelio Public Labor Statistics (RPLS) - AWS, accessed February 17, 2026, https://revelio-client-sample.s3.us-east-2.amazonaws.com/documentation/RPLS/RPLS-Methodology.pdf
+            19. Heads Up — SEC Modernizes Certain Regulation S-K Disclosure Requirements (September 3, 2020) | DART, accessed February 17, 2026, https://dart.deloitte.com/USDART/home/publications/archive/deloitte-publications/heads-up/2020/reg-s-k-disclosure-requirements
+            20. Four Years of Evolving Form 10-K Human Capital Disclosures - Gibson Dunn, accessed February 17, 2026, https://www.gibsondunn.com/four-years-of-evolving-form-10-k-human-capital-disclosures/
+            21. SEC Human Capital Disclosure Requirements | Donnelley Financial Solutions (DFIN), accessed February 17, 2026, https://www.dfinsolutions.com/knowledge-hub/thought-leadership/knowledge-resources/sec-human-capital-disclosures
+            22. Parking Occupancy Estimation on Planetscope Satellite Images | Request PDF, accessed February 17, 2026, https://www.researchgate.net/publication/349431724_Parking_Occupancy_Estimation_on_Planetscope_Satellite_Images
+            23. Parking Spot Detection Using Deep Learning Computer Vision Applied to Satellite Imagery - CS231n - Stanford University, accessed February 17, 2026, https://cs231n.stanford.edu/2025/papers/text_file_840582244-CS_231N_Final_Report%20(3).pdf
+            24. Towards Parking Lot Occupancy Assessment Using Aerial Imagery and Computer Vision, accessed February 17, 2026, https://uwo.scholaris.ca/items/1595a938-aabb-42d9-b80a-f8eb93fed4df
+            25. Introducing Revelio Public Labor Statistics (RPLS), accessed February 17, 2026, https://www.reveliolabs.com/news/macro/introducing-revelio-public-labor-statistics-rpls/
+            26. Public and Private Labor Market Data: Insights From the Government Shutdown - Federal Reserve Bank of Richmond, accessed February 17, 2026, https://www.richmondfed.org/publications/research/economic_brief/2026/eb_26-04
+            27. People Data Labs: B2B Data Provider for Industry Leading Platforms, accessed February 17, 2026, https://www.peopledatalabs.com/
+            28. Company Schema - People Data Labs Documentation, accessed February 17, 2026, https://docs.peopledatalabs.com/docs/company-schema
+            29. Data Accuracy - People Data Labs Documentation, accessed February 17, 2026, https://docs.peopledatalabs.com/docs/data-accuracy
+            30. Employee Count Fields - People Data Labs Documentation, accessed February 17, 2026, https://docs.peopledatalabs.com/docs/employee-count-fields
+            31. Diffbot | Knowledge Graph, AI Web Data Extraction and Crawling, accessed February 17, 2026, https://www.diffbot.com/
+            32. The Knowledge Graph of the Public Web - Diffbot, accessed February 17, 2026, https://www.diffbot.com/products/knowledge-graph/
+            33. Benchmarking: Diffbot Knowledge Graph Versus Google Knowledge Graph - Diffbot Blog, accessed February 17, 2026, https://blog.diffbot.com/benchmarking-diffbot-knowledge-graph-versus-google-knowledge-graph/
+            34. Create A Market Intelligence Report In 30 Minutes With Diffbot, accessed February 17, 2026, https://blog.diffbot.com/create-a-market-intelligence-report-in-30-minutes-with-diffbot/
+            35. splink/README.md at master · moj-analytical-services/splink - GitHub, accessed February 17, 2026, https://github.com/moj-analytical-services/splink/blob/master/README.md
+            36. Probabilistic Record Linkage with Splink - IN.gov, accessed February 17, 2026, https://www.in.gov/mph/files/Probabilistic-Record-Linkage-with-Splink-State-Health-Simmons.pdf
+            37. Splink, accessed February 17, 2026, https://moj-analytical-services.github.io/splink/index.html
+            38. entity-resolution · GitHub Topics, accessed February 17, 2026, https://github.com/topics/entity-resolution?l=html
+            39. Name Matching Model for Entity Resolution (Part 1) | by Joe Le | Medium, accessed February 17, 2026, https://medium.com/@vietexob/name-matching-model-for-entity-resolution-part-1-2d8362a5ed05
+            40. speedyapply/JobSpy: Jobs scraper library for LinkedIn, Indeed, Glassdoor, Google, ZipRecruiter & more - GitHub, accessed February 17, 2026, https://github.com/speedyapply/JobSpy
+            41. google-jobs · GitHub Topics, accessed February 17, 2026, https://github.com/topics/google-jobs
+            42. adgramigna/job-board-scraper: Scrapes job listings from popular job boards Greenhouse, Lever, Ashby, and Rippling - GitHub, accessed February 17, 2026, https://github.com/adgramigna/job-board-scraper
+            43. datamade/census: A Python wrapper for the US Census API. - GitHub, accessed February 17, 2026, https://github.com/datamade/census
+            44. addisonlynch/pyBLS: Python Wrapper for the Bureau of Labor Statistics Public Data API (https://www.bls.gov/developers/home.htm) - GitHub, accessed February 17, 2026, https://github.com/addisonlynch/pyBLS
+            45. eddiepease/company2vec: Package that returns a ... - GitHub, accessed February 17, 2026, https://github.com/eddiepease/company2vec
+            46. Introducing Company2Vec. TLDR: I've created a package on Github… | by Eddie Pease | TDS Archive | Medium, accessed February 17, 2026, https://medium.com/data-science/introducing-company2vec-helping-company-analysis-with-machine-learning-c6790d7a6bf5
+            47. ing-bank/industry2vec - GitHub, accessed February 17, 2026, https://github.com/ing-bank/industry2vec
+            48. skills-ml/Skills-ML Tour.ipynb at master · workforce-data-initiative/skills-ml - GitHub, accessed February 17, 2026, https://github.com/workforce-data-initiative/skills-ml/blob/master/Skills-ML%20Tour.ipynb
+            49. nestauk/ojd_daps_skills: Nesta's Skills Extractor Library - GitHub, accessed February 17, 2026, https://github.com/nestauk/ojd_daps_skills
+            50. skill-extraction · GitHub Topics, accessed February 17, 2026, https://github.com/topics/skill-extraction
+            51. Graphs & Data | National Labor Relations Board, accessed February 17, 2026, https://www.nlrb.gov/reports/agency-performance-reports/performance-and-accountability/graphs-data
+            52. Tracking National Labor Relations Board actions through its administrative data, accessed February 17, 2026, https://www.hamiltonproject.org/publication/post/tracking-national-labor-relations-board-actions-through-its-administrative-data/
+            53. Effects of Unionization on Worker and Workplace Safety Data | U.S. Department of Labor, accessed February 17, 2026, https://www.dol.gov/agencies/oasp/evaluation/data-repo/unionization-workplace-safety-data
+            54. NLRB Creates New 3-Step Analysis for Unit Determinations | Littler, accessed February 17, 2026, https://www.littler.com/news-analysis/asap/nlrb-creates-new-3-step-analysis-unit-determinations
+            55. NLRB Adds New Three-Part Test to Standard for Evaluating Appropriateness of Bargaining Units - Management Memo, accessed February 17, 2026, https://www.managementmemo.com/nlrb-adds-new-three-part-test-to-standard-for-evaluating-appropriateness-of-bargaining-units
