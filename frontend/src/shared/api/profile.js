@@ -3,12 +3,12 @@ import { apiClient } from './client'
 
 /**
  * Parse a canonical_id to determine the source type.
- * F7 IDs are plain hex strings. Non-F7 IDs are prefixed: NLRB-123, VR-456, MANUAL-789.
+ * F7 IDs are plain hex strings. Non-F7 IDs are prefixed: NLRB-123, VR-456, MANUAL-789, MASTER-123.
  */
 export function parseCanonicalId(id) {
   if (!id) return { isF7: false, sourceType: 'UNKNOWN', rawId: id }
 
-  const prefixMatch = id.match(/^(NLRB|VR|MANUAL)-(.+)$/)
+  const prefixMatch = id.match(/^(NLRB|VR|MANUAL|MASTER)-(.+)$/)
   if (prefixMatch) {
     return { isF7: false, sourceType: prefixMatch[1], rawId: prefixMatch[2] }
   }

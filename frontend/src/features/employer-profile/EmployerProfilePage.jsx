@@ -3,6 +3,7 @@ import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail } from '@/shared/api/profile'
+import { useTargetDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
 import { ScorecardSection } from './ScorecardSection'
 import { OshaSection } from './OshaSection'
@@ -13,13 +14,15 @@ import { BasicProfileView } from './BasicProfileView'
 export function EmployerProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { isF7, sourceType } = parseCanonicalId(id)
+  const { isF7, sourceType, rawId } = parseCanonicalId(id)
+  const isMaster = sourceType === 'MASTER'
 
   // Mutually exclusive — only one fires per page load
   const f7Query = useEmployerProfile(id, { enabled: isF7 })
-  const nonF7Query = useEmployerUnifiedDetail(id, { enabled: !isF7 })
+  const nonF7Query = useEmployerUnifiedDetail(id, { enabled: !isF7 && !isMaster })
+  const masterQuery = useTargetDetail(rawId, { enabled: isMaster })
 
-  const activeQuery = isF7 ? f7Query : nonF7Query
+  const activeQuery = isMaster ? masterQuery : isF7 ? f7Query : nonF7Query
   const { data, isLoading, isError, error } = activeQuery
 
   // Scorecard detail (explanations) — only for F7, after profile loads
@@ -81,6 +84,19 @@ export function EmployerProfilePage() {
             {error?.message || 'Failed to load employer profile.'}
           </p>
         </div>
+      </div>
+    )
+  }
+
+  // Master employer path — enriched basic view
+  if (isMaster && data) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1.5">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <BasicProfileView data={data} isMaster />
       </div>
     )
   }

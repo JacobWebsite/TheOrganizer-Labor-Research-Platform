@@ -1,0 +1,231 @@
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { SlidersHorizontal, X, Search } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { useStates } from '@/shared/api/lookups'
+import { useNaicsSectors } from '@/shared/api/lookups'
+
+const SORT_OPTIONS = [
+  { value: 'quality', label: 'Quality (highest)' },
+  { value: 'employees', label: 'Employees (largest)' },
+  { value: 'name', label: 'Name (A-Z)' },
+]
+
+const BOOL_OPTIONS = [
+  { value: '', label: 'Any' },
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
+]
+
+const FILTER_LABELS = {
+  q: 'Search',
+  state: 'State',
+  naics: 'Industry',
+  min_employees: 'Min employees',
+  max_employees: 'Max employees',
+  is_federal_contractor: 'Fed contractor',
+  is_nonprofit: 'Nonprofit',
+  min_quality: 'Min quality',
+}
+
+/**
+ * Filter bar for targets page: search + dropdowns + toggles + active chips.
+ */
+export function TargetsFilters({ filters, sort, onSetFilter, onClearFilter, onClearAll, onSetSort }) {
+  const [expanded, setExpanded] = useState(
+    Boolean(filters.state || filters.naics || filters.min_employees || filters.max_employees ||
+            filters.is_federal_contractor || filters.is_nonprofit || filters.min_quality)
+  )
+
+  const { data: statesData } = useStates()
+  const { data: naicsData } = useNaicsSectors()
+
+  const states = statesData?.states || []
+  const sectors = naicsData?.sectors || []
+
+  // Debounced search
+  const [searchValue, setSearchValue] = useState(filters.q)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    setSearchValue(filters.q)
+  }, [filters.q])
+
+  const handleSearchChange = useCallback((e) => {
+    const v = e.target.value
+    setSearchValue(v)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      onSetFilter('q', v)
+    }, 300)
+  }, [onSetFilter])
+
+  // Active filter chips
+  const activeFilters = [
+    filters.q && { key: 'q', label: `Search: ${filters.q}` },
+    filters.state && { key: 'state', label: `State: ${filters.state}` },
+    filters.naics && { key: 'naics', label: `Industry: ${filters.naics}` },
+    filters.min_employees && { key: 'min_employees', label: `Min employees: ${filters.min_employees}` },
+    filters.max_employees && { key: 'max_employees', label: `Max employees: ${filters.max_employees}` },
+    filters.is_federal_contractor && { key: 'is_federal_contractor', label: `Fed contractor: ${filters.is_federal_contractor === 'true' ? 'Yes' : 'No'}` },
+    filters.is_nonprofit && { key: 'is_nonprofit', label: `Nonprofit: ${filters.is_nonprofit === 'true' ? 'Yes' : 'No'}` },
+    filters.min_quality && { key: 'min_quality', label: `Min quality: ${filters.min_quality}` },
+  ].filter(Boolean)
+
+  return (
+    <div className="space-y-2">
+      {/* Search + filter toggle row */}
+      <div className="flex items-center gap-2">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchValue}
+            onChange={handleSearchChange}
+            placeholder="Search employers..."
+            className="pl-9 h-9"
+          />
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setExpanded((v) => !v)}
+          className="gap-1.5"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+          {activeFilters.length > 0 && (
+            <span className="ml-1 inline-flex h-5 w-5 items-center justify-center bg-primary text-primary-foreground text-xs font-bold">
+              {activeFilters.length}
+            </span>
+          )}
+        </Button>
+
+        <Select
+          value={sort}
+          onChange={(e) => onSetSort(e.target.value)}
+          className="w-44"
+          aria-label="Sort by"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </Select>
+
+        {activeFilters.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={onClearAll} className="text-xs">
+            Clear all
+          </Button>
+        )}
+      </div>
+
+      {/* Active filter chips */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {activeFilters.map(({ key, label }) => (
+            <span
+              key={key}
+              className="inline-flex items-center gap-1 border bg-secondary px-2 py-1 text-xs font-medium"
+            >
+              {label}
+              <button
+                type="button"
+                onClick={() => onClearFilter(key)}
+                className="ml-0.5 hover:text-destructive"
+                aria-label={`Remove ${FILTER_LABELS[key] || key} filter`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded filter controls */}
+      {expanded && (
+        <div className="flex flex-wrap gap-3 border-t pt-3">
+          <Select
+            value={filters.state}
+            onChange={(e) => onSetFilter('state', e.target.value)}
+            className="w-48"
+            aria-label="Filter by state"
+          >
+            <option value="">All states</option>
+            {states.map((s) => (
+              <option key={s.state} value={s.state}>
+                {s.state} ({s.employer_count.toLocaleString()})
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            value={filters.naics}
+            onChange={(e) => onSetFilter('naics', e.target.value)}
+            className="w-64"
+            aria-label="Filter by industry"
+          >
+            <option value="">All industries</option>
+            {sectors.map((s) => (
+              <option key={s.naics_2digit} value={s.naics_2digit}>
+                {s.naics_2digit} &mdash; {s.sector_name}
+              </option>
+            ))}
+          </Select>
+
+          <Input
+            type="number"
+            value={filters.min_employees}
+            onChange={(e) => onSetFilter('min_employees', e.target.value)}
+            placeholder="Min employees"
+            className="w-36 h-9"
+            min={0}
+          />
+
+          <Input
+            type="number"
+            value={filters.max_employees}
+            onChange={(e) => onSetFilter('max_employees', e.target.value)}
+            placeholder="Max employees"
+            className="w-36 h-9"
+            min={0}
+          />
+
+          <Select
+            value={filters.is_federal_contractor}
+            onChange={(e) => onSetFilter('is_federal_contractor', e.target.value)}
+            className="w-40"
+            aria-label="Federal contractor"
+          >
+            <option value="">Contractor: Any</option>
+            {BOOL_OPTIONS.filter((o) => o.value).map((o) => (
+              <option key={o.value} value={o.value}>Contractor: {o.label}</option>
+            ))}
+          </Select>
+
+          <Select
+            value={filters.is_nonprofit}
+            onChange={(e) => onSetFilter('is_nonprofit', e.target.value)}
+            className="w-40"
+            aria-label="Nonprofit"
+          >
+            <option value="">Nonprofit: Any</option>
+            {BOOL_OPTIONS.filter((o) => o.value).map((o) => (
+              <option key={o.value} value={o.value}>Nonprofit: {o.label}</option>
+            ))}
+          </Select>
+
+          <Input
+            type="number"
+            value={filters.min_quality}
+            onChange={(e) => onSetFilter('min_quality', e.target.value)}
+            placeholder="Min quality (0-100)"
+            className="w-44 h-9"
+            min={0}
+            max={100}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
