@@ -55,3 +55,17 @@ def test_db_connection_error_returns_503(client, monkeypatch):
     r = client.get("/api/scorecard/states")
     assert r.status_code == 503
 
+
+def test_scorecard_detail_accepts_string_id_passthrough(client, monkeypatch):
+    from api.routers import scorecard as scorecard_router
+
+    monkeypatch.setattr(
+        scorecard_router,
+        "get_scorecard_detail",
+        lambda estab_id: {"establishment_id": estab_id, "ok": True},
+    )
+    r = client.get("/api/scorecard/abc_non_numeric_id")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["establishment_id"] == "abc_non_numeric_id"

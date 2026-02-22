@@ -28,6 +28,7 @@ Collision resolution order:
 All matches are logged to unified_match_log.
 """
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -54,6 +55,7 @@ class DeterministicMatcher:
     """Cascade deterministic matcher with best-match-wins logic."""
     HIGH_THRESHOLD = 0.85
     MEDIUM_THRESHOLD = 0.70
+    DEFAULT_MIN_NAME_SIM = 0.70
 
     def __init__(self, conn, run_id: str, source_system: str,
                  dry_run: bool = False, skip_fuzzy: bool = False):
@@ -68,6 +70,7 @@ class DeterministicMatcher:
             "collisions_resolved": 0,
             "collisions_ambiguous": 0,
         }
+        self.min_name_similarity = self._load_min_name_similarity()
         self._log_buffer = []
         self._indexes_loaded = False
 
@@ -76,6 +79,19 @@ class DeterministicMatcher:
         self._name_state_idx = {}       # (name_standard, STATE) -> [(eid, ename, CITY), ...]
         self._name_city_state_idx = {}  # (name_standard, CITY, STATE) -> [(eid, ename), ...]
         self._agg_state_idx = {}        # (name_aggressive, STATE) -> [(eid, ename, CITY), ...]
+
+    def _load_min_name_similarity(self) -> float:
+        """Load min Splink name similarity threshold from env with safe bounds."""
+        raw = os.getenv("MATCH_MIN_NAME_SIM")
+        if not raw:
+            return self.DEFAULT_MIN_NAME_SIM
+        try:
+            val = float(raw)
+        except ValueError:
+            return self.DEFAULT_MIN_NAME_SIM
+        if val < 0.0 or val > 1.0:
+            return self.DEFAULT_MIN_NAME_SIM
+        return val
 
     def _build_indexes(self):
         """Load F7 employers + crosswalk into in-memory lookup dicts."""
@@ -415,6 +431,14 @@ class DeterministicMatcher:
         target_id = str(top.get("id_r", ""))
         target_name = cand_names.get(target_id, "")
 
+        # Guard against geography-dominated false positives: require minimum
+        # name similarity even in collision disambiguation mode.
+        from rapidfuzz import fuzz as _rf_fuzz
+        target_name_norm = normalize_name_standard(target_name)
+        name_similarity = _rf_fuzz.token_sort_ratio(name_std, target_name_norm) / 100.0
+        if name_similarity < self.min_name_similarity:
+            return None
+
         self.stats["collisions_resolved"] += 1
         return self._make_result(
             source_id, target_id, method + "_SPLINK_RESOLVED", "deterministic",
@@ -425,6 +449,7 @@ class DeterministicMatcher:
                 "state": state,
                 "candidates": len(candidates),
                 "match_probability": round(top_prob, 4),
+                "name_similarity": round(name_similarity, 3),
                 "resolved_by": "splink",
             }
         )
@@ -564,15 +589,13 @@ class DeterministicMatcher:
             # Filter: require minimum name similarity to prevent
             # geography-only matches (the model overweights city/zip).
             from rapidfuzz import fuzz as _rf_fuzz
-            MIN_NAME_SIM = 0.65
-
             if "name_normalized_l" in df_matches.columns and "name_normalized_r" in df_matches.columns:
                 df_matches = df_matches[
                     df_matches.apply(
                         lambda r: _rf_fuzz.token_sort_ratio(
                             str(r.get("name_normalized_l", "")),
                             str(r.get("name_normalized_r", "")),
-                        ) / 100.0 >= MIN_NAME_SIM,
+                        ) / 100.0 >= self.min_name_similarity,
                         axis=1,
                     )
                 ]
@@ -744,13 +767,14 @@ class DeterministicMatcher:
 
     def _make_result(self, source_id, target_id, method, tier, band, score, evidence):
         """Create result dict and queue for unified_match_log."""
+        normalized_score = self._normalize_confidence_score(score)
         result = {
             "source_id": str(source_id),
             "target_id": str(target_id),
             "method": method,
             "tier": tier,
             "band": band,
-            "score": round(score, 3),
+            "score": round(normalized_score, 3),
             "evidence": evidence,
         }
 
@@ -760,7 +784,7 @@ class DeterministicMatcher:
         self._log_buffer.append((
             self.run_id, self.source_system, str(source_id),
             "f7", str(target_id),
-            method, tier, band, score,
+            method, tier, band, normalized_score,
             json.dumps(evidence), status,
         ))
 
@@ -769,6 +793,18 @@ class DeterministicMatcher:
             self._flush_log()
 
         return result
+
+    def _normalize_confidence_score(self, score: float) -> float:
+        """
+        Normalize confidence scores to 0.0-1.0.
+
+        NLRB historical runs wrote 0-100 integers (e.g., 90, 98). Normalize
+        those to decimals to keep cross-source confidence semantics consistent.
+        """
+        score_val = float(score)
+        if self.source_system == "nlrb" and score_val > 1.0:
+            score_val = score_val / 100.0
+        return score_val
 
     def _flush_log(self):
         """Write buffered matches to unified_match_log."""
@@ -806,4 +842,3 @@ class DeterministicMatcher:
             for method, count in sorted(self.stats["by_method"].items(),
                                         key=lambda x: -x[1]):
                 print(f"    {method:40s} {count:>8,}")
-

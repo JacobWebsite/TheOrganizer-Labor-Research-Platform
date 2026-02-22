@@ -6,8 +6,8 @@
 let scorecardResults = [];
 let selectedScorecardItem = null;
 
-// Current data source mode
-let scorecardDataSource = 'osha';
+// Current data source mode (single frontend scorecard)
+let scorecardDataSource = 'unified';
 let currentSectorCities = [];
 let scorecardOffset = 0;
 let scorecardPageSize = 50;
@@ -92,37 +92,30 @@ const UNION_PRESETS = {
 };
 
 function loadUnionPreset(presetKey) {
-    if (!presetKey || !UNION_PRESETS[presetKey]) {
-        // Reset to default (unified is first option)
-        document.getElementById('scorecardDataSource').value = 'unified';
-        updateScorecardFilters();
-        return;
-    }
-
-    const preset = UNION_PRESETS[presetKey];
-
-    // Set data source to first sector in preset
-    document.getElementById('scorecardDataSource').value = 'sector:' + preset.sectors[0];
-
-    // Update filters
+    // Presets now only provide organizer context; scoring remains unified.
+    document.getElementById('scorecardDataSource').value = 'unified';
     updateScorecardFilters();
 
-    // Show info about the preset
     const statsEl = document.getElementById('sectorStatsDisplay');
+    if (!presetKey || !UNION_PRESETS[presetKey]) {
+        statsEl.classList.add('hidden');
+        return;
+    }
+    const preset = UNION_PRESETS[presetKey];
     statsEl.classList.remove('hidden');
     statsEl.innerHTML = `
         <div class="font-semibold text-blue-700">${preset.name}</div>
         <div class="text-xs text-warmgray-500">${preset.description}</div>
-        <div class="text-xs mt-1">Sectors: ${preset.sectors.map(s => s.replace(/_/g, ' ')).join(', ')}</div>
+        <div class="text-xs mt-1">Unified scorecard is active for all sectors.</div>
     `;
-
-    // Load results for first sector
     loadScorecardResults();
 }
 
 async function updateScorecardFilters() {
-    const dataSource = document.getElementById('scorecardDataSource').value;
-    const isOsha = dataSource === 'osha';
+    const dsEl = document.getElementById('scorecardDataSource');
+    dsEl.value = 'unified';
+    const dataSource = dsEl.value;
+    const isOsha = false;
     const isSector = dataSource.startsWith('sector:');
     const isUnified = dataSource === 'unified';
 
@@ -242,7 +235,7 @@ async function updateScorecardFilters() {
 }
 
 async function loadScorecardResults() {
-    const dataSource = document.getElementById('scorecardDataSource').value;
+    const dataSource = 'unified';
     scorecardOffset = 0;
     selectedScorecardItem = null;
 
@@ -251,13 +244,7 @@ async function loadScorecardResults() {
     document.getElementById('scorecardContent').classList.add('hidden');
 
     try {
-        if (dataSource === 'unified') {
-            await loadUnifiedResults();
-        } else if (dataSource.startsWith('sector:')) {
-            await loadSectorResults(dataSource.replace('sector:', ''));
-        } else {
-            await loadOshaResults();
-        }
+        await loadUnifiedResults();
     } catch (e) {
         console.error('Scorecard failed:', e);
         document.getElementById('scorecardResultsInfo').textContent = 'Error loading results. Check that the API is running.';
@@ -594,7 +581,7 @@ async function selectScorecardItem(estabId, source = 'osha') {
 function updateScorecardLoadMoreButton() {
     const btn = document.getElementById('scorecardLoadMoreBtn');
     if (!btn) return;
-    const canLoadMore = scorecardHasMore && (scorecardDataSource === 'osha' || scorecardDataSource === 'unified');
+    const canLoadMore = scorecardHasMore && scorecardDataSource === 'unified';
     btn.classList.toggle('hidden', !canLoadMore);
 }
 
@@ -603,8 +590,6 @@ async function loadMoreScorecardResults() {
     scorecardOffset += scorecardPageSize;
     if (scorecardDataSource === 'unified') {
         await loadUnifiedResults();
-    } else if (scorecardDataSource === 'osha') {
-        await loadOshaResults();
     }
 }
 

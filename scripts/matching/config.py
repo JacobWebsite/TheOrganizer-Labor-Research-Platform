@@ -40,7 +40,7 @@ class MatchConfig:
     output_cols: List[str] = field(default_factory=list)
 
     # Tier thresholds (override defaults)
-    fuzzy_threshold: float = 0.65
+    fuzzy_threshold: float = 0.70
 
     # Filter conditions
     source_filter: Optional[str] = None
@@ -75,7 +75,7 @@ CONFIDENCE_LEVELS = {
 }
 
 # Default fuzzy threshold
-DEFAULT_FUZZY_THRESHOLD = 0.65
+DEFAULT_FUZZY_THRESHOLD = 0.70
 
 
 # ============================================================================

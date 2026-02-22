@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:17
+    container_name: labor_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-olms_multiyear}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-olms_multiyear}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: labor_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-olms_multiyear}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      LABOR_JWT_SECRET: ${LABOR_JWT_SECRET:-dev-only-change-me}
+      DISABLE_AUTH: ${DISABLE_AUTH:-true}
+    ports:
+      - "8001:8001"
+
+  frontend:
+    image: nginx:alpine
+    container_name: labor_frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    volumes:
+      - ./files:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  postgres_data:
+
+# For production:
+# - Remove DB port exposure if using a private network only.
+# - Set strong secrets via environment or secret manager.
+# - Set DISABLE_AUTH=false.
+# - Add TLS termination (reverse proxy / ingress) and backups for postgres_data.

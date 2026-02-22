@@ -4,6 +4,55 @@ from ..database import get_db
 
 router = APIRouter()
 
+ORGANIZING_DISBURSEMENT_FIELDS = ("representational", "strike_benefits")
+TREND_THRESHOLD_PCT = 2.0
+
+
+def _compute_trend_from_points(points: List[dict]) -> str:
+    """Classify trend from earliest/latest values in a year-series."""
+    if len(points) < 2:
+        return "stable"
+
+    ordered = sorted(points, key=lambda p: p["year"])
+    first = ordered[0]["members"]
+    last = ordered[-1]["members"]
+
+    if first is None or last is None or first <= 0:
+        return "stable"
+
+    pct_change = ((last - first) / first) * 100.0
+    if pct_change > TREND_THRESHOLD_PCT:
+        return "growing"
+    if pct_change < -TREND_THRESHOLD_PCT:
+        return "declining"
+    return "stable"
+
+
+def _get_membership_points(cur, file_number: str, years: int = 10) -> List[dict]:
+    cur.execute(
+        """
+        WITH yearly AS (
+            SELECT
+                lm.yr_covered AS year,
+                SUM(CASE WHEN am.voting_eligibility = 'T' THEN COALESCE(am.number, 0) ELSE 0 END) AS members
+            FROM ar_membership am
+            JOIN lm_data lm ON lm.rpt_id = am.rpt_id
+            WHERE lm.f_num = %s
+            GROUP BY lm.yr_covered
+        )
+        SELECT year, members
+        FROM yearly
+        ORDER BY year DESC
+        LIMIT %s
+        """,
+        [file_number, years],
+    )
+    rows = cur.fetchall()
+    return [
+        {"year": row["year"], "members": int(row["members"] or 0)}
+        for row in sorted(rows, key=lambda r: r["year"])
+    ]
+
 
 @router.get("/api/unions/cities")
 def get_union_cities(
@@ -247,6 +296,127 @@ def get_national_union_detail(aff_abbr: str):
             }
 
 
+@router.get("/api/unions/{file_number}/organizing-capacity")
+def get_union_organizing_capacity(file_number: str):
+    """Return latest organizing-spend share and recent membership trend for a union."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT f_num, union_name FROM unions_master WHERE f_num = %s",
+                [file_number],
+            )
+            union = cur.fetchone()
+            if not union:
+                raise HTTPException(status_code=404, detail="Union not found")
+
+            cur.execute(
+                """
+                WITH latest_year AS (
+                    SELECT MAX(lm.yr_covered) AS reporting_year
+                    FROM ar_disbursements_total adt
+                    JOIN lm_data lm ON lm.rpt_id = adt.rpt_id
+                    WHERE lm.f_num = %s
+                )
+                SELECT
+                    ly.reporting_year,
+                    SUM(
+                        COALESCE(adt.representational, 0) +
+                        COALESCE(adt.political, 0) +
+                        COALESCE(adt.contributions, 0) +
+                        COALESCE(adt.general_overhead, 0) +
+                        COALESCE(adt.union_administration, 0) +
+                        COALESCE(adt.withheld, 0) +
+                        COALESCE(adt.members, 0) +
+                        COALESCE(adt.supplies, 0) +
+                        COALESCE(adt.fees, 0) +
+                        COALESCE(adt.administration, 0) +
+                        COALESCE(adt.direct_taxes, 0) +
+                        COALESCE(adt.strike_benefits, 0) +
+                        COALESCE(adt.per_capita_tax, 0) +
+                        COALESCE(adt.to_officers, 0) +
+                        COALESCE(adt.investments, 0) +
+                        COALESCE(adt.benefits, 0) +
+                        COALESCE(adt.loans_made, 0) +
+                        COALESCE(adt.loans_payment, 0) +
+                        COALESCE(adt.affiliates, 0) +
+                        COALESCE(adt.other_disbursements, 0) +
+                        COALESCE(adt.to_employees, 0)
+                    ) AS total_disbursements,
+                    SUM(COALESCE(adt.representational, 0) + COALESCE(adt.strike_benefits, 0)) AS organizing_disbursements
+                FROM latest_year ly
+                LEFT JOIN lm_data lm
+                    ON lm.f_num = %s
+                   AND lm.yr_covered = ly.reporting_year
+                LEFT JOIN ar_disbursements_total adt
+                    ON adt.rpt_id = lm.rpt_id
+                GROUP BY ly.reporting_year
+                """,
+                [file_number, file_number],
+            )
+            spend_row = cur.fetchone() or {}
+
+            trend_points = _get_membership_points(cur, file_number, years=3)
+            membership_trend = _compute_trend_from_points(trend_points)
+
+            total_disbursements = spend_row.get("total_disbursements")
+            organizing_disbursements = spend_row.get("organizing_disbursements")
+            organizing_spend_pct = None
+            if total_disbursements and float(total_disbursements) > 0:
+                organizing_spend_pct = round(
+                    (float(organizing_disbursements or 0) / float(total_disbursements)) * 100.0, 2
+                )
+
+            return {
+                "file_number": file_number,
+                "union_name": union["union_name"],
+                "reporting_year": spend_row.get("reporting_year"),
+                "organizing_categories": list(ORGANIZING_DISBURSEMENT_FIELDS),
+                "organizing_spend_pct": organizing_spend_pct,
+                "total_disbursements": float(total_disbursements) if total_disbursements is not None else None,
+                "organizing_disbursements": float(organizing_disbursements) if organizing_disbursements is not None else None,
+                "membership_trend": membership_trend,
+            }
+
+
+@router.get("/api/unions/{file_number}/membership-history")
+def get_union_membership_history(file_number: str):
+    """Return last 10 years of membership and trend metrics for a union."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT f_num, union_name FROM unions_master WHERE f_num = %s",
+                [file_number],
+            )
+            union = cur.fetchone()
+            if not union:
+                raise HTTPException(status_code=404, detail="Union not found")
+
+            history = _get_membership_points(cur, file_number, years=10)
+
+            trend = _compute_trend_from_points(history)
+            change_pct = None
+            peak_year = None
+            peak_members = None
+
+            if history:
+                peak = max(history, key=lambda p: p["members"])
+                peak_year = peak["year"]
+                peak_members = peak["members"]
+
+            if len(history) >= 2 and history[0]["members"] > 0:
+                change_pct = round(((history[-1]["members"] - history[0]["members"]) / history[0]["members"]) * 100.0, 2)
+
+            return {
+                "file_number": file_number,
+                "union_name": union["union_name"],
+                "history": history,
+                "trend": trend,
+                "change_pct": change_pct,
+                "peak_year": peak_year,
+                "peak_members": peak_members,
+            }
+
+
 @router.get("/api/unions/{f_num}")
 def get_union_detail(f_num: str, consolidated: bool = True):
     """Get full union details including NLRB history.
@@ -301,10 +471,68 @@ def get_union_detail(f_num: str, consolidated: bool = True):
             """, [f_num])
             elections = cur.fetchall()
 
+            # Financial trends (used by profile charts)
+            cur.execute("""
+                SELECT lm.yr_covered,
+                       SUM(am.number) FILTER (WHERE am.voting_eligibility = 'T') AS members,
+                       SUM(COALESCE(lm.ttl_assets, 0)) AS total_assets,
+                       SUM(COALESCE(lm.ttl_receipts, 0)) AS total_receipts
+                FROM lm_data lm
+                LEFT JOIN ar_membership am ON am.rpt_id = lm.rpt_id
+                WHERE lm.f_num = %s
+                GROUP BY lm.yr_covered
+                ORDER BY lm.yr_covered DESC
+                LIMIT 10
+            """, [f_num])
+            financial_trends = cur.fetchall()
+
+            # Industry distribution based on covered workers.
+            cur.execute("""
+                SELECT LEFT(e.naics, 2) AS naics_2digit,
+                       COALESCE(ns.sector_name, 'NAICS ' || LEFT(e.naics, 2)) AS sector_name,
+                       SUM(COALESCE(e.latest_unit_size, 0)) AS workers
+                FROM f7_employers_deduped e
+                LEFT JOIN naics_sectors ns ON LEFT(e.naics, 2) = ns.naics_2digit
+                WHERE e.latest_union_fnum = %s
+                  AND e.naics IS NOT NULL
+                GROUP BY LEFT(e.naics, 2), COALESCE(ns.sector_name, 'NAICS ' || LEFT(e.naics, 2))
+                ORDER BY SUM(COALESCE(e.latest_unit_size, 0)) DESC
+                LIMIT 10
+            """, [f_num])
+            industry_distribution = cur.fetchall()
+
+            # Sister locals for same affiliation.
+            sister_locals = []
+            if union.get("aff_abbr"):
+                cur.execute("""
+                    SELECT f_num, union_name, local_number, desig_name, city, state,
+                           members, f7_employer_count AS employer_count
+                    FROM unions_master
+                    WHERE aff_abbr = %s AND f_num <> %s
+                    ORDER BY members DESC NULLS LAST
+                    LIMIT 20
+                """, [union["aff_abbr"], f_num])
+                sister_locals = cur.fetchall()
+
+            # Geographic distribution by state for covered workers.
+            cur.execute("""
+                SELECT state, SUM(COALESCE(latest_unit_size, 0)) AS workers
+                FROM f7_employers_deduped
+                WHERE latest_union_fnum = %s AND state IS NOT NULL
+                GROUP BY state
+                ORDER BY SUM(COALESCE(latest_unit_size, 0)) DESC
+                LIMIT 15
+            """, [f_num])
+            geo_distribution = cur.fetchall()
+
             return {
                 "union": union,
                 "top_employers": employers,
                 "nlrb_elections": elections,
+                "financial_trends": financial_trends,
+                "industry_distribution": industry_distribution,
+                "sister_locals": sister_locals,
+                "geo_distribution": geo_distribution,
                 "nlrb_summary": {
                     "total_elections": len(elections),
                     "wins": sum(1 for e in elections if e['union_won']),

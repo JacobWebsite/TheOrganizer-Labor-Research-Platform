@@ -1,0 +1,115 @@
+{
+  "source": "sec",
+  "total_records": 517403,
+  "total_batches": 5,
+  "started_at": "2026-02-19T09:48:54.110662",
+  "batches": {
+    "1": {
+      "run_id": "det-sec-20260219-084641-b1of5",
+      "completed_at": "2026-02-19T09:48:54.110716",
+      "records_in_batch": 103480,
+      "matched": 19167,
+      "match_rate_pct": 18.52,
+      "by_band": {
+        "HIGH": 1200,
+        "MEDIUM": 324,
+        "LOW": 17643
+      },
+      "by_method": {
+        "EIN_EXACT": 592,
+        "NAME_AGGRESSIVE_STATE": 100,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 24,
+        "AMBIGUOUS_NAME_STATE_EXACT": 7,
+        "NAME_STATE_EXACT": 22,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 3,
+        "FUZZY_SPLINK_ADAPTIVE": 568,
+        "FUZZY_TRIGRAM": 17851
+      }
+    },
+    "2": {
+      "run_id": "det-sec-20260219-094928-b2of5",
+      "completed_at": "2026-02-19T10:45:46.950234",
+      "records_in_batch": 103480,
+      "matched": 15228,
+      "match_rate_pct": 14.72,
+      "by_band": {
+        "HIGH": 572,
+        "MEDIUM": 179,
+        "LOW": 14477
+      },
+      "by_method": {
+        "EIN_EXACT": 246,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 17,
+        "NAME_AGGRESSIVE_STATE": 40,
+        "AMBIGUOUS_NAME_STATE_EXACT": 4,
+        "NAME_STATE_EXACT": 8,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 2,
+        "FUZZY_SPLINK_ADAPTIVE": 312,
+        "FUZZY_TRIGRAM": 14599
+      }
+    },
+    "3": {
+      "run_id": "det-sec-20260219-105354-b3of5",
+      "completed_at": "2026-02-19T12:10:21.556481",
+      "records_in_batch": 103480,
+      "matched": 11738,
+      "match_rate_pct": 11.34,
+      "by_band": {
+        "HIGH": 397,
+        "MEDIUM": 71,
+        "LOW": 11270
+      },
+      "by_method": {
+        "EIN_EXACT": 148,
+        "NAME_STATE_EXACT": 6,
+        "NAME_AGGRESSIVE_STATE": 25,
+        "AMBIGUOUS_NAME_STATE_EXACT": 1,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 6,
+        "FUZZY_SPLINK_ADAPTIVE": 242,
+        "FUZZY_TRIGRAM": 11310
+      }
+    },
+    "4": {
+      "run_id": "det-sec-20260219-120530-b4of5",
+      "completed_at": "2026-02-19T13:19:58.097131",
+      "records_in_batch": 103480,
+      "matched": 8127,
+      "match_rate_pct": 7.85,
+      "by_band": {
+        "HIGH": 187,
+        "MEDIUM": 35,
+        "LOW": 7905
+      },
+      "by_method": {
+        "NAME_STATE_EXACT": 2,
+        "EIN_EXACT": 49,
+        "AMBIGUOUS_NAME_STATE_EXACT": 2,
+        "NAME_AGGRESSIVE_STATE": 6,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 3,
+        "FUZZY_SPLINK_ADAPTIVE": 134,
+        "FUZZY_TRIGRAM": 7931
+      }
+    },
+    "5": {
+      "run_id": "det-sec-20260219-132627-b5of5",
+      "completed_at": "2026-02-19T14:49:40.791024",
+      "records_in_batch": 103483,
+      "matched": 11953,
+      "match_rate_pct": 11.55,
+      "by_band": {
+        "HIGH": 924,
+        "MEDIUM": 130,
+        "LOW": 10899
+      },
+      "by_method": {
+        "EIN_EXACT": 537,
+        "NAME_STATE_EXACT": 16,
+        "AMBIGUOUS_NAME_STATE_EXACT": 2,
+        "NAME_AGGRESSIVE_STATE": 23,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 4,
+        "FUZZY_SPLINK_ADAPTIVE": 359,
+        "FUZZY_TRIGRAM": 11012
+      }
+    }
+  }
+}

@@ -48,7 +48,7 @@ async function loadUnifiedEmployers() {
     if (hasUnion) params.append('has_union', hasUnion);
     if (hasOsha) params.append('has_osha', hasOsha);
 
-    const url = `${API_BASE}/employers/unified/search?${params}`;
+    const url = `${API_BASE}/employers/unified-search?${params}`;
     console.log('Fetching:', url);
 
     try {
@@ -82,8 +82,8 @@ function renderUnifiedResults(data) {
     }
 
     resultsEl.innerHTML = employers.map(item => `
-        <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedUnifiedItem?.unified_id === item.unified_id ? 'bg-purple-50 border-l-4 border-purple-500' : ''}"
-             onclick="selectUnifiedItem('${item.unified_id}')">
+        <div class="p-4 cursor-pointer hover:bg-warmgray-50 transition-colors ${selectedUnifiedItem?.canonical_id === item.canonical_id ? 'bg-purple-50 border-l-4 border-purple-500' : ''}"
+             onclick="selectUnifiedItem('${item.canonical_id}')">
             <div class="flex justify-between items-start mb-1">
                 <div class="font-semibold text-warmgray-900 truncate flex-1">${escapeHtml(item.employer_name || 'Unknown')}</div>
                 ${getSourceBadge(item.source_type)}
@@ -102,15 +102,15 @@ function renderUnifiedResults(data) {
 
 // getSourceBadge() defined in utils.js
 
-async function selectUnifiedItem(unifiedId) {
-    selectedUnifiedItem = unifiedEmployersResults.find(r => r.unified_id == unifiedId);
+async function selectUnifiedItem(canonicalId) {
+    selectedUnifiedItem = unifiedEmployersResults.find(r => String(r.canonical_id) === String(canonicalId));
     renderUnifiedResults({ employers: unifiedEmployersResults, total: unifiedEmployersResults.length });
 
     document.getElementById('unifiedDetailEmpty').classList.add('hidden');
     document.getElementById('unifiedDetail').classList.remove('hidden');
 
     try {
-        const response = await fetch(`${API_BASE}/employers/unified/${unifiedId}`);
+        const response = await fetch(`${API_BASE}/profile/employers/${encodeURIComponent(canonicalId)}`);
         if (!response.ok) throw new Error('API error');
 
         const detail = await response.json();
@@ -123,6 +123,34 @@ async function selectUnifiedItem(unifiedId) {
 
 function renderUnifiedDetail(detail) {
     const el = document.getElementById('unifiedDetail');
+    if (detail && detail.employer) {
+        const e = detail.employer;
+        const us = detail.unified_scorecard || {};
+        const summary = detail.osha?.summary || {};
+        const badges = [
+            us.has_osha ? '<span class="badge bg-red-50 text-red-600">OSHA</span>' : '',
+            us.has_nlrb ? '<span class="badge bg-green-50 text-green-600">NLRB</span>' : '',
+            us.has_whd ? '<span class="badge bg-pink-50 text-pink-600">WHD</span>' : '',
+        ].filter(Boolean).join(' ');
+        el.innerHTML = `
+            <div class="mb-6">
+                <h3 class="text-xl font-bold text-warmgray-900">${escapeHtml(e.employer_name || 'Unknown')}</h3>
+                <p class="text-warmgray-500">${escapeHtml(e.city || '')}, ${escapeHtml(e.state || '')}</p>
+                <div class="flex gap-2 mt-2 flex-wrap">
+                    ${getSourceBadge(e.source_type || 'F7')}
+                    ${us.unified_score != null ? `<span class="badge badge-industry">Unified ${Number(us.unified_score).toFixed(1)}/10</span>` : ''}
+                    ${badges}
+                </div>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div><span class="text-warmgray-500">Workers:</span> ${formatNumber(e.latest_unit_size || 0)}</div>
+                <div><span class="text-warmgray-500">Union:</span> ${escapeHtml(e.latest_union_name || 'N/A')}</div>
+                <div><span class="text-warmgray-500">OSHA Violations:</span> ${formatNumber(summary.total_violations || 0)}</div>
+                <div><span class="text-warmgray-500">OSHA Penalties:</span> $${formatNumber(Math.round(summary.total_penalties || 0))}</div>
+            </div>
+        `;
+        return;
+    }
     const oshaMatches = detail.osha_matches || [];
     const sourceTypeRaw = String(detail.source_type || '');
     const sourceBadge = getSourceBadge(sourceTypeRaw);

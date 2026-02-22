@@ -1,126 +1,168 @@
 """
-Generate a database inventory report for PROJECT_STATE.md.
+Generate a database inventory report for PROJECT_STATE.md Section 2.
 
 Usage:
     py scripts/maintenance/generate_db_inventory.py
-    py scripts/maintenance/generate_db_inventory.py --markdown  # output as markdown
 
-Outputs table counts, row counts, view counts, MV counts, and database size.
+The script prints markdown suitable for direct paste into PROJECT_STATE.md
+Section 2 and also writes the same markdown to docs/db_inventory_latest.md.
 """
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from db_config import get_connection
+import os
+import sys
 from datetime import datetime
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from db_config import get_connection
 
-def generate_inventory(markdown=False):
+
+OUTPUT_PATH = os.path.join('docs', 'db_inventory_latest.md')
+
+
+def _pretty_ts(ts):
+    if ts is None:
+        return 'N/A'
+    return ts.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def generate_markdown() -> str:
     conn = get_connection()
     cur = conn.cursor()
 
-    # Database size
-    cur.execute("SELECT pg_size_pretty(pg_database_size(current_database()))")
-    db_size = cur.fetchone()[0]
+    try:
+        cur.execute('SELECT pg_size_pretty(pg_database_size(current_database()))')
+        db_size = cur.fetchone()[0]
 
-    # Table count and row estimates (pg_stat_user_tables is fast)
-    cur.execute("""
-        SELECT schemaname, relname, n_live_tup
-        FROM pg_stat_user_tables
-        WHERE schemaname = 'public'
-        ORDER BY n_live_tup DESC
-    """)
-    tables = cur.fetchall()
+        cur.execute(
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE c.relkind = 'r') AS table_count,
+                COUNT(*) FILTER (WHERE c.relkind = 'v') AS view_count,
+                (SELECT COUNT(*) FROM pg_matviews WHERE schemaname = 'public') AS matview_count
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+            """
+        )
+        table_count, view_count, matview_count = cur.fetchone()
 
-    # View count
-    cur.execute("""
-        SELECT count(*) FROM information_schema.views
-        WHERE table_schema = 'public'
-    """)
-    view_count = cur.fetchone()[0]
+        cur.execute(
+            """
+            SELECT
+                COUNT(*) AS index_count,
+                pg_size_pretty(COALESCE(SUM(pg_relation_size(c.oid)), 0)) AS total_index_size
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relkind = 'i'
+            """
+        )
+        index_count, total_index_size = cur.fetchone()
 
-    # Materialized views with row counts
-    cur.execute("""
-        SELECT c.relname, c.reltuples::bigint
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relkind = 'm' AND n.nspname = 'public'
-        ORDER BY c.reltuples DESC
-    """)
-    mvs = cur.fetchall()
+        cur.execute(
+            """
+            WITH table_stats AS (
+                SELECT
+                    c.relname,
+                    COALESCE(NULLIF(st.n_live_tup, 0), c.reltuples)::bigint AS estimated_rows,
+                    st.last_analyze,
+                    st.last_autoanalyze
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                LEFT JOIN pg_stat_user_tables st ON st.relid = c.oid
+                WHERE n.nspname = 'public' AND c.relkind = 'r'
+            )
+            SELECT relname, estimated_rows
+            FROM table_stats
+            ORDER BY estimated_rows DESC, relname
+            LIMIT 30
+            """
+        )
+        top_tables = cur.fetchall()
 
-    # Index count and size
-    cur.execute("""
-        SELECT count(*),
-               pg_size_pretty(sum(pg_relation_size(indexrelid)))
-        FROM pg_stat_user_indexes
-        WHERE schemaname = 'public'
-    """)
-    idx_count, idx_size = cur.fetchone()
+        cur.execute(
+            """
+            WITH table_stats AS (
+                SELECT
+                    COALESCE(NULLIF(st.n_live_tup, 0), c.reltuples)::bigint AS estimated_rows,
+                    st.last_analyze,
+                    st.last_autoanalyze
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                LEFT JOIN pg_stat_user_tables st ON st.relid = c.oid
+                WHERE n.nspname = 'public' AND c.relkind = 'r'
+            )
+            SELECT
+                COALESCE(SUM(estimated_rows), 0)::bigint AS total_est_rows,
+                COUNT(*) FILTER (WHERE estimated_rows = 0) AS empty_table_count,
+                MAX(last_analyze) AS latest_manual_analyze,
+                MAX(last_autoanalyze) AS latest_auto_analyze
+            FROM table_stats
+            """
+        )
+        total_est_rows, empty_table_count, latest_manual_analyze, latest_auto_analyze = cur.fetchone()
 
-    cur.close()
-    conn.close()
+        cur.execute(
+            """
+            SELECT matviewname
+            FROM pg_matviews
+            WHERE schemaname = 'public'
+            ORDER BY matviewname
+            """
+        )
+        matview_names = [row[0] for row in cur.fetchall()]
 
-    total_rows = sum(r[2] for r in tables)
-    table_count = len(tables)
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+        matview_rows = []
+        for name in matview_names:
+            cur.execute(f'SELECT COUNT(*) FROM public."{name}"')
+            matview_rows.append((name, cur.fetchone()[0]))
 
-    if markdown:
-        lines = []
-        lines.append(f"*Auto-generated by `scripts/maintenance/generate_db_inventory.py` on {now}. Re-run to refresh.*\n")
-        lines.append(f"| Metric | Value |")
-        lines.append(f"|--------|-------|")
-        lines.append(f"| Database size | {db_size} |")
-        lines.append(f"| Tables | {table_count} |")
-        lines.append(f"| Views | {view_count} |")
-        lines.append(f"| Materialized views | {len(mvs)} |")
-        lines.append(f"| Indexes | {idx_count} (total size: {idx_size}) |")
-        lines.append(f"| Estimated total rows | {total_rows:,} |")
-        lines.append("")
+    finally:
+        cur.close()
+        conn.close()
 
-        # Materialized views detail
-        lines.append("**Materialized Views:**\n")
-        lines.append("| View | Rows |")
-        lines.append("|------|------|")
-        for name, rows in mvs:
-            lines.append(f"| `{name}` | {rows:,} |")
-        lines.append("")
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    lines = []
+    lines.append(f"*Auto-generated by `scripts/maintenance/generate_db_inventory.py` on {now}. Re-run to refresh.*")
+    lines.append('')
+    lines.append('| Metric | Value |')
+    lines.append('|--------|-------|')
+    lines.append(f'| Database size | {db_size} |')
+    lines.append(f'| Tables | {table_count:,} |')
+    lines.append(f'| Views | {view_count:,} |')
+    lines.append(f'| Materialized views | {matview_count:,} |')
+    lines.append(f'| Indexes | {index_count:,} |')
+    lines.append(f'| Total index size | {total_index_size} |')
+    lines.append(f'| Estimated total rows across all tables | {total_est_rows:,} |')
+    lines.append(f'| Empty tables | {empty_table_count:,} |')
+    lines.append(f'| Last ANALYZE (manual) | {_pretty_ts(latest_manual_analyze)} |')
+    lines.append(f'| Last ANALYZE (auto) | {_pretty_ts(latest_auto_analyze)} |')
+    lines.append('')
 
-        # Top 30 tables by row count
-        lines.append("**Top 30 Tables by Row Count:**\n")
-        lines.append("| Table | Rows |")
-        lines.append("|-------|------|")
-        for schema, name, rows in tables[:30]:
-            lines.append(f"| `{name}` | {rows:,} |")
-        lines.append("")
+    lines.append('**Materialized Views:**')
+    lines.append('')
+    lines.append('| View | Rows |')
+    lines.append('|------|------|')
+    for name, rows in matview_rows:
+        lines.append(f'| `{name}` | {rows:,} |')
+    lines.append('')
 
-        # All tables summary (collapsed)
-        lines.append(f"*{table_count} tables total. {sum(1 for _, _, r in tables if r == 0)} empty tables.*")
+    lines.append('**Top 30 Tables by Estimated Row Count:**')
+    lines.append('')
+    lines.append('| Table | Rows |')
+    lines.append('|-------|------|')
+    for name, rows in top_tables:
+        lines.append(f'| `{name}` | {rows:,} |')
 
-        print("\n".join(lines))
-    else:
-        print(f"Database Inventory — {now}")
-        print(f"{'='*50}")
-        print(f"  Database size:       {db_size}")
-        print(f"  Tables:              {table_count}")
-        print(f"  Views:               {view_count}")
-        print(f"  Materialized views:  {len(mvs)}")
-        print(f"  Indexes:             {idx_count} (total size: {idx_size})")
-        print(f"  Estimated rows:      {total_rows:,}")
-        print()
+    return '\n'.join(lines) + '\n'
 
-        print("Materialized Views:")
-        for name, rows in mvs:
-            print(f"  {name}: {rows:,}")
-        print()
 
-        print("Top 30 Tables by Row Count:")
-        for schema, name, rows in tables[:30]:
-            print(f"  {name}: {rows:,}")
-        print()
-        print(f"{table_count} tables total. {sum(1 for _, _, r in tables if r == 0)} empty.")
+def main() -> None:
+    markdown = generate_markdown()
+    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+    with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
+        f.write(markdown)
+    print(markdown)
 
 
 if __name__ == '__main__':
-    md = '--markdown' in sys.argv
-    generate_inventory(markdown=md)
+    main()

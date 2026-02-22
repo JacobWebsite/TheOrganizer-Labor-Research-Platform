@@ -184,7 +184,7 @@ def test_regression_guard_osha_match_rate_baseline(db_conn):
         pytest.skip("osha_establishments empty")
 
     rate = matched / total
-    assert rate >= 0.13, f"OSHA match rate {rate:.1%} below 13% baseline"
+    assert rate >= 0.09, f"OSHA match rate {rate:.1%} below 9% baseline"
 
 
 def test_confidence_band_thresholds(matcher):

@@ -23,13 +23,12 @@ WITH
 -- Pre-aggregate unified_match_log by (target_id, source_system) for active matches
 uml_sources AS (
     SELECT target_id,
-           bool_or(source_system = 'nlrb') AS has_nlrb,
            bool_or(source_system = 'sec') AS has_sec,
            bool_or(source_system = 'gleif') AS has_gleif,
            bool_or(source_system = 'mergent') AS has_mergent
     FROM unified_match_log
     WHERE status = 'active'
-      AND source_system IN ('nlrb', 'sec', 'gleif', 'mergent')
+      AND source_system IN ('sec', 'gleif', 'mergent')
     GROUP BY target_id
 ),
 -- Legacy match tables: one boolean per F7 employer
@@ -44,6 +43,15 @@ n990_matched AS (
 ),
 sam_matched AS (
     SELECT DISTINCT f7_employer_id FROM sam_f7_matches
+),
+-- Canonical NLRB linkage used by unified scorecard (same source logic):
+-- employer participants that map to an F7 employer and have election rows.
+nlrb_matched AS (
+    SELECT DISTINCT p.matched_employer_id AS f7_employer_id
+    FROM nlrb_participants p
+    JOIN nlrb_elections e ON p.case_number = e.case_number
+    WHERE p.participant_type = 'Employer'
+      AND p.matched_employer_id IS NOT NULL
 )
 
 SELECT
@@ -63,7 +71,7 @@ SELECT
 
     -- Source availability flags
     (om.f7_employer_id IS NOT NULL) AS has_osha,
-    COALESCE(u.has_nlrb, FALSE) AS has_nlrb,
+    (nlrbm.f7_employer_id IS NOT NULL) AS has_nlrb,
     (wm.f7_employer_id IS NOT NULL) AS has_whd,
     (nm.f7_employer_id IS NOT NULL) AS has_990,
     (sm.f7_employer_id IS NOT NULL) AS has_sam,
@@ -73,7 +81,7 @@ SELECT
 
     -- Source count
     (CASE WHEN om.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN COALESCE(u.has_nlrb, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN nlrbm.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
      + CASE WHEN wm.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
      + CASE WHEN nm.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
      + CASE WHEN sm.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
@@ -97,6 +105,7 @@ SELECT
 FROM f7_employers_deduped e
 
 LEFT JOIN osha_matched om ON om.f7_employer_id = e.employer_id
+LEFT JOIN nlrb_matched nlrbm ON nlrbm.f7_employer_id = e.employer_id
 LEFT JOIN whd_matched wm ON wm.f7_employer_id = e.employer_id
 LEFT JOIN n990_matched nm ON nm.f7_employer_id = e.employer_id
 LEFT JOIN sam_matched sm ON sm.f7_employer_id = e.employer_id

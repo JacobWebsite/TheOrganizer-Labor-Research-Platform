@@ -179,11 +179,8 @@ function renderUnionElections(elections, nlrb) {
 }
 
 function openUnionDive(fNum, returnTo) {
-    unionDiveReturnMode = returnTo || currentAppMode;
-    document.getElementById('unionDiveBackLabel').textContent =
-        unionDiveReturnMode === 'territory' ? 'Back to Territory' : 'Back to Search';
-    setAppMode('uniondive');
-    loadUnionDiveData(fNum);
+    // Union dive is collapsed into the unified Search detail profile.
+    openEntityProfile('union', fNum, returnTo || currentAppMode);
 }
 
 function returnFromUnionDive() {

@@ -73,7 +73,10 @@ nlrb_agg AS (
         COUNT(DISTINCT e.case_number) AS election_count,
         SUM(CASE WHEN e.union_won THEN 1 ELSE 0 END) AS win_count,
         MAX(e.election_date) AS latest_election,
-        SUM(COALESCE(e.eligible_voters, 0)) AS total_eligible
+        SUM(COALESCE(e.eligible_voters, 0)) AS total_eligible,
+        MAX(
+            exp(-LN(2)/7 * GREATEST(0, (CURRENT_DATE - COALESCE(e.election_date, CURRENT_DATE))::float / 365.25))
+        ) AS latest_decay_factor
     FROM nlrb_participants p
     JOIN nlrb_elections e ON p.case_number = e.case_number
     WHERE p.matched_employer_id IS NOT NULL
@@ -193,10 +196,11 @@ raw_scores AS (
 
         -- ============================================================
         -- Factor 2: NLRB Activity (0-10), NULL if no NLRB data
-        -- Based on election count, win rate, and recency.
+        -- 7-year half-life decay (same exponential pattern as OSHA's 10-year half-life),
+        -- with latest-election dominance via MAX-decay in nlrb_agg.
         -- ============================================================
         CASE WHEN eds.has_nlrb AND na.f7_employer_id IS NOT NULL THEN
-            LEAST(10,
+            GREATEST(1, LEAST(10, ROUND((
                 -- Base from election activity (0-7)
                 CASE
                     WHEN na.election_count >= 3 THEN 7
@@ -205,14 +209,8 @@ raw_scores AS (
                     WHEN na.election_count = 1 THEN 3
                     ELSE 1
                 END
-                +
-                -- Recency bonus: +3 if election within 3 years, +1 if within 7
-                CASE
-                    WHEN na.latest_election >= CURRENT_DATE - INTERVAL '3 years' THEN 3
-                    WHEN na.latest_election >= CURRENT_DATE - INTERVAL '7 years' THEN 1
-                    ELSE 0
-                END
-            )
+                * COALESCE(na.latest_decay_factor, 1.0)
+            )::numeric)::int))
         END AS score_nlrb,
 
         -- ============================================================
@@ -274,7 +272,7 @@ raw_scores AS (
                     WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) > 10 THEN 7
                     WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) > 5 THEN 5
                     WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) > 0 THEN 3
-                    WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) IS NOT NULL THEN 1
+                    WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) IS NOT NULL THEN 2
                     ELSE 2  -- no BLS data for this NAICS
                 END
                 +
@@ -313,6 +311,7 @@ raw_scores AS (
         na.win_count AS nlrb_win_count,
         na.latest_election AS nlrb_latest_election,
         na.total_eligible AS nlrb_total_eligible,
+        ROUND(COALESCE(na.latest_decay_factor, 1.0)::numeric, 4) AS nlrb_decay_factor,
 
         wa.case_count AS whd_case_count,
         wa.total_backwages AS whd_total_backwages,

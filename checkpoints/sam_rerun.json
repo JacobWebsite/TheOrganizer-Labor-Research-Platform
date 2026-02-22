@@ -1,0 +1,133 @@
+{
+  "source": "sam",
+  "total_records": 826042,
+  "total_batches": 5,
+  "started_at": "2026-02-20T05:08:27.989316",
+  "batches": {
+    "1": {
+      "run_id": "det-sam-20260220-040640-b1of5",
+      "completed_at": "2026-02-20T05:08:27.989505",
+      "records_in_batch": 165208,
+      "matched": 47985,
+      "match_rate_pct": 29.05,
+      "by_band": {
+        "HIGH": 4045,
+        "MEDIUM": 1972,
+        "LOW": 41968
+      },
+      "by_method": {
+        "NAME_AGGRESSIVE_STATE": 862,
+        "NAME_AGGRESSIVE_STATE_CITY_RESOLVED": 111,
+        "NAME_CITY_STATE_EXACT": 1176,
+        "NAME_STATE_EXACT": 361,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 91,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 18,
+        "AMBIGUOUS_NAME_STATE_EXACT": 101,
+        "AMBIGUOUS_NAME_CITY_STATE_EXACT": 24,
+        "NAME_STATE_EXACT_SPLINK_RESOLVED": 8,
+        "FUZZY_SPLINK_ADAPTIVE": 2703,
+        "FUZZY_TRIGRAM": 42530
+      }
+    },
+    "2": {
+      "run_id": "det-sam-20260220-050835-b2of5",
+      "completed_at": "2026-02-20T06:10:34.666027",
+      "records_in_batch": 165208,
+      "matched": 48783,
+      "match_rate_pct": 29.53,
+      "by_band": {
+        "HIGH": 4208,
+        "MEDIUM": 1942,
+        "LOW": 42633
+      },
+      "by_method": {
+        "NAME_CITY_STATE_EXACT": 1230,
+        "NAME_STATE_EXACT": 423,
+        "NAME_AGGRESSIVE_STATE": 840,
+        "AMBIGUOUS_NAME_STATE_EXACT": 87,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 107,
+        "NAME_AGGRESSIVE_STATE_CITY_RESOLVED": 103,
+        "AMBIGUOUS_NAME_CITY_STATE_EXACT": 38,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 26,
+        "NAME_STATE_EXACT_SPLINK_RESOLVED": 2,
+        "FUZZY_SPLINK_ADAPTIVE": 2771,
+        "FUZZY_TRIGRAM": 43156
+      }
+    },
+    "3": {
+      "run_id": "det-sam-20260220-061036-b3of5",
+      "completed_at": "2026-02-20T07:12:15.789695",
+      "records_in_batch": 165208,
+      "matched": 48289,
+      "match_rate_pct": 29.23,
+      "by_band": {
+        "HIGH": 4221,
+        "MEDIUM": 1930,
+        "LOW": 42138
+      },
+      "by_method": {
+        "NAME_CITY_STATE_EXACT": 1166,
+        "NAME_STATE_EXACT": 373,
+        "NAME_AGGRESSIVE_STATE": 865,
+        "AMBIGUOUS_NAME_STATE_EXACT": 122,
+        "NAME_AGGRESSIVE_STATE_CITY_RESOLVED": 95,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 27,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 97,
+        "AMBIGUOUS_NAME_CITY_STATE_EXACT": 27,
+        "NAME_STATE_EXACT_SPLINK_RESOLVED": 3,
+        "FUZZY_SPLINK_ADAPTIVE": 2867,
+        "FUZZY_TRIGRAM": 42647
+      }
+    },
+    "4": {
+      "run_id": "det-sam-20260220-071230-b4of5",
+      "completed_at": "2026-02-20T08:14:23.016628",
+      "records_in_batch": 165208,
+      "matched": 46112,
+      "match_rate_pct": 27.91,
+      "by_band": {
+        "HIGH": 3563,
+        "MEDIUM": 1647,
+        "LOW": 40902
+      },
+      "by_method": {
+        "NAME_CITY_STATE_EXACT": 922,
+        "NAME_AGGRESSIVE_STATE": 676,
+        "NAME_STATE_EXACT": 314,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 79,
+        "NAME_AGGRESSIVE_STATE_CITY_RESOLVED": 87,
+        "AMBIGUOUS_NAME_STATE_EXACT": 67,
+        "AMBIGUOUS_NAME_CITY_STATE_EXACT": 24,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 22,
+        "NAME_STATE_EXACT_SPLINK_RESOLVED": 3,
+        "FUZZY_SPLINK_ADAPTIVE": 2489,
+        "FUZZY_TRIGRAM": 41429
+      }
+    },
+    "5": {
+      "run_id": "det-sam-20260220-081436-b5of5",
+      "completed_at": "2026-02-20T09:16:27.488581",
+      "records_in_batch": 165210,
+      "matched": 46350,
+      "match_rate_pct": 28.06,
+      "by_band": {
+        "HIGH": 3669,
+        "MEDIUM": 1619,
+        "LOW": 41062
+      },
+      "by_method": {
+        "NAME_AGGRESSIVE_STATE": 662,
+        "NAME_CITY_STATE_EXACT": 962,
+        "NAME_STATE_EXACT": 323,
+        "AMBIGUOUS_NAME_STATE_EXACT": 79,
+        "NAME_AGGRESSIVE_STATE_CITY_RESOLVED": 94,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 69,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 19,
+        "AMBIGUOUS_NAME_CITY_STATE_EXACT": 31,
+        "NAME_STATE_EXACT_SPLINK_RESOLVED": 4,
+        "FUZZY_SPLINK_ADAPTIVE": 2536,
+        "FUZZY_TRIGRAM": 41571
+      }
+    }
+  }
+}

@@ -132,14 +132,18 @@ class TestMVDataIntegrity:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM mv_employer_data_sources WHERE has_nlrb")
                 mv_nlrb = cur.fetchone()[0]
+                # MV uses canonical NLRB path (nlrb_participants Employer type
+                # + nlrb_elections), NOT raw UML count. Compare against that.
                 cur.execute("""
-                    SELECT COUNT(DISTINCT target_id) FROM unified_match_log
-                    WHERE source_system = 'nlrb' AND status = 'active'
+                    SELECT COUNT(DISTINCT p.matched_employer_id)
+                    FROM nlrb_participants p
+                    JOIN nlrb_elections e ON p.case_number = e.case_number
+                    WHERE p.participant_type = 'Employer'
+                      AND p.matched_employer_id IS NOT NULL
                 """)
-                uml = cur.fetchone()[0]
-                # Allow small tolerance for orphan target_ids not in f7_employers_deduped
-                assert abs(mv_nlrb - uml) <= 5, (
-                    f"MV has_nlrb={mv_nlrb} vs unified_match_log {uml} (diff > 5)"
+                canonical = cur.fetchone()[0]
+                assert abs(mv_nlrb - canonical) <= 5, (
+                    f"MV has_nlrb={mv_nlrb} vs canonical NLRB path {canonical} (diff > 5)"
                 )
         finally:
             conn.close()

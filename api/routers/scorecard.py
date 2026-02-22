@@ -1,4 +1,3 @@
-import re
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -320,6 +319,4 @@ def get_unified_scorecard_detail(employer_id: str):
 @router.get("/api/scorecard/{estab_id}")
 def get_scorecard_item(estab_id: str):
     """Scorecard detail passthrough for compatibility with /api/scorecard namespace."""
-    if not re.fullmatch(r"\d+", estab_id or ""):
-        raise HTTPException(status_code=404, detail="Establishment not found")
     return get_scorecard_detail(estab_id)

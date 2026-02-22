@@ -8,24 +8,13 @@ This creates:
 3. Views for UI display and BLS reconciliation
 """
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from datetime import datetime
-import os
+from psycopg2.extras import RealDictCursor
+from db_config import get_connection
 
-DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'localhost'),
-    'port': int(os.environ.get('DB_PORT', '5432')),
-    'database': os.environ.get('DB_NAME', 'olms_multiyear'),
-    'user': os.environ.get('DB_USER', 'postgres'),
-    'password': os.environ.get('DB_PASSWORD', ''),
-}
-
-def get_connection():
-    return psycopg2.connect(**DB_CONFIG, cursor_factory=RealDictCursor)
 
 def run_query(conn, query, commit=False):
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute(query)
         if commit:

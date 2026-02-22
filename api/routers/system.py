@@ -65,3 +65,75 @@ def system_stats():
         ),
     }
 
+
+@router.get("/api/system/data-freshness")
+def system_data_freshness():
+    """Return data source freshness with stale (>90 day) flag."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT to_regclass('public.data_freshness') AS rel")
+            has_data_freshness = cur.fetchone()["rel"] is not None
+
+            if has_data_freshness:
+                cur.execute("""
+                    SELECT
+                        source_name,
+                        latest_record_date,
+                        table_name,
+                        row_count,
+                        last_refreshed
+                    FROM data_freshness
+                    ORDER BY source_name
+                """)
+                rows = cur.fetchall()
+            else:
+                cur.execute("""
+                    SELECT
+                        source_name,
+                        date_range_end AS latest_record_date,
+                        source_name AS table_name,
+                        record_count AS row_count,
+                        last_updated AS last_refreshed
+                    FROM data_source_freshness
+                    ORDER BY source_name
+                """)
+                rows = cur.fetchall()
+
+    now = datetime.now(timezone.utc)
+    sources = []
+    for row in rows:
+        last_refreshed = row.get("last_refreshed")
+        stale = False
+        if last_refreshed is not None:
+            ref_dt = (
+                last_refreshed
+                if getattr(last_refreshed, "tzinfo", None) is not None
+                else last_refreshed.replace(tzinfo=timezone.utc)
+            )
+            stale = (now - ref_dt).days > 90
+
+        sources.append(
+            {
+                "source_name": row.get("source_name"),
+                "latest_record_date": (
+                    row.get("latest_record_date").isoformat()
+                    if row.get("latest_record_date") is not None
+                    else None
+                ),
+                "table_name": row.get("table_name"),
+                "row_count": row.get("row_count"),
+                "last_refreshed": (
+                    last_refreshed.isoformat()
+                    if last_refreshed is not None
+                    else None
+                ),
+                "stale": stale,
+            }
+        )
+
+    return {
+        "sources": sources,
+        "source_count": len(sources),
+        "stale_count": sum(1 for s in sources if s["stale"]),
+        "uses_fallback_table": not has_data_freshness,
+    }

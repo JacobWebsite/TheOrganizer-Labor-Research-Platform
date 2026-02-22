@@ -45,15 +45,24 @@ function setAppMode(mode) {
 }
 
 function openDeepDive(employerId, returnTo) {
-    deepDiveReturnMode = returnTo || currentAppMode;
-    const labels = { territory: 'Back to Territory', uniondive: 'Back to Union Profile' };
-    document.getElementById('deepDiveBackLabel').textContent = labels[deepDiveReturnMode] || 'Back to Search';
-    setAppMode('deepdive');
-    loadDeepDiveData(employerId);
+    // Deep dive is collapsed into the unified Search detail profile.
+    openEntityProfile('employer', employerId, returnTo || currentAppMode);
 }
 
 function returnFromDeepDive() {
     setAppMode(deepDiveReturnMode);
+}
+
+async function openEntityProfile(type, id, returnTo) {
+    deepDiveReturnMode = returnTo || currentAppMode;
+    setAppMode('search');
+    if (type === 'union') {
+        setSearchMode('unions');
+        await selectUnionByFnum(String(id));
+        return;
+    }
+    setSearchMode('employers');
+    await switchToEmployerAndSelect(String(id));
 }
 
 
@@ -439,7 +448,7 @@ async function runDebugCheck() {
     }
 
     try {
-        const r2 = await fetch(`${API_BASE}/employers/unified/search?limit=2`);
+        const r2 = await fetch(`${API_BASE}/employers/unified-search?limit=2`);
         const d2 = await r2.json();
         html += `<div style="color:green">✓ Unified: ${d2.total} total</div>`;
     } catch(e) {

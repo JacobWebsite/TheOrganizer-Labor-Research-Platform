@@ -38,6 +38,7 @@ from .routers import (
     public_sector,
     museums,
     sectors,
+    profile,
 )
 
 app = FastAPI(
@@ -86,6 +87,7 @@ app.include_router(vr.router)
 app.include_router(public_sector.router)
 app.include_router(museums.router)
 app.include_router(sectors.router)
+app.include_router(profile.router)
 
 
 @app.exception_handler(psycopg2.Error)

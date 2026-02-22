@@ -1,0 +1,242 @@
+================================================================================
+MV_UNIFIED_SCORECARD - QUICK REFERENCE CARD
+================================================================================
+
+TABLE BASICS
+-----------
+View name:           mv_unified_scorecard (materialized view)
+Total rows:          146,863 F7 employers
+Primary key:         employer_id (TEXT)
+Last refresh:        Dynamic (rebuild via build_unified_scorecard.py)
+Row width:           ~45 columns
+
+COLUMN CATEGORIES
+-----------------
+
+IDENTIFICATION (4)
+  employer_id, employer_name, state, city
+
+MASTER DATA (7)
+  naics, naics_detailed, latest_unit_size, latest_union_fnum,
+  latest_union_name, is_historical, canonical_group_id
+
+SOURCE FLAGS (10)
+  has_osha, has_nlrb, has_whd, has_990, has_sam, has_sec,
+  has_gleif, has_mergent, is_public, is_federal_contractor
+
+CORPORATE (4)
+  corporate_family_id, federal_obligations, federal_contract_count, ein, ticker
+
+FACTOR SCORES (7 base factors, each 0-10)
+  score_osha          - OSHA safety violations (NULL if no match)
+  score_nlrb          - NLRB election activity (NULL if no match)
+  score_whd           - Wage theft violations (NULL if no match)
+  score_contracts     - Government contracts (NULL if not contractor)
+  score_union_proximity - Union group size (always available)
+  score_financial     - Industry growth (NULL if no NAICS)
+  score_size          - Employer size (always available)
+
+AGGREGATE METRICS (4)
+  factors_available   - Count of non-NULL scores (2-7, min=2)
+  unified_score       - Average of all non-NULL factors (0-10 scale)
+  coverage_pct        - Percentage of 7 factors scored (29-100%)
+  score_tier          - Priority tier: TOP|HIGH|MEDIUM|LOW
+
+FACTOR DETAILS & AVAILABILITY
+------------------------------
+
+FACTOR 1: OSHA SAFETY (score_osha)
+  NULL if no OSHA match | 0-10 if data exists
+  Methodology: Industry-normalized violations + severity bonus, decayed 10yr half-life
+  Example: 7 = 28 violations with severe type, recent inspection
+  Example: 3 = 5-10 violations or old inspection
+  Example: NULL = No OSHA establishment match
+
+FACTOR 2: NLRB ACTIVITY (score_nlrb)
+  NULL if no NLRB match | 1-10 if data exists
+  Methodology: Election count + wins, decayed 7yr half-life
+  Example: 6 = 2 elections with 1 union win in last 5 years
+  Example: 3 = 1 election, no wins
+  Example: NULL = No NLRB election match
+
+FACTOR 3: WAGE THEFT (score_whd)
+  NULL if no WHD match | 0-10 if data exists
+  Methodology: Violation severity, penalties, repeat status, decayed 7yr half-life
+  Example: 8 = Repeat violator with $500K+ backwages
+  Example: 5 = Single case with $50K-$100K penalties
+  Example: NULL = No WHD violation match
+
+FACTOR 4: GOVERNMENT CONTRACTS (score_contracts)
+  NULL if not federal contractor | 1-10 if contractor
+  Methodology: Federal obligation amount (no decay)
+  Example: 10 = $5M+ obligations
+  Example: 4 = $100K-1M obligations
+  Example: NULL = Not a federal contractor
+
+FACTOR 5: UNION PROXIMITY (score_union_proximity)
+  ALWAYS AVAILABLE | 1-10 scale
+  Methodology: Canonical group size, geographic reach
+  Example: 10 = Cross-state group, 5+ employers
+  Example: 5 = Same-state group, 3-4 employers
+  Example: 1 = Single isolated employer (common)
+
+FACTOR 6: FINANCIAL/INDUSTRY (score_financial)
+  NULL only if no NAICS code | 0-10 if NAICS exists
+  Methodology: BLS industry growth + public/nonprofit bonus
+  Example: 7 = 7% growth, public company
+  Example: 3 = Declining industry (0-5% growth)
+  Example: NULL = No industry code to lookup
+
+FACTOR 7: EMPLOYER SIZE (score_size)
+  ALWAYS AVAILABLE | 1-10 scale
+  Methodology: Unit size, optimal range 50-250
+  Example: 10 = 50-250 employees (perfect for organizing)
+  Example: 8 = 251-500 employees
+  Example: 2 = <25 or >1000 employees
+
+SCORE CALCULATION
+-----------------
+
+unified_score = SUM(non-NULL factors) / COUNT(non-NULL factors)
+
+Examples:
+  Employer A: OSHA=5, NLRB=6, size=10, union=2 = 23/4 = 5.75
+  Employer B: size=10, union=3 = 13/2 = 6.50 (higher with fewer factors)
+  Employer C: All 7 factors, total=28 = 28/7 = 4.00
+
+Note: NOT a sum (max 70). Always a 0-10 average per factor.
+
+SCORE TIER MAPPING
+------------------
+
+Tier      | Score Range | Interpretation
+----------|-------------|--------------------------------------
+TOP       | >= 7.0      | Highest priority (rare: ~2-5%)
+HIGH      | 5.0-6.9     | Strong targets (common: ~30-40%)
+MEDIUM    | 3.5-4.9     | Fair targets (common: ~30-40%)
+LOW       | < 3.5       | Lower priority (common: ~20-30%)
+
+FACTOR AVAILABILITY DISTRIBUTION
+---------------------------------
+
+factors_available  | % of employers | Description
+-------------------|----------------|------------------------------------
+7 (100%)           | 2-5%           | All factors scored (rare)
+5-6 (71-86%)       | 5-10%          | Strong data coverage
+3-4 (43-57%)       | 30-40%         | Typical multi-source match
+2 (29%)            | 40-50%         | Union proximity + size only
+
+KEY INSIGHTS
+-----------
+
+1. NULL vs 0: NULL means "no data source available", NOT "zero score"
+   - NULL values excluded from average calculation
+   - This is intentional and reflects data availability gaps
+
+2. Temporal decay:
+   - OSHA: 10-year half-life (old violations decay faster)
+   - NLRB: 7-year half-life
+   - WHD: 7-year half-life
+   - Contracts: No decay (structural, not temporal)
+
+3. Always-available factors:
+   - union_proximity (based on canonical groups)
+   - score_size (from OLMS filings)
+   - These ensure every employer has minimum score
+
+4. Coverage paradox:
+   - Employers with fewer factors often have HIGHER average scores
+   - Example: Only size+proximity (avg=6.5) vs all 7 factors (avg=4.0)
+   - This is mathematically correct (sampling smaller set)
+
+COMMON QUERIES
+--------------
+
+Top 100 targets nationwide:
+  SELECT * FROM mv_unified_scorecard
+  WHERE score_tier IN ('TOP', 'HIGH')
+  ORDER BY unified_score DESC
+  LIMIT 100;
+
+Well-documented targets in one state:
+  SELECT * FROM mv_unified_scorecard
+  WHERE state = 'CA'
+  AND factors_available >= 5
+  ORDER BY unified_score DESC;
+
+OSHA angle targets:
+  SELECT * FROM mv_unified_scorecard
+  WHERE score_osha >= 6
+  AND latest_inspection >= CURRENT_DATE - INTERVAL '2 years'
+  ORDER BY score_osha DESC;
+
+Poorly-researched but promising:
+  SELECT * FROM mv_unified_scorecard
+  WHERE factors_available = 2
+  AND unified_score >= 5.0
+  ORDER BY state;
+
+DATA QUALITY WARNINGS
+---------------------
+
+1. NLRB confidence scale bug - integer vs decimal mismatch
+   Use unified_match_log as authoritative source for confidence scores
+
+2. Legacy match tables out of sync
+   osha_f7_matches (145K) vs unified_match_log (97K active)
+   Use unified_match_log as source of truth
+
+3. NULL factors intentional
+   Missing data is marked NULL, not zero
+   Do not fill NULLs with 0 for scoring purposes
+
+4. BLS coverage gaps
+   ~2% of NAICS codes have no industry projections
+   These default to score 2 (stability floor)
+
+5. Size-based score sensitivity
+   Scores heavily weighted to size distribution
+   Not all employers fit organizing profile
+
+REFRESH PROCEDURE
+-----------------
+
+Manual refresh (full rebuild):
+  python scripts/scoring/build_unified_scorecard.py --refresh
+
+Check row count:
+  SELECT COUNT(*) FROM mv_unified_scorecard;
+  (Should be 146,863)
+
+Verify score distribution:
+  SELECT MIN(unified_score), AVG(unified_score), MAX(unified_score)
+  FROM mv_unified_scorecard;
+
+API ENDPOINT
+------------
+
+Primary: GET /api/organizing/scorecard
+
+Examples:
+  /api/organizing/scorecard?sort=score&limit=100&tier=HIGH
+  /api/organizing/scorecard/{employer_id}
+  /api/organizing/scorecard?state=NY&min_score=6.0
+
+Response includes all columns + percentile ranks
+
+FILE LOCATION
+-------------
+
+Production view definition:
+  /sessions/affectionate-happy-gauss/mnt/labor-data-project/scripts/scoring/build_unified_scorecard.py
+
+Documentation:
+  /sessions/affectionate-happy-gauss/mnt/labor-data-project/docs/MV_UNIFIED_SCORECARD_GUIDE.md
+  /sessions/affectionate-happy-gauss/mnt/labor-data-project/docs/MV_UNIFIED_SCORECARD_QUICK_REFERENCE.txt (this file)
+
+API definition:
+  /sessions/affectionate-happy-gauss/mnt/labor-data-project/api/routers/organizing.py
+
+================================================================================
+END QUICK REFERENCE
+================================================================================
