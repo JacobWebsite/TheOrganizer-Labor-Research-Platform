@@ -59,13 +59,13 @@ export function DataFreshnessCard() {
                 </tr>
               </thead>
               <tbody>
-                {Array.isArray(data) && data.map((row) => (
-                  <tr key={row.source} className='border-b last:border-0'>
-                    <td className='py-2 font-medium uppercase'>{row.source}</td>
+                {(data?.sources || []).map((row) => (
+                  <tr key={row.source_name} className='border-b last:border-0'>
+                    <td className='py-2 font-medium uppercase'>{row.source_name}</td>
                     <td className='py-2'>{formatNumber(row.row_count)}</td>
-                    <td className='py-2'>{row.latest_date || '\u2014'}</td>
+                    <td className='py-2'>{row.latest_record_date || row.last_refreshed?.split('T')[0] || '\u2014'}</td>
                     <td className='py-2'>
-                      {row.is_stale ? (
+                      {row.stale ? (
                         <Badge variant='destructive'>Stale</Badge>
                       ) : (
                         <Badge className='bg-green-600 text-white'>Fresh</Badge>
@@ -73,7 +73,7 @@ export function DataFreshnessCard() {
                     </td>
                   </tr>
                 ))}
-                {(!Array.isArray(data) || data.length === 0) && (
+                {(!data?.sources || data.sources.length === 0) && (
                   <tr>
                     <td colSpan={4} className='py-4 text-center text-muted-foreground'>
                       No freshness data available

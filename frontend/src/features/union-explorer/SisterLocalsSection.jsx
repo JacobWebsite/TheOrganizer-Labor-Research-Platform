@@ -49,7 +49,7 @@ export function SisterLocalsSection({ sisters }) {
                   onClick={() => navigate(`/unions/${s.f_num}`)}
                 >
                   <td className="px-3 py-2 font-medium truncate max-w-[280px]">
-                    {s.union_name || '\u2014'}
+                    {s.union_name}{s.local_number && s.local_number !== '0' ? ` Local ${s.local_number}` : ''}
                   </td>
                   <td className="px-3 py-2">{s.city || '\u2014'}</td>
                   <td className="px-3 py-2">{s.state || '\u2014'}</td>

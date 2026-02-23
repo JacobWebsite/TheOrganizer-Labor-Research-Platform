@@ -25,8 +25,9 @@ export function UnionResultsTable({ data, total, page, onPageChange }) {
 
   const columns = useMemo(() => [
     {
-      accessorKey: 'union_name',
+      id: 'name',
       header: 'Union Name',
+      accessorFn: (row) => row.display_name || row.union_name,
       cell: ({ getValue }) => (
         <div className="font-medium truncate max-w-[320px]">{getValue() || '\u2014'}</div>
       ),
@@ -61,7 +62,7 @@ export function UnionResultsTable({ data, total, page, onPageChange }) {
     {
       id: 'employers',
       header: () => <div className="text-right">Employers</div>,
-      accessorKey: 'employer_count',
+      accessorKey: 'f7_employer_count',
       cell: ({ getValue }) => (
         <div className="text-right tabular-nums">{formatNumber(getValue())}</div>
       ),
@@ -69,7 +70,7 @@ export function UnionResultsTable({ data, total, page, onPageChange }) {
     {
       id: 'workers',
       header: () => <div className="text-right">Workers</div>,
-      accessorKey: 'workers',
+      accessorKey: 'f7_total_workers',
       cell: ({ getValue }) => (
         <div className="text-right tabular-nums">{formatNumber(getValue())}</div>
       ),

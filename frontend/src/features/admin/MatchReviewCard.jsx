@@ -82,11 +82,11 @@ export function MatchReviewCard() {
                 <tbody>
                   {matches.map((match) => (
                     <tr key={match.id} className='border-b last:border-0'>
-                      <td className='py-2'>{match.employer_name}</td>
-                      <td className='py-2'>{match.matched_name}</td>
-                      <td className='py-2 uppercase'>{match.matched_source}</td>
+                      <td className='py-2'>{match.evidence?.target_name || match.target_id}</td>
+                      <td className='py-2'>{match.evidence?.source_name || match.source_id}</td>
+                      <td className='py-2 uppercase'>{match.source_system}</td>
                       <td className='py-2 text-right'>
-                        {match.score != null ? match.score.toFixed(2) : '\u2014'}
+                        {match.confidence_score != null ? match.confidence_score.toFixed(2) : '\u2014'}
                       </td>
                       <td className='py-2 text-right'>
                         <div className='flex justify-end gap-1'>

@@ -41,7 +41,7 @@ export function HealthStatusCard() {
         ) : (
           <div className='divide-y'>
             <StatusRow label='API' ok={data?.status === 'ok'} />
-            <StatusRow label='Database' ok={data?.database === 'ok'} />
+            <StatusRow label='Database' ok={data?.db === true || data?.database === 'ok'} />
           </div>
         )}
       </CardContent>

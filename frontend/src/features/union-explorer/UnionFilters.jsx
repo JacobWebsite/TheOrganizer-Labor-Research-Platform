@@ -134,8 +134,8 @@ export function UnionFilters({ filters, onSetFilter, onClearFilter, onClearAll }
           >
             <option value="">All sectors</option>
             {sectors.map((s) => (
-              <option key={s.sector} value={s.sector}>
-                {s.sector} ({(s.count || 0).toLocaleString()})
+              <option key={s.sector_code || s.sector} value={s.sector_code || s.sector}>
+                {s.sector_name || s.sector_code || s.sector} ({(s.union_count || s.count || 0).toLocaleString()})
               </option>
             ))}
           </Select>

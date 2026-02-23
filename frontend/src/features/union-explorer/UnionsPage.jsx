@@ -36,7 +36,7 @@ export function UnionsPage() {
       </div>
 
       <NationalUnionsSummary
-        data={nationalQuery.data}
+        data={nationalQuery.data?.national_unions}
         isLoading={nationalQuery.isLoading}
         onAffiliationClick={handleAffiliationClick}
       />

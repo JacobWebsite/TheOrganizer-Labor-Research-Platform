@@ -33,7 +33,7 @@ export function MatchQualityCard() {
           <div className='space-y-6'>
             <div>
               <p className='text-sm text-muted-foreground'>Total Matches</p>
-              <p className='text-2xl font-bold'>{formatNumber(data?.total_matches)}</p>
+              <p className='text-2xl font-bold'>{formatNumber(data?.total_match_rows)}</p>
             </div>
 
             {data?.by_source && data.by_source.length > 0 && (
@@ -48,9 +48,9 @@ export function MatchQualityCard() {
                   </thead>
                   <tbody>
                     {data.by_source.map((row) => (
-                      <tr key={row.source} className='border-b last:border-0'>
-                        <td className='py-2 uppercase'>{row.source}</td>
-                        <td className='py-2 text-right'>{formatNumber(row.count)}</td>
+                      <tr key={row.source_system} className='border-b last:border-0'>
+                        <td className='py-2 uppercase'>{row.source_system}</td>
+                        <td className='py-2 text-right'>{formatNumber(row.total_rows)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -64,10 +64,10 @@ export function MatchQualityCard() {
                 <div className='flex flex-wrap gap-2'>
                   {data.by_confidence.map((row) => (
                     <Badge
-                      key={row.confidence}
-                      className={CONFIDENCE_COLORS[row.confidence] || ''}
+                      key={row.confidence_band}
+                      className={CONFIDENCE_COLORS[row.confidence_band] || ''}
                     >
-                      {row.confidence}: {formatNumber(row.count)}
+                      {row.confidence_band}: {formatNumber(row.total_rows)}
                     </Badge>
                   ))}
                 </div>

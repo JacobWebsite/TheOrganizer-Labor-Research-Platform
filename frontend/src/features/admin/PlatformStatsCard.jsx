@@ -19,9 +19,13 @@ function StatItem({ label, value }) {
 export function PlatformStatsCard() {
   const { data, isLoading } = usePlatformStats()
 
+  const totalMatches = data?.match_counts_by_source
+    ? data.match_counts_by_source.reduce((sum, s) => sum + (s.match_count || 0), 0)
+    : null
+
   const avgMatches =
-    data?.total_employers && data?.total_matches
-      ? (data.total_matches / data.total_employers).toFixed(1)
+    data?.total_employers && totalMatches
+      ? (totalMatches / data.total_employers).toFixed(1)
       : null
 
   return (
@@ -40,8 +44,8 @@ export function PlatformStatsCard() {
         ) : (
           <div className='grid grid-cols-2 gap-4'>
             <StatItem label='Total Employers' value={data?.total_employers} />
-            <StatItem label='Scorecard Rows' value={data?.total_scorecard} />
-            <StatItem label='Total Matches' value={data?.total_matches} />
+            <StatItem label='Scorecard Rows' value={data?.total_scorecard_rows} />
+            <StatItem label='Total Matches' value={totalMatches} />
             <StatItem label='Avg Matches/Employer' value={avgMatches} />
           </div>
         )}

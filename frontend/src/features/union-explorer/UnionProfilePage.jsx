@@ -72,7 +72,7 @@ export function UnionProfilePage() {
   const sisterLocals = detail.sister_locals || []
 
   // Use full employers list if available, fallback to detail top_employers
-  const employers = employersQuery.data || detail.top_employers || []
+  const employers = employersQuery.data?.employers || detail.top_employers || []
 
   return (
     <div className="space-y-4">
