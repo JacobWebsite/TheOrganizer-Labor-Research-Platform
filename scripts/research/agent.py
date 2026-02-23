@@ -218,20 +218,9 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - BLS industry profile (get_industry_profile) -- needs a NAICS code
    - Similar organized employers (get_similar_employers)
 
-3. **Search the web** for current context (automatic via Google Search):
-   - Recent news about the company (layoffs, expansions, lawsuits)
-   - Ongoing or recent organizing campaigns, strikes, work stoppages
-   - Worker complaints (Glassdoor themes, Reddit, news articles)
-   - Company leadership statements about unions
-   - Recent NLRB developments not yet in our database
+3. **Synthesize** your findings into the dossier.
 
-   Search queries to try:
-   - "{company_name}" union organizing workers
-   - "{company_name}" strike labor dispute
-   - "{company_name}" NLRB
-   - "{company_name}" layoffs workers 2025 2026
-
-4. **Synthesize** your findings into the dossier.
+IMPORTANT: Do NOT attempt to call google_search or any web search tool. Web search is handled separately after your database queries. Focus ONLY on the database tools listed above.
 
 Always pass the company_name parameter. If the employer_id is known (not "unknown"), pass it too for more precise matching.
 If the NAICS is known, pass it to get_industry_profile and get_similar_employers.
@@ -415,6 +404,20 @@ def _save_facts(run_id: int, employer_id: Optional[int], facts: list[dict], voca
 # Dossier JSON parser
 # ---------------------------------------------------------------------------
 
+def _fix_json_escapes(s: str) -> str:
+    """Fix invalid JSON escape sequences that Gemini sometimes produces.
+
+    JSON only allows: \\", \\\\, \\/, \\b, \\f, \\n, \\r, \\t, \\uXXXX.
+    Gemini sometimes emits \\S, \\s, \\d, etc. Replace them with the
+    literal character (drop the backslash).
+    """
+    return re.sub(
+        r'\\([^"\\/bfnrtu])',
+        lambda m: m.group(1),
+        s,
+    )
+
+
 def _extract_dossier_json(text: str) -> Optional[dict]:
     """Extract the JSON dossier from Gemini's final text response."""
     # Look for ```json ... ``` block (flexible whitespace handling)
@@ -423,8 +426,12 @@ def _extract_dossier_json(text: str) -> Optional[dict]:
         json_str = m.group(1).strip()
         try:
             return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            _log.warning("Failed to parse dossier JSON block: %s", e)
+        except json.JSONDecodeError:
+            # Try fixing common Gemini escape issues
+            try:
+                return json.loads(_fix_json_escapes(json_str))
+            except json.JSONDecodeError as e2:
+                _log.warning("Failed to parse dossier JSON block: %s", e2)
 
     # Fallback: try to find a raw JSON object containing "dossier"
     for start in range(len(text)):
@@ -434,6 +441,12 @@ def _extract_dossier_json(text: str) -> Optional[dict]:
                 if "dossier" in obj:
                     return obj
             except json.JSONDecodeError:
+                try:
+                    obj = json.loads(_fix_json_escapes(text[start:]))
+                    if "dossier" in obj:
+                        return obj
+                except json.JSONDecodeError:
+                    pass
                 continue
             break
 
@@ -606,12 +619,12 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             t0 = time.time()
             if tool_name == "google_search":
                 # Gemini sometimes emits google_search as a function call
-                # even though it's not in our declarations. Handle gracefully —
-                # actual web search happens in Phase 2 (grounding).
+                # even though it's not in our declarations. Reject it so
+                # Gemini focuses on the database tools instead.
                 result = {
-                    "found": True, "source": "google_search",
-                    "summary": "Web search will be performed in the grounding phase.",
-                    "data": {},
+                    "found": False, "source": "google_search",
+                    "summary": "Web search is not available. Focus on the database tools listed in your instructions.",
+                    "data": {}, "error": "google_search is not a registered tool",
                 }
             elif tool_name in TOOL_REGISTRY:
                 try:
@@ -672,28 +685,92 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     # grounding enabled to enrich the dossier with current web context.
     _progress(run_id, "Searching the web for current context...", 82)
 
+    # Build a summary of what Phase 1 found / missed for targeted web search
+    db_summaries = []
+    db_gaps = []
+    conn_summary = _conn()
+    cur_summary = conn_summary.cursor()
+    cur_summary.execute(
+        """SELECT tool_name, data_found, result_summary
+           FROM research_actions
+           WHERE run_id = %s AND tool_name != 'google_search'
+           ORDER BY execution_order""",
+        (run_id,),
+    )
+    for row in cur_summary.fetchall():
+        tn = row["tool_name"]
+        if row["data_found"]:
+            db_summaries.append(f"- {tn}: {(row['result_summary'] or '')[:150]}")
+        else:
+            db_gaps.append(tn)
+    conn_summary.close()
+
+    db_context = "\n".join(db_summaries) if db_summaries else "(no database results)"
+    gap_text = ", ".join(db_gaps) if db_gaps else "none"
+
+    company_name = run["company_name"]
+    company_type = run.get("company_type") or "unknown"
+    industry_naics = run.get("industry_naics") or ""
+    company_state = run.get("company_state") or ""
+
     try:
-        web_prompt = (
-            f"You are a labor-relations research agent. You have already queried internal databases "
-            f"for **{run['company_name']}** and produced a preliminary dossier.\n\n"
-            f"Now search the web for current context to enrich the assessment. Look for:\n"
-            f"- Recent news about {run['company_name']} (layoffs, expansions, lawsuits, M&A)\n"
-            f"- Ongoing or recent union organizing campaigns, strikes, work stoppages\n"
-            f"- Worker complaints, Glassdoor reviews themes, Reddit discussions\n"
-            f"- Company leadership statements about unions or labor relations\n"
-            f"- Recent NLRB filings or rulings not yet in government databases\n\n"
-            f"Return your findings as a JSON code block:\n"
-            f"```json\n"
-            f'{{"web_findings": {{\n'
-            f'  "recent_news": ["headline or summary (source, date)", ...],\n'
-            f'  "organizing_activity": ["description (source, date)", ...],\n'
-            f'  "worker_sentiment": ["theme or quote (source)", ...],\n'
-            f'  "company_context": "1-2 paragraph summary of what web sources reveal",\n'
-            f'  "sources_consulted": ["url or source name", ...]\n'
-            f"}}}}\n"
-            f"```\n\n"
-            f"If you find nothing relevant, return empty lists. Be specific with dates and sources."
-        )
+        web_prompt = f"""You are a labor-relations research agent. You already queried internal government databases for **{company_name}** and found the following:
+
+## What our databases found:
+{db_context}
+
+## Gaps (databases with NO results):
+{gap_text}
+
+## Company context:
+- Type: {company_type}
+- NAICS: {industry_naics}
+- State: {company_state}
+
+## Your task:
+Search the web to fill gaps and add current context. Specifically search for:
+
+1. **Recent news** (2024-2026): layoffs, expansions, lawsuits, mergers, acquisitions, executive changes
+2. **Union organizing**: active campaigns, election results, strikes, work stoppages, union contract negotiations
+3. **Worker issues**: wage theft complaints, safety incidents, employee lawsuits, Glassdoor themes
+4. **NLRB activity**: recent filings, unfair labor practice charges, board decisions
+5. **Company labor stance**: CEO/leadership statements about unions, anti-union consultants, captive audience meetings
+
+Search for EACH of these individually. Do not stop after one search. Try at least 5-6 different searches:
+- "{company_name}" union organizing 2024 2025
+- "{company_name}" workers strike labor
+- "{company_name}" NLRB filing
+- "{company_name}" wage theft lawsuit
+- "{company_name}" layoffs employees 2025 2026
+- "{company_name}" working conditions safety
+
+Return ALL findings as a JSON code block. Include EVERY fact you find, even if minor:
+
+```json
+{{
+  "recent_news": [
+    "Headline or summary with specific details (Source Name, YYYY-MM-DD)"
+  ],
+  "organizing_activity": [
+    "Description of organizing, election, strike, or campaign (Source Name, YYYY-MM-DD)"
+  ],
+  "worker_issues": [
+    "Wage theft, safety, lawsuits, complaints (Source Name, YYYY-MM-DD)"
+  ],
+  "nlrb_activity": [
+    "Filings, charges, decisions, rulings (Source Name, YYYY-MM-DD)"
+  ],
+  "company_labor_stance": [
+    "Leadership quotes, anti-union actions, policy statements (Source Name, YYYY-MM-DD)"
+  ],
+  "company_context": "2-3 paragraph summary of what web sources reveal about this company's labor relations landscape, recent trajectory, and organizing potential",
+  "sources": [
+    {{"title": "Article or page title", "url": "https://...", "date": "YYYY-MM-DD"}}
+  ]
+}}
+```
+
+Be thorough. An empty section means you did not search hard enough. Every company has SOME news. If the company is small or obscure, search for industry-level labor news in their sector."""
 
         web_response = client.models.generate_content(
             model=MODEL,
@@ -703,7 +780,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             )],
             config=types.GenerateContentConfig(
                 tools=_build_google_search_tool(),
-                max_output_tokens=8192,
+                max_output_tokens=16384,
             ),
         )
 
@@ -712,17 +789,17 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             total_input_tokens += web_response.usage_metadata.prompt_token_count or 0
             total_output_tokens += web_response.usage_metadata.candidates_token_count or 0
 
-        web_candidate = web_response.candidates[0]
+        web_candidate = web_response.candidates[0] if web_response.candidates else None
+        web_parts = (web_candidate.content.parts or []) if web_candidate and web_candidate.content else []
         web_text = "\n".join(
-            p.text for p in web_candidate.content.parts if p.text
+            p.text for p in web_parts if p.text
         )
 
         # Log grounding metadata
-        grounding_meta = getattr(web_candidate, 'grounding_metadata', None)
+        grounding_meta = getattr(web_candidate, 'grounding_metadata', None) if web_candidate else None
         search_queries_used = []
         if grounding_meta:
             search_queries_used = getattr(grounding_meta, 'web_search_queries', []) or []
-            grounding_chunks = getattr(grounding_meta, 'grounding_chunks', []) or []
             if search_queries_used:
                 _log.info("Run %d: Google Search queries: %s",
                           run_id, search_queries_used[:5])
@@ -741,141 +818,190 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             0,
         )
 
-        # Save original dossier text before appending web findings.
-        # If the merge phase fails, we fall back to this clean version.
+        # Save original dossier text before web merge.
         original_final_text = final_text
 
         if web_text.strip():
-            final_text += "\n\n--- WEB SEARCH FINDINGS ---\n" + web_text
             _log.info("Run %d: web search returned %d chars", run_id, len(web_text))
         else:
             _log.info("Run %d: web search returned no text", run_id)
 
     except Exception as web_exc:
         _log.warning("Run %d: web search phase failed (non-fatal): %s", run_id, web_exc)
-        original_final_text = final_text  # no web findings appended
+        web_text = ""
+        original_final_text = final_text
 
     # ------------------------------------------------------------------
-    # Phase 3: Merge web findings into the dossier via patch
+    # Phase 3: Merge web findings into the dossier
     # ------------------------------------------------------------------
-    # Instead of asking Gemini to reproduce the entire dossier JSON (which
-    # fails on large dossiers), we ask for a small PATCH object and apply
-    # it ourselves.  This is cheaper, faster, and more reliable.
-    web_findings_text = ""
-    if "--- WEB SEARCH FINDINGS ---" in final_text:
-        web_findings_text = final_text.split("--- WEB SEARCH FINDINGS ---", 1)[1]
-        final_text = original_final_text  # always parse from clean original
-
-    if web_findings_text.strip():
+    # Parse web findings JSON directly from Phase 2 output, then apply
+    # to the dossier programmatically. No extra LLM call needed.
+    if web_text.strip():
         _progress(run_id, "Merging web findings into dossier...", 84)
         try:
-            patch_prompt = (
-                f"Below are web search findings about **{run['company_name']}**.\n\n"
-                f"Based on these findings, produce a JSON patch object with ONLY the "
-                f"new or updated content to merge into an existing dossier. Format:\n\n"
-                f"```json\n"
-                f'{{\n'
-                f'  "assessment_additions": {{\n'
-                f'    "organizing_summary_addendum": "1-2 paragraphs of web-sourced context to append",\n'
-                f'    "additional_strengths": ["strength from web..."],\n'
-                f'    "additional_challenges": ["challenge from web..."]\n'
-                f'  }},\n'
-                f'  "web_facts": [\n'
-                f'    {{"dossier_section": "...", "attribute_name": "...", "attribute_value": "...", '
-                f'"source_type": "web", "source_name": "...", "confidence": 0.7, "as_of_date": "..."}}\n'
-                f'  ],\n'
-                f'  "web_sources": ["source description (url, date)", ...]\n'
-                f'}}\n'
-                f"```\n\n"
-                f"Web findings:\n{web_findings_text[:12000]}"
-            )
-
-            patch_response = client.models.generate_content(
-                model=MODEL,
-                contents=[types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=patch_prompt)],
-                )],
-                config=types.GenerateContentConfig(
-                    max_output_tokens=8192,
-                ),
-            )
-
-            if patch_response.usage_metadata:
-                total_input_tokens += patch_response.usage_metadata.prompt_token_count or 0
-                total_output_tokens += patch_response.usage_metadata.candidates_token_count or 0
-
-            patch_text = "\n".join(
-                p.text for p in patch_response.candidates[0].content.parts if p.text
-            )
-            _log.info("Run %d: patch response length=%d, first 200=%s",
-                       run_id, len(patch_text), repr(patch_text[:200]))
-
-            # Extract any JSON from the patch response (not _extract_dossier_json
-            # which requires a "dossier" key).
-            patch_data = None
-            # Try ```json ... ``` block (allow optional whitespace/newline after ```)
-            m = re.search(r"```(?:json)?\s*\n?(.*?)```", patch_text, re.DOTALL)
+            # Extract JSON from web search response
+            web_data = None
+            m = re.search(r"```(?:json)?\s*\n?(.*?)```", web_text, re.DOTALL)
             if m:
+                raw = m.group(1).strip()
                 try:
-                    patch_data = json.loads(m.group(1).strip())
-                except json.JSONDecodeError as e:
-                    _log.warning("Run %d: patch JSON parse error: %s", run_id, e)
-            if not patch_data:
-                # Try raw JSON parse
-                for i, ch in enumerate(patch_text):
+                    web_data = json.loads(raw)
+                except json.JSONDecodeError:
+                    try:
+                        web_data = json.loads(_fix_json_escapes(raw))
+                    except json.JSONDecodeError as e:
+                        _log.warning("Run %d: web JSON parse error in code block: %s", run_id, e)
+            if not web_data:
+                # Try finding raw JSON object
+                for i, ch in enumerate(web_text):
                     if ch == '{':
                         try:
-                            patch_data = json.loads(patch_text[i:])
+                            web_data = json.loads(web_text[i:])
                             break
                         except json.JSONDecodeError:
-                            continue
+                            try:
+                                web_data = json.loads(_fix_json_escapes(web_text[i:]))
+                                break
+                            except json.JSONDecodeError:
+                                continue
 
-            if patch_data and isinstance(patch_data, dict):
+            if web_data and isinstance(web_data, dict):
+                # Handle nested {"web_findings": {...}} or flat format
+                if "web_findings" in web_data:
+                    web_data = web_data["web_findings"]
+
                 # Parse the original dossier
-                original_dossier = _extract_dossier_json(final_text)
+                original_dossier = _extract_dossier_json(original_final_text)
                 if original_dossier and "dossier" in original_dossier:
                     dossier_body = original_dossier["dossier"]
-                    assessment = dossier_body.get("assessment", {})
+                    assessment = dossier_body.get("assessment", {}) or {}
 
-                    # Apply assessment additions
-                    additions = patch_data.get("assessment_additions", {})
-                    addendum = additions.get("organizing_summary_addendum", "")
-                    if addendum and assessment.get("organizing_summary"):
-                        assessment["organizing_summary"] += "\n\n" + addendum
-                    elif addendum:
-                        assessment["organizing_summary"] = addendum
+                    # --- Build assessment additions from web data ---
+                    web_context = web_data.get("company_context", "")
+                    if web_context:
+                        existing = assessment.get("organizing_summary") or ""
+                        if existing:
+                            assessment["organizing_summary"] = (
+                                existing + "\n\n**Web sources add:** " + web_context
+                            )
+                        else:
+                            assessment["organizing_summary"] = web_context
 
-                    for s in additions.get("additional_strengths", []):
-                        assessment.setdefault("campaign_strengths", []).append(s)
-                    for c in additions.get("additional_challenges", []):
-                        assessment.setdefault("campaign_challenges", []).append(c)
+                    # Add organizing activity as campaign strengths/intel
+                    organizing = web_data.get("organizing_activity", [])
+                    if organizing:
+                        strengths = assessment.get("campaign_strengths", []) or []
+                        for item in organizing:
+                            if isinstance(item, str) and item.strip():
+                                strengths.append(f"[Web] {item}")
+                        assessment["campaign_strengths"] = strengths
+
+                    # Add worker issues as campaign context
+                    worker_issues = web_data.get("worker_issues", [])
+                    if worker_issues:
+                        strengths = assessment.get("campaign_strengths", []) or []
+                        for item in worker_issues:
+                            if isinstance(item, str) and item.strip():
+                                strengths.append(f"[Web] Worker issue: {item}")
+                        assessment["campaign_strengths"] = strengths
+
+                    # Add company labor stance as challenges
+                    labor_stance = web_data.get("company_labor_stance", [])
+                    if labor_stance:
+                        challenges = assessment.get("campaign_challenges", []) or []
+                        for item in labor_stance:
+                            if isinstance(item, str) and item.strip():
+                                challenges.append(f"[Web] {item}")
+                        assessment["campaign_challenges"] = challenges
+
+                    # Add NLRB activity to labor section
+                    nlrb_web = web_data.get("nlrb_activity", [])
+                    if nlrb_web:
+                        labor = dossier_body.get("labor", {}) or {}
+                        existing_nlrb = labor.get("recent_nlrb_web", [])
+                        for item in nlrb_web:
+                            if isinstance(item, str) and item.strip():
+                                existing_nlrb.append(item)
+                        if existing_nlrb:
+                            labor["recent_nlrb_web"] = existing_nlrb
+                            dossier_body["labor"] = labor
 
                     dossier_body["assessment"] = assessment
 
-                    # Add web sources
-                    sources_sec = dossier_body.get("sources", {})
-                    for ws in patch_data.get("web_sources", []):
+                    # --- Add web sources ---
+                    sources_sec = dossier_body.get("sources", {}) or {}
+                    web_sources_list = web_data.get("sources", [])
+                    # Also handle old format "sources_consulted"
+                    if not web_sources_list:
+                        web_sources_list = web_data.get("sources_consulted", [])
+                    for ws in web_sources_list:
+                        if isinstance(ws, dict):
+                            summary = f"{ws.get('title', 'Web')} ({ws.get('url', '')}, {ws.get('date', '')})"
+                        elif isinstance(ws, str):
+                            summary = ws
+                        else:
+                            continue
                         sources_sec.setdefault("source_list", []).append(
-                            {"tool": "web_search", "summary": ws}
+                            {"tool": "web_search", "summary": summary}
                         )
                     dossier_body["sources"] = sources_sec
 
-                    # Add web facts to the facts array
-                    for wf in patch_data.get("web_facts", []):
-                        wf["source_type"] = "web"
-                        original_dossier.setdefault("facts", []).append(wf)
+                    # --- Add web facts ---
+                    recent_news = web_data.get("recent_news", [])
+                    for item in recent_news:
+                        if isinstance(item, str) and item.strip():
+                            original_dossier.setdefault("facts", []).append({
+                                "dossier_section": "workplace",
+                                "attribute_name": "recent_labor_news",
+                                "attribute_value": item,
+                                "source_type": "web",
+                                "source_name": "google_search",
+                                "confidence": 0.7,
+                            })
+                    # Add organizing activity as facts too
+                    for item in organizing:
+                        if isinstance(item, str) and item.strip():
+                            original_dossier.setdefault("facts", []).append({
+                                "dossier_section": "labor",
+                                "attribute_name": "recent_organizing",
+                                "attribute_value": item,
+                                "source_type": "web",
+                                "source_name": "google_search",
+                                "confidence": 0.7,
+                            })
 
                     # Re-serialize the patched dossier as the final text
                     final_text = "```json\n" + json.dumps(original_dossier, indent=2, default=str) + "\n```"
-                    _log.info("Run %d: successfully patched dossier with web findings", run_id)
+                    web_source_count = len(web_sources_list)
+                    _log.info("Run %d: merged web findings (%d sources, %d news items, %d organizing, %d issues)",
+                              run_id, web_source_count, len(recent_news), len(organizing), len(worker_issues))
                 else:
                     _log.warning("Run %d: could not parse original dossier for patching", run_id)
             else:
-                _log.warning("Run %d: web patch produced no usable data", run_id)
+                # Fallback: JSON parse failed but we have raw web text.
+                # Append a truncated summary to the assessment.
+                _log.warning("Run %d: web JSON parse failed, using raw text fallback (%d chars)",
+                             run_id, len(web_text))
+                original_dossier = _extract_dossier_json(original_final_text)
+                if original_dossier and "dossier" in original_dossier:
+                    dossier_body = original_dossier["dossier"]
+                    assessment = dossier_body.get("assessment", {}) or {}
+                    # Truncate raw web text to a reasonable size
+                    raw_summary = web_text[:4000].strip()
+                    existing = assessment.get("organizing_summary") or ""
+                    if existing:
+                        assessment["organizing_summary"] = (
+                            existing + "\n\n**Additional web context:** " + raw_summary
+                        )
+                    else:
+                        assessment["organizing_summary"] = raw_summary
+                    dossier_body["assessment"] = assessment
+                    final_text = "```json\n" + json.dumps(original_dossier, indent=2, default=str) + "\n```"
+                    _log.info("Run %d: appended raw web summary fallback (%d chars)", run_id, len(raw_summary))
 
         except Exception as merge_exc:
             _log.warning("Run %d: web merge phase failed (non-fatal): %s", run_id, merge_exc)
+            final_text = original_final_text  # restore clean dossier on failure
 
     # ------------------------------------------------------------------
     # Parse dossier from final response
