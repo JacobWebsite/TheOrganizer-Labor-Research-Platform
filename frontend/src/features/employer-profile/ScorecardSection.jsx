@@ -2,24 +2,24 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { cn } from '@/lib/utils'
 
 const FACTORS = [
-  { key: 'score_nlrb', label: 'NLRB Activity' },
-  { key: 'score_osha', label: 'OSHA Safety' },
-  { key: 'score_whd', label: 'Wage & Hour' },
-  { key: 'score_contracts', label: 'Gov Contracts' },
-  { key: 'score_union_proximity', label: 'Union Proximity' },
-  { key: 'score_financial', label: 'Financial' },
-  { key: 'score_size', label: 'Employer Size' },
-  { key: 'score_similarity', label: 'Peer Similarity' },
-  { key: 'score_industry_growth', label: 'Industry Growth' },
+  { key: 'score_union_proximity', label: 'Union Proximity', weight: '3x' },
+  { key: 'score_size', label: 'Employer Size', weight: '3x' },
+  { key: 'score_nlrb', label: 'NLRB Activity', weight: '3x' },
+  { key: 'score_contracts', label: 'Gov Contracts', weight: '2x' },
+  { key: 'score_industry_growth', label: 'Industry Growth', weight: '2x' },
+  { key: 'score_similarity', label: 'Peer Similarity', weight: '2x' },
+  { key: 'score_osha', label: 'OSHA Safety', weight: '1x' },
+  { key: 'score_whd', label: 'Wage & Hour', weight: '1x' },
+  { key: 'score_financial', label: 'Financial', weight: '1x' },
 ]
 
 function getBarColor(value) {
   if (value >= 7) return 'bg-red-600'
-  if (value >= 4) return 'bg-orange-500'
-  return 'bg-stone-400'
+  if (value >= 4) return 'bg-red-400'
+  return 'bg-red-200'
 }
 
-function ScoreBar({ label, value, explanation }) {
+function ScoreBar({ label, weight, value, explanation }) {
   const hasValue = value != null
   const displayValue = hasValue ? Number(value).toFixed(1) : null
   const widthPct = hasValue ? Math.min((value / 10) * 100, 100) : 0
@@ -27,9 +27,12 @@ function ScoreBar({ label, value, explanation }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
+        <span className="font-medium">
+          {label}
+          {weight && <span className="ml-1 text-xs text-muted-foreground">({weight})</span>}
+        </span>
         <span className={cn('text-xs', hasValue ? 'text-foreground' : 'text-muted-foreground')}>
-          {hasValue ? displayValue : 'No data'}
+          {hasValue ? displayValue : '\u2014'}
         </span>
       </div>
       <div className="h-2 w-full bg-muted overflow-hidden">
@@ -60,10 +63,11 @@ export function ScorecardSection({ scorecard, explanations }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {FACTORS.map(({ key, label }) => (
+          {FACTORS.map(({ key, label, weight }) => (
             <ScoreBar
               key={key}
               label={label}
+              weight={weight}
               value={scorecard[key]}
               explanation={explanations?.[key]}
             />

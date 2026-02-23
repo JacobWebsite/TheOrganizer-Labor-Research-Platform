@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils'
 
 const TIER_COLORS = {
   Priority: 'bg-red-600 text-white',
-  Strong: 'bg-orange-500 text-white',
-  Promising: 'bg-yellow-500 text-black',
-  Moderate: 'bg-stone-400 text-white',
-  Low: 'bg-stone-200 text-stone-700',
+  Strong: 'bg-red-500 text-white',
+  Promising: 'bg-red-400 text-stone-900',
+  Moderate: 'bg-red-200 text-red-900',
+  Low: 'bg-red-50 text-red-900',
 }
 
 function formatNumber(n) {

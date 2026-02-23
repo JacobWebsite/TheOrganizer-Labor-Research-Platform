@@ -64,7 +64,7 @@ export function MatchReviewCard() {
           </div>
         ) : matches.length === 0 ? (
           <p className='py-4 text-center text-muted-foreground'>
-            No matches pending review
+            All clear &mdash; no reported issues.
           </p>
         ) : (
           <>

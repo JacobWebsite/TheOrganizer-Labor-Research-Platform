@@ -80,9 +80,12 @@ export function EmployerProfilePage() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
           <h2 className="text-xl font-semibold mb-1">Something went wrong</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             {error?.message || 'Failed to load employer profile.'}
           </p>
+          <Button variant="outline" size="sm" onClick={() => activeQuery.refetch()}>
+            Retry
+          </Button>
         </div>
       </div>
     )

@@ -14,8 +14,8 @@ import { MatchReviewCard } from '@/features/admin/MatchReviewCard'
 
 const MOCK_MATCHES = {
   matches: [
-    { id: 1, f7_employer_id: 'abc123', employer_name: 'Acme Corp', matched_source: 'osha', matched_name: 'ACME CORPORATION', confidence: 'MEDIUM', score: 0.72 },
-    { id: 2, f7_employer_id: 'def456', employer_name: 'Beta LLC', matched_source: 'sam', matched_name: 'BETA LLC', confidence: 'MEDIUM', score: 0.68 },
+    { id: 1, target_id: 'abc123', source_system: 'osha', confidence_score: 0.72, evidence: { target_name: 'Acme Corp', source_name: 'ACME CORPORATION' } },
+    { id: 2, target_id: 'def456', source_system: 'sam', confidence_score: 0.68, evidence: { target_name: 'Beta LLC', source_name: 'BETA LLC' } },
   ],
   total: 2,
 }
@@ -76,6 +76,6 @@ describe('MatchReviewCard', () => {
   it('shows empty state when no matches', () => {
     useMatchReview.mockReturnValue({ data: { matches: [], total: 0 }, isLoading: false })
     renderCard()
-    expect(screen.getByText('No matches pending review')).toBeInTheDocument()
+    expect(screen.getByText(/All clear/)).toBeInTheDocument()
   })
 })

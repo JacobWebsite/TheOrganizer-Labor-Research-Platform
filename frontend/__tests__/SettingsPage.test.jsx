@@ -32,13 +32,13 @@ import {
 import { useAuthStore } from '@/shared/stores/authStore'
 import { SettingsPage } from '@/features/admin/SettingsPage'
 
-const MOCK_HEALTH = { status: 'ok', database: 'ok', timestamp: '2026-02-22T12:00:00Z' }
-const MOCK_STATS = { total_employers: 146863, total_scorecard: 146863, total_matches: 1738115, matches_by_source: [{ source: 'osha', count: 97142 }] }
-const MOCK_FRESHNESS = [
-  { source: 'osha', row_count: 97142, latest_date: '2026-02-20', is_stale: false },
-  { source: 'nlrb', row_count: 25879, latest_date: '2026-01-15', is_stale: true },
-]
-const MOCK_QUALITY = { total_matches: 1738115, by_source: [{ source: 'osha', count: 97142 }], by_confidence: [{ confidence: 'HIGH', count: 500000 }], recent_runs: [] }
+const MOCK_HEALTH = { status: 'ok', db: true, timestamp: '2026-02-22T12:00:00Z' }
+const MOCK_STATS = { total_employers: 146863, total_scorecard_rows: 146863, match_counts_by_source: [{ source_system: 'osha', match_count: 97142 }] }
+const MOCK_FRESHNESS = { sources: [
+  { source_name: 'osha', row_count: 97142, latest_record_date: '2026-02-20', stale: false },
+  { source_name: 'nlrb', row_count: 25879, latest_record_date: '2026-01-15', stale: true },
+] }
+const MOCK_QUALITY = { total_match_rows: 1738115, by_source: [{ source_system: 'osha', total_rows: 97142 }], by_confidence: [{ confidence_band: 'HIGH', total_rows: 500000 }] }
 const MOCK_REVIEW = { matches: [], total: 0 }
 
 function setAdmin() {
@@ -102,10 +102,11 @@ describe('SettingsPage', () => {
     usePlatformStats.mockReturnValue({ data: MOCK_STATS, isLoading: false })
     renderPage()
     expect(screen.getByText('Platform Statistics')).toBeInTheDocument()
-    // 146,863 appears twice (total_employers and total_scorecard are the same value)
+    // 146,863 appears twice (total_employers and total_scorecard_rows are the same value)
     const statValues = screen.getAllByText('146,863')
     expect(statValues.length).toBe(2)
-    expect(screen.getByText('1,738,115')).toBeInTheDocument()
+    // Total matches computed from match_counts_by_source sum (97,142)
+    expect(screen.getByText('97,142')).toBeInTheDocument()
   })
 
   it('shows freshness table with source data', () => {
@@ -122,7 +123,7 @@ describe('SettingsPage', () => {
     useMatchReview.mockReturnValue({ data: MOCK_REVIEW, isLoading: false })
     renderPage()
     expect(screen.getByText('Match Review')).toBeInTheDocument()
-    expect(screen.getByText('No matches pending review')).toBeInTheDocument()
+    expect(screen.getByText(/All clear/)).toBeInTheDocument()
   })
 
   it('renders refresh buttons', () => {

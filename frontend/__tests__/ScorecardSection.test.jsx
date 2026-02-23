@@ -39,7 +39,7 @@ describe('ScorecardSection', () => {
     }
   })
 
-  it('shows "No data" for null score values', () => {
+  it('shows em-dash for null score values', () => {
     const scorecard = {
       score_nlrb: null,
       score_osha: null,
@@ -53,8 +53,8 @@ describe('ScorecardSection', () => {
     }
 
     render(<ScorecardSection scorecard={scorecard} />)
-    const noDataElements = screen.getAllByText('No data')
-    expect(noDataElements.length).toBe(9)
+    const dashElements = screen.getAllByText('\u2014')
+    expect(dashElements.length).toBe(9)
   })
 
   it('shows numeric value for non-null scores', () => {
@@ -72,8 +72,8 @@ describe('ScorecardSection', () => {
 
     render(<ScorecardSection scorecard={scorecard} />)
     expect(screen.getByText('8.2')).toBeInTheDocument()
-    const noDataElements = screen.getAllByText('No data')
-    expect(noDataElements.length).toBe(8)
+    const dashElements = screen.getAllByText('\u2014')
+    expect(dashElements.length).toBe(8)
   })
 
   it('shows explanation text when provided', () => {
@@ -112,11 +112,11 @@ describe('ScorecardSection', () => {
     const { container } = render(<ScorecardSection scorecard={scorecard} />)
     // Check that colored bar divs exist
     const redBars = container.querySelectorAll('.bg-red-600')
-    const orangeBars = container.querySelectorAll('.bg-orange-500')
-    const grayBars = container.querySelectorAll('.bg-stone-400')
+    const midBars = container.querySelectorAll('.bg-red-400')
+    const lowBars = container.querySelectorAll('.bg-red-200')
 
     expect(redBars.length).toBeGreaterThanOrEqual(1)
-    expect(orangeBars.length).toBeGreaterThanOrEqual(1)
-    expect(grayBars.length).toBeGreaterThanOrEqual(1)
+    expect(midBars.length).toBeGreaterThanOrEqual(1)
+    expect(lowBars.length).toBeGreaterThanOrEqual(1)
   })
 })

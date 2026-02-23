@@ -55,7 +55,7 @@ describe('UnionsPage', () => {
   })
 
   it('shows summary card with national data', () => {
-    useNationalUnions.mockReturnValue({ data: MOCK_NATIONAL, isLoading: false })
+    useNationalUnions.mockReturnValue({ data: { national_unions: MOCK_NATIONAL }, isLoading: false })
     renderWithRoute()
     expect(screen.getByText('National Unions Overview')).toBeInTheDocument()
     expect(screen.getByText('270')).toBeInTheDocument() // 150 + 120 total locals
