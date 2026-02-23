@@ -228,16 +228,14 @@ class TestUnifiedScorecardData:
         finally:
             conn.close()
 
-    def test_most_employers_have_financial_factor(self):
-        """Most employers should have financial factor (via NAICS/BLS)."""
+    def test_some_employers_have_financial_factor(self):
+        """Some employers should have financial factor (990 revenue data)."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM mv_unified_scorecard WHERE score_financial IS NOT NULL")
                 cnt = cur.fetchone()[0]
-                cur.execute("SELECT COUNT(*) FROM mv_unified_scorecard")
-                total = cur.fetchone()[0]
-                assert cnt > total * 0.8, f"Only {cnt}/{total} have financial factor"
+                assert cnt > 5000, f"Only {cnt} have financial factor (expected >5000 from 990 data)"
         finally:
             conn.close()
 

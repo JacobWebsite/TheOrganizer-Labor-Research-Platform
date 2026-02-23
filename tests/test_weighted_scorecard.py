@@ -50,7 +50,7 @@ def test_weighted_score_formula_consistency():
                           + COALESCE(score_nlrb, 0) * 3
                           + COALESCE(score_contracts, 0) * 2
                           + COALESCE(score_industry_growth, 0) * 2
-                          + COALESCE(score_similarity, 0) * 2
+                          + COALESCE(score_financial, 0) * 2
                           + COALESCE(score_osha, 0)
                           + COALESCE(score_whd, 0)
                         ) / total_weight::numeric
