@@ -121,6 +121,18 @@ bls_proj AS (
     SELECT matrix_code, employment_change_pct
     FROM bls_industry_projections
 ),
+financial_990 AS (
+    SELECT
+        m.f7_employer_id,
+        MAX(f.total_revenue) AS latest_revenue,
+        MAX(f.total_assets) AS latest_assets,
+        MAX(f.total_expenses) AS latest_expenses,
+        MAX(f.total_employees) AS n990_employees
+    FROM national_990_f7_matches m
+    JOIN national_990_filers f ON f.id = m.n990_id
+    WHERE f.total_revenue IS NOT NULL
+    GROUP BY m.f7_employer_id
+),
 feature_bridge AS (
     SELECT DISTINCT ON (LOWER(TRIM(employer_name)), state)
         LOWER(TRIM(employer_name)) AS employer_name_norm,
@@ -151,7 +163,6 @@ raw_scores AS (
         eds.state,
         eds.city,
         eds.naics,
-        eds.naics_detailed,
         eds.latest_unit_size,
         eds.latest_union_fnum,
         eds.latest_union_name,
@@ -239,11 +250,15 @@ raw_scores AS (
         END AS score_whd,
 
         CASE
-            WHEN eds.is_federal_contractor THEN
+            WHEN eds.is_federal_contractor AND COALESCE(eds.federal_obligations, 0) > 0 THEN
                 CASE
-                    WHEN COALESCE(eds.federal_contract_count, 0) > 0 OR COALESCE(eds.federal_obligations, 0) > 0 THEN 4
-                    ELSE 0
+                    WHEN eds.federal_obligations >= 100000000 THEN 10
+                    WHEN eds.federal_obligations >= 10000000 THEN 8
+                    WHEN eds.federal_obligations >= 1000000 THEN 6
+                    WHEN eds.federal_obligations >= 100000 THEN 4
+                    ELSE 2
                 END
+            WHEN eds.is_federal_contractor THEN 1
         END AS score_contracts,
 
         CASE
@@ -296,7 +311,11 @@ raw_scores AS (
         wa.total_penalties AS whd_total_penalties,
         wa.latest_finding AS whd_latest_finding,
         wa.any_repeat_violator AS whd_repeat_violator,
-        COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) AS bls_growth_pct
+        COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) AS bls_growth_pct,
+
+        f990.latest_revenue AS n990_revenue,
+        f990.latest_assets AS n990_assets,
+        f990.latest_expenses AS n990_expenses
     FROM mv_employer_data_sources eds
     LEFT JOIN osha_agg oa ON oa.f7_employer_id = eds.employer_id
     LEFT JOIN osha_avgs oa4 ON oa4.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 4)
@@ -312,6 +331,7 @@ raw_scores AS (
         ELSE NULL
     END AND bp.matrix_code IS NULL
     LEFT JOIN similarity_agg sa ON sa.employer_id = eds.employer_id
+    LEFT JOIN financial_990 f990 ON f990.f7_employer_id = eds.employer_id
 ),
 scored AS (
     SELECT
@@ -331,20 +351,43 @@ scored AS (
                 END
                 + CASE WHEN rs.best_distance IS NOT NULL AND rs.best_distance < 0.15 THEN 1 ELSE 0 END
             )
-        END AS score_similarity
+        END AS score_similarity,
+        -- score_financial: 990 nonprofit health + public company signal
+        -- Different from score_industry_growth (BLS employment projections)
+        CASE
+            WHEN rs.n990_revenue IS NOT NULL THEN LEAST(10, GREATEST(0,
+                CASE
+                    WHEN rs.n990_revenue >= 10000000 THEN 6
+                    WHEN rs.n990_revenue >= 1000000 THEN 4
+                    WHEN rs.n990_revenue >= 100000 THEN 2
+                    ELSE 0
+                END
+                + CASE
+                    WHEN COALESCE(rs.n990_assets, 0) > COALESCE(rs.n990_expenses, 1) * 2 THEN 2
+                    WHEN COALESCE(rs.n990_assets, 0) > COALESCE(rs.n990_expenses, 1) THEN 1
+                    ELSE 0
+                END
+                + CASE
+                    WHEN rs.n990_revenue / NULLIF(GREATEST(COALESCE(rs.latest_unit_size, 1), 1), 0) >= 50000 THEN 2
+                    WHEN rs.n990_revenue / NULLIF(GREATEST(COALESCE(rs.latest_unit_size, 1), 1), 0) >= 20000 THEN 1
+                    ELSE 0
+                END
+            ))
+            WHEN rs.is_public THEN 7
+        END AS score_financial
     FROM raw_scores rs
 ),
 weighted AS (
     SELECT
         s.*,
-        s.score_industry_growth AS score_financial,
         (
             CASE WHEN s.score_union_proximity IS NOT NULL THEN 3 ELSE 0 END
             + CASE WHEN s.score_size IS NOT NULL THEN 3 ELSE 0 END
             + CASE WHEN s.score_nlrb IS NOT NULL THEN 3 ELSE 0 END
             + CASE WHEN s.score_contracts IS NOT NULL THEN 2 ELSE 0 END
             + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
-            + CASE WHEN s.score_similarity IS NOT NULL THEN 2 ELSE 0 END
+            + CASE WHEN s.score_financial IS NOT NULL THEN 2 ELSE 0 END
+            -- score_similarity weight=0 until pipeline is fixed (D5)
             + CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
         ) AS total_weight,
@@ -355,8 +398,9 @@ weighted AS (
             + CASE WHEN s.score_contracts IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_union_proximity IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_industry_growth IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_financial IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_size IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN s.score_similarity IS NOT NULL THEN 1 ELSE 0 END
+            -- score_similarity excluded from factors_available (D5)
         ) AS factors_available,
         8 AS factors_total,
         ROUND(
@@ -366,7 +410,8 @@ weighted AS (
                 + COALESCE(s.score_nlrb, 0) * 3
                 + COALESCE(s.score_contracts, 0) * 2
                 + COALESCE(s.score_industry_growth, 0) * 2
-                + COALESCE(s.score_similarity, 0) * 2
+                + COALESCE(s.score_financial, 0) * 2
+                -- score_similarity * 0 (D5: weight=0)
                 + COALESCE(s.score_osha, 0)
                 + COALESCE(s.score_whd, 0)
             )::numeric
@@ -377,7 +422,7 @@ weighted AS (
                     + CASE WHEN s.score_nlrb IS NOT NULL THEN 3 ELSE 0 END
                     + CASE WHEN s.score_contracts IS NOT NULL THEN 2 ELSE 0 END
                     + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
-                    + CASE WHEN s.score_similarity IS NOT NULL THEN 2 ELSE 0 END
+                    + CASE WHEN s.score_financial IS NOT NULL THEN 2 ELSE 0 END
                     + CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
                     + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
                 ),
@@ -397,10 +442,20 @@ ranked AS (
 )
 SELECT
     r.*,
+    -- Flag columns (yes/no signals, NOT tier requirements per D2)
+    CASE WHEN COALESCE(r.osha_latest_inspection, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
+         OR COALESCE(r.whd_latest_finding, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
+         OR COALESCE(r.nlrb_latest_ulp, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
+        THEN TRUE ELSE FALSE
+    END AS has_recent_violations,
+    CASE WHEN r.score_contracts IS NOT NULL AND r.score_contracts > 0
+        THEN TRUE ELSE FALSE
+    END AS has_active_contracts,
     CASE
-        -- Guardrail: avoid sparse-data rows becoming top-priority on one strong signal.
+        -- Guardrail: min 3 factors for Priority AND Strong (D3)
         WHEN r.score_percentile >= 0.97 AND r.factors_available >= 3 THEN 'Priority'
-        WHEN r.score_percentile >= 0.85 THEN 'Strong'
+        WHEN r.score_percentile >= 0.85 AND r.factors_available >= 3 THEN 'Strong'
+        WHEN r.score_percentile >= 0.85 THEN 'Promising'
         WHEN r.score_percentile >= 0.60 THEN 'Promising'
         WHEN r.score_percentile >= 0.25 THEN 'Moderate'
         ELSE 'Low'

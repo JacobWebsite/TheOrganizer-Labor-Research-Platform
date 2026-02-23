@@ -185,6 +185,18 @@ def get_employer_profile(employer_id: str):
 
             cur.execute(
                 """
+                SELECT source_count
+                FROM mv_employer_data_sources
+                WHERE employer_id::text = %s
+                LIMIT 1
+                """,
+                [f7_id],
+            )
+            ds_row = cur.fetchone()
+            external_source_count = ds_row["source_count"] if ds_row else 0
+
+            cur.execute(
+                """
                 SELECT id, flag_type, notes, created_at
                 FROM employer_review_flags
                 WHERE source_type = 'F7' AND source_id = %s
@@ -197,6 +209,12 @@ def get_employer_profile(employer_id: str):
             result = {
                 "employer": employer,
                 "unified_scorecard": unified_scorecard,
+                "data_coverage": {
+                    "external_source_count": external_source_count,
+                    "factors_available": unified_scorecard.get("factors_available", 0) if unified_scorecard else 0,
+                    "factors_total": unified_scorecard.get("factors_total", 8) if unified_scorecard else 8,
+                    "label": f"Score based on {unified_scorecard.get('factors_available', 0) if unified_scorecard else 0} of {unified_scorecard.get('factors_total', 8) if unified_scorecard else 8} factors ({external_source_count} external sources)"
+                },
                 "osha": {
                     "summary": osha_summary,
                     "establishments": osha_establishments,
