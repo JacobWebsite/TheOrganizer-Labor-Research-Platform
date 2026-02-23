@@ -62,7 +62,7 @@ _OUTPUT_COST_PER_1K = 0.25   # $2.50/M output
 _INTERNAL_TOOLS = [
     "search_osha", "search_nlrb", "search_whd", "search_sec",
     "search_sam", "search_990", "search_contracts", "search_mergent",
-    "get_industry_profile", "get_similar_employers",
+    "get_industry_profile", "get_similar_employers", "google_search",
 ]
 
 # Dossier sections
@@ -130,7 +130,8 @@ def _build_gemini_tools() -> list[types.Tool]:
     """Convert our TOOL_DEFINITIONS to Gemini FunctionDeclaration format."""
     declarations = []
     for td in TOOL_DEFINITIONS:
-        # Skip web search and scraper stubs
+        # Skip stubs — web search uses a separate grounding phase,
+        # scraper is not yet implemented
         if td["name"] in ("search_web", "scrape_employer_website"):
             continue
 
@@ -153,6 +154,16 @@ def _build_gemini_tools() -> list[types.Tool]:
         ))
 
     return [types.Tool(function_declarations=declarations)]
+
+
+def _build_google_search_tool() -> list[types.Tool]:
+    """Build a tools list with only Google Search grounding.
+
+    Gemini does not allow function_declarations and google_search in the
+    same request, so we run web search as a separate phase after the
+    function-calling loop completes.
+    """
+    return [types.Tool(google_search=types.GoogleSearch())]
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +218,20 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - BLS industry profile (get_industry_profile) -- needs a NAICS code
    - Similar organized employers (get_similar_employers)
 
-3. **Synthesize** your findings into the dossier.
+3. **Search the web** for current context (automatic via Google Search):
+   - Recent news about the company (layoffs, expansions, lawsuits)
+   - Ongoing or recent organizing campaigns, strikes, work stoppages
+   - Worker complaints (Glassdoor themes, Reddit, news articles)
+   - Company leadership statements about unions
+   - Recent NLRB developments not yet in our database
+
+   Search queries to try:
+   - "{company_name}" union organizing workers
+   - "{company_name}" strike labor dispute
+   - "{company_name}" NLRB
+   - "{company_name}" layoffs workers 2025 2026
+
+4. **Synthesize** your findings into the dossier.
 
 Always pass the company_name parameter. If the employer_id is known (not "unknown"), pass it too for more precise matching.
 If the NAICS is known, pass it to get_industry_profile and get_similar_employers.
@@ -490,6 +514,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     user_message = (
         f"Please conduct a thorough deep-dive research on **{run['company_name']}** "
         f"using the available tools. Start with internal database searches, then "
+        f"search the web for recent news and labor context, then "
         f"synthesize into a dossier. When done, produce the JSON dossier."
     )
 
@@ -579,7 +604,16 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
             # Execute the tool
             t0 = time.time()
-            if tool_name in TOOL_REGISTRY:
+            if tool_name == "google_search":
+                # Gemini sometimes emits google_search as a function call
+                # even though it's not in our declarations. Handle gracefully —
+                # actual web search happens in Phase 2 (grounding).
+                result = {
+                    "found": True, "source": "google_search",
+                    "summary": "Web search will be performed in the grounding phase.",
+                    "data": {},
+                }
+            elif tool_name in TOOL_REGISTRY:
                 try:
                     result = TOOL_REGISTRY[tool_name](**tool_input)
                 except Exception as e:
@@ -629,6 +663,143 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         # Collect whatever text we got in the last response
         if not final_text:
             final_text = "\n".join(p.text for p in parts if p.text)
+
+    # ------------------------------------------------------------------
+    # Phase 2: Web search via Google Search grounding
+    # ------------------------------------------------------------------
+    # Gemini cannot combine function_declarations and google_search in
+    # one request, so we run a separate call with only Google Search
+    # grounding enabled to enrich the dossier with current web context.
+    _progress(run_id, "Searching the web for current context...", 82)
+
+    try:
+        web_prompt = (
+            f"You are a labor-relations research agent. You have already queried internal databases "
+            f"for **{run['company_name']}** and produced a preliminary dossier.\n\n"
+            f"Now search the web for current context to enrich the assessment. Look for:\n"
+            f"- Recent news about {run['company_name']} (layoffs, expansions, lawsuits, M&A)\n"
+            f"- Ongoing or recent union organizing campaigns, strikes, work stoppages\n"
+            f"- Worker complaints, Glassdoor reviews themes, Reddit discussions\n"
+            f"- Company leadership statements about unions or labor relations\n"
+            f"- Recent NLRB filings or rulings not yet in government databases\n\n"
+            f"Return your findings as a JSON code block:\n"
+            f"```json\n"
+            f'{{"web_findings": {{\n'
+            f'  "recent_news": ["headline or summary (source, date)", ...],\n'
+            f'  "organizing_activity": ["description (source, date)", ...],\n'
+            f'  "worker_sentiment": ["theme or quote (source)", ...],\n'
+            f'  "company_context": "1-2 paragraph summary of what web sources reveal",\n'
+            f'  "sources_consulted": ["url or source name", ...]\n'
+            f"}}}}\n"
+            f"```\n\n"
+            f"If you find nothing relevant, return empty lists. Be specific with dates and sources."
+        )
+
+        web_response = client.models.generate_content(
+            model=MODEL,
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=web_prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=_build_google_search_tool(),
+                max_output_tokens=8192,
+            ),
+        )
+
+        # Track token usage from web search phase
+        if web_response.usage_metadata:
+            total_input_tokens += web_response.usage_metadata.prompt_token_count or 0
+            total_output_tokens += web_response.usage_metadata.candidates_token_count or 0
+
+        web_candidate = web_response.candidates[0]
+        web_text = "\n".join(
+            p.text for p in web_candidate.content.parts if p.text
+        )
+
+        # Log grounding metadata
+        grounding_meta = getattr(web_candidate, 'grounding_metadata', None)
+        search_queries_used = []
+        if grounding_meta:
+            search_queries_used = getattr(grounding_meta, 'web_search_queries', []) or []
+            grounding_chunks = getattr(grounding_meta, 'grounding_chunks', []) or []
+            if search_queries_used:
+                _log.info("Run %d: Google Search queries: %s",
+                          run_id, search_queries_used[:5])
+
+        execution_order += 1
+        tools_called += 1
+        _log_action(
+            run_id, "google_search",
+            {"queries": search_queries_used[:10]},
+            execution_order,
+            {"found": bool(web_text.strip()),
+             "source": "google_search",
+             "summary": f"Web search: {', '.join(search_queries_used[:3])}" if search_queries_used
+                        else "Web search grounding (queries not exposed)",
+             "data": {}},
+            0,
+        )
+
+        # Append web findings to final_text so the dossier can reference them.
+        # We also try to extract structured web findings and merge later.
+        if web_text.strip():
+            final_text += "\n\n--- WEB SEARCH FINDINGS ---\n" + web_text
+            _log.info("Run %d: web search returned %d chars", run_id, len(web_text))
+        else:
+            _log.info("Run %d: web search returned no text", run_id)
+
+    except Exception as web_exc:
+        _log.warning("Run %d: web search phase failed (non-fatal): %s", run_id, web_exc)
+
+    # ------------------------------------------------------------------
+    # Phase 3: Re-synthesize dossier with web findings
+    # ------------------------------------------------------------------
+    # If we got web findings, ask Gemini to merge them into the dossier JSON.
+    if "--- WEB SEARCH FINDINGS ---" in final_text:
+        _progress(run_id, "Merging web findings into dossier...", 84)
+        try:
+            merge_prompt = (
+                f"Below is a research dossier JSON and web search findings for **{run['company_name']}**.\n\n"
+                f"Merge the web findings into the dossier JSON. Specifically:\n"
+                f"- Add web-sourced context to assessment.organizing_summary\n"
+                f"- Add relevant items to assessment.campaign_strengths and assessment.campaign_challenges\n"
+                f"- Add any new facts to the facts array with source_type='web'\n"
+                f"- Add web sources to sources.source_list\n"
+                f"- Update sources.section_confidence if web data improves confidence\n\n"
+                f"Return ONLY the complete updated JSON dossier (same structure as original).\n\n"
+                f"{final_text}"
+            )
+
+            merge_response = client.models.generate_content(
+                model=MODEL,
+                contents=[types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=merge_prompt)],
+                )],
+                config=types.GenerateContentConfig(
+                    max_output_tokens=MAX_TOKENS,
+                ),
+            )
+
+            if merge_response.usage_metadata:
+                total_input_tokens += merge_response.usage_metadata.prompt_token_count or 0
+                total_output_tokens += merge_response.usage_metadata.candidates_token_count or 0
+
+            merged_text = "\n".join(
+                p.text for p in merge_response.candidates[0].content.parts if p.text
+            )
+            if merged_text.strip():
+                # Try to parse the merged version; fall back to original if it fails
+                merged_dossier = _extract_dossier_json(merged_text)
+                if merged_dossier and "dossier" in merged_dossier:
+                    final_text = merged_text
+                    _log.info("Run %d: successfully merged web findings into dossier", run_id)
+                else:
+                    _log.warning("Run %d: merge produced invalid JSON, keeping original", run_id)
+
+        except Exception as merge_exc:
+            _log.warning("Run %d: merge phase failed (non-fatal): %s", run_id, merge_exc)
 
     # ------------------------------------------------------------------
     # Parse dossier from final response

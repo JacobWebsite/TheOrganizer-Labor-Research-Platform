@@ -1156,22 +1156,22 @@ def search_mergent(
 
 
 # ---------------------------------------------------------------------------
-# TOOL 11: search_web  (executed BY Claude via built-in web search)
+# TOOL 11: search_web  (replaced by Gemini Google Search grounding)
 # ---------------------------------------------------------------------------
-# This tool is NOT called locally — it is defined as a tool_definition for
-# the Claude API.  When Claude decides to use it, the orchestrator delegates
-# to Claude's built-in web search capability.  We still define a stub here
-# so the tool registry is complete.
+# Web search is now handled by Gemini's native Google Search grounding tool,
+# which is passed alongside function declarations in agent.py._build_gemini_tools().
+# Gemini automatically searches the web when it needs current information.
+# This stub is kept for backward compatibility with the TOOL_REGISTRY.
 
 def search_web(company_name: str, query: Optional[str] = None, **_kw) -> dict:
-    """Stub — web search is handled via the Claude API's built-in web search tool.
-    The agent orchestration loop intercepts this and uses the Anthropic API."""
+    """Stub — web search is handled by Gemini Google Search grounding.
+    This function is not called directly; Gemini uses its built-in search."""
     return {
         "found": False,
         "source": "web_search",
-        "summary": "Web search must be executed through the Claude API built-in tool.",
+        "summary": "Web search is handled by Gemini Google Search grounding (not a function call).",
         "data": {},
-        "error": "Not callable locally — use Claude API web search.",
+        "error": "Not callable locally — handled by Gemini grounding.",
     }
 
 
@@ -1350,18 +1350,7 @@ TOOL_DEFINITIONS = [
             "required": ["company_name"],
         },
     },
-    {
-        "name": "search_web",
-        "description": "Search the web for recent news, labor developments, and company information. Use for current events not in government databases: layoffs, organizing campaigns, strikes, worker complaints, company descriptions. Provide a specific search query.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "company_name": {"type": "string", "description": "Company name"},
-                "query": {"type": "string", "description": "Specific search query to run. Include the company name and topic, e.g. '\"Amazon\" workers union organizing 2025'"},
-            },
-            "required": ["company_name", "query"],
-        },
-    },
+    # search_web removed — replaced by Gemini Google Search grounding in agent.py
     {
         "name": "scrape_employer_website",
         "description": "Scrape the employer's website for company info, job postings, leadership, and locations. Provide the URL if known. (Currently a placeholder — returns no data.)",
