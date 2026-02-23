@@ -20,6 +20,7 @@ export function SearchPage() {
     state: filters.state || undefined,
     naics: filters.naics || undefined,
     source_type: filters.source_type || undefined,
+    has_union: filters.has_union || undefined,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
     enabled: hasActiveSearch,
