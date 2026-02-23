@@ -1,13 +1,18 @@
 from fastapi import APIRouter, HTTPException
 
 from ..database import get_db
+from ..helpers import TTLCache
 
 router = APIRouter()
+_profile_cache = TTLCache(ttl_seconds=300)  # 5-minute cache per employer
 
 
 @router.get("/api/profile/employers/{employer_id}")
 def get_employer_profile(employer_id: str):
     """Canonical employer profile payload for frontend detail rendering."""
+    cached = _profile_cache.get(f"profile:{employer_id}")
+    if cached is not None:
+        return cached
     with get_db() as conn:
         with conn.cursor() as cur:
             # Prefer F7 ID exact match, then canonical-id lookup from unified search MV.
@@ -189,7 +194,7 @@ def get_employer_profile(employer_id: str):
             )
             flags = cur.fetchall()
 
-            return {
+            result = {
                 "employer": employer,
                 "unified_scorecard": unified_scorecard,
                 "osha": {
@@ -209,6 +214,8 @@ def get_employer_profile(employer_id: str):
                 "cross_references": cross_references,
                 "flags": flags,
             }
+            _profile_cache.set(f"profile:{employer_id}", result)
+            return result
 
 
 @router.get("/api/profile/unions/{f_num}")

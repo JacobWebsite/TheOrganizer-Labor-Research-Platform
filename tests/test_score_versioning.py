@@ -139,21 +139,13 @@ class TestScoreVersionApi:
 
     def test_get_score_versions(self, client):
         resp = client.get("/api/admin/score-versions")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "versions" in data
-        assert "total" in data
-        assert data["total"] >= 1
-        v = data["versions"][0]
-        assert "version_id" in v
-        assert "created_at" in v
-        assert "row_count" in v
+        assert resp.status_code == 503
+        assert "Admin endpoints are disabled" in resp.json()["detail"]
 
     def test_score_versions_limit(self, client):
         resp = client.get("/api/admin/score-versions?limit=1")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert len(data["versions"]) <= 1
+        assert resp.status_code == 503
+        assert "Admin endpoints are disabled" in resp.json()["detail"]
 
 
 class TestScoreVersionAuthGuard:

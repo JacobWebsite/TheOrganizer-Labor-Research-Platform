@@ -2,6 +2,40 @@
 Shared helper functions and constants used across routers.
 """
 import re
+import time
+from typing import Any, Callable
+
+
+class TTLCache:
+    """Simple in-memory cache with time-to-live expiration.
+
+    Usage:
+        _cache = TTLCache(ttl_seconds=300)
+        result = _cache.get("key")
+        if result is None:
+            result = expensive_query()
+            _cache.set("key", result)
+    """
+
+    def __init__(self, ttl_seconds: int = 300):
+        self._store: dict[str, tuple[float, Any]] = {}
+        self._ttl = ttl_seconds
+
+    def get(self, key: str) -> Any:
+        entry = self._store.get(key)
+        if entry is None:
+            return None
+        expires_at, value = entry
+        if time.time() > expires_at:
+            del self._store[key]
+            return None
+        return value
+
+    def set(self, key: str, value: Any) -> None:
+        self._store[key] = (time.time() + self._ttl, value)
+
+    def clear(self) -> None:
+        self._store.clear()
 
 
 def safe_sort_col(sort_by: str, allowed: dict, default: str) -> str:

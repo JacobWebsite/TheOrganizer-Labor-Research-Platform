@@ -255,9 +255,8 @@ class TestPropensityAPI:
 
     def test_propensity_models_endpoint(self, client):
         resp = client.get("/api/admin/propensity-models")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "models" in data
+        assert resp.status_code == 503
+        assert "Admin endpoints are disabled" in resp.json()["detail"]
 
     def test_scorecard_detail_has_propensity(self, client):
         """Scorecard detail should include propensity_context (may be null)."""

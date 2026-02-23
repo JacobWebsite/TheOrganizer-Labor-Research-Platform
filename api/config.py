@@ -19,6 +19,9 @@ FILES_DIR = _project_root / "files"
 AUTH_DISABLED = os.environ.get("DISABLE_AUTH", "").lower() == "true"
 _jwt_from_env = os.environ.get("LABOR_JWT_SECRET") or ""
 JWT_SECRET = "" if AUTH_DISABLED else _jwt_from_env
+# Safety valve for local development only. When false (default), admin endpoints
+# are blocked if auth is disabled to avoid anonymous administrative access.
+ALLOW_INSECURE_ADMIN = os.environ.get("ALLOW_INSECURE_ADMIN", "").lower() == "true"
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 8
 

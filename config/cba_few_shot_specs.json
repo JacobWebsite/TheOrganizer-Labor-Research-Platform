@@ -1,0 +1,25 @@
+{
+  "few_shot_specifications": [
+    {
+      "class_id": "cba_parties",
+      "ideal_example": "This Agreement is entered into this 1st day of October, 2021, by and between the League of Voluntary Hospitals and Homes of New York and 1199SEIU United Healthcare Workers East.",
+      "tricky_example": "A multi-employer agreement where individual hospitals are listed in an appendix rather than the preamble.",
+      "negative_example": "Text mentioning a previous agreement between the parties that is no longer in effect.",
+      "min_examples": 3
+    },
+    {
+      "class_id": "just_cause",
+      "ideal_example": "No employee shall be disciplined, suspended, or discharged except for just cause.",
+      "tricky_example": "Provisions that use 'proper cause' or 'cause' without the word 'just', which have slightly different legal thresholds.",
+      "negative_example": "Provisions for probationary employees stating they can be fired without cause.",
+      "min_examples": 3
+    },
+    {
+      "class_id": "wage_base_rates",
+      "ideal_example": "Effective October 1, 2021, the minimum weekly rate for a Registered Nurse shall be $1,850.00.",
+      "tricky_example": "Wage tables with multiple columns for different years and rows for different steps/seniority levels.",
+      "negative_example": "Text discussing the process for negotiating future wages without specifying current rates.",
+      "min_examples": 5
+    }
+  ]
+}

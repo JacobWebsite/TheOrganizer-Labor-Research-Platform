@@ -7,13 +7,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from fastapi import APIRouter, HTTPException, Query
 
 from ..database import get_db
-from ..helpers import safe_order_dir, safe_sort_col
+from ..helpers import safe_order_dir, safe_sort_col, TTLCache
 
 router = APIRouter()
 
 _MASTER_PK_COL: Optional[str] = None
 _HAS_LABOR_COL: Optional[bool] = None
 _INDEXES_READY = False
+_stats_cache = TTLCache(ttl_seconds=300)  # 5-minute cache for expensive stats
 
 
 def _normalize_q(q: str) -> str:
@@ -402,6 +403,9 @@ def master_detail(master_id: int):
 @router.get("/api/master/stats")
 def master_stats():
     """Aggregate stats for the master employer universe."""
+    cached = _stats_cache.get("master_stats")
+    if cached is not None:
+        return cached
     with get_db() as conn:
         with conn.cursor() as cur:
             pk_col, has_labor_col = _schema_flags(cur)
@@ -470,7 +474,7 @@ def master_stats():
             )
             avg_source_count = cur.fetchone()["avg_source_count"]
 
-            return {
+            result = {
                 "total": total,
                 "by_source_origin": by_origin,
                 "top_states": by_state,
@@ -478,3 +482,5 @@ def master_stats():
                 "quality_distribution": quality_distribution,
                 "avg_source_count": avg_source_count,
             }
+            _stats_cache.set("master_stats", result)
+            return result

@@ -1,6 +1,6 @@
 # Labor Relations Research Platform - Claude Context
 
-> **Document Purpose:** Technical implementation reference — schema, gotchas, matching details, API reference, dev workflow. For project status, see `PROJECT_STATE.md`. For the plan, see `UNIFIED_ROADMAP_2026_02_19.md`. For redesign decisions (scoring, React, UX), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`. For file locations, see `PROJECT_DIRECTORY.md`.
+> **Document Purpose:** Technical implementation reference — schema, gotchas, matching details, API reference, dev workflow. For project status, see `PROJECT_STATE.md`. For the plan, see `MASTER_ROADMAP_2026_02_23.md`. For redesign decisions (scoring, React, UX), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`. For file locations, see `PROJECT_DIRECTORY.md`.
 
 ## Quick Reference
 **Last Updated:** 2026-02-21 (Reconciled with UNIFIED_PLATFORM_REDESIGN_SPEC.md. 456 tests, 1 known failure. All B4 re-runs complete. Numbers aligned across all project documents.)
@@ -77,7 +77,7 @@ labor-data-project/
 - `PIPELINE_MANIFEST.md` lists every active script. If it's not there, it's archived.
 - `archive/` holds everything moved during reorganization — nothing was permanently deleted.
 - `db_config.py` stays at project root (500+ imports depend on it).
-- All old roadmaps are in `archive/old_roadmaps/` — only `UNIFIED_ROADMAP_2026_02_19.md` is current.
+- All old roadmaps are in `archive/old_roadmaps/` — only `MASTER_ROADMAP_2026_02_23.md` is current.
 
 ---
 
@@ -549,7 +549,7 @@ FROM v_{sector}_organizing_targets WHERE priority_tier IN ('HIGH', 'MEDIUM');
 
 | Document | Purpose |
 |----------|---------|
-| `UNIFIED_ROADMAP_2026_02_19.md` | **Current roadmap** — supersedes ALL prior roadmaps (archived in `archive/old_roadmaps/`) |
+| `MASTER_ROADMAP_2026_02_23.md` | **Current roadmap** — Phases 0-8, 22 decisions, supersedes UNIFIED_ROADMAP_2026_02_19.md and all prior roadmaps |
 | `UNIFIED_PLATFORM_REDESIGN_SPEC.md` | **Platform redesign spec** — scoring (8 factors, weighted), React/Vite frontend, UX design, page layouts, task list. Supersedes scoring and frontend sections in the Roadmap. |
 | `PROJECT_STATE.md` | Shared AI context — quick start, DB inventory, status, decisions, design rationale |
 | `PIPELINE_MANIFEST.md` | Active script manifest — every pipeline script, what it does, when to run it |

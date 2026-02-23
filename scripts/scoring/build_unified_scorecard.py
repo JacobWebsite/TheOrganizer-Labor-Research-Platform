@@ -398,7 +398,8 @@ ranked AS (
 SELECT
     r.*,
     CASE
-        WHEN r.score_percentile >= 0.97 THEN 'Priority'
+        -- Guardrail: avoid sparse-data rows becoming top-priority on one strong signal.
+        WHEN r.score_percentile >= 0.97 AND r.factors_available >= 3 THEN 'Priority'
         WHEN r.score_percentile >= 0.85 THEN 'Strong'
         WHEN r.score_percentile >= 0.60 THEN 'Promising'
         WHEN r.score_percentile >= 0.25 THEN 'Moderate'

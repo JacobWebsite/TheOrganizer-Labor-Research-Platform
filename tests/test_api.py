@@ -477,17 +477,7 @@ def test_scorecard_detail_has_ulp_context(client):
 # ============================================================================
 
 def test_data_freshness_endpoint(client):
-    """Data freshness endpoint returns source list with counts."""
+    """Data freshness admin endpoint is blocked when auth is disabled by default."""
     r = client.get("/api/admin/data-freshness")
-    assert r.status_code == 200
-    data = r.json()
-    assert "sources" in data
-    assert "source_count" in data
-    assert "total_records" in data
-    assert data["source_count"] > 0
-    assert data["total_records"] > 0
-    # Each source has expected fields
-    src = data["sources"][0]
-    assert "source_name" in src
-    assert "display_name" in src
-    assert "record_count" in src
+    assert r.status_code == 503
+    assert "Admin endpoints are disabled" in r.json()["detail"]

@@ -12,7 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import psycopg2
 
-from .config import PROJECT_ROOT, FILES_DIR, ALLOWED_ORIGINS, JWT_SECRET, AUTH_DISABLED
+from .config import (
+    PROJECT_ROOT,
+    FILES_DIR,
+    ALLOWED_ORIGINS,
+    JWT_SECRET,
+    AUTH_DISABLED,
+    ALLOW_INSECURE_ADMIN,
+)
 from .middleware.auth import AuthMiddleware
 
 _log = logging.getLogger("labor_api")
@@ -104,11 +111,18 @@ async def handle_db_error(_request, _exc):
 
 # Auth startup checks
 if AUTH_DISABLED:
-    _log.warning(
-        "DISABLE_AUTH=true -- authentication is DISABLED. "
-        "All API endpoints are publicly accessible. "
-        "Remove DISABLE_AUTH from .env to enforce authentication."
-    )
+    if ALLOW_INSECURE_ADMIN:
+        _log.warning(
+            "DISABLE_AUTH=true and ALLOW_INSECURE_ADMIN=true -- "
+            "authentication is DISABLED and admin endpoints are publicly accessible. "
+            "Remove DISABLE_AUTH and ALLOW_INSECURE_ADMIN from .env to enforce authentication."
+        )
+    else:
+        _log.warning(
+            "DISABLE_AUTH=true -- authentication is DISABLED for non-admin endpoints. "
+            "Admin endpoints are blocked unless ALLOW_INSECURE_ADMIN=true. "
+            "Remove DISABLE_AUTH from .env to enforce authentication."
+        )
 elif not JWT_SECRET:
     _log.critical(
         "LABOR_JWT_SECRET is not set and DISABLE_AUTH is not true. "

@@ -1,14 +1,45 @@
 # PROJECT_STATE.md — Labor Relations Research Platform
 
-> **Document Purpose:** Session handoffs and live status — what just happened, latest numbers, active bugs. For technical details, see `CLAUDE.md`. For the plan, see `UNIFIED_ROADMAP_2026_02_19.md`. For redesign decisions (scoring, React, UX), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`. For file locations, see `PROJECT_DIRECTORY.md`.
+> **Document Purpose:** Session handoffs and live status — what just happened, latest numbers, active bugs. For technical details, see `CLAUDE.md`. For the plan, see `MASTER_ROADMAP_2026_02_23.md` (supersedes UNIFIED_ROADMAP_2026_02_19.md). For redesign decisions (scoring, React, UX), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`. For file locations, see `PROJECT_DIRECTORY.md`.
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-22 (Claude Code: Spec Gap Closure — search enhancements, profile cards, affiliation tree)
+**Last manually updated:** 2026-02-23 (Claude Code: Master Roadmap synthesis)
 
 ---
 
-## Latest Update (2026-02-22 late night — Spec Gap Closure)
+## Latest Update (2026-02-23 — Master Roadmap Created)
+
+- **`MASTER_ROADMAP_2026_02_23.md` created.** Synthesized from 6 source documents (~3,800 lines):
+  - `FOUR_AUDIT_SYNTHESIS_v3.md` (4 independent AI audits)
+  - `UNIFIED_PLATFORM_REDESIGN_SPEC.md` (complete platform redesign spec)
+  - `RESEARCH_AGENT_IMPLEMENTATION_PLAN.md` (4-phase research agent)
+  - `workforce_estimation_model_plan.md` (3-report workforce estimation synthesis)
+  - `SESSION_HANDOFF_CBA_TOOL_2026-02-22.md` + `SESSION_SUMMARY_2026-02-22_codex_cba_extraction_and_ui.md` (CBA tool)
+- **Roadmap structure:** 8 phases (0-8), 22 user decisions (D1-D22), 20 investigation questions, dependency map, risk register (10 risks), success criteria, budget breakdown.
+- **Estimated effort:** 355-510 hours (Phases 0-7, ~20 weeks). Budget: ~$265 one-time R&D, $100-200/month ongoing.
+- **Self-audited:** Compared every section against all 6 source documents, found and fixed 20 gaps (missing investigations, underestimated Phase 5 effort, missing security details, missing Phase 8 items like EEO-1 and propensity model verification).
+- **Supersedes** `UNIFIED_ROADMAP_2026_02_19.md` for all planning purposes.
+- **Key audit findings driving the roadmap:**
+  - 3-4 of 8 scoring factors are broken (score_financial is duplicate, score_contracts has zero variation, score_similarity covers 0.1%)
+  - 92.7% of Priority tier employers have zero enforcement data
+  - 29,236 stale OSHA matches below 0.70 name similarity floor
+  - 10-40% Splink false positive rate on HIGH-confidence matches
+  - 83.6% of nlrb_participants data is junk (CSV header text)
+- **No code changes in this session.** Planning/documentation only.
+
+### Previous: 2026-02-23 (Codex deep audit execution)
+
+- **Frontend build/test explicitly validated in this environment (outside sandbox restrictions):**
+  - `npm.cmd test` -> 21 test files, 134 tests passed
+  - `npm.cmd run build` -> success, 1877 modules transformed
+- **`frontend/package.json` updated with test script alias:** `"test": "vitest run"`.
+- **Backend regression check:** `python -m pytest tests/ -q` -> 492 passed, 1 skipped.
+- **Note:** inside sandboxed Node, Vite/esbuild can fail with `spawn EPERM`; use approved `.cmd` commands above.
+
+---
+
+## Previous: 2026-02-22 late night — Spec Gap Closure
 
 - **Spec Gap Closure DONE.** 15 new files + 11 modified. Closes remaining gaps between React frontend and UNIFIED_PLATFORM_REDESIGN_SPEC.
 - **Search enhancements:** Employee size filter (min/max workers number inputs), score tier filter (Priority/Strong/Promising/Moderate/Low dropdown), table/card view toggle (persisted to localStorage). SearchResultCard grid for card view. API: 3 new query params on `/api/employers/unified-search` (`min_workers`, `max_workers`, `score_tier`) with SQL filtering on `mv_employer_search` + `mv_unified_scorecard`.
@@ -125,6 +156,20 @@ py -m pytest tests/ -q
 ```
 492 backend tests. 491 pass, 1 skip. 134 frontend tests (21 files), all pass.
 
+### Run Frontend Tests
+```bash
+cd frontend
+npm.cmd test
+```
+Expected current result: 21 files, 134 tests passed.
+
+### Run Frontend Production Build
+```bash
+cd frontend
+npm.cmd run build
+```
+Expected current result: build success, ~1877 modules transformed.
+
 ### Key Files
 | File | Purpose |
 |------|---------|
@@ -132,8 +177,9 @@ py -m pytest tests/ -q
 | `.env` | Database credentials and JWT secret |
 | `api/main.py` | FastAPI application entry point |
 | `CLAUDE.md` | Detailed project instructions for AI tools |
-| `UNIFIED_ROADMAP_2026_02_19.md` | Single source of truth for status, problems, and plan |
+| `MASTER_ROADMAP_2026_02_23.md` | **Current roadmap** — Phases 0-8, 22 decisions, supersedes UNIFIED_ROADMAP_2026_02_19.md |
 | `UNIFIED_PLATFORM_REDESIGN_SPEC.md` | Platform redesign spec — 8-factor weighted scoring, React frontend, UX, page designs |
+| `FOUR_AUDIT_SYNTHESIS_v3.md` | Synthesis of 4 independent AI audits — data quality issues, investigation questions |
 | `PIPELINE_MANIFEST.md` | Every active script — what it does, when to run it |
 
 ---
@@ -265,6 +311,8 @@ See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 
 ## Section 5: Recent Decisions
 
+**New decision register (22 decisions, D1-D22):** See `MASTER_ROADMAP_2026_02_23.md` Decision Register section. Key pending decisions: D1 (name similarity floor), D2 (Priority tier meaning), D3 (minimum factors for Strong), D4 (stale OSHA handling), D5 (score_similarity), D15 (CBA OCR approach).
+
 From the Feb 16-17, 2026 planning session (full list in `UNIFIED_ROADMAP_2026_02_19.md` Appendix B). For redesign-era decisions (scoring weights, React migration, UX, page designs), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`.
 
 | # | Topic | Decision |
@@ -387,9 +435,11 @@ A master employer key (one platform ID per real-world employer, mapped to all so
   - **Tests:** 27 new (SearchEnhancements 8, ProfileCards 14, AffiliationTree 5). Total: 134 tests, 21 files, all passing.
 - **Commit:** `a3a9cd5`, pushed to GitHub.
 
-### What's next
-- **Phase F:** Docker, CI/CD, hosting.
-- **Master dedup Phase 3 (fuzzy):** Codex rollout plan in `docs/session-summaries/SESSION_SUMMARY_2026-02-22_codex_master_dedup_phase3_plan.md`.
+### What's next (per MASTER_ROADMAP_2026_02_23.md)
+- **Phase 0 (Quick Wins):** Backups, indexes, MV fix, search fix, freshness table, ANALYZE, slow endpoints, API key rotation. ~1.5 days.
+- **Decisions D1-D7** needed before Phase 1 (name similarity floor, Priority tier meaning, minimum factors, stale OSHA handling, score_similarity, Codex changes, empty columns).
+- **Phase 1 (Data Trust):** Fix 3-4 broken scoring factors, clean junk records, tier logic. ~3-4 weeks.
+- **Phase 1B (Investigations):** 20 questions from audit synthesis, 5 critical (block later phases). ~35-50 hours.
 - **194 LOW-confidence misclassification records:** BMF-only signals, needs manual review.
 - **Remaining uncommitted changes:** Codex deliverables (scorecard.py, build_unified_scorecard.py, master.py, CBA extraction) not yet committed.
 

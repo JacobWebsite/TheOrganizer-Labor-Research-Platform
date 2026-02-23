@@ -220,6 +220,8 @@ def create_or_refresh_view(conn):
 
     if exists:
         print("Refreshing mv_employer_features...")
+        # TODO: Add CONCURRENTLY once mv_employer_features has a UNIQUE INDEX
+        # (currently 79 duplicate employer_ids prevent this)
         cur.execute("REFRESH MATERIALIZED VIEW mv_employer_features")
     else:
         print("Creating mv_employer_features...")

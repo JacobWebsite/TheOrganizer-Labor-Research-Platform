@@ -4,9 +4,10 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 from ..database import get_db
 from ..dependencies import require_admin, require_auth
-from ..helpers import safe_sort_col, safe_order_dir
+from ..helpers import safe_sort_col, safe_order_dir, TTLCache
 
 router = APIRouter()
+_match_quality_cache = TTLCache(ttl_seconds=600)  # 10-minute cache
 
 
 # Canonical scoring parameters — fallbacks if score_versions table is empty or missing
@@ -1001,17 +1002,10 @@ def refresh_scorecard(user=Depends(require_admin)):
 
 @router.get("/api/admin/score-versions")
 def get_score_versions(
-    request: Request,
+    user=Depends(require_admin),
     limit: int = Query(20, ge=1, le=100),
 ):
     """Return score version history (most recent first)."""
-    from ..config import JWT_SECRET
-    if JWT_SECRET:
-        user = getattr(request.state, "user", None)
-        role = getattr(request.state, "role", None)
-        if not user or user == "anonymous" or role != "admin":
-            raise HTTPException(status_code=403, detail="Admin role required")
-
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'score_versions') AS e")
@@ -1045,7 +1039,7 @@ def get_score_versions(
 
 
 @router.get("/api/admin/data-freshness")
-def get_data_freshness():
+def get_data_freshness(user=Depends(require_admin)):
     """Return freshness info for all data sources."""
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -1111,8 +1105,11 @@ def refresh_freshness(user=Depends(require_admin)):
 
 
 @router.get("/api/admin/match-quality")
-def get_match_quality():
+def get_match_quality(user=Depends(require_admin)):
     """Return match quality summary from unified_match_log."""
+    cached = _match_quality_cache.get("match_quality")
+    if cached is not None:
+        return cached
     with get_db() as conn:
         with conn.cursor() as cur:
             # Total (both row count and distinct employers)
@@ -1194,7 +1191,7 @@ def get_match_quality():
             """)
             recent_runs = cur.fetchall()
 
-            return {
+            result = {
                 "total_match_rows": totals['total_rows'],
                 "unique_employers_matched": totals['unique_employers'],
                 "by_source": by_source,
@@ -1203,10 +1200,13 @@ def get_match_quality():
                 "match_rates": match_rates,
                 "recent_runs": recent_runs,
             }
+            _match_quality_cache.set("match_quality", result)
+            return result
 
 
 @router.get("/api/admin/match-review")
 def get_match_review(
+    user=Depends(require_admin),
     source: str = None,
     limit: int = Query(default=50, le=500),
     offset: int = 0,
@@ -1360,7 +1360,7 @@ def get_propensity(employer_id: str):
 
 
 @router.get("/api/admin/propensity-models")
-def get_propensity_models(request: Request):
+def get_propensity_models(user=Depends(require_admin)):
     """Return propensity model versions and performance metrics."""
     with get_db() as conn:
         with conn.cursor() as cur:

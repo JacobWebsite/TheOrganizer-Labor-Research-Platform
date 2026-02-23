@@ -14,7 +14,7 @@ Usage in routers:
 """
 from fastapi import Depends, HTTPException, Request
 
-from .config import JWT_SECRET
+from .config import ALLOW_INSECURE_ADMIN, JWT_SECRET
 
 
 def require_auth(request: Request) -> dict:
@@ -35,10 +35,17 @@ def require_auth(request: Request) -> dict:
 def require_admin(request: Request) -> dict:
     """Require an authenticated user with admin role.
 
-    When auth is disabled (JWT_SECRET empty), passes through (dev mode).
+    When auth is disabled, fail closed by default to prevent anonymous admin
+    access unless ALLOW_INSECURE_ADMIN=true is explicitly set for local dev.
     """
     if not JWT_SECRET:
-        return {"username": "dev", "role": "admin"}
+        if ALLOW_INSECURE_ADMIN:
+            return {"username": "dev", "role": "admin"}
+        raise HTTPException(
+            status_code=503,
+            detail="Admin endpoints are disabled while DISABLE_AUTH=true. "
+                   "Set ALLOW_INSECURE_ADMIN=true for local development only.",
+        )
 
     user = getattr(request.state, "user", None)
     role = getattr(request.state, "role", None)

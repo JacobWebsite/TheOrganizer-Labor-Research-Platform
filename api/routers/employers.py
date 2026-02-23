@@ -5,11 +5,11 @@ Extracted from labor_api_v6.py.
 import re
 
 import psycopg2.errors
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from typing import Optional, List
 
 from ..database import get_db
-from ..dependencies import require_auth
+from ..dependencies import require_admin, require_auth
 from ..models.schemas import FlagCreate
 
 router = APIRouter()
@@ -298,8 +298,16 @@ def get_data_coverage():
 # UNIFIED EMPLOYER SEARCH (mv_employer_search + review flags)
 # ============================================================================
 
+_UNIFIED_SEARCH_PARAMS = {
+    "name", "state", "city", "metro", "sector", "naics", "aff_abbr",
+    "source_type", "has_union", "min_workers", "max_workers", "score_tier",
+    "include_historical", "limit", "offset",
+}
+
+
 @router.get("/api/employers/unified-search")
 def unified_employer_search(
+    request: Request,
     name: Optional[str] = None,
     state: Optional[str] = None,
     city: Optional[str] = None,
@@ -322,6 +330,13 @@ def unified_employer_search(
     (one row per group). Results include group_member_count and
     consolidated_workers for grouped employers.
     """
+    unknown = set(request.query_params.keys()) - _UNIFIED_SEARCH_PARAMS
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown query parameter(s): {', '.join(sorted(unknown))}. "
+                   f"Valid parameters: {', '.join(sorted(_UNIFIED_SEARCH_PARAMS))}",
+        )
     with get_db() as conn:
         with conn.cursor() as cur:
             conditions = ["1=1"]
@@ -808,6 +823,7 @@ def get_employer_related_filings(employer_id: str):
 
 @router.get("/api/admin/employer-groups")
 def get_employer_groups_summary(
+    user=Depends(require_admin),
     limit: int = Query(20, le=100)
 ):
     """Summary stats for canonical employer groups."""

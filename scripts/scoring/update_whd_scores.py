@@ -176,7 +176,7 @@ if result.returncode != 0:
 # Step 6: Refresh materialized views
 # ============================================================
 print("\n=== Step 6: Refreshing materialized views ===")
-cur.execute("REFRESH MATERIALIZED VIEW mv_employer_search")
+cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_employer_search")
 conn.commit()
 print("  Refreshed mv_employer_search")
 
