@@ -57,6 +57,27 @@ const variants = {
       <Skeleton className="h-64 w-full" />
     </div>
   ),
+  research: (
+    <div className="space-y-4">
+      <Skeleton className="h-10 w-full max-w-sm" />
+      <div className="space-y-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-14 w-full" />
+        ))}
+      </div>
+    </div>
+  ),
+  'research-result': (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-64" />
+      <Skeleton className="h-4 w-full max-w-md" />
+      <div className="space-y-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-32 w-full" />
+        ))}
+      </div>
+    </div>
+  ),
   default: (
     <div className="space-y-4">
       <Skeleton className="h-8 w-48" />

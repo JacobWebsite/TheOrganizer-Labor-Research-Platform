@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Search, Target, Users, Settings, LogOut } from 'lucide-react'
+import { Search, Target, Users, Microscope, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/shared/stores/authStore'
 
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: '/search', label: 'Employers', icon: Search },
   { to: '/targets', label: 'Targets', icon: Target },
   { to: '/unions', label: 'Unions', icon: Users },
+  { to: '/research', label: 'Research', icon: Microscope },
 ]
 
 const ADMIN_ITEM = { to: '/settings', label: 'Settings', icon: Settings }

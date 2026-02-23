@@ -14,6 +14,8 @@ import { TargetsPage } from '@/features/scorecard/TargetsPage'
 import { UnionsPage } from '@/features/union-explorer/UnionsPage'
 import { UnionProfilePage } from '@/features/union-explorer/UnionProfilePage'
 import { SettingsPage } from '@/features/admin/SettingsPage'
+import { ResearchPage } from '@/features/research/ResearchPage'
+import { ResearchResultPage } from '@/features/research/ResearchResultPage'
 
 function AuthChecker({ children }) {
   useAuthCheck()
@@ -42,6 +44,8 @@ export default function App() {
                 <Route path="targets" element={<TargetsPage />} />
                 <Route path="unions" element={<UnionsPage />} />
                 <Route path="unions/:fnum" element={<UnionProfilePage />} />
+                <Route path="research" element={<ResearchPage />} />
+                <Route path="research/:runId" element={<ResearchResultPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />

@@ -6,6 +6,7 @@ const LABEL_MAP = {
   employers: 'Employer Profile',
   targets: 'Targets',
   unions: 'Unions',
+  research: 'Research',
   settings: 'Settings',
 }
 

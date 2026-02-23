@@ -30,7 +30,7 @@ _log = logging.getLogger("labor_api.research")
 class ResearchRequest(BaseModel):
     """What the frontend sends to start a deep dive."""
     company_name: str                          # Required: the company to research
-    employer_id: Optional[int] = None          # Optional: if we already know the DB record
+    employer_id: Optional[str] = None           # Optional: if we already know the DB record (hex string)
     naics_code: Optional[str] = None           # Optional: industry hint
     company_type: Optional[str] = None         # Optional: public/private/nonprofit/government
     state: Optional[str] = None                # Optional: state hint
@@ -229,8 +229,9 @@ def get_research_result(run_id: int):
 @router.get("/runs")
 def list_research_runs(
     status: Optional[str] = Query(None, description="Filter by status: pending/running/completed/failed"),
-    employer_id: Optional[int] = Query(None, description="Filter by employer"),
+    employer_id: Optional[str] = Query(None, description="Filter by employer"),
     naics: Optional[str] = Query(None, description="Filter by 2-digit NAICS"),
+    q: Optional[str] = Query(None, description="Search by company name"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
@@ -249,6 +250,9 @@ def list_research_runs(
             if naics:
                 conditions.append("industry_naics LIKE %s")
                 params.append(f"{naics}%")
+            if q:
+                conditions.append("company_name ILIKE %s")
+                params.append(f"%{q}%")
 
             where = "WHERE " + " AND ".join(conditions) if conditions else ""
 
