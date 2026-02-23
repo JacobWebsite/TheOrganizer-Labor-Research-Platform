@@ -5,6 +5,7 @@ import { NationalUnionsSummary } from './NationalUnionsSummary'
 import { UnionFilters } from './UnionFilters'
 import { UnionResultsTable } from './UnionResultsTable'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
+import { HelpSection } from '@/shared/components/HelpSection'
 
 const PAGE_SIZE = 50
 
@@ -34,6 +35,13 @@ export function UnionsPage() {
         <Users className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Union Explorer</h1>
       </div>
+
+      <HelpSection>
+        <p><strong>What this page is for:</strong> Browse and research unions, their organizational structure, and the employers they represent.</p>
+        <p><strong>National unions overview:</strong> Top affiliations by membership. Click an affiliation chip to filter the table below.</p>
+        <p><strong>Filters:</strong> Narrow results by affiliation, sector, state, minimum members, or whether the union has linked employers.</p>
+        <p><strong>Union profiles:</strong> Click any union row to see detailed membership trends, financials, employers, and elections.</p>
+      </HelpSection>
 
       <NationalUnionsSummary
         data={nationalQuery.data?.national_unions}

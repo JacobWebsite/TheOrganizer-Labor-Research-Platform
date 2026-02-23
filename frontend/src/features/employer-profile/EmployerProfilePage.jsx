@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
+import { HelpSection } from '@/shared/components/HelpSection'
 import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail } from '@/shared/api/profile'
 import { useTargetDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
@@ -135,6 +136,12 @@ export function EmployerProfilePage() {
       </Button>
 
       <ProfileHeader employer={employer} scorecard={scorecard} sourceType="F7" />
+      <HelpSection>
+        <p><strong>Score (0-10):</strong> This employer's overall organizing potential, calculated from up to 8 different factors. If a factor has no data, it's skipped rather than counted against the employer.</p>
+        <p><strong>Factor bars:</strong> Each bar shows how this employer scored on one factor, rated 0-10. Factors weighted (3x) matter three times as much as (1x) factors. A grayed-out bar with a dash means no data.</p>
+        <p><strong>Source badges:</strong> Which government databases have records for this employer. More badges generally means more complete data.</p>
+        <p><strong>Confidence dots:</strong> How confident the system is that records were correctly matched to this employer. 4 dots = matched on unique ID. 1 dot = fuzzy name match only.</p>
+      </HelpSection>
       <ScorecardSection scorecard={scorecard} explanations={explanations} />
       <OshaSection osha={osha} />
       <NlrbSection nlrb={nlrb} />

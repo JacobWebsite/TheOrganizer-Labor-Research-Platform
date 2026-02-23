@@ -2,6 +2,7 @@ import { MapPin, Users, Building2, Landmark } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { SourceBadge } from '@/features/search/SourceBadge'
+import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 import { cn } from '@/lib/utils'
 
 const TIER_COLORS = {
@@ -39,6 +40,9 @@ export function ProfileHeader({ employer, scorecard, sourceType }) {
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
               <SourceBadge source={sourceType || 'F7'} />
+              {employer.match_confidence != null && (
+                <ConfidenceDots confidence={employer.match_confidence} />
+              )}
               {tier && (
                 <span className={cn('inline-flex items-center px-2 py-0.5 text-xs font-semibold', TIER_COLORS[tier] || 'bg-stone-200 text-stone-700')}>
                   {tier}

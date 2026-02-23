@@ -5,6 +5,7 @@ import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { useMatchReview, useReviewMatch } from '@/shared/api/admin'
+import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 
 const PAGE_SIZE = 20
 
@@ -86,7 +87,12 @@ export function MatchReviewCard() {
                       <td className='py-2'>{match.evidence?.source_name || match.source_id}</td>
                       <td className='py-2 uppercase'>{match.source_system}</td>
                       <td className='py-2 text-right'>
-                        {match.confidence_score != null ? match.confidence_score.toFixed(2) : '\u2014'}
+                        <span className='inline-flex items-center gap-1.5'>
+                          {match.confidence_score != null ? match.confidence_score.toFixed(2) : '\u2014'}
+                          {match.confidence_score != null && (
+                            <ConfidenceDots confidence={match.confidence_score} />
+                          )}
+                        </span>
                       </td>
                       <td className='py-2 text-right'>
                         <div className='flex justify-end gap-1'>

@@ -8,6 +8,7 @@ import { SearchFilters } from './SearchFilters'
 import { ResultsTable } from './ResultsTable'
 import { EmptyState } from './EmptyState'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
+import { HelpSection } from '@/shared/components/HelpSection'
 
 const PAGE_SIZE = 25
 
@@ -52,6 +53,12 @@ export function SearchPage() {
       <div className="max-w-xl">
         <SearchBar variant="compact" initialValue={filters.q} onSearch={handleSearch} />
       </div>
+
+      <HelpSection>
+        <p><strong>Search bar:</strong> Search by employer name, city, or state. Results appear after you type at least 3 characters.</p>
+        <p><strong>Advanced Filters:</strong> Click Filters to narrow results by state, industry (NAICS code), or data source.</p>
+        <p><strong>Results table:</strong> Click any employer name to open their full profile. Click column headers to sort. Source badges show which government databases have records for each employer.</p>
+      </HelpSection>
 
       <SearchFilters
         filters={filters}

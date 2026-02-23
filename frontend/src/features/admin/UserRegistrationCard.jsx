@@ -7,16 +7,36 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRegisterUser } from '@/shared/api/admin'
 
+function validatePassword(password) {
+  if (!password) return ''
+  const hasNumber = /\d/.test(password)
+  const hasSpecial = /[^a-zA-Z0-9]/.test(password)
+  const isLongEnough = password.length >= 12
+
+  const errors = []
+  if (!isLongEnough) errors.push('at least 12 characters')
+  if (!hasNumber) errors.push('at least one number')
+  if (!hasSpecial) errors.push('at least one special character')
+
+  if (errors.length === 0) return ''
+  return `Password must contain ${errors.join(', ')}.`
+}
+
 export function UserRegistrationCard() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('user')
+  const [passwordTouched, setPasswordTouched] = useState(false)
 
   const registerMutation = useRegisterUser()
+
+  const passwordError = passwordTouched ? validatePassword(password) : ''
+  const isPasswordValid = password.length > 0 && validatePassword(password) === ''
 
   function handleSubmit(e) {
     e.preventDefault()
     if (!username.trim() || !password.trim()) return
+    if (!isPasswordValid) return
 
     registerMutation.mutate(
       { username: username.trim(), password, role },
@@ -26,6 +46,7 @@ export function UserRegistrationCard() {
           setUsername('')
           setPassword('')
           setRole('user')
+          setPasswordTouched(false)
         },
         onError: (err) => {
           toast.error(err.message || 'Failed to register user')
@@ -62,9 +83,15 @@ export function UserRegistrationCard() {
               type='password'
               placeholder='Password'
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (!passwordTouched) setPasswordTouched(true)
+              }}
               disabled={registerMutation.isPending}
             />
+            {passwordError && (
+              <p className='text-xs text-destructive'>{passwordError}</p>
+            )}
           </div>
           <div className='space-y-2'>
             <label htmlFor='reg-role' className='text-sm font-medium'>
@@ -80,7 +107,11 @@ export function UserRegistrationCard() {
               <option value='admin'>Admin</option>
             </Select>
           </div>
-          <Button type='submit' disabled={registerMutation.isPending} className='w-full'>
+          <Button
+            type='submit'
+            disabled={registerMutation.isPending || !isPasswordValid || !username.trim()}
+            className='w-full'
+          >
             {registerMutation.isPending ? (
               <>
                 <Loader2 className='h-4 w-4 animate-spin' />

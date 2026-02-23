@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+const VISIBLE_ROWS = 5
+
 function formatNumber(n) {
-  if (n == null) return '—'
+  if (n == null) return '\u2014'
   return Number(n).toLocaleString()
 }
 
 function formatCurrency(n) {
-  if (n == null) return '—'
+  if (n == null) return '\u2014'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
 
@@ -27,6 +31,8 @@ function SeverityBadge({ label, count }) {
 }
 
 export function OshaSection({ osha }) {
+  const [expanded, setExpanded] = useState(false)
+
   if (!osha) return null
 
   const summary = osha.summary || {}
@@ -35,15 +41,13 @@ export function OshaSection({ osha }) {
   // If no data at all, hide section
   if (!summary.total_establishments && establishments.length === 0) return null
 
+  const summaryText = `${formatNumber(summary.total_violations)} violations \u00b7 ${formatCurrency(summary.total_penalties)} penalties`
+  const visibleEstablishments = expanded ? establishments : establishments.slice(0, VISIBLE_ROWS)
+  const hasMore = establishments.length > VISIBLE_ROWS
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="h-5 w-5 text-orange-500" />
-          <CardTitle>OSHA Safety Record</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <CollapsibleCard icon={ShieldAlert} title="OSHA Safety Record" summary={summaryText}>
+      <div className="space-y-4">
         {/* Summary stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
@@ -75,34 +79,46 @@ export function OshaSection({ osha }) {
 
         {/* Establishments table */}
         {establishments.length > 0 && (
-          <div className="overflow-x-auto border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Establishment</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">City</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">State</th>
-                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Inspections</th>
-                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Violations</th>
-                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">Penalties</th>
-                </tr>
-              </thead>
-              <tbody>
-                {establishments.map((est, i) => (
-                  <tr key={est.establishment_id || i} className="border-b">
-                    <td className="px-3 py-2 font-medium">{est.establishment_name || '—'}</td>
-                    <td className="px-3 py-2">{est.city || '—'}</td>
-                    <td className="px-3 py-2">{est.state || '—'}</td>
-                    <td className="px-3 py-2 text-right">{formatNumber(est.inspection_count)}</td>
-                    <td className="px-3 py-2 text-right">{formatNumber(est.violation_count)}</td>
-                    <td className="px-3 py-2 text-right">{formatCurrency(est.total_penalties)}</td>
+          <>
+            <div className="overflow-x-auto border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Establishment</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">City</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">State</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Inspections</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Violations</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Penalties</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {visibleEstablishments.map((est, i) => (
+                    <tr key={est.establishment_id || i} className="border-b">
+                      <td className="px-3 py-2 font-medium">{est.establishment_name || '\u2014'}</td>
+                      <td className="px-3 py-2">{est.city || '\u2014'}</td>
+                      <td className="px-3 py-2">{est.state || '\u2014'}</td>
+                      <td className="px-3 py-2 text-right">{formatNumber(est.inspection_count)}</td>
+                      <td className="px-3 py-2 text-right">{formatNumber(est.violation_count)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(est.total_penalties)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {hasMore && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => setExpanded((v) => !v)}
+              >
+                {expanded ? 'Show less' : `Show all ${establishments.length} establishments`}
+              </Button>
+            )}
+          </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }

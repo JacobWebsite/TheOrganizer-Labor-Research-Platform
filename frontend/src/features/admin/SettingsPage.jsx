@@ -1,5 +1,6 @@
 import { Settings, ShieldAlert } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/authStore'
+import { HelpSection } from '@/shared/components/HelpSection'
 import { HealthStatusCard } from './HealthStatusCard'
 import { PlatformStatsCard } from './PlatformStatsCard'
 import { DataFreshnessCard } from './DataFreshnessCard'
@@ -27,6 +28,12 @@ export function SettingsPage() {
         <Settings className='h-6 w-6 text-primary' />
         <h1 className='text-2xl font-bold'>Administration</h1>
       </div>
+      <HelpSection>
+        <p><strong>This page is only visible to administrators.</strong></p>
+        <p><strong>System Health:</strong> Green dots indicate services are running normally. Red means something needs attention.</p>
+        <p><strong>Data Freshness:</strong> Shows when each data source was last updated. Stale data (highlighted red) may need a refresh.</p>
+        <p><strong>Match Review:</strong> Review matches flagged for quality. Approve correct matches or reject incorrect ones.</p>
+      </HelpSection>
       <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
         <HealthStatusCard />
         <PlatformStatsCard />

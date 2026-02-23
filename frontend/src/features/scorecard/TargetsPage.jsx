@@ -5,6 +5,7 @@ import { TargetStats } from './TargetStats'
 import { TargetsFilters } from './TargetsFilters'
 import { TargetsTable } from './TargetsTable'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
+import { HelpSection } from '@/shared/components/HelpSection'
 
 const PAGE_SIZE = 50
 
@@ -32,6 +33,12 @@ export function TargetsPage() {
         <Target className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold">Organizing Targets</h1>
       </div>
+
+      <HelpSection>
+        <p><strong>What this page is for:</strong> Employers ranked by their potential for a successful organizing campaign, based on available data signals.</p>
+        <p><strong>Quality score:</strong> A data completeness indicator showing how many scoring factors have data for each employer. Higher quality = more reliable assessment.</p>
+        <p><strong>Tier labels:</strong> Priority (top 3%) are highest-value targets. Strong (next 12%) are very promising. Promising (next 25%) have good potential. Moderate and Low have fewer signals.</p>
+      </HelpSection>
 
       <TargetStats />
 

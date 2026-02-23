@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import { Scale } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
+const VISIBLE_ROWS = 5
+
 function formatNumber(n) {
-  if (n == null) return '—'
+  if (n == null) return '\u2014'
   return Number(n).toLocaleString()
 }
 
 function formatDate(d) {
-  if (!d) return '—'
+  if (!d) return '\u2014'
   try {
     return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   } catch {
@@ -27,7 +31,7 @@ const RESULT_COLORS = {
 }
 
 function ResultBadge({ result }) {
-  if (!result) return <span className="text-muted-foreground">—</span>
+  if (!result) return <span className="text-muted-foreground">{'\u2014'}</span>
   const colorClass = Object.entries(RESULT_COLORS).find(([key]) => result.includes(key))?.[1] || 'bg-muted text-muted-foreground'
   return (
     <span className={cn('inline-flex items-center px-2 py-0.5 text-xs font-medium', colorClass)}>
@@ -37,6 +41,9 @@ function ResultBadge({ result }) {
 }
 
 export function NlrbSection({ nlrb }) {
+  const [electionsExpanded, setElectionsExpanded] = useState(false)
+  const [ulpExpanded, setUlpExpanded] = useState(false)
+
   if (!nlrb) return null
 
   const summary = nlrb.summary || {}
@@ -48,15 +55,15 @@ export function NlrbSection({ nlrb }) {
     return null
   }
 
+  const summaryText = `${formatNumber(summary.total_elections)} elections \u00b7 ${formatNumber(summary.total_ulp_cases)} ULP cases`
+  const visibleElections = electionsExpanded ? elections : elections.slice(0, VISIBLE_ROWS)
+  const hasMoreElections = elections.length > VISIBLE_ROWS
+  const visibleUlp = ulpExpanded ? ulpCases : ulpCases.slice(0, VISIBLE_ROWS)
+  const hasMoreUlp = ulpCases.length > VISIBLE_ROWS
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Scale className="h-5 w-5 text-blue-600" />
-          <CardTitle>NLRB Activity</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <CollapsibleCard icon={Scale} title="NLRB Activity" summary={summaryText}>
+      <div className="space-y-4">
         {/* Summary stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>
@@ -93,18 +100,28 @@ export function NlrbSection({ nlrb }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {elections.map((el, i) => (
+                  {visibleElections.map((el, i) => (
                     <tr key={el.case_number || i} className="border-b">
-                      <td className="px-3 py-2 font-mono text-xs">{el.case_number || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{el.case_number || '\u2014'}</td>
                       <td className="px-3 py-2">{formatDate(el.election_date || el.date_filed)}</td>
                       <td className="px-3 py-2"><ResultBadge result={el.result || el.status} /></td>
                       <td className="px-3 py-2 text-right">{formatNumber(el.voters_eligible || el.unit_size)}</td>
-                      <td className="px-3 py-2 truncate max-w-[200px]">{el.union_name || '—'}</td>
+                      <td className="px-3 py-2 truncate max-w-[200px]">{el.union_name || '\u2014'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {hasMoreElections && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => setElectionsExpanded((v) => !v)}
+              >
+                {electionsExpanded ? 'Show less' : `Show all ${elections.length} elections`}
+              </Button>
+            )}
           </div>
         )}
 
@@ -123,20 +140,30 @@ export function NlrbSection({ nlrb }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {ulpCases.map((c, i) => (
+                  {visibleUlp.map((c, i) => (
                     <tr key={c.case_number || i} className="border-b">
-                      <td className="px-3 py-2 font-mono text-xs">{c.case_number || '—'}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{c.case_number || '\u2014'}</td>
                       <td className="px-3 py-2">{formatDate(c.date_filed)}</td>
-                      <td className="px-3 py-2">{c.status || '—'}</td>
-                      <td className="px-3 py-2 truncate max-w-[250px]">{c.allegation || '—'}</td>
+                      <td className="px-3 py-2">{c.status || '\u2014'}</td>
+                      <td className="px-3 py-2 truncate max-w-[250px]">{c.allegation || '\u2014'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {hasMoreUlp && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => setUlpExpanded((v) => !v)}
+              >
+                {ulpExpanded ? 'Show less' : `Show all ${ulpCases.length} cases`}
+              </Button>
+            )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </CollapsibleCard>
   )
 }
