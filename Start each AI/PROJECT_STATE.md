@@ -4,29 +4,73 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-23 (Claude Code: Master Roadmap synthesis)
+**Last manually updated:** 2026-02-23 (Claude Code: Phase 1 Data Trust complete)
 
 ---
 
-## Latest Update (2026-02-23 — Master Roadmap Created)
+## Latest Update (2026-02-23 — Phase 1 Data Trust DONE)
 
-- **`MASTER_ROADMAP_2026_02_23.md` created.** Synthesized from 6 source documents (~3,800 lines):
-  - `FOUR_AUDIT_SYNTHESIS_v3.md` (4 independent AI audits)
-  - `UNIFIED_PLATFORM_REDESIGN_SPEC.md` (complete platform redesign spec)
-  - `RESEARCH_AGENT_IMPLEMENTATION_PLAN.md` (4-phase research agent)
-  - `workforce_estimation_model_plan.md` (3-report workforce estimation synthesis)
-  - `SESSION_HANDOFF_CBA_TOOL_2026-02-22.md` + `SESSION_SUMMARY_2026-02-22_codex_cba_extraction_and_ui.md` (CBA tool)
-- **Roadmap structure:** 8 phases (0-8), 22 user decisions (D1-D22), 20 investigation questions, dependency map, risk register (10 risks), success criteria, budget breakdown.
-- **Estimated effort:** 355-510 hours (Phases 0-7, ~20 weeks). Budget: ~$265 one-time R&D, $100-200/month ongoing.
-- **Self-audited:** Compared every section against all 6 source documents, found and fixed 20 gaps (missing investigations, underestimated Phase 5 effort, missing security details, missing Phase 8 items like EEO-1 and propensity model verification).
-- **Supersedes** `UNIFIED_ROADMAP_2026_02_19.md` for all planning purposes.
-- **Key audit findings driving the roadmap:**
-  - 3-4 of 8 scoring factors are broken (score_financial is duplicate, score_contracts has zero variation, score_similarity covers 0.1%)
-  - 92.7% of Priority tier employers have zero enforcement data
-  - 29,236 stale OSHA matches below 0.70 name similarity floor
-  - 10-40% Splink false positive rate on HIGH-confidence matches
-  - 83.6% of nlrb_participants data is junk (CSV header text)
-- **No code changes in this session.** Planning/documentation only.
+**Multi-agent execution:** Claude (scoring fixes), Codex (investigations I1-I5, junk cleanup), Gemini (OSHA cleanup 1.4, data coverage 1.5B, investigations I6-I10).
+
+### Decisions Made (D1-D7)
+| Decision | Resolution |
+|----------|-----------|
+| D1: Name similarity floor | **0.80** (was 0.70). Prioritize quality over quantity. |
+| D2: Priority tier meaning | **REJECTED.** Targeting is structural. Recent violations and active contracts are yes/no flags, not scoring requirements. |
+| D3: Min factors for Strong | **YES.** Min 3 `factors_available` required for both Priority AND Strong tiers. |
+| D4: Stale OSHA handling | **YES.** Bulk-reject OSHA Splink matches with `name_similarity < 0.80`. 46,528 superseded. |
+| D5: score_similarity | **Weight 0, keep column.** Pipeline broken (name+state bridge only matches 833/146K, proximity gate kills all). Fix deferred to Phase 2. |
+| D7: Empty columns | **Drop 8, keep 6.** Drop DEFERRED due to view/API dependencies (5 of 8 columns used in WHERE/JOIN clauses across 6 API routers). |
+
+### Scoring Fixes (Claude — `build_unified_scorecard.py`)
+- **score_financial (NEW):** Real 990 nonprofit financial health (revenue scale 0-6 + asset cushion +0-2 + revenue-per-worker +0-2). Public companies get flat 7. Covers 10,755 employers (7.3%). Was: duplicate of score_industry_growth.
+- **score_contracts (FIX):** Federal obligation tiers (1/2/4/6/8/10 based on $100K/$1M/$10M/$100M thresholds). 8,672 employers, 6 distinct values. Was: flat 4.00 for all contractors.
+- **score_similarity:** Weight set to 0. Column kept for later pipeline fix.
+- **Tier logic:** Min 3 factors for Priority AND Strong. New flag columns: `has_recent_violations` (2yr OSHA/WHD/NLRB, 26,486 employers), `has_active_contracts` (8,672 employers).
+- **Post-fix scorecard:** avg=4.16, Priority(2,332/1.6%), Strong(15,350/10.5%), Promising(40,899/27.8%), Moderate(51,460/35.0%), Low(36,822/25.1%).
+
+### OSHA Cleanup (Gemini — `reject_stale_osha.py`)
+- 46,528 active OSHA Splink matches with `name_similarity < 0.80` superseded.
+- Active OSHA Splink matches: 51,302 -> 4,774. Total active OSHA: 97,142 -> 50,614.
+- All remaining active Splink matches have sim >= 0.80.
+
+### Codex Investigations (I1-I5) + Cleanup
+- **I1:** No NLRB proximity junk risk (uses canonical groups, not individual matches).
+- **I2:** score_similarity pipeline bugs confirmed — name+state bridge ID mismatch + proximity >= 5 gate.
+- **I3:** 46,624/46,627 dangling matches already rejected. 1 active dangling row orphaned by `fix_dangling_matches.py`.
+- **I4:** 115 junk/placeholder records flagged by `flag_junk_records.py` (includes `*****`, `1`, `3M`, `AD`, etc.).
+- **I5:** 0.80 floor confirmed — all current active OSHA matches already >= 0.80.
+
+### Gemini Investigations (I6-I10)
+- **I6:** Membership 72M vs 14.5M is hierarchy double-counting (parent unions summing children).
+- **I7:** 538K superseded matches in UML — normal from best-match-wins pipeline evolution.
+- **I8:** Employer grouping: over-merging on generic names (D. Construction 249 members), under-merging nationals (Healthcare Services Group 7+ fragments).
+- **I9:** NAICS inference: ~5,000-6,000 employers can get NAICS from OSHA/WHD matches (25% of 22,183 gap).
+- **I10:** 3,000+ association records inflate building trades metrics. Need `is_association` flag.
+
+### Active Match Counts (post-OSHA cleanup)
+| Source | Active |
+|--------|--------|
+| OSHA | 50,614 |
+| SAM | 28,815 |
+| 990 | 20,215 |
+| crosswalk | 19,293 |
+| WHD | 19,462 |
+| NLRB | 13,030 |
+| SEC | 5,339 |
+| GLEIF | 1,840 |
+| mergent | 1,045 |
+| BMF | 9 |
+
+### What's Next: Phase 2 (Matching Quality Overhaul)
+- **Track A (Claude):** Splink model retune (2.1), OSHA re-run with new model (2.2), evaluate other sources (2.3), MV rebuild (2.6).
+- **Track B (Codex):** Employer grouping fix (2.4, I8 findings), NAICS inference (2A.2, I9 findings), Multi-employer flagging (2A.6, I10 findings).
+- **Deferred:** Geocoding (2A.4), NLRB xref rebuild (2A.5), master employer dedup quality.
+
+### Previous: 2026-02-23 (Master Roadmap Created)
+
+- **`MASTER_ROADMAP_2026_02_23.md` created.** Synthesized from 6 source documents (~3,800 lines). 8 phases, 22 decisions, 20 investigations.
+- **No code changes.** Planning/documentation only.
 
 ### Previous: 2026-02-23 (Codex deep audit execution)
 
@@ -311,7 +355,7 @@ See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 
 ## Section 5: Recent Decisions
 
-**New decision register (22 decisions, D1-D22):** See `MASTER_ROADMAP_2026_02_23.md` Decision Register section. Key pending decisions: D1 (name similarity floor), D2 (Priority tier meaning), D3 (minimum factors for Strong), D4 (stale OSHA handling), D5 (score_similarity), D15 (CBA OCR approach).
+**New decision register (22 decisions, D1-D22):** See `MASTER_ROADMAP_2026_02_23.md` Decision Register section. **D1-D7 RESOLVED (2026-02-23):** D1=0.80 sim floor, D2=REJECTED (structural targeting), D3=YES (min 3 for Strong), D4=YES (bulk-reject stale OSHA), D5=weight 0 keep column, D6=accept Codex changes, D7=drop 8 DEFERRED. Key remaining: D8-D22 (deferred to later phases), D15 (CBA OCR approach).
 
 From the Feb 16-17, 2026 planning session (full list in `UNIFIED_ROADMAP_2026_02_19.md` Appendix B). For redesign-era decisions (scoring weights, React migration, UX, page designs), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`.
 

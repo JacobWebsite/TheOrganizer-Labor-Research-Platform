@@ -16,13 +16,17 @@ Usage:
   py scripts/matching/build_employer_groups.py [--dry-run] [--skip-cross-state] [--min-states N]
 """
 import argparse
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db_config import get_connection
-from src.python.matching.name_normalization import normalize_name_aggressive
+from src.python.matching.name_normalization import (
+    normalize_name_aggressive,
+    normalize_name_standard,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +82,61 @@ def ensure_schema(conn):
 
 SKIP_REASONS = {'SAG_AFTRA_SIGNATORY', 'SIGNATORY_PATTERN'}
 
+GENERIC_TOKENS = {
+    "construction", "contractor", "contractors", "builders", "building",
+    "service", "services", "equipment",
+}
+
+SINGLE_INITIAL_GENERIC_RE = re.compile(
+    r"^[a-z]\s+(construction|contractor|contractors|builders|building|service|services|equipment)$"
+)
+
+KNOWN_BRANDS = {
+    "brand:healthcare_services_group": re.compile(
+        r"\b(healthcare services group|health services group|hcsg)\b", re.IGNORECASE
+    ),
+    "brand:first_student": re.compile(r"\bfirst\s+student\b", re.IGNORECASE),
+}
+
+
+def _norm_city(city):
+    return (city or "").upper().strip()
+
+
+def _is_known_brand_key(group_key):
+    return bool(group_key and group_key.startswith("brand:"))
+
+
+def _known_brand_key(name_standard):
+    for key, pattern in KNOWN_BRANDS.items():
+        if pattern.search(name_standard or ""):
+            return key
+    return None
+
+
+def _is_generic_group_name(name_aggressive, employer_name_standard):
+    na = (name_aggressive or "").strip().lower()
+    if not na:
+        return False
+    if _is_known_brand_key(na):
+        return False
+
+    toks = na.split()
+    if SINGLE_INITIAL_GENERIC_RE.match(na):
+        return True
+    if len(toks) == 1 and toks[0] in GENERIC_TOKENS:
+        return True
+    if len(toks) <= 2 and all(t in GENERIC_TOKENS or len(t) == 1 for t in toks):
+        return True
+
+    std = (employer_name_standard or "").strip().lower()
+    if re.match(
+        r"^[a-z]\s+(construction|contractor|contractors|builders|building|service|services|equipment)\b",
+        std,
+    ):
+        return True
+    return False
+
 
 def _rep_score(row):
     """Score a row for canonical rep selection. Higher = better."""
@@ -121,46 +180,64 @@ def _fuzzy_post_merge(rows, groups, min_ratio=90):
         for m in g['members']:
             grouped_ids.add(m['employer_id'])
 
-    # Build per-state index: state -> [(group_index, name_aggressive)]
+    # Build per-state index: state -> [(group_index, group_key, is_generic, city_set)]
     group_by_state = defaultdict(list)
     for idx, g in enumerate(groups):
-        # Use canonical rep's name_aggressive
-        canon_na = None
+        canon_key = None
         for m in g['members']:
             if m['employer_id'] == g['canonical_employer_id']:
-                canon_na = m['name_aggressive']
+                canon_key = m.get('group_key') or m['name_aggressive']
                 break
-        if not canon_na:
-            canon_na = g['members'][0]['name_aggressive']
+        if not canon_key:
+            canon_key = g['members'][0].get('group_key') or g['members'][0]['name_aggressive']
+
+        is_generic = _is_generic_group_name(canon_key, g['canonical_name'])
+        city_set = {_norm_city(m.get('city')) for m in g['members'] if _norm_city(m.get('city'))}
 
         if g['is_cross_state']:
             for st in (g['states'] or []):
-                group_by_state[st].append((idx, canon_na))
+                group_by_state[st].append((idx, canon_key, is_generic, city_set))
         else:
             st = (g['state'] or '').upper()
-            group_by_state[st].append((idx, canon_na))
+            group_by_state[st].append((idx, canon_key, is_generic, city_set))
 
     # Find ungrouped singletons
     singletons = [r for r in rows
                   if r['employer_id'] not in grouped_ids
-                  and r['name_aggressive'] and r['name_aggressive'].strip()
+                  and (r.get('group_key') or r['name_aggressive'])
                   and r.get('exclude_reason') not in SKIP_REASONS]
 
     merged = 0
     for r in singletons:
-        na = r['name_aggressive']
-        if len(na) <= 4:
+        group_key = (r.get('group_key') or r['name_aggressive'] or "").strip()
+        if len(group_key) <= 4:
             continue
         st = (r['state'] or '').upper().strip()
+        city = _norm_city(r.get('city'))
+        row_is_generic = _is_generic_group_name(group_key, r.get('name_standard') or "")
+        if row_is_generic and not city:
+            continue
 
         best_ratio = 0
         best_idx = None
 
-        for idx, canon_na in group_by_state.get(st, []):
-            if len(canon_na) <= 4:
+        for idx, canon_key, canon_is_generic, canon_city_set in group_by_state.get(st, []):
+            if len(canon_key) <= 4:
                 continue
-            ratio = fuzz.token_set_ratio(na, canon_na)
-            if ratio >= min_ratio and ratio > best_ratio:
+
+            # Generic names require exact normalized key and city+state match.
+            if row_is_generic or canon_is_generic:
+                if not city or city not in canon_city_set:
+                    continue
+                if group_key != canon_key:
+                    continue
+                ratio = 100
+            else:
+                ratio = fuzz.token_set_ratio(group_key, canon_key)
+                if ratio < min_ratio:
+                    continue
+
+            if ratio > best_ratio:
                 best_ratio = ratio
                 best_idx = idx
 
@@ -183,7 +260,8 @@ def load_employers(conn):
     """Load all f7_employers_deduped rows needed for grouping."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT e.employer_id, e.employer_name, e.name_aggressive, e.state,
+            SELECT e.employer_id, e.employer_name, e.name_aggressive, e.name_standard,
+                   e.city, e.state,
                    e.latest_union_fnum, e.latest_unit_size,
                    um.aff_abbr,
                    e.is_historical, e.exclude_from_counts, e.exclude_reason,
@@ -200,28 +278,43 @@ def build_groups(rows, skip_cross_state=False, min_states=2):
 
     Returns list of group dicts with members, canonical rep, etc.
     """
-    # Phase 0: Recompute name_aggressive in-memory with latest normalizer
+    # Phase 0: Recompute normalized names in-memory with latest normalizer
     recomputed = 0
     for r in rows:
+        std = normalize_name_standard(r['employer_name'] or '')
         old_na = r['name_aggressive']
         new_na = normalize_name_aggressive(r['employer_name'] or '')
+        brand_key = _known_brand_key(std)
+        group_key = brand_key or new_na
+
         if new_na != old_na:
             recomputed += 1
+        r['name_standard'] = std
         r['name_aggressive'] = new_na
+        r['group_key'] = group_key
+        r['is_generic_group_name'] = _is_generic_group_name(group_key, std)
     if recomputed:
         print(f"[group] Phase 0: recomputed {recomputed:,} name_aggressive values in-memory")
 
-    # Phase 1: group by (name_aggressive, state)
+    # Phase 1: group by normalized key + geography.
+    # Generic keys require city+state; non-generic keys use state.
     state_groups = defaultdict(list)
     for r in rows:
-        na = r['name_aggressive']
-        if not na or not na.strip():
+        group_key = r.get('group_key')
+        if not group_key or not group_key.strip():
             continue
         # Skip signatory patterns
         if r['exclude_reason'] in SKIP_REASONS:
             continue
         st = (r['state'] or '').upper().strip()
-        key = (na, st)
+        if r.get('is_generic_group_name'):
+            city = _norm_city(r.get('city'))
+            if city:
+                key = (group_key, st, city)
+            else:
+                key = (group_key, st, f"__NO_CITY__:{r['employer_id']}")
+        else:
+            key = (group_key, st, None)
         state_groups[key].append(r)
 
     # Only keep groups with 2+ members
@@ -234,30 +327,33 @@ def build_groups(rows, skip_cross_state=False, min_states=2):
     if not skip_cross_state:
         # Find name_aggressive values in 3+ states with same aff_abbr
         by_name = defaultdict(list)
-        for (na, st), members in multi_groups.items():
-            by_name[na].append((st, members))
+        for (group_key, st, geo_key), members in multi_groups.items():
+            by_name[group_key].append((st, geo_key, members))
 
         # Also include singletons for cross-state merging
         singleton_by_name = defaultdict(list)
-        for (na, st), members in state_groups.items():
+        for (group_key, st, geo_key), members in state_groups.items():
             if len(members) == 1:
-                singleton_by_name[na].append((st, members))
+                singleton_by_name[group_key].append((st, geo_key, members))
 
-        for na, state_member_list in by_name.items():
+        for group_key, state_member_list in by_name.items():
+            if _is_generic_group_name(group_key, group_key):
+                continue
             # Combine with singletons for this name
-            all_state_members = state_member_list + singleton_by_name.get(na, [])
-            states = set(st for st, _ in all_state_members)
+            all_state_members = state_member_list + singleton_by_name.get(group_key, [])
+            states = set(st for st, _, _ in all_state_members if st)
             if len(states) < min_states:
                 continue
 
             # Check if they share the same aff_abbr
             all_members = []
-            for _, members in all_state_members:
+            for _, _, members in all_state_members:
                 all_members.extend(members)
 
-            affs = set(m['aff_abbr'] for m in all_members if m['aff_abbr'])
-            if len(affs) != 1:
-                continue
+            if not _is_known_brand_key(group_key):
+                affs = set(m['aff_abbr'] for m in all_members if m['aff_abbr'])
+                if len(affs) != 1:
+                    continue
 
             # Create cross-state group
             canonical = max(all_members, key=_rep_score)
@@ -276,12 +372,12 @@ def build_groups(rows, skip_cross_state=False, min_states=2):
             })
 
             # Mark these keys as merged
-            for st, _ in all_state_members:
-                cross_state_merged.add((na, st))
+            for st, geo_key, _ in all_state_members:
+                cross_state_merged.add((group_key, st, geo_key))
 
     # Phase 3: remaining single-state groups
-    for (na, st), members in multi_groups.items():
-        if (na, st) in cross_state_merged:
+    for (group_key, st, geo_key), members in multi_groups.items():
+        if (group_key, st, geo_key) in cross_state_merged:
             continue
 
         canonical = max(members, key=_rep_score)

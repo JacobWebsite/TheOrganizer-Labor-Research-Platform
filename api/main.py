@@ -48,6 +48,7 @@ from .routers import (
     sectors,
     profile,
     master,
+    research,
 )
 
 app = FastAPI(
@@ -99,6 +100,7 @@ app.include_router(museums.router)
 app.include_router(sectors.router)
 app.include_router(profile.router)
 app.include_router(master.router)
+app.include_router(research.router)
 
 
 @app.exception_handler(psycopg2.Error)
