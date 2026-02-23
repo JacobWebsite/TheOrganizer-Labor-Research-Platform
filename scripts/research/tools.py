@@ -18,6 +18,7 @@ standalone for testing.
 from __future__ import annotations
 
 import logging
+import re
 import sys
 import os
 import traceback
@@ -75,13 +76,48 @@ def _error_result(source: str, err: Exception) -> dict:
     }
 
 
+_ACRONYM_STOP_WORDS = frozenset({
+    "OF", "THE", "AND", "FOR", "IN", "AT", "BY", "TO", "A", "AN",
+    "INC", "LLC", "CORP", "LTD", "CO", "COMPANY", "CORPORATION",
+    "GROUP", "SERVICES", "SYSTEMS", "SYSTEM",
+})
+
+
+def _make_acronym(company_name: str) -> Optional[str]:
+    """Generate a plausible acronym from a multi-word company name.
+
+    Returns the acronym (e.g. "UPMC" from "University of Pittsburgh
+    Medical Center") or None if the name is too short or the acronym
+    would be ambiguous (< 3 chars).
+    """
+    upper = company_name.upper().strip()
+    # Strip common corporate suffixes before acronym extraction
+    for suffix in (", INC.", ", INC", " INC.", " INC", ", LLC", " LLC",
+                   ", CORP.", ", CORP", " CORP.", " CORP", ", LTD", " LTD"):
+        if upper.endswith(suffix):
+            upper = upper[: -len(suffix)]
+
+    words = re.split(r"[\s\-/]+", upper)
+    significant = [w for w in words if w and w not in _ACRONYM_STOP_WORDS]
+
+    if len(significant) < 3:
+        return None
+
+    acronym = "".join(w[0] for w in significant)
+    # Only useful if 3-7 chars (short enough to be a real abbreviation)
+    if len(acronym) < 3 or len(acronym) > 7:
+        return None
+    return acronym
+
+
 def _name_like_clause(column: str, company_name: str) -> tuple[str, list[str]]:
     """Build a flexible LIKE clause that handles spaces and common variations.
 
     Returns (sql_fragment, params_list).  The SQL uses OR to search for:
-      - The original name as-is
+      - The original name as-is  (substring match)
       - The name with spaces removed  (catches "Fed Ex" -> "FEDEX")
-      - The name with extra spaces collapsed
+      - An acronym as prefix match  (catches "University of Pittsburgh
+        Medical Center" -> records starting with "UPMC")
 
     Example:
         sql, params = _name_like_clause("UPPER(estab_name)", "Fed Ex")
@@ -94,6 +130,12 @@ def _name_like_clause(column: str, company_name: str) -> tuple[str, list[str]]:
     patterns = [f"%{upper}%"]
     if nospace != upper:
         patterns.append(f"%{nospace}%")
+
+    # Add acronym prefix pattern for long multi-word names
+    acronym = _make_acronym(company_name)
+    if acronym:
+        # Prefix match: catches "UPMC BEDFORD", "UPMC EAST", etc.
+        patterns.append(f"{acronym}%")
 
     clauses = " OR ".join(f"{column} LIKE %s" for _ in patterns)
     return f"({clauses})", patterns

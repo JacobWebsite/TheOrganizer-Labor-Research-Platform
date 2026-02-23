@@ -226,6 +226,8 @@ Always pass the company_name parameter. If the employer_id is known (not "unknow
 If the NAICS is known, pass it to get_industry_profile and get_similar_employers.
 If the state is known, pass it where accepted.
 
+If a tool returns no results for a long company name, try again with a well-known abbreviation or shorter name (e.g., "University of Pittsburgh Medical Center" -> try "UPMC", "United Parcel Service" -> try "UPS"). The database tools now handle acronym matching automatically, but Gemini-chosen alternate names can help too.
+
 You MAY skip tools that clearly don't apply (e.g., skip search_sec for nonprofits, skip search_990 for public companies). Briefly note each skip and why.
 
 ## Dossier Fact Vocabulary
@@ -418,37 +420,56 @@ def _fix_json_escapes(s: str) -> str:
     )
 
 
+def _try_parse_json(text: str) -> Optional[dict]:
+    """Try to parse JSON with progressive repair strategies."""
+    # Strategy 1: direct parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 2: fix invalid escape sequences
+    try:
+        return json.loads(_fix_json_escapes(text))
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 3: fix unescaped quotes inside strings by removing
+    # control characters and other common Gemini quirks
+    cleaned = text
+    # Remove any trailing garbage after the last }
+    last_brace = cleaned.rfind("}")
+    if last_brace > 0:
+        cleaned = cleaned[: last_brace + 1]
+    try:
+        return json.loads(_fix_json_escapes(cleaned))
+    except json.JSONDecodeError:
+        pass
+
+    return None
+
+
 def _extract_dossier_json(text: str) -> Optional[dict]:
     """Extract the JSON dossier from Gemini's final text response."""
     # Look for ```json ... ``` block (flexible whitespace handling)
     m = re.search(r"```json\s*\n(.*?)```", text, re.DOTALL)
     if m:
-        json_str = m.group(1).strip()
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            # Try fixing common Gemini escape issues
-            try:
-                return json.loads(_fix_json_escapes(json_str))
-            except json.JSONDecodeError as e2:
-                _log.warning("Failed to parse dossier JSON block: %s", e2)
+        obj = _try_parse_json(m.group(1).strip())
+        if obj:
+            return obj
+        _log.warning("Failed to parse dossier JSON from code block")
 
-    # Fallback: try to find a raw JSON object containing "dossier"
+    # Fallback: find the first { that starts a "dossier" object
+    # Only check the first few { characters, not the entire string
+    attempts = 0
     for start in range(len(text)):
         if text[start] == '{':
-            try:
-                obj = json.loads(text[start:])
-                if "dossier" in obj:
-                    return obj
-            except json.JSONDecodeError:
-                try:
-                    obj = json.loads(_fix_json_escapes(text[start:]))
-                    if "dossier" in obj:
-                        return obj
-                except json.JSONDecodeError:
-                    pass
-                continue
-            break
+            obj = _try_parse_json(text[start:])
+            if obj and isinstance(obj, dict) and "dossier" in obj:
+                return obj
+            attempts += 1
+            if attempts > 5:
+                break
 
     return None
 
