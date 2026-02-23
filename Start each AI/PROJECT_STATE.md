@@ -4,11 +4,33 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-22 (Claude Code: Phase D cleanup, docs refresh, metrics script)
+**Last manually updated:** 2026-02-22 (Claude Code: React Frontend Phase 5+6, ULP scoring integration, Codex merge, all tests pass)
 
 ---
 
-## Latest Update (2026-02-22)
+## Latest Update (2026-02-22 late night)
+
+- **React Frontend Phase 5 (Union Explorer) DONE.** 16 new files. Union search page with filters (sector, state, affiliation, min members, has employers), debounced search, active filter chips, clickable national union affiliation summary, TanStack Table with pagination (PAGE_SIZE=50). Union profile page with header, 10yr membership CSS horizontal bars, organizing capacity, employer table, NLRB elections, financial trends, sister locals. API hooks: `src/shared/api/unions.js` (8 hooks). URL state sync. PageSkeleton variants added.
+- **React Frontend Phase 6 (Admin/Settings) DONE.** 11 new files. Admin dashboard (admin-only access guard) with 7 cards: HealthStatusCard (30s auto-refresh green/red dots), PlatformStatsCard (grid), DataFreshnessCard (table + refresh button), MatchQualityCard (by source/confidence badges), MatchReviewCard (interactive approve/reject per match), UserRegistrationCard (form), RefreshActionsCard (maintenance buttons). API hooks: `src/shared/api/admin.js` (6 queries + 4 mutations). First `useMutation` usage in codebase. Toast notifications via sonner.
+- **All frontend phases COMPLETE.** No remaining placeholder components.
+- **Frontend tests: 107 total (18 files), all passing.**
+- **API response shape fixes applied:** health (db:true not database:'ok'), stats (total_scorecard_rows, match_counts_by_source), freshness (sources array, source_name, stale), match quality (total_match_rows, source_system, confidence_band), match review (evidence.target_name, source_system, confidence_score), union search (display_name, f7_employer_count, f7_total_workers), national unions (national_unions wrapper), employers (employers wrapper), sectors (sector_code), sister locals (union_name + local_number).
+
+### Previous: 2026-02-22 (late evening)
+
+- **NLRB ULP matching DONE.** 234,656 CA charged party records matched to 22,371 distinct F7 employers via `scripts/matching/match_nlrb_ulp.py`. Total NLRB-linked employers: 25,879 (was 5,548, 4.7x increase). Top: USPS (94K), UPS (2K), AT&T (2K), Kaiser (1.6K).
+- **ULP integrated into scoring MVs.** `build_employer_data_sources.py` updated: `has_nlrb` 5,547 -> 25,879 (17.6%). `build_unified_scorecard.py` updated: score_nlrb now includes ULP boost (1 charge=2, 2-3=4, 4-9=6, 10+=8 with 7yr decay). New columns: `nlrb_ulp_count`, `nlrb_latest_ulp`.
+- **Codex deliverables LIVE.** 8-factor weighted scoring (score_similarity, score_industry_growth, weighted_score, percentile-based tiers: Priority/Strong/Promising/Moderate/Low). Master dedup Phase 1+2+4 done (3,026,290 -> 2,736,890, 289,400 merged). Master API (`api/routers/master.py`) with 4 endpoints verified.
+- **All MVs refreshed.** weighted_score avg=4.12. Score tiers: Priority 2.9%, Strong 12.1%, Promising 25.0%, Moderate 35.0%, Low 25.0%.
+- **Tests: 492 total, 491 pass, 0 fail, 1 skip.**
+
+### Previous: 2026-02-22 (evening)
+
+- **Misclassification sweep DONE.** 1,843 f7_employers_deduped records flagged `is_labor_org=TRUE` (structural keyword patterns, self-referencing, union name matches, BMF EIN bridge). These are labor orgs that are also legitimate employers -- they remain in search and counts. 194 LOW-confidence (BMF-only) deferred as review. Script: `scripts/analysis/misclass_sweep.py`.
+- **master_employers.is_labor_org added and populated.** 6,686 flagged (1,843 from F7, 4,843 from BMF NTEE J40*).
+- **Hospital abbreviation test FIXED.** All tests pass (was 478/479 for weeks).
+
+### Previous: 2026-02-22 (earlier)
 
 - **Phase D cleanup batch (D4/D5/D6/D8/D9).**
   - **D6:** Deleted `corpwatch_api_tables_csv/` (8 GB, never imported into DB)
@@ -18,7 +40,7 @@
   - **D9:** Created `scripts/maintenance/generate_project_metrics.py` -- auto-generates `docs/PROJECT_METRICS.md` from live DB
   - Project size: 30 GB -> 22 GB (corpwatch deletion)
   - DB size: 9.5 GB (down from 20 GB after D2 GLEIF archive)
-- **Phase G status:** master_employers seeded (3,026,290 rows: BMF 2,027,342, SAM 797,226, F7 146,863, Mergent 54,859). master_employer_source_ids: 3,080,492.
+- **Phase G seeding:** master_employers seeded (3,026,290 rows: BMF 2,027,342, SAM 797,226, F7 146,863, Mergent 54,859). master_employer_source_ids: 3,080,492.
 
 ### Previous: 2026-02-20c
 
@@ -47,7 +69,7 @@
   - `mv_unified_scorecard`: 146,863 rows (avg=3.28, WHD coverage 8.2%, score_whd avg=1.18)
 - **Fixed 3 frontend bugs:** cross-nav (`loadUnionDetail`, `selectUnionByFnum`), pagination (PAGE_SIZE=15 not 50).
 - **Marked 4 dead API endpoints as DEPRECATED** in `employers.py`.
-- **Misclassification audit:** 2,776 employer records are likely labor orgs. Only 3 flagged. Remediation deferred.
+- ~~**Misclassification audit:** 2,776 employer records are likely labor orgs. Only 3 flagged.~~ **DONE (2026-02-22).** 1,843 flagged `is_labor_org=TRUE`. These remain as valid employers (labor orgs employ staff). 194 LOW-confidence deferred.
 - **990 adapter bug fixed:** dual unique constraints, changed to `ON CONFLICT DO NOTHING`.
 - **Tests:** 456 pass / 1 fail (pre-existing hospital abbreviation only).
 - **UML:** 1,738,115 rows.
@@ -88,7 +110,7 @@ The API serves at `http://localhost:8001`. API docs at `http://localhost:8001/do
 ```bash
 py -m pytest tests/ -q
 ```
-479 tests. All should pass except `test_expands_hospital_abbreviation` (pre-existing name normalization edge case).
+492 backend tests. 491 pass, 1 skip. 107 frontend tests, all pass.
 
 ### Key Files
 | File | Purpose |
@@ -131,7 +153,7 @@ py -m pytest tests/ -q
 | Table | Rows |
 |-------|------|
 | `master_employer_source_ids` | 3,080,492 |
-| `master_employers` | 3,026,290 |
+| `master_employers` | 2,736,890 |
 | `ar_disbursements_emp_off` | 2,813,076 |
 | `osha_violations_detail` | 2,245,012 |
 | `nlrb_docket` | 2,046,151 |
@@ -220,7 +242,7 @@ See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 ### MEDIUM
 
 10. ~~Match quality dashboard inflates numbers (counts rows, not distinct employers).~~ **FIXED (Phase A4).** API and report now show both `total_match_rows` and `unique_employers_matched`.
-11. NLRB time-decay is a dead switch (always 1.0).
+11. ~~NLRB time-decay is a dead switch (always 1.0).~~ **FIXED (2026-02-22 MV refresh).** NLRB 7yr half-life decay now active in `mv_unified_scorecard`. score_nlrb covers 25,879 employers (17.6%) with elections + ULP charges. avg=3.59.
 12. Model B propensity score is basically random (AUC 0.53).
 13. ~~Documentation keeps falling behind (19 known inaccuracies in CLAUDE.md).~~ **IMPROVED (Phase D8/D9).** PROJECT_STATE.md and PIPELINE_MANIFEST.md refreshed 2026-02-22. Auto-metrics script created for future refreshes.
 14. ~~778 Python files with no manifest.~~ **FIXED** -- Pipeline manifest created and updated (134 active scripts, 80 pipeline). 35 root debug scripts archived (2026-02-22). Manifest auto-refreshable via `generate_project_metrics.py`.
@@ -340,26 +362,42 @@ The DOL F-7 filing is the only comprehensive registry of union-employer bargaini
 ### Why the master employer key is deferred
 A master employer key (one platform ID per real-world employer, mapped to all source IDs) is the ideal architecture. But building it too early bakes in matching errors that are hard to undo. The current approach uses `f7_employer_id` as the de facto key with match tables linking other sources. The master key will be built during Phase E (scorecard rebuild) when matching quality is higher and confidence thresholds are established.
 
-## Section 8: Session Handoff Notes (2026-02-22, Claude Code — Phase D Cleanup)
+## Section 8: Session Handoff Notes (2026-02-22 late night, Claude Code — React Frontend Phase 5+6)
 
 ### Completed in this session
-- **Phase D cleanup batch (D4/D5/D6/D8/D9):**
-  - **D6:** Deleted `corpwatch_api_tables_csv/` (8 GB, never imported). Project 30 GB -> 22 GB.
-  - **D5:** Archived 35 root-level debug scripts (`check_*.py`, `_misclass*.py`, `compare_*.py`, etc.) to `archive/old_scripts/root_debug_2026_02_22/`. Root now clean: only `db_config.py`, `export_ny_deduped.py`.
-  - **D4:** Updated PIPELINE_MANIFEST.md — 15 missing scripts added (ETL: 4, Matching: 3, Scoring: 1, Maintenance: 4, Scraper: 1). Counts: 80 pipeline, 134 total. Pipeline run order updated (steps 3.5, 4.7 added).
-  - **D9:** Created `scripts/maintenance/generate_project_metrics.py` -- queries live DB for table/MV counts, master_employers breakdown, script inventory, test count. Outputs `docs/PROJECT_METRICS.md`.
-  - **D8:** Refreshed PROJECT_STATE.md with live metrics: DB 9.5 GB, 178 tables, 479 tests. Fixed BMF "25 records" -> 2M+ full load. Updated problems 14/15 as FIXED.
+- **React Frontend Phase 5 (Union Explorer):** 27 new files + 1 modified across both phases.
+  - API hooks: `src/shared/api/unions.js` (useUnionSearch, useNationalUnions, useUnionDetail, useUnionEmployers, useUnionOrganizingCapacity, useUnionMembershipHistory, useUnionSectors, useUnionAffiliations)
+  - URL state: `useUnionsState.js` (q, aff_abbr, sector, state, min_members, has_employers, page)
+  - List page: UnionsPage, UnionFilters, NationalUnionsSummary (clickable affiliation chips), UnionResultsTable (TanStack Table, 6 cols)
+  - Profile page: UnionProfilePage, UnionProfileHeader, MembershipSection (CSS bars), OrganizingCapacitySection, UnionEmployersTable, UnionElectionsSection, UnionFinancialsSection, SisterLocalsSection
+  - PageSkeleton: added `unions` and `union-profile` variants
+- **React Frontend Phase 6 (Admin/Settings):**
+  - API hooks: `src/shared/api/admin.js` (6 queries + 4 mutations — first `useMutation` in codebase)
+  - Cards: HealthStatusCard (30s auto-refresh), PlatformStatsCard, DataFreshnessCard (refresh button), MatchQualityCard, MatchReviewCard (approve/reject), UserRegistrationCard, RefreshActionsCard
+  - SettingsPage: admin guard + dashboard layout with all 7 cards
+- **API response shape fixes:** 10 components fixed to match actual API responses (field names, wrapper objects, boolean formats)
+- **All frontend phases COMPLETE.** No remaining placeholders. 107 tests, 18 files, all pass.
 
 ### What's next
-- **Phase G remaining:** Master employer deduplication and quality. 3M+ records need EIN/name dedup.
 - **Phase F:** Docker, CI/CD, hosting.
-- **Misclassification:** 2,776 labor orgs in employer table. Remediation deferred.
+- **Master dedup Phase 3 (fuzzy):** Codex rollout plan in `docs/session-summaries/SESSION_SUMMARY_2026-02-22_codex_master_dedup_phase3_plan.md`. Start: `--dry-run --limit 200 --min-name-sim 0.88`.
+- **194 LOW-confidence misclassification records:** BMF-only signals, needs manual review.
 
 ### File references
-- Deleted: `corpwatch_api_tables_csv/` (8 GB)
-- Archived: 35 scripts to `archive/old_scripts/root_debug_2026_02_22/`
-- Modified: `PIPELINE_MANIFEST.md`, `Start each AI/PROJECT_STATE.md`
-- New: `scripts/maintenance/generate_project_metrics.py`, `docs/PROJECT_METRICS.md`
+- New: `frontend/src/shared/api/unions.js`, `frontend/src/shared/api/admin.js`, 13 union-explorer components, 8 admin components, 4 test files
+- Modified: `frontend/src/shared/components/PageSkeleton.jsx` (new variants), `frontend/src/features/union-explorer/UnionsPage.jsx` (replaced placeholder), `frontend/src/features/union-explorer/UnionProfilePage.jsx` (replaced placeholder), `frontend/src/features/admin/SettingsPage.jsx` (replaced placeholder)
+- Commits: `b03628c` (Phase 5+6 initial), `bb53e14` (API response shape fixes)
+
+---
+
+## Previous: Session Handoff Notes (2026-02-22 late evening, Claude Code — ULP Scoring + Codex Merge)
+
+### Completed in that session
+- **NLRB ULP matching:** 234,656 CA charged party records matched to 22,371 distinct F7 employers. Total NLRB-linked: 25,879 (was 5,548). Script: `scripts/matching/match_nlrb_ulp.py`.
+- **ULP integrated into scoring:** `build_employer_data_sources.py` updated (has_nlrb 5,547->25,879). `build_unified_scorecard.py` updated (ULP boost, new columns nlrb_ulp_count/nlrb_latest_ulp).
+- **Codex deliverables verified:** 8-factor weighted scoring, master dedup Phase 1+2+4 (3M->2.7M), master API (4 endpoints).
+- **Misclassification sweep:** 1,843 flagged `is_labor_org=TRUE` on F7, 6,686 on master_employers.
+- **Tests:** 492 total, 491 pass, 0 fail, 1 skip. All 4 MVs refreshed.
 
 ---
 
