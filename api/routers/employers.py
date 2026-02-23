@@ -309,6 +309,9 @@ def unified_employer_search(
     aff_abbr: Optional[str] = None,
     source_type: Optional[str] = None,
     has_union: Optional[bool] = None,
+    min_workers: int = Query(None, ge=0),
+    max_workers: int = Query(None, ge=0),
+    score_tier: str = Query(None, pattern="^(Priority|Strong|Promising|Moderate|Low)$"),
     include_historical: bool = Query(False, description="Include historical (pre-2020) employers"),
     limit: int = Query(50, le=500),
     offset: int = 0
@@ -361,6 +364,17 @@ def unified_employer_search(
             if has_union is not None:
                 conditions.append("has_union = %s")
                 params.append(has_union)
+            if min_workers is not None:
+                conditions.append("COALESCE(m.consolidated_workers, m.unit_size, 0) >= %s")
+                params.append(min_workers)
+            if max_workers is not None:
+                conditions.append("COALESCE(m.consolidated_workers, m.unit_size, 0) <= %s")
+                params.append(max_workers)
+            if score_tier:
+                conditions.append(
+                    "EXISTS (SELECT 1 FROM mv_unified_scorecard usc WHERE usc.employer_id = m.canonical_id AND usc.score_tier = %s)"
+                )
+                params.append(score_tier)
 
             where_clause = " AND ".join(conditions)
 

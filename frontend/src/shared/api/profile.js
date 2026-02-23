@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
 
 /**
@@ -51,5 +51,55 @@ export function useScorecardDetail(id, { enabled = true } = {}) {
     queryFn: () => apiClient.get(`/api/scorecard/unified/${id}`),
     enabled: enabled && !!id,
     staleTime: 10 * 60 * 1000, // 10 minutes — scorecard data changes infrequently
+  })
+}
+
+export function useEmployerComparables(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-comparables', id],
+    queryFn: () => apiClient.get(`/api/employers/${id}/comparables`),
+    enabled: enabled && !!id,
+  })
+}
+
+export function useEmployerWhd(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-whd', id],
+    queryFn: () => apiClient.get(`/api/whd/employer/${id}`),
+    enabled: enabled && !!id,
+  })
+}
+
+export function useEmployerCorporate(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-corporate', id],
+    queryFn: () => apiClient.get(`/api/corporate/hierarchy/${id}`),
+    enabled: enabled && !!id,
+  })
+}
+
+export function useEmployerDataSources(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-data-sources', id],
+    queryFn: () => apiClient.get(`/api/employers/${id}/data-sources`),
+    enabled: enabled && !!id,
+  })
+}
+
+export function useEmployerFlags(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-flags', id],
+    queryFn: () => apiClient.get(`/api/employers/flags/by-employer/${id}`),
+    enabled: enabled && !!id,
+  })
+}
+
+export function useFlagEmployer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => apiClient.post('/api/employers/flags', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employer-flags'] })
+    },
   })
 }

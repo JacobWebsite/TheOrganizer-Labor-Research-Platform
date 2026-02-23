@@ -103,3 +103,14 @@ export function useUnionAffiliations() {
     staleTime: Infinity,
   })
 }
+
+/**
+ * Fetch national union detail by affiliation abbreviation.
+ */
+export function useNationalUnionDetail(affAbbr, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['national-union-detail', affAbbr],
+    queryFn: () => apiClient.get(`/api/unions/national/${affAbbr}`),
+    enabled: enabled && !!affAbbr,
+  })
+}

@@ -1,11 +1,13 @@
-import { useCallback } from 'react'
-import { Search } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Search, LayoutList, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useSearchState } from './useSearchState'
 import { useEmployerSearch } from '@/shared/api/employers'
 import { SearchBar } from './SearchBar'
 import { SearchFilters } from './SearchFilters'
 import { ResultsTable } from './ResultsTable'
+import { SearchResultCard } from './SearchResultCard'
 import { EmptyState } from './EmptyState'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { HelpSection } from '@/shared/components/HelpSection'
@@ -15,12 +17,23 @@ const PAGE_SIZE = 25
 export function SearchPage() {
   const { filters, page, hasActiveSearch, setFilter, clearFilter, clearAll, setPage } = useSearchState()
 
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('search-view-mode') || 'table' } catch { return 'table' }
+  })
+  const handleViewModeChange = useCallback((mode) => {
+    setViewMode(mode)
+    try { localStorage.setItem('search-view-mode', mode) } catch {}
+  }, [])
+
   const { data, isLoading, isError, error } = useEmployerSearch({
     name: filters.q || undefined,
     state: filters.state || undefined,
     naics: filters.naics || undefined,
     source_type: filters.source_type || undefined,
     has_union: filters.has_union || undefined,
+    min_workers: filters.min_workers || undefined,
+    max_workers: filters.max_workers || undefined,
+    score_tier: filters.score_tier || undefined,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
     enabled: hasActiveSearch,
@@ -84,15 +97,62 @@ export function SearchPage() {
 
       {data && data.total > 0 && (
         <>
-          <p className="text-sm text-muted-foreground">
-            {data.total.toLocaleString()} employer{data.total !== 1 ? 's' : ''} found
-          </p>
-          <ResultsTable
-            data={data.employers}
-            total={data.total}
-            page={page}
-            onPageChange={setPage}
-          />
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {data.total.toLocaleString()} employer{data.total !== 1 ? 's' : ''} found
+            </p>
+            <div className="flex items-center border">
+              <button
+                type="button"
+                onClick={() => handleViewModeChange('table')}
+                className={cn('p-1.5', viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+                aria-label="Table view"
+              >
+                <LayoutList className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleViewModeChange('card')}
+                className={cn('p-1.5', viewMode === 'card' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+                aria-label="Card view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {viewMode === 'table' ? (
+            <ResultsTable
+              data={data.employers}
+              total={data.total}
+              page={page}
+              onPageChange={setPage}
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {data.employers.map((emp) => (
+                  <SearchResultCard key={emp.canonical_id} employer={emp} />
+                ))}
+              </div>
+              {data.total > PAGE_SIZE && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, data.total)} of {data.total.toLocaleString()}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                      <ChevronLeft className="h-4 w-4" /> Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">Page {page} of {Math.ceil(data.total / PAGE_SIZE)}</span>
+                    <Button variant="outline" size="sm" disabled={page >= Math.ceil(data.total / PAGE_SIZE)} onClick={() => setPage(page + 1)}>
+                      Next <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
     </div>

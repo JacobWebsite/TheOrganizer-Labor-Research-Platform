@@ -14,6 +14,7 @@ import { UnionEmployersTable } from './UnionEmployersTable'
 import { UnionElectionsSection } from './UnionElectionsSection'
 import { UnionFinancialsSection } from './UnionFinancialsSection'
 import { SisterLocalsSection } from './SisterLocalsSection'
+import { ExpansionTargetsSection } from './ExpansionTargetsSection'
 
 export function UnionProfilePage() {
   const { fnum } = useParams()
@@ -83,6 +84,7 @@ export function UnionProfilePage() {
       <UnionElectionsSection elections={nlrbElections} />
       <UnionFinancialsSection trends={financialTrends} />
       <SisterLocalsSection sisters={sisterLocals} />
+      <ExpansionTargetsSection union={union} employers={employers} />
     </div>
   )
 }

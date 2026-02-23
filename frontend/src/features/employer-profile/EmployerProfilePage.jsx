@@ -3,7 +3,7 @@ import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { HelpSection } from '@/shared/components/HelpSection'
-import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail } from '@/shared/api/profile'
+import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources } from '@/shared/api/profile'
 import { useTargetDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
 import { ScorecardSection } from './ScorecardSection'
@@ -11,6 +11,13 @@ import { OshaSection } from './OshaSection'
 import { NlrbSection } from './NlrbSection'
 import { CrossReferencesSection } from './CrossReferencesSection'
 import { BasicProfileView } from './BasicProfileView'
+import { UnionRelationshipsCard } from './UnionRelationshipsCard'
+import { FinancialDataCard } from './FinancialDataCard'
+import { CorporateHierarchyCard } from './CorporateHierarchyCard'
+import { ComparablesCard } from './ComparablesCard'
+import { GovernmentContractsCard } from './GovernmentContractsCard'
+import { WhdCard } from './WhdCard'
+import { ResearchNotesCard } from './ResearchNotesCard'
 
 export function EmployerProfilePage() {
   const { id } = useParams()
@@ -28,6 +35,7 @@ export function EmployerProfilePage() {
 
   // Scorecard detail (explanations) — only for F7, after profile loads
   const scorecardQuery = useScorecardDetail(id, { enabled: isF7 && !!data })
+  const dataSourcesQuery = useEmployerDataSources(id, { enabled: isF7 && !!data })
 
   const handleBack = () => {
     // Try to go back in history; if no history, go to search
@@ -143,9 +151,16 @@ export function EmployerProfilePage() {
         <p><strong>Confidence dots:</strong> How confident the system is that records were correctly matched to this employer. 4 dots = matched on unique ID. 1 dot = fuzzy name match only.</p>
       </HelpSection>
       <ScorecardSection scorecard={scorecard} explanations={explanations} />
-      <OshaSection osha={osha} />
+      <UnionRelationshipsCard employer={employer} />
+      <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} />
+      <CorporateHierarchyCard employerId={id} />
+      <ComparablesCard employerId={id} />
       <NlrbSection nlrb={nlrb} />
+      <GovernmentContractsCard dataSources={dataSourcesQuery.data} />
+      <OshaSection osha={osha} />
+      <WhdCard employerId={id} />
       <CrossReferencesSection crossReferences={crossRefs} />
+      <ResearchNotesCard employerId={id} sourceType="F7" sourceId={employer.employer_id} />
     </div>
   )
 }

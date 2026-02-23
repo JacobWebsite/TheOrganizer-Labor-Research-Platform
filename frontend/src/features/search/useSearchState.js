@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-const PARAM_KEYS = ['q', 'state', 'naics', 'source_type', 'has_union', 'page']
+const PARAM_KEYS = ['q', 'state', 'naics', 'source_type', 'has_union', 'min_workers', 'max_workers', 'score_tier', 'page']
 
 /**
  * Syncs search/filter state with URL search params.
@@ -15,6 +15,9 @@ export function useSearchState() {
     naics: searchParams.get('naics') || '',
     source_type: searchParams.get('source_type') || '',
     has_union: searchParams.get('has_union') || '',
+    min_workers: searchParams.get('min_workers') || '',
+    max_workers: searchParams.get('max_workers') || '',
+    score_tier: searchParams.get('score_tier') || '',
   }), [searchParams])
 
   const page = Number(searchParams.get('page') || '1')

@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { SourceBadge } from '@/features/search/SourceBadge'
 import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
+import { ProfileActionButtons } from './ProfileActionButtons'
 import { cn } from '@/lib/utils'
 
 const TIER_COLORS = {
@@ -76,6 +77,20 @@ export function ProfileHeader({ employer, scorecard, sourceType }) {
                 </span>
               )}
             </div>
+
+            {/* Union status label */}
+            <div className="mt-1">
+              {unionName ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                  <Landmark className="h-3.5 w-3.5" />
+                  Represented by {unionName}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-stone-50 text-stone-500 border border-stone-200">
+                  No Known Union
+                </span>
+              )}
+            </div>
           </div>
 
           {weightedScore != null && (
@@ -85,6 +100,7 @@ export function ProfileHeader({ employer, scorecard, sourceType }) {
             </div>
           )}
         </div>
+        <ProfileActionButtons employer={employer} scorecard={scorecard} />
       </CardContent>
     </Card>
   )
