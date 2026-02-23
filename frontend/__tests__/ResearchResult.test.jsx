@@ -63,15 +63,19 @@ const MOCK_RESULT = {
   sections_filled: 7,
   total_facts: 32,
   dossier: {
-    identity: { legal_name: 'Amazon.com Inc.', headquarters: 'Seattle, WA' },
-    labor_relations: 'Active NLRB cases and recent organizing campaigns.',
+    dossier: {
+      identity: { legal_name: 'Amazon.com Inc.', company_type: 'public' },
+      labor: { union_names: ['Teamsters', 'ALU'], nlrb_election_count: 15 },
+      assessment: { organizing_summary: 'Active NLRB cases and recent organizing campaigns.' },
+      workplace: { osha_violation_count: 23 },
+    },
   },
   facts_by_section: {
     identity: [
       { attribute_name: 'legal_name', display_name: 'Legal Name', attribute_value: 'Amazon.com Inc.', source_name: 'SEC', confidence: 0.95, as_of_date: '2026-01' },
       { attribute_name: 'naics', display_name: 'Industry', attribute_value: '493110 - Warehousing', source_name: 'OSHA', confidence: 0.9, as_of_date: '2025-12' },
     ],
-    labor_relations: [
+    labor: [
       { attribute_name: 'nlrb_elections', display_name: 'NLRB Elections', attribute_value: '15', source_name: 'NLRB', confidence: 0.85, as_of_date: '2026-02' },
     ],
     assessment: [

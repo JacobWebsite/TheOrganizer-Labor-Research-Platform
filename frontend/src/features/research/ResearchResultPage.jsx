@@ -9,12 +9,12 @@ import { ActionLog } from './ActionLog'
 
 const SECTION_ORDER = [
   'identity',
-  'labor_relations',
+  'labor',
   'assessment',
+  'workforce',
+  'workplace',
   'financial',
-  'government',
-  'legal',
-  'industry',
+  'sources',
 ]
 
 export function ResearchResultPage() {
@@ -104,6 +104,9 @@ export function ResearchResultPage() {
     )
   }
 
+  // The dossier JSON is nested: result.dossier = { facts, dossier: { identity, labor, ... }, skipped_tools }
+  const dossierSections = result?.dossier?.dossier || result?.dossier || {}
+
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1.5">
@@ -136,7 +139,7 @@ export function ResearchResultPage() {
               key={sectionKey}
               sectionKey={sectionKey}
               facts={result.facts_by_section?.[sectionKey]}
-              dossierData={result.dossier}
+              dossierData={dossierSections}
             />
           ))}
 
