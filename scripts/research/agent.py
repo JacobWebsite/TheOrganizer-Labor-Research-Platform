@@ -741,8 +741,10 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             0,
         )
 
-        # Append web findings to final_text so the dossier can reference them.
-        # We also try to extract structured web findings and merge later.
+        # Save original dossier text before appending web findings.
+        # If the merge phase fails, we fall back to this clean version.
+        original_final_text = final_text
+
         if web_text.strip():
             final_text += "\n\n--- WEB SEARCH FINDINGS ---\n" + web_text
             _log.info("Run %d: web search returned %d chars", run_id, len(web_text))
@@ -751,55 +753,129 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
     except Exception as web_exc:
         _log.warning("Run %d: web search phase failed (non-fatal): %s", run_id, web_exc)
+        original_final_text = final_text  # no web findings appended
 
     # ------------------------------------------------------------------
-    # Phase 3: Re-synthesize dossier with web findings
+    # Phase 3: Merge web findings into the dossier via patch
     # ------------------------------------------------------------------
-    # If we got web findings, ask Gemini to merge them into the dossier JSON.
+    # Instead of asking Gemini to reproduce the entire dossier JSON (which
+    # fails on large dossiers), we ask for a small PATCH object and apply
+    # it ourselves.  This is cheaper, faster, and more reliable.
+    web_findings_text = ""
     if "--- WEB SEARCH FINDINGS ---" in final_text:
+        web_findings_text = final_text.split("--- WEB SEARCH FINDINGS ---", 1)[1]
+        final_text = original_final_text  # always parse from clean original
+
+    if web_findings_text.strip():
         _progress(run_id, "Merging web findings into dossier...", 84)
         try:
-            merge_prompt = (
-                f"Below is a research dossier JSON and web search findings for **{run['company_name']}**.\n\n"
-                f"Merge the web findings into the dossier JSON. Specifically:\n"
-                f"- Add web-sourced context to assessment.organizing_summary\n"
-                f"- Add relevant items to assessment.campaign_strengths and assessment.campaign_challenges\n"
-                f"- Add any new facts to the facts array with source_type='web'\n"
-                f"- Add web sources to sources.source_list\n"
-                f"- Update sources.section_confidence if web data improves confidence\n\n"
-                f"Return ONLY the complete updated JSON dossier (same structure as original).\n\n"
-                f"{final_text}"
+            patch_prompt = (
+                f"Below are web search findings about **{run['company_name']}**.\n\n"
+                f"Based on these findings, produce a JSON patch object with ONLY the "
+                f"new or updated content to merge into an existing dossier. Format:\n\n"
+                f"```json\n"
+                f'{{\n'
+                f'  "assessment_additions": {{\n'
+                f'    "organizing_summary_addendum": "1-2 paragraphs of web-sourced context to append",\n'
+                f'    "additional_strengths": ["strength from web..."],\n'
+                f'    "additional_challenges": ["challenge from web..."]\n'
+                f'  }},\n'
+                f'  "web_facts": [\n'
+                f'    {{"dossier_section": "...", "attribute_name": "...", "attribute_value": "...", '
+                f'"source_type": "web", "source_name": "...", "confidence": 0.7, "as_of_date": "..."}}\n'
+                f'  ],\n'
+                f'  "web_sources": ["source description (url, date)", ...]\n'
+                f'}}\n'
+                f"```\n\n"
+                f"Web findings:\n{web_findings_text[:12000]}"
             )
 
-            merge_response = client.models.generate_content(
+            patch_response = client.models.generate_content(
                 model=MODEL,
                 contents=[types.Content(
                     role="user",
-                    parts=[types.Part.from_text(text=merge_prompt)],
+                    parts=[types.Part.from_text(text=patch_prompt)],
                 )],
                 config=types.GenerateContentConfig(
-                    max_output_tokens=MAX_TOKENS,
+                    max_output_tokens=8192,
                 ),
             )
 
-            if merge_response.usage_metadata:
-                total_input_tokens += merge_response.usage_metadata.prompt_token_count or 0
-                total_output_tokens += merge_response.usage_metadata.candidates_token_count or 0
+            if patch_response.usage_metadata:
+                total_input_tokens += patch_response.usage_metadata.prompt_token_count or 0
+                total_output_tokens += patch_response.usage_metadata.candidates_token_count or 0
 
-            merged_text = "\n".join(
-                p.text for p in merge_response.candidates[0].content.parts if p.text
+            patch_text = "\n".join(
+                p.text for p in patch_response.candidates[0].content.parts if p.text
             )
-            if merged_text.strip():
-                # Try to parse the merged version; fall back to original if it fails
-                merged_dossier = _extract_dossier_json(merged_text)
-                if merged_dossier and "dossier" in merged_dossier:
-                    final_text = merged_text
-                    _log.info("Run %d: successfully merged web findings into dossier", run_id)
+            _log.info("Run %d: patch response length=%d, first 200=%s",
+                       run_id, len(patch_text), repr(patch_text[:200]))
+
+            # Extract any JSON from the patch response (not _extract_dossier_json
+            # which requires a "dossier" key).
+            patch_data = None
+            # Try ```json ... ``` block (allow optional whitespace/newline after ```)
+            m = re.search(r"```(?:json)?\s*\n?(.*?)```", patch_text, re.DOTALL)
+            if m:
+                try:
+                    patch_data = json.loads(m.group(1).strip())
+                except json.JSONDecodeError as e:
+                    _log.warning("Run %d: patch JSON parse error: %s", run_id, e)
+            if not patch_data:
+                # Try raw JSON parse
+                for i, ch in enumerate(patch_text):
+                    if ch == '{':
+                        try:
+                            patch_data = json.loads(patch_text[i:])
+                            break
+                        except json.JSONDecodeError:
+                            continue
+
+            if patch_data and isinstance(patch_data, dict):
+                # Parse the original dossier
+                original_dossier = _extract_dossier_json(final_text)
+                if original_dossier and "dossier" in original_dossier:
+                    dossier_body = original_dossier["dossier"]
+                    assessment = dossier_body.get("assessment", {})
+
+                    # Apply assessment additions
+                    additions = patch_data.get("assessment_additions", {})
+                    addendum = additions.get("organizing_summary_addendum", "")
+                    if addendum and assessment.get("organizing_summary"):
+                        assessment["organizing_summary"] += "\n\n" + addendum
+                    elif addendum:
+                        assessment["organizing_summary"] = addendum
+
+                    for s in additions.get("additional_strengths", []):
+                        assessment.setdefault("campaign_strengths", []).append(s)
+                    for c in additions.get("additional_challenges", []):
+                        assessment.setdefault("campaign_challenges", []).append(c)
+
+                    dossier_body["assessment"] = assessment
+
+                    # Add web sources
+                    sources_sec = dossier_body.get("sources", {})
+                    for ws in patch_data.get("web_sources", []):
+                        sources_sec.setdefault("source_list", []).append(
+                            {"tool": "web_search", "summary": ws}
+                        )
+                    dossier_body["sources"] = sources_sec
+
+                    # Add web facts to the facts array
+                    for wf in patch_data.get("web_facts", []):
+                        wf["source_type"] = "web"
+                        original_dossier.setdefault("facts", []).append(wf)
+
+                    # Re-serialize the patched dossier as the final text
+                    final_text = "```json\n" + json.dumps(original_dossier, indent=2, default=str) + "\n```"
+                    _log.info("Run %d: successfully patched dossier with web findings", run_id)
                 else:
-                    _log.warning("Run %d: merge produced invalid JSON, keeping original", run_id)
+                    _log.warning("Run %d: could not parse original dossier for patching", run_id)
+            else:
+                _log.warning("Run %d: web patch produced no usable data", run_id)
 
         except Exception as merge_exc:
-            _log.warning("Run %d: merge phase failed (non-fatal): %s", run_id, merge_exc)
+            _log.warning("Run %d: web merge phase failed (non-fatal): %s", run_id, merge_exc)
 
     # ------------------------------------------------------------------
     # Parse dossier from final response

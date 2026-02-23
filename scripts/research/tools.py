@@ -75,6 +75,30 @@ def _error_result(source: str, err: Exception) -> dict:
     }
 
 
+def _name_like_clause(column: str, company_name: str) -> tuple[str, list[str]]:
+    """Build a flexible LIKE clause that handles spaces and common variations.
+
+    Returns (sql_fragment, params_list).  The SQL uses OR to search for:
+      - The original name as-is
+      - The name with spaces removed  (catches "Fed Ex" -> "FEDEX")
+      - The name with extra spaces collapsed
+
+    Example:
+        sql, params = _name_like_clause("UPPER(estab_name)", "Fed Ex")
+        # sql   = "(UPPER(estab_name) LIKE %s OR UPPER(estab_name) LIKE %s)"
+        # params = ['%FED EX%', '%FEDEX%']
+    """
+    upper = company_name.upper().strip()
+    nospace = upper.replace(" ", "")
+
+    patterns = [f"%{upper}%"]
+    if nospace != upper:
+        patterns.append(f"%{nospace}%")
+
+    clauses = " OR ".join(f"{column} LIKE %s" for _ in patterns)
+    return f"({clauses})", patterns
+
+
 # ---------------------------------------------------------------------------
 # TOOL 1: search_osha
 # ---------------------------------------------------------------------------
@@ -117,19 +141,19 @@ def search_osha(
 
         if not estab_ids:
             # Fuzzy fallback by name + optional state
-            like_pat = f"%{company_name.upper()}%"
+            name_clause, name_params = _name_like_clause("UPPER(estab_name)", company_name)
             if state:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT establishment_id FROM osha_establishments
-                    WHERE UPPER(estab_name) LIKE %s AND site_state = %s
+                    WHERE {name_clause} AND site_state = %s
                     LIMIT 20
-                """, (like_pat, state.upper()))
+                """, (*name_params, state.upper()))
             else:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT establishment_id FROM osha_establishments
-                    WHERE UPPER(estab_name) LIKE %s
+                    WHERE {name_clause}
                     LIMIT 20
-                """, (like_pat,))
+                """, name_params)
             estab_ids = [r["establishment_id"] for r in cur.fetchall()]
 
         if not estab_ids:
@@ -256,22 +280,22 @@ def search_nlrb(
             case_numbers.update(r["case_number"] for r in cur.fetchall())
 
         if not case_numbers:
-            like_pat = f"%{company_name.upper()}%"
+            name_clause, name_params = _name_like_clause("UPPER(participant_name)", company_name)
             if state:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT DISTINCT case_number FROM nlrb_participants
-                    WHERE UPPER(participant_name) LIKE %s
+                    WHERE {name_clause}
                       AND participant_type LIKE '%%Employer%%'
                       AND UPPER(state) = %s
                     LIMIT 100
-                """, (like_pat, state.upper()))
+                """, (*name_params, state.upper()))
             else:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT DISTINCT case_number FROM nlrb_participants
-                    WHERE UPPER(participant_name) LIKE %s
+                    WHERE {name_clause}
                       AND participant_type LIKE '%%Employer%%'
                     LIMIT 100
-                """, (like_pat,))
+                """, name_params)
             case_numbers.update(r["case_number"] for r in cur.fetchall())
 
         if not case_numbers:
@@ -328,16 +352,16 @@ def search_nlrb(
             allegations = _safe_list(cur.fetchall())
 
         # Step 5 — Voluntary recognitions
-        like_pat = f"%{company_name.upper()}%"
-        cur.execute("""
+        vr_clause, vr_params = _name_like_clause("UPPER(employer_name)", company_name)
+        cur.execute(f"""
             SELECT vr_case_number, employer_name, union_name,
                    date_voluntary_recognition, num_employees,
                    unit_city, unit_state, unit_description
             FROM nlrb_voluntary_recognition
-            WHERE UPPER(employer_name) LIKE %s
+            WHERE {vr_clause}
                OR matched_employer_id = %s
             ORDER BY date_voluntary_recognition DESC
-        """, (like_pat, employer_id or ''))
+        """, (*vr_params, employer_id or ''))
         vr_records = _safe_list(cur.fetchall())
 
         # Step 6 — which unions were involved
@@ -419,12 +443,13 @@ def search_whd(
                 case_ids = [r["id"] for r in cur.fetchall()]
 
         if not case_ids:
-            like_pat = f"%{company_name.upper()}%"
-            q = """
+            legal_clause, legal_params = _name_like_clause("UPPER(legal_name)", company_name)
+            trade_clause, trade_params = _name_like_clause("UPPER(trade_name)", company_name)
+            q = f"""
                 SELECT id FROM whd_cases
-                WHERE (UPPER(legal_name) LIKE %s OR UPPER(trade_name) LIKE %s)
+                WHERE ({legal_clause} OR {trade_clause})
             """
-            params: list = [like_pat, like_pat]
+            params: list = [*legal_params, *trade_params]
             if state:
                 q += " AND state = %s"
                 params.append(state.upper())
@@ -533,13 +558,16 @@ def search_sec(
             row = cur.fetchone()
 
         if not row:
-            like_pat = f"%{company_name.upper()}%"
-            cur.execute("""
+            name_clause, name_params = _name_like_clause("UPPER(company_name)", company_name)
+            # Prefer public companies and shorter names (less likely to be
+            # asset-backed securities or subsidiary filings)
+            cur.execute(f"""
                 SELECT * FROM sec_companies
-                WHERE UPPER(company_name) LIKE %s
-                ORDER BY is_public DESC NULLS LAST
+                WHERE {name_clause}
+                ORDER BY is_public DESC NULLS LAST,
+                         LENGTH(company_name) ASC
                 LIMIT 1
-            """, (like_pat,))
+            """, name_params)
             row = cur.fetchone()
 
         if not row:
@@ -626,9 +654,9 @@ def search_sam(
                 sam_row = cur.fetchone()
 
         if not sam_row:
-            like_pat = f"%{company_name.upper()}%"
-            q = "SELECT * FROM sam_entities WHERE UPPER(legal_business_name) LIKE %s"
-            params: list = [like_pat]
+            name_clause, name_params = _name_like_clause("UPPER(legal_business_name)", company_name)
+            q = f"SELECT * FROM sam_entities WHERE {name_clause}"
+            params: list = list(name_params)
             if state:
                 q += " AND physical_state = %s"
                 params.append(state.upper())
@@ -645,13 +673,14 @@ def search_sam(
 
         # Check federal_contract_recipients for dollar amounts
         contract_data = None
-        cur.execute("""
+        fcr_clause, fcr_params = _name_like_clause("UPPER(recipient_name)", company_name)
+        cur.execute(f"""
             SELECT SUM(total_obligations) AS total_obligations,
                    SUM(contract_count) AS total_contracts,
                    MAX(fiscal_year) AS latest_year
             FROM federal_contract_recipients
-            WHERE UPPER(recipient_name) LIKE %s
-        """, (f"%{company_name.upper()}%",))
+            WHERE {fcr_clause}
+        """, fcr_params)
         cr = cur.fetchone()
         if cr and cr.get("total_obligations"):
             contract_data = _safe_dict(cr)
@@ -725,13 +754,13 @@ def search_990(
             rows = cur.fetchall()
 
         if not rows:
-            like_pat = f"%{company_name.upper()}%"
-            cur.execute("""
+            name_clause, name_params = _name_like_clause("UPPER(business_name)", company_name)
+            cur.execute(f"""
                 SELECT * FROM national_990_filers
-                WHERE UPPER(business_name) LIKE %s
+                WHERE {name_clause}
                 ORDER BY tax_year DESC
                 LIMIT 10
-            """, (like_pat,))
+            """, name_params)
             rows = cur.fetchall()
 
         if not rows:
@@ -801,8 +830,8 @@ def search_contracts(
             """, (employer_id,))
         else:
             # Try through f7_employers_deduped name search
-            like_pat = f"%{company_name.upper()}%"
-            cur.execute("""
+            name_clause, name_params = _name_like_clause("UPPER(e.employer_name)", company_name)
+            cur.execute(f"""
                 SELECT r.employer_id, r.union_file_number, r.bargaining_unit_size,
                        r.notice_date,
                        u.union_name, u.aff_abbr, u.members AS union_members,
@@ -810,10 +839,10 @@ def search_contracts(
                 FROM f7_union_employer_relations r
                 JOIN f7_employers_deduped e ON e.employer_id = r.employer_id
                 LEFT JOIN unions_master u ON u.f_num = CAST(r.union_file_number AS TEXT)
-                WHERE UPPER(e.employer_name) LIKE %s
+                WHERE {name_clause}
                 ORDER BY r.notice_date DESC NULLS LAST
                 LIMIT 50
-            """, (like_pat,))
+            """, name_params)
 
         rows = _safe_list(cur.fetchall())
         conn.close()
@@ -1101,9 +1130,9 @@ def search_mergent(
                 row = cur.fetchone()
 
         if not row:
-            like_pat = f"%{company_name.upper()}%"
-            q = "SELECT * FROM mergent_employers WHERE UPPER(company_name) LIKE %s"
-            params: list = [like_pat]
+            name_clause, name_params = _name_like_clause("UPPER(company_name)", company_name)
+            q = f"SELECT * FROM mergent_employers WHERE {name_clause}"
+            params: list = list(name_params)
             if state:
                 q += " AND state = %s"
                 params.append(state.upper())
