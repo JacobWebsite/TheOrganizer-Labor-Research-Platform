@@ -44,14 +44,18 @@ n990_matched AS (
 sam_matched AS (
     SELECT DISTINCT f7_employer_id FROM sam_f7_matches
 ),
--- Canonical NLRB linkage used by unified scorecard (same source logic):
--- employer participants that map to an F7 employer and have election rows.
+-- NLRB linkage: elections (Employer type) + ULP charges (Charged Party type)
 nlrb_matched AS (
     SELECT DISTINCT p.matched_employer_id AS f7_employer_id
     FROM nlrb_participants p
-    JOIN nlrb_elections e ON p.case_number = e.case_number
-    WHERE p.participant_type = 'Employer'
-      AND p.matched_employer_id IS NOT NULL
+    WHERE p.matched_employer_id IS NOT NULL
+      AND (
+        (p.participant_type = 'Employer'
+         AND EXISTS (SELECT 1 FROM nlrb_elections e WHERE e.case_number = p.case_number))
+        OR
+        (p.participant_type = 'Charged Party / Respondent'
+         AND p.case_number ~ '-CA-')
+      )
 )
 
 SELECT

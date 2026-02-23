@@ -1,39 +1,21 @@
 """
-Build materialized view mv_unified_scorecard.
-
-Scores ALL 146,863 F7 employers using signal-strength scoring:
-each factor is NULL if no data exists, and the final score is
-the average of non-null factors (0-10 scale) with a coverage
-percentage.
-
-7 Factors (each 0-10):
-  1. OSHA Safety Violations     (requires OSHA match)
-  2. NLRB Election Activity     (requires NLRB match)
-  3. Wage Theft Violations      (requires WHD match)
-  4. Government Contracts       (requires federal contractor flag)
-  5. Union Proximity            (always available - from F7 group data)
-  6. Financial / Industry       (requires NAICS for BLS projections)
-  7. Employer Size              (always available)
+Build materialized view mv_unified_scorecard with 8-factor weighted scoring.
 
 Run:     py scripts/scoring/build_unified_scorecard.py
 Refresh: py scripts/scoring/build_unified_scorecard.py --refresh
 """
-import sys
+import argparse
 import os
+import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from db_config import get_connection
 
 
 MV_SQL = """
 CREATE MATERIALIZED VIEW mv_unified_scorecard AS
 WITH
--- ================================================================
--- Pre-aggregation CTEs
--- ================================================================
-
--- OSHA: aggregate violations across all matched establishments per F7 employer
 osha_agg AS (
     SELECT
         m.f7_employer_id,
@@ -48,43 +30,69 @@ osha_agg AS (
     FROM osha_f7_matches m
     JOIN osha_establishments o ON o.establishment_id = m.establishment_id
     LEFT JOIN (
-        SELECT establishment_id,
-               SUM(CASE WHEN violation_type = 'W' THEN violation_count ELSE 0 END) AS willful_count,
-               SUM(CASE WHEN violation_type = 'R' THEN violation_count ELSE 0 END) AS repeat_count,
-               SUM(CASE WHEN violation_type = 'S' THEN violation_count ELSE 0 END) AS serious_count,
-               SUM(violation_count) AS total_violations,
-               SUM(total_penalties) AS total_penalties
+        SELECT
+            establishment_id,
+            SUM(CASE WHEN violation_type = 'W' THEN violation_count ELSE 0 END) AS willful_count,
+            SUM(CASE WHEN violation_type = 'R' THEN violation_count ELSE 0 END) AS repeat_count,
+            SUM(CASE WHEN violation_type = 'S' THEN violation_count ELSE 0 END) AS serious_count,
+            SUM(violation_count) AS total_violations,
+            SUM(total_penalties) AS total_penalties
         FROM osha_violation_summary
         GROUP BY establishment_id
-    ) vs ON o.establishment_id = vs.establishment_id
+    ) vs ON vs.establishment_id = o.establishment_id
     GROUP BY m.f7_employer_id
 ),
-
--- OSHA industry averages for normalization
 osha_avgs AS (
     SELECT naics_prefix, avg_violations_per_estab
     FROM ref_osha_industry_averages
 ),
-
--- NLRB: aggregate elections per F7 employer
-nlrb_agg AS (
+nlrb_elections_agg AS (
     SELECT
         p.matched_employer_id AS f7_employer_id,
         COUNT(DISTINCT e.case_number) AS election_count,
         SUM(CASE WHEN e.union_won THEN 1 ELSE 0 END) AS win_count,
+        SUM(CASE WHEN e.union_won THEN 0 ELSE 1 END) AS loss_count,
         MAX(e.election_date) AS latest_election,
         SUM(COALESCE(e.eligible_voters, 0)) AS total_eligible,
         MAX(
             exp(-LN(2)/7 * GREATEST(0, (CURRENT_DATE - COALESCE(e.election_date, CURRENT_DATE))::float / 365.25))
         ) AS latest_decay_factor
     FROM nlrb_participants p
-    JOIN nlrb_elections e ON p.case_number = e.case_number
-    WHERE p.matched_employer_id IS NOT NULL
-      AND p.participant_type = 'Employer'
+    JOIN nlrb_elections e ON e.case_number = p.case_number
+    WHERE p.participant_type = 'Employer'
+      AND p.matched_employer_id IS NOT NULL
     GROUP BY p.matched_employer_id
 ),
-
--- WHD: aggregate wage theft cases per F7 employer
+nlrb_ulp_agg AS (
+    SELECT
+        p.matched_employer_id AS f7_employer_id,
+        COUNT(DISTINCT p.case_number) AS ulp_count,
+        MAX(c.latest_date) AS latest_ulp,
+        MAX(
+            exp(-LN(2)/7 * GREATEST(0, (CURRENT_DATE - COALESCE(c.latest_date, CURRENT_DATE))::float / 365.25))
+        ) AS ulp_decay_factor
+    FROM nlrb_participants p
+    JOIN nlrb_cases c ON c.case_number = p.case_number
+    WHERE p.participant_type = 'Charged Party / Respondent'
+      AND p.case_number ~ '-CA-'
+      AND p.matched_employer_id IS NOT NULL
+    GROUP BY p.matched_employer_id
+),
+nlrb_agg AS (
+    SELECT
+        COALESCE(ea.f7_employer_id, ua.f7_employer_id) AS f7_employer_id,
+        COALESCE(ea.election_count, 0) AS election_count,
+        COALESCE(ea.win_count, 0) AS win_count,
+        COALESCE(ea.loss_count, 0) AS loss_count,
+        ea.latest_election,
+        COALESCE(ea.total_eligible, 0) AS total_eligible,
+        COALESCE(ea.latest_decay_factor, 1.0) AS latest_decay_factor,
+        COALESCE(ua.ulp_count, 0) AS ulp_count,
+        ua.latest_ulp,
+        COALESCE(ua.ulp_decay_factor, 1.0) AS ulp_decay_factor
+    FROM nlrb_elections_agg ea
+    FULL OUTER JOIN nlrb_ulp_agg ua ON ea.f7_employer_id = ua.f7_employer_id
+),
 whd_agg AS (
     SELECT
         wm.f7_employer_id,
@@ -93,14 +101,12 @@ whd_agg AS (
         SUM(COALESCE(wc.backwages_amount, 0)) AS total_backwages,
         SUM(COALESCE(wc.civil_penalties, 0)) AS total_penalties,
         SUM(COALESCE(wc.employees_violated, 0)) AS total_employees_violated,
-        bool_or(wc.flsa_repeat_violator) AS any_repeat_violator,
+        BOOL_OR(wc.flsa_repeat_violator) AS any_repeat_violator,
         MAX(wc.findings_end_date) AS latest_finding
     FROM whd_f7_matches wm
     JOIN whd_cases wc ON wc.case_id = wm.case_id
     GROUP BY wm.f7_employer_id
 ),
-
--- Union proximity: canonical group stats per employer
 union_prox AS (
     SELECT
         e.employer_id,
@@ -111,16 +117,33 @@ union_prox AS (
     FROM f7_employers_deduped e
     LEFT JOIN employer_canonical_groups g ON g.group_id = e.canonical_group_id
 ),
-
--- BLS projections by NAICS 2-digit (direct + composite codes)
 bls_proj AS (
     SELECT matrix_code, employment_change_pct
     FROM bls_industry_projections
 ),
-
--- ================================================================
--- Raw factor scores (one row per F7 employer)
--- ================================================================
+feature_bridge AS (
+    SELECT DISTINCT ON (LOWER(TRIM(employer_name)), state)
+        LOWER(TRIM(employer_name)) AS employer_name_norm,
+        state,
+        employer_id AS feature_employer_id
+    FROM mv_employer_features
+    WHERE employer_name IS NOT NULL
+      AND state IS NOT NULL
+    ORDER BY LOWER(TRIM(employer_name)), state, employer_id
+),
+similarity_agg AS (
+    SELECT
+        eds.employer_id,
+        COUNT(*) FILTER (WHERE COALESCE(cf.is_union, 0) > 0) AS unionized_comparable_count,
+        MIN(ec.gower_distance)::numeric AS best_distance
+    FROM mv_employer_data_sources eds
+    JOIN feature_bridge fb
+      ON fb.employer_name_norm = LOWER(TRIM(eds.employer_name))
+     AND fb.state = eds.state
+    JOIN employer_comparables ec ON ec.employer_id = fb.feature_employer_id
+    JOIN mv_employer_features cf ON cf.employer_id = ec.comparable_employer_id
+    GROUP BY eds.employer_id
+),
 raw_scores AS (
     SELECT
         eds.employer_id,
@@ -152,193 +175,135 @@ raw_scores AS (
         eds.ticker,
         eds.corporate_family_id,
 
-        -- ============================================================
-        -- Factor 1: OSHA Safety (0-10), NULL if no OSHA data
-        -- Temporal decay (10yr half-life) on most recent inspection.
-        -- Normalized by industry average.
-        -- ============================================================
-        CASE WHEN eds.has_osha AND oa.f7_employer_id IS NOT NULL THEN
-            LEAST(10,
-                -- Base from decayed industry-normalized ratio (0-7)
-                CASE
-                    WHEN COALESCE(oa.total_violations, 0) = 0 THEN 0
-                    WHEN (oa.total_violations::float
-                          * exp(-LN(2)/10 * GREATEST(0, (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25))
-                          / GREATEST(COALESCE(
-                                oa4.avg_violations_per_estab,
-                                oa2.avg_violations_per_estab,
-                                2.23), 0.01)
-                         ) / GREATEST(oa.estab_count, 1) >= 3.0 THEN 7
-                    WHEN (oa.total_violations::float
-                          * exp(-LN(2)/10 * GREATEST(0, (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25))
-                          / GREATEST(COALESCE(
-                                oa4.avg_violations_per_estab,
-                                oa2.avg_violations_per_estab,
-                                2.23), 0.01)
-                         ) / GREATEST(oa.estab_count, 1) >= 2.0 THEN 5
-                    WHEN (oa.total_violations::float
-                          * exp(-LN(2)/10 * GREATEST(0, (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25))
-                          / GREATEST(COALESCE(
-                                oa4.avg_violations_per_estab,
-                                oa2.avg_violations_per_estab,
-                                2.23), 0.01)
-                         ) / GREATEST(oa.estab_count, 1) >= 1.0 THEN 3
-                    ELSE 1
-                END
-                +
-                -- Severity bonus: willful*2 + repeat, decayed, capped at 3
-                LEAST(3, ROUND(
-                    (COALESCE(oa.willful_count, 0) * 2 + COALESCE(oa.repeat_count, 0))::float
-                    * exp(-LN(2)/10 * GREATEST(0, (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25))
-                )::int)
+        CASE
+            WHEN eds.has_osha AND oa.f7_employer_id IS NOT NULL THEN LEAST(
+                10,
+                GREATEST(
+                    0,
+                    ROUND(
+                        ((
+                            COALESCE(oa.total_violations, 0)::numeric
+                            / GREATEST(COALESCE(oa4.avg_violations_per_estab, oa2.avg_violations_per_estab, 2.23), 0.1)
+                        )
+                        * exp(-LN(2)/5 * GREATEST(0, (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25)))::numeric,
+                        2
+                    )
+                )
+                + CASE WHEN COALESCE(oa.willful_count, 0) + COALESCE(oa.repeat_count, 0) > 0 THEN 1 ELSE 0 END
             )
         END AS score_osha,
 
-        -- ============================================================
-        -- Factor 2: NLRB Activity (0-10), NULL if no NLRB data
-        -- 7-year half-life decay (same exponential pattern as OSHA's 10-year half-life),
-        -- with latest-election dominance via MAX-decay in nlrb_agg.
-        -- ============================================================
-        CASE WHEN eds.has_nlrb AND na.f7_employer_id IS NOT NULL THEN
-            GREATEST(1, LEAST(10, ROUND((
-                -- Base from election activity (0-7)
-                CASE
-                    WHEN na.election_count >= 3 THEN 7
-                    WHEN na.election_count = 2 THEN 5
-                    WHEN na.election_count = 1 AND na.win_count > 0 THEN 4
-                    WHEN na.election_count = 1 THEN 3
-                    ELSE 1
-                END
-                * COALESCE(na.latest_decay_factor, 1.0)
-            )::numeric)::int))
+        -- TODO: nearby 25-mile momentum requires geocoded employer locations. Keep current own-history model.
+        -- Election component: wins*2 + elections - losses, with 7yr decay
+        -- ULP component: 1 charge=2, 2-3=4, 4-9=6, 10+=8, with 7yr decay
+        CASE
+            WHEN eds.has_nlrb AND na.f7_employer_id IS NOT NULL THEN
+                LEAST(
+                    10,
+                    GREATEST(
+                        0,
+                        ROUND(
+                            (
+                                -- Election score
+                                (COALESCE(na.win_count, 0) * 2 + COALESCE(na.election_count, 0) - COALESCE(na.loss_count, 0))
+                                * na.latest_decay_factor
+                                -- ULP boost
+                                + CASE
+                                    WHEN na.ulp_count = 0 THEN 0
+                                    WHEN na.ulp_count = 1 THEN 2
+                                    WHEN na.ulp_count BETWEEN 2 AND 3 THEN 4
+                                    WHEN na.ulp_count BETWEEN 4 AND 9 THEN 6
+                                    ELSE 8
+                                  END * na.ulp_decay_factor
+                            )::numeric,
+                            2
+                        )
+                    )
+                )
         END AS score_nlrb,
 
-        -- ============================================================
-        -- Factor 3: Wage Theft (0-10), NULL if no WHD data
-        -- Based on violation severity, backwages, repeat status.
-        -- Temporal decay (7yr half-life) on latest finding.
-        -- ============================================================
-        CASE WHEN eds.has_whd AND wa.f7_employer_id IS NOT NULL THEN
-            LEAST(10, ROUND((
-                CASE
-                    WHEN wa.any_repeat_violator THEN 8
-                    WHEN wa.total_penalties > 100000 THEN 7
-                    WHEN wa.total_backwages > 500000 THEN 6
-                    WHEN wa.total_penalties > 10000 OR wa.total_violations > 10 THEN 5
-                    WHEN wa.total_backwages > 50000 THEN 4
-                    WHEN wa.total_violations > 0 THEN 2
-                    ELSE 1
-                END
-                * exp(-LN(2)/7 * GREATEST(0, (CURRENT_DATE - COALESCE(wa.latest_finding, CURRENT_DATE))::float / 365.25))
-            )::numeric)::int)
+        CASE
+            WHEN eds.has_whd AND wa.f7_employer_id IS NOT NULL THEN
+                ROUND(
+                    (
+                        CASE
+                            WHEN COALESCE(wa.case_count, 0) = 0 THEN 0
+                            WHEN wa.case_count = 1 THEN 5
+                            WHEN wa.case_count BETWEEN 2 AND 3 THEN 7
+                            ELSE 10
+                        END
+                        * exp(-LN(2)/5 * GREATEST(0, (CURRENT_DATE - COALESCE(wa.latest_finding, CURRENT_DATE))::float / 365.25))
+                    )::numeric,
+                    2
+                )
         END AS score_whd,
 
-        -- ============================================================
-        -- Factor 4: Government Contracts (0-10), NULL if not contractor
-        -- Based on federal obligation amounts.
-        -- ============================================================
-        CASE WHEN eds.is_federal_contractor THEN
-            CASE
-                WHEN COALESCE(eds.federal_obligations, 0) > 5000000 THEN 10
-                WHEN COALESCE(eds.federal_obligations, 0) > 1000000 THEN 7
-                WHEN COALESCE(eds.federal_obligations, 0) > 100000 THEN 4
-                WHEN COALESCE(eds.federal_obligations, 0) > 0 THEN 2
-                ELSE 1
-            END
+        CASE
+            WHEN eds.is_federal_contractor THEN
+                CASE
+                    WHEN COALESCE(eds.federal_contract_count, 0) > 0 OR COALESCE(eds.federal_obligations, 0) > 0 THEN 4
+                    ELSE 0
+                END
         END AS score_contracts,
 
-        -- ============================================================
-        -- Factor 5: Union Proximity (0-10), always available
-        -- Canonical group size, cross-state reach.
-        -- ============================================================
         CASE
-            WHEN up.is_cross_state AND COALESCE(up.member_count, 0) >= 5 THEN 10
-            WHEN up.is_cross_state THEN 8
-            WHEN COALESCE(up.member_count, 0) >= 5 THEN 7
-            WHEN COALESCE(up.member_count, 0) >= 3 THEN 5
-            WHEN COALESCE(up.member_count, 0) = 2 THEN 3
-            ELSE 1
+            WHEN up.member_count IS NULL AND eds.corporate_family_id IS NULL THEN NULL
+            WHEN GREATEST(COALESCE(up.member_count, 1) - 1, 0) >= 2 THEN 10
+            WHEN GREATEST(COALESCE(up.member_count, 1) - 1, 0) = 1 OR eds.corporate_family_id IS NOT NULL THEN 5
+            ELSE 0
         END AS score_union_proximity,
 
-        -- ============================================================
-        -- Factor 6: Financial / Industry Viability (0-10)
-        -- NULL only if no NAICS code (no BLS lookup possible).
-        -- BLS industry growth (0-7 base) + public/nonprofit boost.
-        -- ============================================================
-        CASE WHEN eds.naics IS NOT NULL THEN
-            LEAST(10,
-                -- BLS industry growth base (0-7)
-                CASE
-                    WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) > 10 THEN 7
-                    WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) > 5 THEN 5
-                    WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) > 0 THEN 3
-                    WHEN COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) IS NOT NULL THEN 2
-                    ELSE 2  -- no BLS data for this NAICS
-                END
-                +
-                -- Public company boost (more leverage, more data)
-                CASE WHEN eds.is_public THEN 2 ELSE 0 END
-                +
-                -- Nonprofit data availability boost
-                CASE WHEN eds.has_990 THEN 1 ELSE 0 END
-            )
-        END AS score_financial,
-
-        -- ============================================================
-        -- Factor 7: Employer Size (0-10), always available
-        -- Sweet spot 50-500. Same tiers as current scorecard.
-        -- ============================================================
         CASE
-            WHEN COALESCE(eds.latest_unit_size, 0) BETWEEN 50 AND 250 THEN 10
-            WHEN COALESCE(eds.latest_unit_size, 0) BETWEEN 251 AND 500 THEN 8
-            WHEN COALESCE(eds.latest_unit_size, 0) BETWEEN 25 AND 49 THEN 6
-            WHEN COALESCE(eds.latest_unit_size, 0) BETWEEN 501 AND 1000 THEN 4
-            ELSE 2
+            WHEN eds.naics IS NOT NULL THEN
+                LEAST(
+                    10,
+                    GREATEST(
+                        0,
+                        ROUND((((COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct, 0) + 10)::numeric / 20) * 10), 2)
+                    )
+                )
+        END AS score_industry_growth,
+
+        CASE
+            WHEN eds.latest_unit_size IS NULL THEN NULL
+            WHEN eds.latest_unit_size < 15 THEN 0
+            WHEN eds.latest_unit_size >= 500 THEN 10
+            ELSE ROUND((((eds.latest_unit_size - 15)::numeric / 485) * 10), 2)
         END AS score_size,
 
-        -- ============================================================
-        -- Metadata for display
-        -- ============================================================
+        sa.unionized_comparable_count,
+        sa.best_distance,
+
         oa.estab_count AS osha_estab_count,
         oa.total_violations AS osha_total_violations,
         oa.total_penalties AS osha_total_penalties,
         oa.latest_inspection AS osha_latest_inspection,
-        ROUND(exp(-LN(2)/10 * GREATEST(0,
-            (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25
-        ))::numeric, 4) AS osha_decay_factor,
+        ROUND(
+            exp(-LN(2)/5 * GREATEST(0, (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25))::numeric,
+            4
+        ) AS osha_decay_factor,
 
         na.election_count AS nlrb_election_count,
         na.win_count AS nlrb_win_count,
         na.latest_election AS nlrb_latest_election,
         na.total_eligible AS nlrb_total_eligible,
         ROUND(COALESCE(na.latest_decay_factor, 1.0)::numeric, 4) AS nlrb_decay_factor,
+        na.ulp_count AS nlrb_ulp_count,
+        na.latest_ulp AS nlrb_latest_ulp,
 
         wa.case_count AS whd_case_count,
         wa.total_backwages AS whd_total_backwages,
         wa.total_penalties AS whd_total_penalties,
         wa.latest_finding AS whd_latest_finding,
         wa.any_repeat_violator AS whd_repeat_violator,
-
         COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) AS bls_growth_pct
-
     FROM mv_employer_data_sources eds
-
-    -- OSHA aggregate
     LEFT JOIN osha_agg oa ON oa.f7_employer_id = eds.employer_id
     LEFT JOIN osha_avgs oa4 ON oa4.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 4)
-    LEFT JOIN osha_avgs oa2 ON oa2.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 2)
-        AND oa4.naics_prefix IS NULL
-
-    -- NLRB aggregate
+    LEFT JOIN osha_avgs oa2 ON oa2.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 2) AND oa4.naics_prefix IS NULL
     LEFT JOIN nlrb_agg na ON na.f7_employer_id = eds.employer_id
-
-    -- WHD aggregate
     LEFT JOIN whd_agg wa ON wa.f7_employer_id = eds.employer_id
-
-    -- Union proximity
     LEFT JOIN union_prox up ON up.employer_id = eds.employer_id
-
-    -- BLS projections (direct NAICS 2-digit + composite alias)
     LEFT JOIN bls_proj bp ON bp.matrix_code = LEFT(eds.naics, 2) || '0000'
     LEFT JOIN bls_proj bp_alias ON bp_alias.matrix_code = CASE LEFT(eds.naics, 2)
         WHEN '31' THEN '31-330' WHEN '32' THEN '31-330' WHEN '33' THEN '31-330'
@@ -346,93 +311,106 @@ raw_scores AS (
         WHEN '48' THEN '48-490' WHEN '49' THEN '48-490'
         ELSE NULL
     END AND bp.matrix_code IS NULL
+    LEFT JOIN similarity_agg sa ON sa.employer_id = eds.employer_id
+),
+scored AS (
+    SELECT
+        rs.*,
+        CASE
+            WHEN rs.score_union_proximity >= 5 THEN NULL
+            WHEN rs.unionized_comparable_count IS NULL THEN NULL
+            ELSE LEAST(
+                10,
+                CASE rs.unionized_comparable_count
+                    WHEN 5 THEN 10
+                    WHEN 4 THEN 8
+                    WHEN 3 THEN 6
+                    WHEN 2 THEN 4
+                    WHEN 1 THEN 2
+                    ELSE 0
+                END
+                + CASE WHEN rs.best_distance IS NOT NULL AND rs.best_distance < 0.15 THEN 1 ELSE 0 END
+            )
+        END AS score_similarity
+    FROM raw_scores rs
+),
+weighted AS (
+    SELECT
+        s.*,
+        s.score_industry_growth AS score_financial,
+        (
+            CASE WHEN s.score_union_proximity IS NOT NULL THEN 3 ELSE 0 END
+            + CASE WHEN s.score_size IS NOT NULL THEN 3 ELSE 0 END
+            + CASE WHEN s.score_nlrb IS NOT NULL THEN 3 ELSE 0 END
+            + CASE WHEN s.score_contracts IS NOT NULL THEN 2 ELSE 0 END
+            + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
+            + CASE WHEN s.score_similarity IS NOT NULL THEN 2 ELSE 0 END
+            + CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+        ) AS total_weight,
+        (
+            CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_contracts IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_union_proximity IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_industry_growth IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_size IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_similarity IS NOT NULL THEN 1 ELSE 0 END
+        ) AS factors_available,
+        8 AS factors_total,
+        ROUND(
+            (
+                COALESCE(s.score_union_proximity, 0) * 3
+                + COALESCE(s.score_size, 0) * 3
+                + COALESCE(s.score_nlrb, 0) * 3
+                + COALESCE(s.score_contracts, 0) * 2
+                + COALESCE(s.score_industry_growth, 0) * 2
+                + COALESCE(s.score_similarity, 0) * 2
+                + COALESCE(s.score_osha, 0)
+                + COALESCE(s.score_whd, 0)
+            )::numeric
+            / NULLIF(
+                (
+                    CASE WHEN s.score_union_proximity IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN s.score_size IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN s.score_nlrb IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN s.score_contracts IS NOT NULL THEN 2 ELSE 0 END
+                    + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
+                    + CASE WHEN s.score_similarity IS NOT NULL THEN 2 ELSE 0 END
+                    + CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
+                    + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+                ),
+                0
+            ),
+            2
+        ) AS weighted_score
+    FROM scored s
+),
+ranked AS (
+    SELECT
+        w.*,
+        w.weighted_score AS unified_score,
+        ROUND(100.0 * w.factors_available::numeric / 8, 1) AS coverage_pct,
+        PERCENT_RANK() OVER (ORDER BY w.weighted_score ASC NULLS FIRST) AS score_percentile
+    FROM weighted w
 )
-
--- ================================================================
--- Final: compute derived fields from raw factor scores
--- ================================================================
 SELECT
-    rs.*,
-
-    -- Count of non-null factors
-    (CASE WHEN rs.score_osha IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.score_whd IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.score_contracts IS NOT NULL THEN 1 ELSE 0 END
-     + 1  -- union proximity always present
-     + CASE WHEN rs.score_financial IS NOT NULL THEN 1 ELSE 0 END
-     + 1  -- size always present
-    ) AS factors_available,
-
-    7 AS factors_total,
-
-    -- Unified score: average of all non-null factors (0-10 scale)
-    ROUND((
-        COALESCE(rs.score_osha, 0) + COALESCE(rs.score_nlrb, 0)
-        + COALESCE(rs.score_whd, 0) + COALESCE(rs.score_contracts, 0)
-        + rs.score_union_proximity + COALESCE(rs.score_financial, 0)
-        + rs.score_size
-    )::numeric / (
-        CASE WHEN rs.score_osha IS NOT NULL THEN 1 ELSE 0 END
-        + CASE WHEN rs.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
-        + CASE WHEN rs.score_whd IS NOT NULL THEN 1 ELSE 0 END
-        + CASE WHEN rs.score_contracts IS NOT NULL THEN 1 ELSE 0 END
-        + 1  -- union proximity
-        + CASE WHEN rs.score_financial IS NOT NULL THEN 1 ELSE 0 END
-        + 1  -- size
-    ), 2) AS unified_score,
-
-    -- Coverage percentage
-    ROUND(100.0 * (
-        CASE WHEN rs.score_osha IS NOT NULL THEN 1 ELSE 0 END
-        + CASE WHEN rs.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
-        + CASE WHEN rs.score_whd IS NOT NULL THEN 1 ELSE 0 END
-        + CASE WHEN rs.score_contracts IS NOT NULL THEN 1 ELSE 0 END
-        + 1 + CASE WHEN rs.score_financial IS NOT NULL THEN 1 ELSE 0 END + 1
-    )::numeric / 7, 1) AS coverage_pct,
-
-    -- Score tier classification
+    r.*,
     CASE
-        WHEN (
-            COALESCE(rs.score_osha, 0) + COALESCE(rs.score_nlrb, 0)
-            + COALESCE(rs.score_whd, 0) + COALESCE(rs.score_contracts, 0)
-            + rs.score_union_proximity + COALESCE(rs.score_financial, 0)
-            + rs.score_size
-        )::numeric / (
-            CASE WHEN rs.score_osha IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_whd IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_contracts IS NOT NULL THEN 1 ELSE 0 END
-            + 1 + CASE WHEN rs.score_financial IS NOT NULL THEN 1 ELSE 0 END + 1
-        ) >= 7.0 THEN 'TOP'
-        WHEN (
-            COALESCE(rs.score_osha, 0) + COALESCE(rs.score_nlrb, 0)
-            + COALESCE(rs.score_whd, 0) + COALESCE(rs.score_contracts, 0)
-            + rs.score_union_proximity + COALESCE(rs.score_financial, 0)
-            + rs.score_size
-        )::numeric / (
-            CASE WHEN rs.score_osha IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_whd IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_contracts IS NOT NULL THEN 1 ELSE 0 END
-            + 1 + CASE WHEN rs.score_financial IS NOT NULL THEN 1 ELSE 0 END + 1
-        ) >= 5.0 THEN 'HIGH'
-        WHEN (
-            COALESCE(rs.score_osha, 0) + COALESCE(rs.score_nlrb, 0)
-            + COALESCE(rs.score_whd, 0) + COALESCE(rs.score_contracts, 0)
-            + rs.score_union_proximity + COALESCE(rs.score_financial, 0)
-            + rs.score_size
-        )::numeric / (
-            CASE WHEN rs.score_osha IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_whd IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN rs.score_contracts IS NOT NULL THEN 1 ELSE 0 END
-            + 1 + CASE WHEN rs.score_financial IS NOT NULL THEN 1 ELSE 0 END + 1
-        ) >= 3.5 THEN 'MEDIUM'
+        WHEN r.score_percentile >= 0.97 THEN 'Priority'
+        WHEN r.score_percentile >= 0.85 THEN 'Strong'
+        WHEN r.score_percentile >= 0.60 THEN 'Promising'
+        WHEN r.score_percentile >= 0.25 THEN 'Moderate'
+        ELSE 'Low'
+    END AS score_tier,
+    CASE
+        WHEN r.score_percentile >= 0.97 THEN 'TOP'
+        WHEN r.score_percentile >= 0.85 THEN 'HIGH'
+        WHEN r.score_percentile >= 0.60 THEN 'MEDIUM'
         ELSE 'LOW'
-    END AS score_tier
-
-FROM raw_scores rs
+    END AS score_tier_legacy
+FROM ranked r
 """
 
 
@@ -440,6 +418,7 @@ INDEX_SQL = [
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_us_employer_id ON mv_unified_scorecard (employer_id)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_state ON mv_unified_scorecard (state)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_unified_score ON mv_unified_scorecard (unified_score DESC NULLS LAST)",
+    "CREATE INDEX IF NOT EXISTS idx_mv_us_weighted_score ON mv_unified_scorecard (weighted_score DESC NULLS LAST)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_naics ON mv_unified_scorecard (naics)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_score_tier ON mv_unified_scorecard (score_tier)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_factors ON mv_unified_scorecard (factors_available)",
@@ -447,76 +426,42 @@ INDEX_SQL = [
 
 
 def _print_stats(cur):
-    """Print verification stats."""
     cur.execute("SELECT COUNT(*) FROM mv_unified_scorecard")
     total = cur.fetchone()[0]
     print(f"  Total rows: {total:,}")
 
-    cur.execute("SELECT COUNT(*) FROM f7_employers_deduped")
-    f7_total = cur.fetchone()[0]
-    if total != f7_total:
-        print(f"  WARNING: MV rows ({total:,}) != f7_employers_deduped ({f7_total:,})")
-    else:
-        print(f"  OK: Matches f7_employers_deduped count ({f7_total:,})")
-
-    # Score distribution
-    cur.execute("""
-        SELECT
-            MIN(unified_score) AS min_score,
-            ROUND(AVG(unified_score)::numeric, 2) AS avg_score,
-            MAX(unified_score) AS max_score,
-            ROUND(STDDEV(unified_score)::numeric, 2) AS stddev_score
+    cur.execute(
+        """
+        SELECT MIN(weighted_score), ROUND(AVG(weighted_score)::numeric, 2), MAX(weighted_score)
         FROM mv_unified_scorecard
-    """)
-    row = cur.fetchone()
-    print(f"\n  Score range: {row[0]} - {row[2]}, avg={row[1]}, stddev={row[3]}")
+        """
+    )
+    mn, avg, mx = cur.fetchone()
+    print(f"  Weighted score range: {mn} - {mx}, avg={avg}")
 
-    # Tier distribution
-    print("\n  Score tiers:")
-    cur.execute("""
+    print("\n  Tier distribution:")
+    cur.execute(
+        """
         SELECT score_tier, COUNT(*) AS cnt
         FROM mv_unified_scorecard
         GROUP BY score_tier
         ORDER BY CASE score_tier
-            WHEN 'TOP' THEN 1 WHEN 'HIGH' THEN 2
-            WHEN 'MEDIUM' THEN 3 WHEN 'LOW' THEN 4
+            WHEN 'Priority' THEN 1
+            WHEN 'Strong' THEN 2
+            WHEN 'Promising' THEN 3
+            WHEN 'Moderate' THEN 4
+            WHEN 'Low' THEN 5
+            ELSE 6
         END
-    """)
-    for row in cur.fetchall():
-        pct = 100.0 * row[1] / total if total > 0 else 0
-        print(f"    {row[0]:8s}: {row[1]:>7,} ({pct:5.1f}%)")
-
-    # Factor availability
-    print("\n  Factor availability:")
-    for col in ['score_osha', 'score_nlrb', 'score_whd', 'score_contracts',
-                'score_union_proximity', 'score_financial', 'score_size']:
-        cur.execute(f"SELECT COUNT(*) FROM mv_unified_scorecard WHERE {col} IS NOT NULL")
-        cnt = cur.fetchone()[0]
-        # Also get average when available
-        cur.execute(f"SELECT ROUND(AVG({col})::numeric, 2) FROM mv_unified_scorecard WHERE {col} IS NOT NULL")
-        avg_val = cur.fetchone()[0]
-        pct = 100.0 * cnt / total if total > 0 else 0
-        print(f"    {col:25s}: {cnt:>7,} ({pct:5.1f}%)  avg={avg_val}")
-
-    # Coverage distribution
-    print("\n  Factors available distribution:")
-    cur.execute("""
-        SELECT factors_available, COUNT(*) AS cnt
-        FROM mv_unified_scorecard
-        GROUP BY factors_available
-        ORDER BY factors_available
-    """)
-    for row in cur.fetchall():
-        pct = 100.0 * row[1] / total if total > 0 else 0
-        print(f"    {row[0]}/7 factors: {row[1]:>7,} ({pct:5.1f}%)")
-
-    return total
+        """
+    )
+    for tier, cnt in cur.fetchall():
+        pct = (100.0 * cnt / total) if total else 0
+        print(f"    {tier:10s}: {cnt:>8,} ({pct:5.1f}%)")
 
 
 def create_mv(conn):
-    """Drop and recreate the materialized view."""
     cur = conn.cursor()
-
     print("Dropping old MV if exists...")
     cur.execute("DROP MATERIALIZED VIEW IF EXISTS mv_unified_scorecard CASCADE")
     conn.commit()
@@ -525,12 +470,11 @@ def create_mv(conn):
     t0 = time.time()
     cur.execute(MV_SQL)
     conn.commit()
-    elapsed = time.time() - t0
-    print(f"  Created in {elapsed:.1f}s")
+    print(f"  Created in {time.time() - t0:.1f}s")
 
     print("Creating indexes...")
-    for sql in INDEX_SQL:
-        cur.execute(sql)
+    for stmt in INDEX_SQL:
+        cur.execute(stmt)
     conn.commit()
     print("  Done.")
 
@@ -539,37 +483,31 @@ def create_mv(conn):
 
 
 def refresh_mv(conn):
-    """Refresh the existing materialized view (CONCURRENTLY)."""
     conn.autocommit = True
     cur = conn.cursor()
-
     print("Refreshing mv_unified_scorecard CONCURRENTLY...")
     t0 = time.time()
     cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_unified_scorecard")
-    elapsed = time.time() - t0
-    print(f"  Refreshed in {elapsed:.1f}s")
-
+    print(f"  Refreshed in {time.time() - t0:.1f}s")
     print("\nVerification:")
     _print_stats(cur)
 
 
 def main():
-    import argparse
     parser = argparse.ArgumentParser(description="Create/refresh unified scorecard MV")
     parser.add_argument("--refresh", action="store_true", help="Refresh existing MV instead of recreating")
     args = parser.parse_args()
 
     conn = get_connection()
     conn.autocommit = False
-
     try:
         if args.refresh:
             refresh_mv(conn)
         else:
             create_mv(conn)
-    except Exception as e:
+    except Exception as exc:
         conn.rollback()
-        print(f"ERROR: {e}")
+        print(f"ERROR: {exc}")
         raise
     finally:
         conn.close()

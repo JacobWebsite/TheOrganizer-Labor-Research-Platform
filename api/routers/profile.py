@@ -55,12 +55,7 @@ def get_employer_profile(employer_id: str):
             # Unified scoring context (single frontend scorecard source).
             cur.execute(
                 """
-                SELECT employer_id, employer_name, state, city, naics, latest_unit_size,
-                       latest_union_name, source_count, has_osha, has_nlrb, has_whd,
-                       has_sam, has_sec, has_gleif, has_mergent, is_federal_contractor,
-                       is_public, score_osha, score_nlrb, score_whd, score_contracts,
-                       score_union_proximity, score_financial, score_size,
-                       factors_available, factors_total, unified_score, coverage_pct, score_tier
+                SELECT *
                 FROM mv_unified_scorecard
                 WHERE employer_id::text = %s
                 LIMIT 1
@@ -68,6 +63,14 @@ def get_employer_profile(employer_id: str):
                 [f7_id],
             )
             unified_scorecard = cur.fetchone()
+            if unified_scorecard:
+                unified_scorecard["weighted_score"] = unified_scorecard.get(
+                    "weighted_score", unified_scorecard.get("unified_score")
+                )
+                unified_scorecard["unified_score"] = unified_scorecard.get(
+                    "unified_score", unified_scorecard.get("weighted_score")
+                )
+                unified_scorecard["legacy_score_tier"] = unified_scorecard.get("score_tier_legacy")
 
             cur.execute(
                 """

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CBA Search</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-a: #f3efe7;
+      --bg-b: #e5ece8;
+      --ink: #202631;
+      --ink-soft: #4f5968;
+      --paper: #fffdf8;
+      --line: #d8d2c5;
+      --accent: #0f766e;
+      --accent-2: #8b5e34;
+      --danger: #9f1239;
+      --radius: 12px;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Source Sans 3", sans-serif;
+      background: radial-gradient(circle at 20% 20%, #ffffff99 0, #ffffff00 35%),
+                  linear-gradient(120deg, var(--bg-a), var(--bg-b));
+      min-height: 100vh;
+    }
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 18px 32px;
+      animation: fadeIn 220ms ease-out;
+    }
+    .title {
+      margin: 0 0 4px;
+      font-family: "Spectral", serif;
+      font-size: clamp(1.9rem, 4vw, 2.7rem);
+      letter-spacing: 0.2px;
+    }
+    .subtitle {
+      margin: 0 0 18px;
+      color: var(--ink-soft);
+      font-size: 0.98rem;
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .controls {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      color: var(--ink-soft);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .field input, .field select {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 9px 10px;
+      font-size: 0.95rem;
+      color: var(--ink);
+      outline: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+      grid-column: span 12;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 13px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #ece8de; color: var(--ink); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .split {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 12px;
+    }
+    .pane { overflow: hidden; }
+    .pane h2 {
+      margin: 0;
+      padding: 12px 14px;
+      font-family: "Spectral", serif;
+      border-bottom: 1px solid var(--line);
+      font-size: 1.1rem;
+      background: linear-gradient(180deg, #fff, #faf7f0);
+    }
+    .meta {
+      padding: 8px 14px;
+      color: var(--ink-soft);
+      font-size: 0.9rem;
+      border-bottom: 1px dashed var(--line);
+    }
+    .table-wrap { max-height: 63vh; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      padding: 9px 10px;
+      border-bottom: 1px solid #ede8dc;
+      vertical-align: top;
+      font-size: 0.9rem;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: #fbf8f2;
+      z-index: 1;
+      color: var(--ink-soft);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    tr:hover { background: #f8f4ea; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .pill {
+      display: inline-block;
+      border: 1px solid #cfe3df;
+      background: #e8f5f3;
+      color: #0f564f;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+    .detail {
+      padding: 12px 14px;
+      max-height: 63vh;
+      overflow: auto;
+    }
+    .detail h3 {
+      margin: 0 0 8px;
+      font-size: 0.98rem;
+      color: var(--accent-2);
+    }
+    .kv {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 6px 10px;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+    .kv .k { color: var(--ink-soft); font-weight: 600; }
+    .status {
+      margin-top: 8px;
+      font-size: 0.86rem;
+      color: var(--ink-soft);
+    }
+    .error { color: var(--danger); font-weight: 700; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px);} to { opacity: 1; transform: translateY(0);} }
+    @media (max-width: 980px) {
+      .split { grid-template-columns: 1fr; }
+      .span-8, .span-6, .span-4, .span-3, .span-2 { grid-column: span 12; }
+      .table-wrap, .detail { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <h1 class="title">CBA Search</h1>
+    <p class="subtitle">Search extracted provisions and inspect one CBA document in detail.</p>
+
+    <section class="card controls">
+      <div class="field span-3">
+        <label for="baseUrl">API Base URL</label>
+        <input id="baseUrl" value="" placeholder="defaults to current origin" />
+      </div>
+      <div class="field span-3">
+        <label for="token">Bearer Token (optional)</label>
+        <input id="token" placeholder="paste JWT if auth enabled" />
+      </div>
+      <div class="field span-3">
+        <label for="q">Text Query</label>
+        <input id="q" placeholder="e.g. overtime, just cause, pension" />
+      </div>
+      <div class="field span-3">
+        <label for="cbaId">CBA ID</label>
+        <input id="cbaId" type="number" min="1" value="21" />
+      </div>
+
+      <div class="field span-3">
+        <label for="category">Category</label>
+        <input id="category" placeholder="benefits, leave, job_security..." />
+      </div>
+      <div class="field span-3">
+        <label for="provisionClass">Provision Class</label>
+        <input id="provisionClass" placeholder="overtime, seniority..." />
+      </div>
+      <div class="field span-2">
+        <label for="page">Page</label>
+        <input id="page" type="number" min="1" value="1" />
+      </div>
+      <div class="field span-2">
+        <label for="limit">Limit</label>
+        <input id="limit" type="number" min="1" max="200" value="25" />
+      </div>
+      <div class="field span-2">
+        <label for="sort">Sort</label>
+        <select id="sort">
+          <option value="page_start">page_start</option>
+          <option value="provision_class">provision_class</option>
+          <option value="employer_name">employer_name</option>
+          <option value="union_name">union_name</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button id="searchBtn" class="btn-primary">Search Provisions</button>
+        <button id="loadDocBtn" class="btn-secondary">Load Document Detail</button>
+        <button id="clearBtn" class="btn-danger">Clear</button>
+      </div>
+      <div id="status" class="status span-12"></div>
+    </section>
+
+    <section class="split">
+      <article class="card pane">
+        <h2>Results</h2>
+        <div id="resultMeta" class="meta">No query yet.</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>CBA</th>
+                <th>Class</th>
+                <th>Page</th>
+                <th>Text</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card pane">
+        <h2>Document Detail</h2>
+        <div class="detail" id="detailPane">
+          <p class="status">Load a document to view metadata and class counts.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const baseUrlInput = $("baseUrl");
+    const tokenInput = $("token");
+    const statusEl = $("status");
+    const resultsBody = $("resultsBody");
+    const resultMeta = $("resultMeta");
+    const detailPane = $("detailPane");
+
+    function apiBase() {
+      const raw = (baseUrlInput.value || "").trim();
+      return raw ? raw.replace(/\/+$/, "") : window.location.origin;
+    }
+
+    function buildHeaders() {
+      const token = (tokenInput.value || "").trim();
+      const headers = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return headers;
+    }
+
+    function setStatus(msg, isError = false) {
+      statusEl.textContent = msg;
+      statusEl.className = isError ? "status error span-12" : "status span-12";
+    }
+
+    function esc(text) {
+      return String(text ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function truncate(s, n = 180) {
+      const v = String(s ?? "");
+      return v.length > n ? `${v.slice(0, n)}...` : v;
+    }
+
+    async function getJson(path) {
+      const res = await fetch(`${apiBase()}${path}`, { headers: buildHeaders() });
+      const txt = await res.text();
+      let data = {};
+      try { data = txt ? JSON.parse(txt) : {}; } catch {}
+      if (!res.ok) {
+        const detail = data?.detail ? `: ${data.detail}` : "";
+        throw new Error(`HTTP ${res.status}${detail}`);
+      }
+      return data;
+    }
+
+    async function search() {
+      setStatus("Searching...");
+      const params = new URLSearchParams();
+      const q = $("q").value.trim();
+      const cbaId = $("cbaId").value.trim();
+      const category = $("category").value.trim();
+      const provisionClass = $("provisionClass").value.trim();
+      const page = $("page").value.trim() || "1";
+      const limit = $("limit").value.trim() || "25";
+      const sort = $("sort").value;
+
+      if (q) params.set("q", q);
+      if (cbaId) params.set("cba_id", cbaId);
+      if (category) params.set("category", category);
+      if (provisionClass) params.set("provision_class", provisionClass);
+      params.set("page", page);
+      params.set("limit", limit);
+      params.set("sort", sort);
+      params.set("order", "asc");
+
+      try {
+        const data = await getJson(`/api/cba/provisions/search?${params.toString()}`);
+        const rows = data.results || [];
+        resultsBody.innerHTML = rows.map(r => `
+          <tr data-cba-id="${esc(r.cba_id)}">
+            <td class="mono">${esc(r.provision_id)}</td>
+            <td class="mono">${esc(r.cba_id)}</td>
+            <td>${esc(r.provision_class)}</td>
+            <td class="mono">${esc(r.page_start)}-${esc(r.page_end ?? "")}</td>
+            <td title="${esc(r.provision_text)}">${esc(truncate(r.provision_text, 230))}</td>
+          </tr>
+        `).join("");
+
+        resultMeta.textContent = `Total ${data.total ?? 0} | Page ${data.page ?? 1} / ${data.pages ?? 0}`;
+        setStatus(`Search complete. ${rows.length} rows shown.`);
+      } catch (err) {
+        setStatus(`Search failed: ${err.message}`, true);
+      }
+    }
+
+    async function loadDocDetail() {
+      const cbaId = $("cbaId").value.trim();
+      if (!cbaId) {
+        setStatus("Enter a CBA ID first.", true);
+        return;
+      }
+      setStatus(`Loading document ${cbaId}...`);
+      try {
+        const data = await getJson(`/api/cba/documents/${encodeURIComponent(cbaId)}?include_provisions=true&limit=30`);
+        const doc = data.document || {};
+        const summary = data.summary || {};
+        const classes = data.class_counts || [];
+        const provisions = data.provisions || [];
+
+        const classPills = classes.map(c => `<span class="pill">${esc(c.provision_class)}: ${esc(c.cnt)}</span>`).join("");
+        const samples = provisions.map(p => `
+          <tr>
+            <td class="mono">${esc(p.provision_id)}</td>
+            <td>${esc(p.provision_class)}</td>
+            <td class="mono">${esc(p.page_start)}-${esc(p.page_end ?? "")}</td>
+          </tr>
+        `).join("");
+
+        detailPane.innerHTML = `
+          <h3>Document</h3>
+          <div class="kv">
+            <div class="k">CBA ID</div><div class="mono">${esc(doc.cba_id)}</div>
+            <div class="k">Employer</div><div>${esc(doc.employer_name_raw)}</div>
+            <div class="k">Union</div><div>${esc(doc.union_name_raw)}</div>
+            <div class="k">Status</div><div>${esc(doc.extraction_status)}</div>
+            <div class="k">Pages</div><div>${esc(doc.page_count)}</div>
+            <div class="k">Scanned</div><div>${esc(doc.is_scanned)}</div>
+            <div class="k">Source</div><div>${esc(doc.source_name)} (${esc(doc.source_url)})</div>
+            <div class="k">File</div><div class="mono">${esc(doc.file_path)}</div>
+          </div>
+
+          <h3>Extraction Summary</h3>
+          <div class="kv">
+            <div class="k">Provision Count</div><div class="mono">${esc(summary.provision_count ?? 0)}</div>
+            <div class="k">Page Range</div><div class="mono">${esc(summary.min_page_start ?? "-")} - ${esc(summary.max_page_end ?? "-")}</div>
+            <div class="k">Char Range</div><div class="mono">${esc(summary.min_char_start ?? "-")} - ${esc(summary.max_char_end ?? "-")}</div>
+          </div>
+
+          <h3>Class Counts</h3>
+          <div>${classPills || '<span class="status">No classes found.</span>'}</div>
+
+          <h3 style="margin-top:14px;">First 30 Provisions</h3>
+          <table>
+            <thead><tr><th>ID</th><th>Class</th><th>Page</th></tr></thead>
+            <tbody>${samples || '<tr><td colspan="3">No provisions.</td></tr>'}</tbody>
+          </table>
+        `;
+        setStatus(`Loaded document ${cbaId}.`);
+      } catch (err) {
+        setStatus(`Document load failed: ${err.message}`, true);
+      }
+    }
+
+    $("searchBtn").addEventListener("click", search);
+    $("loadDocBtn").addEventListener("click", loadDocDetail);
+    $("clearBtn").addEventListener("click", () => {
+      $("q").value = "";
+      $("category").value = "";
+      $("provisionClass").value = "";
+      $("page").value = "1";
+      $("limit").value = "25";
+      resultsBody.innerHTML = "";
+      resultMeta.textContent = "Cleared.";
+      detailPane.innerHTML = '<p class="status">Load a document to view metadata and class counts.</p>';
+      setStatus("Cleared.");
+    });
+
+    baseUrlInput.value = window.location.origin;
+    search();
+    loadDocDetail();
+  </script>
+</body>
+</html>
+

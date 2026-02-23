@@ -96,7 +96,7 @@ def get_unified_scorecard(
     state: Optional[str] = None,
     naics: Optional[str] = None,
     min_score: float = Query(default=0, ge=0, le=10),
-    min_factors: int = Query(default=2, ge=1, le=7),
+    min_factors: int = Query(default=2, ge=1, le=8),
     score_tier: Optional[str] = None,
     has_osha: Optional[bool] = None,
     has_nlrb: Optional[bool] = None,
@@ -104,11 +104,7 @@ def get_unified_scorecard(
     offset: int = Query(default=0, ge=0),
     page_size: int = Query(default=50, ge=1, le=200),
 ):
-    """Unified scorecard: all F7 employers with signal-strength scoring.
-
-    Each factor is 0-10 (NULL if no data). unified_score = average of
-    available factors. coverage_pct shows how much data is behind the score.
-    """
+    """Unified scorecard: weighted 8-factor scoring for all F7 employers."""
     with get_db() as conn:
         with conn.cursor() as cur:
             conditions = ["factors_available >= %s"]
@@ -124,8 +120,13 @@ def get_unified_scorecard(
                 conditions.append("naics LIKE %s")
                 params.append(f"{naics}%")
             if score_tier:
-                conditions.append("score_tier = %s")
-                params.append(score_tier.upper())
+                st = score_tier.strip()
+                if st.upper() in {"TOP", "HIGH", "MEDIUM", "LOW"}:
+                    conditions.append("score_tier_legacy = %s")
+                    params.append(st.upper())
+                else:
+                    conditions.append("score_tier = %s")
+                    params.append(st.title())
             if has_osha is True:
                 conditions.append("has_osha")
             if has_osha is False:
@@ -138,9 +139,9 @@ def get_unified_scorecard(
             where = " AND ".join(conditions)
 
             sort_map = {
-                "score": "unified_score DESC NULLS LAST",
+                "score": "weighted_score DESC NULLS LAST",
                 "size": "latest_unit_size DESC NULLS LAST",
-                "factors": "factors_available DESC, unified_score DESC NULLS LAST",
+                "factors": "factors_available DESC, weighted_score DESC NULLS LAST",
                 "name": "employer_name",
             }
             order = sort_map.get(sort, sort_map["score"])
@@ -158,15 +159,21 @@ def get_unified_scorecard(
                        has_sam, has_sec, has_gleif, has_mergent,
                        is_federal_contractor, is_public,
                        score_osha, score_nlrb, score_whd, score_contracts,
-                       score_union_proximity, score_financial, score_size,
+                       score_union_proximity, score_financial, score_size, score_similarity,
                        factors_available, factors_total,
-                       unified_score, coverage_pct, score_tier
+                       total_weight, weighted_score, unified_score, coverage_pct,
+                       score_tier, score_tier_legacy
                 FROM mv_unified_scorecard
                 WHERE {where}
                 ORDER BY {order}
                 LIMIT %s OFFSET %s
             """, params)
             data = cur.fetchall()
+
+            for row in data:
+                row["weighted_score"] = row.get("weighted_score", row.get("unified_score"))
+                row["unified_score"] = row.get("unified_score", row.get("weighted_score"))
+                row["legacy_score_tier"] = row.get("score_tier_legacy")
 
             return {
                 "data": data,
@@ -185,9 +192,9 @@ def get_unified_scorecard_stats():
             cur.execute("""
                 SELECT
                     COUNT(*) AS total_employers,
-                    ROUND(AVG(unified_score)::numeric, 2) AS avg_score,
-                    MIN(unified_score) AS min_score,
-                    MAX(unified_score) AS max_score,
+                    ROUND(AVG(weighted_score)::numeric, 2) AS avg_score,
+                    MIN(weighted_score) AS min_score,
+                    MAX(weighted_score) AS max_score,
                     ROUND(AVG(factors_available)::numeric, 1) AS avg_factors,
                     ROUND(AVG(coverage_pct)::numeric, 1) AS avg_coverage_pct
                 FROM mv_unified_scorecard
@@ -199,8 +206,9 @@ def get_unified_scorecard_stats():
                 FROM mv_unified_scorecard
                 GROUP BY score_tier
                 ORDER BY CASE score_tier
-                    WHEN 'TOP' THEN 1 WHEN 'HIGH' THEN 2
-                    WHEN 'MEDIUM' THEN 3 WHEN 'LOW' THEN 4
+                    WHEN 'Priority' THEN 1 WHEN 'Strong' THEN 2
+                    WHEN 'Promising' THEN 3 WHEN 'Moderate' THEN 4
+                    WHEN 'Low' THEN 5
                 END
             """)
             tiers = cur.fetchall()
@@ -219,9 +227,10 @@ def get_unified_scorecard_stats():
                     COUNT(*) FILTER (WHERE score_nlrb IS NOT NULL) AS nlrb,
                     COUNT(*) FILTER (WHERE score_whd IS NOT NULL) AS whd,
                     COUNT(*) FILTER (WHERE score_contracts IS NOT NULL) AS contracts,
-                    COUNT(*) AS union_proximity,
+                    COUNT(*) FILTER (WHERE score_union_proximity IS NOT NULL) AS union_proximity,
                     COUNT(*) FILTER (WHERE score_financial IS NOT NULL) AS financial,
-                    COUNT(*) AS size
+                    COUNT(*) FILTER (WHERE score_size IS NOT NULL) AS size,
+                    COUNT(*) FILTER (WHERE score_similarity IS NOT NULL) AS similarity
                 FROM mv_unified_scorecard
             """)
             factor_coverage = cur.fetchone()
@@ -241,7 +250,7 @@ def get_unified_scorecard_states():
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT state, COUNT(*) AS count,
-                       ROUND(AVG(unified_score)::numeric, 2) AS avg_score,
+                       ROUND(AVG(weighted_score)::numeric, 2) AS avg_score,
                        ROUND(AVG(factors_available)::numeric, 1) AS avg_factors
                 FROM mv_unified_scorecard
                 WHERE state IS NOT NULL AND TRIM(state) <> ''
@@ -255,8 +264,7 @@ def get_unified_scorecard_states():
 def get_unified_scorecard_detail(employer_id: str):
     """Detailed unified scorecard for a single employer.
 
-    Returns all 7 factor scores (NULL if unavailable), metadata for each
-    factor, and human-readable score explanations.
+    Returns weighted score factors, metadata, and human-readable explanations.
     """
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -266,6 +274,9 @@ def get_unified_scorecard_detail(employer_id: str):
                 raise HTTPException(status_code=404, detail="Employer not found in unified scorecard")
 
             data = dict(row)
+            data["weighted_score"] = data.get("weighted_score", data.get("unified_score"))
+            data["unified_score"] = data.get("unified_score", data.get("weighted_score"))
+            data["legacy_score_tier"] = data.get("score_tier_legacy")
 
             # Build score explanations
             explanations = {}
@@ -291,8 +302,9 @@ def get_unified_scorecard_detail(employer_id: str):
                 )
             if data.get('score_contracts') is not None:
                 explanations['contracts'] = (
-                    f"Federal contracts: ${data.get('federal_obligations', 0):,.0f} "
-                    f"({data.get('federal_contract_count', 0)} contracts)"
+                    "Government contracts: federal-only data currently active; "
+                    f"${data.get('federal_obligations', 0):,.0f} "
+                    f"({data.get('federal_contract_count', 0)} contracts)."
                 )
             explanations['union_proximity'] = (
                 f"Union proximity: canonical group "
@@ -307,6 +319,15 @@ def get_unified_scorecard_detail(employer_id: str):
                     + (", has 990 data" if data.get('has_990') else "")
                 )
             explanations['size'] = f"Employer size: {data.get('latest_unit_size', 'unknown')} workers"
+            if data.get("score_similarity") is not None:
+                explanations["similarity"] = (
+                    f"Statistical similarity: {data.get('unionized_comparable_count', 0)} unionized comparables, "
+                    f"best Gower distance {data.get('best_distance')}"
+                )
+            explanations["weights"] = (
+                "Weights: union proximity 3x, size 3x, NLRB 3x, contracts 2x, "
+                "industry growth 2x, similarity 2x, OSHA 1x, WHD 1x."
+            )
 
             data['explanations'] = explanations
             return data

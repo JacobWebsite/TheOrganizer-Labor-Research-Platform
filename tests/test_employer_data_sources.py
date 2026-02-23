@@ -126,20 +126,26 @@ class TestMVDataIntegrity:
             conn.close()
 
     def test_nlrb_count_matches_unified(self):
-        """NLRB count may differ by a few if unified_match_log has orphan target_ids."""
+        """NLRB count should match canonical path: elections + ULP charges."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM mv_employer_data_sources WHERE has_nlrb")
                 mv_nlrb = cur.fetchone()[0]
-                # MV uses canonical NLRB path (nlrb_participants Employer type
-                # + nlrb_elections), NOT raw UML count. Compare against that.
+                # MV uses canonical NLRB path: Employer type with elections
+                # OR Charged Party / Respondent with CA cases (ULP).
                 cur.execute("""
                     SELECT COUNT(DISTINCT p.matched_employer_id)
                     FROM nlrb_participants p
-                    JOIN nlrb_elections e ON p.case_number = e.case_number
-                    WHERE p.participant_type = 'Employer'
-                      AND p.matched_employer_id IS NOT NULL
+                    WHERE p.matched_employer_id IS NOT NULL
+                      AND (
+                        (p.participant_type = 'Employer'
+                         AND EXISTS (SELECT 1 FROM nlrb_elections e
+                                     WHERE e.case_number = p.case_number))
+                        OR
+                        (p.participant_type = 'Charged Party / Respondent'
+                         AND p.case_number ~ '-CA-')
+                      )
                 """)
                 canonical = cur.fetchone()[0]
                 assert abs(mv_nlrb - canonical) <= 5, (

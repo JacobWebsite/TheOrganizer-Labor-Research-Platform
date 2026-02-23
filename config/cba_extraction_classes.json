@@ -1,0 +1,95 @@
+{
+  "classes": [
+    {
+      "name": "wages_base_pay",
+      "category": "compensation",
+      "description": "Base wage rates, salary schedules, step increases, and classifications tied to pay."
+    },
+    {
+      "name": "wages_premiums",
+      "category": "compensation",
+      "description": "Shift differential, weekend premium, hazard pay, lead pay, and similar premiums."
+    },
+    {
+      "name": "overtime",
+      "category": "hours_and_scheduling",
+      "description": "Overtime eligibility, overtime rates, call-in guarantees, and distribution rules."
+    },
+    {
+      "name": "hours_and_scheduling",
+      "category": "hours_and_scheduling",
+      "description": "Regular hours, shifts, posting of schedules, rotations, and changes to tours."
+    },
+    {
+      "name": "paid_leave",
+      "category": "leave",
+      "description": "Vacation, sick leave, personal days, holidays, and paid time off accrual and usage."
+    },
+    {
+      "name": "family_medical_leave",
+      "category": "leave",
+      "description": "Family or medical leave rights, eligibility, reinstatement, and related benefits continuation."
+    },
+    {
+      "name": "health_insurance",
+      "category": "benefits",
+      "description": "Medical, dental, vision, and prescription coverage including employee contributions."
+    },
+    {
+      "name": "retirement_pension",
+      "category": "benefits",
+      "description": "Pension, annuity, retirement savings, and employer contribution obligations."
+    },
+    {
+      "name": "job_security_layoff_recall",
+      "category": "job_security",
+      "description": "Layoff order, bumping rights, recall procedures, and workforce reduction protections."
+    },
+    {
+      "name": "seniority",
+      "category": "job_security",
+      "description": "Definition and application of seniority for promotions, layoffs, recalls, and scheduling."
+    },
+    {
+      "name": "discipline_and_discharge",
+      "category": "work_rules_and_due_process",
+      "description": "Just-cause standards, progressive discipline, investigations, and termination procedures."
+    },
+    {
+      "name": "grievance_and_arbitration",
+      "category": "work_rules_and_due_process",
+      "description": "Grievance steps, timelines, arbitration rights, and remedies."
+    },
+    {
+      "name": "union_security_and_dues",
+      "category": "union_rights",
+      "description": "Dues deduction, agency fee language, membership requirements, and related administration."
+    },
+    {
+      "name": "management_rights",
+      "category": "management_and_operations",
+      "description": "Reserved management authority, operational discretion, and limits on bargaining obligations."
+    }
+  ],
+  "aliases": {
+    "wages": "wages_base_pay",
+    "base_wages": "wages_base_pay",
+    "pay_rates": "wages_base_pay",
+    "premium_pay": "wages_premiums",
+    "shift_differential": "wages_premiums",
+    "hours": "hours_and_scheduling",
+    "scheduling": "hours_and_scheduling",
+    "pto": "paid_leave",
+    "leave": "paid_leave",
+    "health_benefits": "health_insurance",
+    "pension": "retirement_pension",
+    "layoff": "job_security_layoff_recall",
+    "recall": "job_security_layoff_recall",
+    "discipline": "discipline_and_discharge",
+    "discharge": "discipline_and_discharge",
+    "grievance": "grievance_and_arbitration",
+    "arbitration": "grievance_and_arbitration",
+    "dues": "union_security_and_dues",
+    "union_security": "union_security_and_dues"
+  }
+}

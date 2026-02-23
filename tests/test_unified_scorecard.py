@@ -3,7 +3,7 @@ Tests for mv_unified_scorecard materialized view and API endpoints.
 
 Validates:
 - MV row count matches f7_employers_deduped
-- Signal-strength scoring: NULLs for missing data, averages computed correctly
+- Weighted scoring columns and compatibility aliases
 - Factor ranges are 0-10
 - Score tiers are reasonable
 - API endpoints return correct format and support filters
@@ -43,9 +43,9 @@ class TestUnifiedScorecardSchema:
                 required = [
                     'employer_id', 'employer_name', 'state', 'city', 'naics',
                     'score_osha', 'score_nlrb', 'score_whd', 'score_contracts',
-                    'score_union_proximity', 'score_financial', 'score_size',
+                    'score_union_proximity', 'score_financial', 'score_size', 'score_similarity',
                     'factors_available', 'factors_total',
-                    'unified_score', 'coverage_pct', 'score_tier',
+                    'total_weight', 'weighted_score', 'unified_score', 'coverage_pct', 'score_tier',
                     'osha_estab_count', 'nlrb_election_count',
                     'whd_case_count', 'bls_growth_pct',
                 ]
@@ -98,7 +98,7 @@ class TestUnifiedScorecardData:
             with conn.cursor() as cur:
                 for col in ['score_osha', 'score_nlrb', 'score_whd',
                             'score_contracts', 'score_union_proximity',
-                            'score_financial', 'score_size']:
+                            'score_financial', 'score_size', 'score_similarity']:
                     cur.execute(f"""
                         SELECT COUNT(*) FROM mv_unified_scorecard
                         WHERE {col} IS NOT NULL AND ({col} < 0 OR {col} > 10)
@@ -108,15 +108,17 @@ class TestUnifiedScorecardData:
         finally:
             conn.close()
 
-    def test_always_available_factors_never_null(self):
-        """Union proximity and size should never be NULL."""
+    def test_weighted_score_alias_consistency(self):
         conn = get_connection()
         try:
             with conn.cursor() as cur:
-                for col in ['score_union_proximity', 'score_size']:
-                    cur.execute(f"SELECT COUNT(*) FROM mv_unified_scorecard WHERE {col} IS NULL")
-                    nulls = cur.fetchone()[0]
-                    assert nulls == 0, f"{col} has {nulls} NULL values"
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM mv_unified_scorecard
+                    WHERE ABS(COALESCE(weighted_score, 0) - COALESCE(unified_score, 0)) > 0.001
+                """)
+                bad = cur.fetchone()[0]
+                assert bad == 0, f"{bad} rows have weighted/unified score mismatch"
         finally:
             conn.close()
 
@@ -166,7 +168,7 @@ class TestUnifiedScorecardData:
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT MIN(unified_score), MAX(unified_score)
+                    SELECT MIN(weighted_score), MAX(weighted_score)
                     FROM mv_unified_scorecard
                 """)
                 mn, mx = cur.fetchone()
@@ -176,25 +178,25 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_factors_available_range(self):
-        """factors_available should be 2-7 (size + union prox always present)."""
+        """factors_available should be 0-8 under weighted model."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT MIN(factors_available), MAX(factors_available) FROM mv_unified_scorecard")
                 mn, mx = cur.fetchone()
-                assert mn >= 2, f"Min factors_available is {mn}"
-                assert mx <= 7, f"Max factors_available is {mx}"
+                assert mn >= 0, f"Min factors_available is {mn}"
+                assert mx <= 8, f"Max factors_available is {mx}"
         finally:
             conn.close()
 
     def test_coverage_pct_consistent(self):
-        """coverage_pct should equal factors_available/7 * 100."""
+        """coverage_pct should equal factors_available/8 * 100."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(*) FROM mv_unified_scorecard
-                    WHERE ABS(coverage_pct - (factors_available::numeric / 7 * 100)) > 0.2
+                    WHERE ABS(coverage_pct - (factors_available::numeric / 8 * 100)) > 0.2
                 """)
                 bad = cur.fetchone()[0]
                 assert bad == 0, f"{bad} rows have inconsistent coverage_pct"
@@ -202,13 +204,13 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_score_tier_values(self):
-        """score_tier should be one of TOP/HIGH/MEDIUM/LOW."""
+        """score_tier should be one of Priority/Strong/Promising/Moderate/Low."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(*) FROM mv_unified_scorecard
-                    WHERE score_tier NOT IN ('TOP', 'HIGH', 'MEDIUM', 'LOW')
+                    WHERE score_tier NOT IN ('Priority', 'Strong', 'Promising', 'Moderate', 'Low')
                 """)
                 bad = cur.fetchone()[0]
                 assert bad == 0, f"{bad} rows have invalid score_tier"
@@ -216,13 +218,13 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_has_top_tier_employers(self):
-        """Should have some top-tier employers."""
+        """Should have some priority-tier employers."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM mv_unified_scorecard WHERE score_tier = 'TOP'")
+                cur.execute("SELECT COUNT(*) FROM mv_unified_scorecard WHERE score_tier = 'Priority'")
                 top = cur.fetchone()[0]
-                assert top > 0, "No TOP tier employers"
+                assert top > 0, "No Priority tier employers"
         finally:
             conn.close()
 
@@ -260,7 +262,7 @@ class TestUnifiedScorecardAPI:
         item = r.json()["data"][0]
         for field in ['unified_score', 'coverage_pct', 'score_tier',
                       'factors_available', 'factors_total',
-                      'score_union_proximity', 'score_size']:
+                      'score_union_proximity', 'score_size', 'score_similarity', 'weighted_score', 'total_weight']:
             assert field in item, f"Missing field: {field}"
 
     def test_unified_list_state_filter(self, client):
@@ -275,13 +277,13 @@ class TestUnifiedScorecardAPI:
         assert r.status_code == 200
         data = r.json()
         for item in data["data"]:
-            assert item["unified_score"] >= 7.0
+            assert item["weighted_score"] >= 7.0
 
     def test_unified_list_tier_filter(self, client):
         r = client.get("/api/scorecard/unified?score_tier=TOP&page_size=5")
         assert r.status_code == 200
         for item in r.json()["data"]:
-            assert item["score_tier"] == "TOP"
+            assert item["legacy_score_tier"] == "TOP"
 
     def test_unified_list_sort_by_size(self, client):
         r = client.get("/api/scorecard/unified?sort=size&page_size=5")
@@ -309,7 +311,7 @@ class TestUnifiedScorecardAPI:
         conn = get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT employer_id FROM mv_unified_scorecard WHERE score_tier = 'TOP' LIMIT 1")
+                cur.execute("SELECT employer_id FROM mv_unified_scorecard WHERE score_tier = 'Priority' LIMIT 1")
                 eid = cur.fetchone()[0]
         finally:
             conn.close()

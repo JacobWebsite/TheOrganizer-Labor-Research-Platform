@@ -20,6 +20,7 @@ from .middleware.rate_limit import RateLimitMiddleware
 from .middleware.logging import LoggingMiddleware
 from .routers import (
     auth,
+    cba,
     system,
     health,
     lookups,
@@ -39,6 +40,7 @@ from .routers import (
     museums,
     sectors,
     profile,
+    master,
 )
 
 app = FastAPI(
@@ -69,6 +71,7 @@ app.mount("/files", StaticFiles(directory=str(FILES_DIR)), name="files")
 
 # ---------- Routers ----------
 app.include_router(auth.router)
+app.include_router(cba.router)
 app.include_router(system.router)
 app.include_router(health.router)
 app.include_router(lookups.router)
@@ -88,6 +91,7 @@ app.include_router(public_sector.router)
 app.include_router(museums.router)
 app.include_router(sectors.router)
 app.include_router(profile.router)
+app.include_router(master.router)
 
 
 @app.exception_handler(psycopg2.Error)

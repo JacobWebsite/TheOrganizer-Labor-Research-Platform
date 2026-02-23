@@ -4,11 +4,24 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-22 (Claude Code: React Frontend Phase 5+6, ULP scoring integration, Codex merge, all tests pass)
+**Last manually updated:** 2026-02-22 (Claude Code: Spec Gap Closure — search enhancements, profile cards, affiliation tree)
 
 ---
 
-## Latest Update (2026-02-22 late night)
+## Latest Update (2026-02-22 late night — Spec Gap Closure)
+
+- **Spec Gap Closure DONE.** 15 new files + 11 modified. Closes remaining gaps between React frontend and UNIFIED_PLATFORM_REDESIGN_SPEC.
+- **Search enhancements:** Employee size filter (min/max workers number inputs), score tier filter (Priority/Strong/Promising/Moderate/Low dropdown), table/card view toggle (persisted to localStorage). SearchResultCard grid for card view. API: 3 new query params on `/api/employers/unified-search` (`min_workers`, `max_workers`, `score_tier`) with SQL filtering on `mv_employer_search` + `mv_unified_scorecard`.
+- **Profile cards (7 new CollapsibleCards):** UnionRelationshipsCard (union name, affiliation, unit size), FinancialDataCard (BLS growth, public/nonprofit badges), GovernmentContractsCard (federal obligations, contract count), WhdCard (violations, backwages, cases table), ComparablesCard (top-5 similar employers with similarity %), CorporateHierarchyCard (parent chain, subsidiaries, family stats), ResearchNotesCard (flags list + add form).
+- **Profile action buttons:** Flag as Target (opens FlagModal), Export Data (CSV blob download), Something Looks Wrong (FlagModal with DATA_QUALITY preset). FlagModal: 6 flag types, useMutation POST to `/api/employers/flags`.
+- **Union explorer enhancements:** ExpansionTargetsSection on union profiles (analyzes employer base, links to Targets page pre-filtered). AffiliationTree on UnionsPage (3-level lazy-loading tree: Affiliation > State > Local with chevron expand/collapse).
+- **Union status label on ProfileHeader:** Green "Represented by {union}" badge or gray "No Known Union".
+- **6 new API hooks in profile.js:** useEmployerComparables, useEmployerWhd, useEmployerCorporate, useEmployerDataSources, useEmployerFlags, useFlagEmployer. **1 new hook in unions.js:** useNationalUnionDetail.
+- **Frontend tests: 134 total (21 files), all passing.** 27 new tests across 3 files (SearchEnhancements, ProfileCards, AffiliationTree).
+- **Build clean** (vite build: 1877 modules, 0 errors).
+- **Commit:** `a3a9cd5`, pushed to GitHub.
+
+### Previous: 2026-02-22 (late night — Phase 5+6)
 
 - **React Frontend Phase 5 (Union Explorer) DONE.** 16 new files. Union search page with filters (sector, state, affiliation, min members, has employers), debounced search, active filter chips, clickable national union affiliation summary, TanStack Table with pagination (PAGE_SIZE=50). Union profile page with header, 10yr membership CSS horizontal bars, organizing capacity, employer table, NLRB elections, financial trends, sister locals. API hooks: `src/shared/api/unions.js` (8 hooks). URL state sync. PageSkeleton variants added.
 - **React Frontend Phase 6 (Admin/Settings) DONE.** 11 new files. Admin dashboard (admin-only access guard) with 7 cards: HealthStatusCard (30s auto-refresh green/red dots), PlatformStatsCard (grid), DataFreshnessCard (table + refresh button), MatchQualityCard (by source/confidence badges), MatchReviewCard (interactive approve/reject per match), UserRegistrationCard (form), RefreshActionsCard (maintenance buttons). API hooks: `src/shared/api/admin.js` (6 queries + 4 mutations). First `useMutation` usage in codebase. Toast notifications via sonner.
@@ -110,7 +123,7 @@ The API serves at `http://localhost:8001`. API docs at `http://localhost:8001/do
 ```bash
 py -m pytest tests/ -q
 ```
-492 backend tests. 491 pass, 1 skip. 107 frontend tests, all pass.
+492 backend tests. 491 pass, 1 skip. 134 frontend tests (21 files), all pass.
 
 ### Key Files
 | File | Purpose |
@@ -362,9 +375,34 @@ The DOL F-7 filing is the only comprehensive registry of union-employer bargaini
 ### Why the master employer key is deferred
 A master employer key (one platform ID per real-world employer, mapped to all source IDs) is the ideal architecture. But building it too early bakes in matching errors that are hard to undo. The current approach uses `f7_employer_id` as the de facto key with match tables linking other sources. The master key will be built during Phase E (scorecard rebuild) when matching quality is higher and confidence thresholds are established.
 
-## Section 8: Session Handoff Notes (2026-02-22 late night, Claude Code — React Frontend Phase 5+6)
+## Section 8: Session Handoff Notes (2026-02-22 late night, Claude Code — Spec Gap Closure)
 
 ### Completed in this session
+- **Spec Gap Closure — Search Enhancements, Profile Cards, Affiliation Tree:** 15 new files + 11 modified. Implemented via 5 parallel agents (search, profile header, profile cards, union explorer, tests).
+  - **Search:** Employee size filter (min/max workers), score tier filter (5-tier dropdown), table/card view toggle (SearchResultCard grid, localStorage-persisted). API: `min_workers`, `max_workers`, `score_tier` params on `unified-search`.
+  - **Profile header:** Union status label (green "Represented by" / gray "No Known Union"), ProfileActionButtons (Flag/Export CSV/Report), FlagModal (6 flag types, POST mutation).
+  - **Profile cards (7):** UnionRelationshipsCard, FinancialDataCard, GovernmentContractsCard, WhdCard (self-fetching), ComparablesCard (self-fetching), CorporateHierarchyCard (self-fetching), ResearchNotesCard (self-fetching + add form).
+  - **Union explorer:** ExpansionTargetsSection (on union profiles), AffiliationTree (3-level lazy tree on UnionsPage: Affiliation > State > Local).
+  - **API hooks:** 6 new in profile.js (useEmployerComparables, useEmployerWhd, useEmployerCorporate, useEmployerDataSources, useEmployerFlags, useFlagEmployer), 1 new in unions.js (useNationalUnionDetail).
+  - **Tests:** 27 new (SearchEnhancements 8, ProfileCards 14, AffiliationTree 5). Total: 134 tests, 21 files, all passing.
+- **Commit:** `a3a9cd5`, pushed to GitHub.
+
+### What's next
+- **Phase F:** Docker, CI/CD, hosting.
+- **Master dedup Phase 3 (fuzzy):** Codex rollout plan in `docs/session-summaries/SESSION_SUMMARY_2026-02-22_codex_master_dedup_phase3_plan.md`.
+- **194 LOW-confidence misclassification records:** BMF-only signals, needs manual review.
+- **Remaining uncommitted changes:** Codex deliverables (scorecard.py, build_unified_scorecard.py, master.py, CBA extraction) not yet committed.
+
+### File references
+- New: 9 profile cards/actions (`frontend/src/features/employer-profile/`), SearchResultCard, AffiliationTree, ExpansionTargetsSection, 3 test files
+- Modified: `api/routers/employers.py`, `useSearchState.js`, `employers.js`, `SearchFilters.jsx`, `SearchPage.jsx`, `ProfileHeader.jsx`, `EmployerProfilePage.jsx`, `profile.js`, `unions.js`, `UnionProfilePage.jsx`, `UnionsPage.jsx`
+- Commit: `a3a9cd5`
+
+---
+
+## Previous: Session Handoff Notes (2026-02-22 late night, Claude Code — React Frontend Phase 5+6)
+
+### Completed in that session
 - **React Frontend Phase 5 (Union Explorer):** 27 new files + 1 modified across both phases.
   - API hooks: `src/shared/api/unions.js` (useUnionSearch, useNationalUnions, useUnionDetail, useUnionEmployers, useUnionOrganizingCapacity, useUnionMembershipHistory, useUnionSectors, useUnionAffiliations)
   - URL state: `useUnionsState.js` (q, aff_abbr, sector, state, min_members, has_employers, page)
