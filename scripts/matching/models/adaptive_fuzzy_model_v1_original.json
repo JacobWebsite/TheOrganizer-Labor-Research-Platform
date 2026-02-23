@@ -1,6 +1,6 @@
 {
     "link_type": "link_only",
-    "probability_two_random_records_match": 0.001,
+    "probability_two_random_records_match": 0.0001,
     "retain_matching_columns": true,
     "retain_intermediate_calculation_columns": true,
     "additional_columns_to_retain": [],
@@ -41,50 +41,50 @@
                 {
                     "sql_condition": "\"name_normalized_l\" = \"name_normalized_r\"",
                     "label_for_charts": "Exact match on name_normalized",
-                    "m_probability": 0.15,
-                    "u_probability": 0.0003,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 4.999822513252458e-05,
+                    "u_probability": 2.0330525552217736e-06,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_normalized_l\", \"name_normalized_r\") >= 0.95",
                     "label_for_charts": "Jaro-Winkler distance of name_normalized >= 0.95",
-                    "m_probability": 0.25,
-                    "u_probability": 0.001,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 7.12798496312258e-05,
+                    "u_probability": 1.8297472996995963e-06,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_normalized_l\", \"name_normalized_r\") >= 0.88",
                     "label_for_charts": "Jaro-Winkler distance of name_normalized >= 0.88",
-                    "m_probability": 0.25,
-                    "u_probability": 0.005,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.00020845166329082058,
+                    "u_probability": 1.2808231097897173e-05,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_normalized_l\", \"name_normalized_r\") >= 0.8",
                     "label_for_charts": "Jaro-Winkler distance of name_normalized >= 0.8",
-                    "m_probability": 0.20,
-                    "u_probability": 0.015,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.000981096371778624,
+                    "u_probability": 0.00024254316983795757,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"name_normalized_l\", \"name_normalized_r\") >= 0.7",
                     "label_for_charts": "Jaro-Winkler distance of name_normalized >= 0.7",
-                    "m_probability": 0.05,
-                    "u_probability": 0.025,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.0035205440638253443,
+                    "u_probability": 0.0036586813783771035,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
-                    "m_probability": 0.10,
-                    "u_probability": 0.9537,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.9951686298263415,
+                    "u_probability": 0.9960821044208321,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 }
             ],
             "comparison_description": "JaroWinklerAtThresholds"
@@ -102,18 +102,18 @@
                 {
                     "sql_condition": "\"state_l\" = \"state_r\"",
                     "label_for_charts": "Exact match on state",
-                    "m_probability": 0.96,
-                    "u_probability": 0.15,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.9971226971655105,
+                    "u_probability": 0.03934078677507445,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
-                    "m_probability": 0.04,
-                    "u_probability": 0.85,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.0028773028344895625,
+                    "u_probability": 0.9606592132249255,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 }
             ],
             "comparison_description": "ExactMatch"
@@ -131,34 +131,34 @@
                 {
                     "sql_condition": "\"city_l\" = \"city_r\"",
                     "label_for_charts": "Exact match on city",
-                    "m_probability": 0.45,
-                    "u_probability": 0.03,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.3997068255879226,
+                    "u_probability": 0.001083210401422161,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "levenshtein(\"city_l\", \"city_r\") <= 1",
                     "label_for_charts": "Levenshtein distance of city <= 1",
-                    "m_probability": 0.05,
-                    "u_probability": 0.007,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.019786133906013414,
+                    "u_probability": 7.98989654202157e-05,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "levenshtein(\"city_l\", \"city_r\") <= 2",
                     "label_for_charts": "Levenshtein distance of city <= 2",
-                    "m_probability": 0.02,
-                    "u_probability": 0.008,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.0018288046497081539,
+                    "u_probability": 0.00031817272489220754,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
-                    "m_probability": 0.48,
-                    "u_probability": 0.955,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.5786782358563559,
+                    "u_probability": 0.9985187179082654,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 }
             ],
             "comparison_description": "LevenshteinAtThresholds"
@@ -176,34 +176,34 @@
                 {
                     "sql_condition": "\"zip_l\" = \"zip_r\"",
                     "label_for_charts": "Exact match on zip",
-                    "m_probability": 0.20,
-                    "u_probability": 0.01,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.08381771526503007,
+                    "u_probability": 0.00011120797477063101,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"zip_l\", \"zip_r\") >= 0.95",
                     "label_for_charts": "Jaro-Winkler distance of zip >= 0.95",
-                    "m_probability": 0.05,
-                    "u_probability": 0.005,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.0065968549171550395,
+                    "u_probability": 2.825943051758265e-05,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "jaro_winkler_similarity(\"zip_l\", \"zip_r\") >= 0.8",
                     "label_for_charts": "Jaro-Winkler distance of zip >= 0.8",
-                    "m_probability": 0.25,
-                    "u_probability": 0.05,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.7992361782711097,
+                    "u_probability": 0.005491884867420577,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 },
                 {
                     "sql_condition": "ELSE",
                     "label_for_charts": "All other comparisons",
-                    "m_probability": 0.50,
-                    "u_probability": 0.935,
-                    "fix_m_probability": true,
-                    "fix_u_probability": true
+                    "m_probability": 0.11034925154670515,
+                    "u_probability": 0.9943686477272912,
+                    "fix_m_probability": false,
+                    "fix_u_probability": false
                 }
             ],
             "comparison_description": "JaroWinklerAtThresholds"

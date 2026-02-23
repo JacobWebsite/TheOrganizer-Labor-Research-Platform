@@ -529,20 +529,20 @@ class TestAggressiveMatcherCollisions:
 # B3: Splink fuzzy tier integration tests
 # ============================================================================
 
-class TestSplinkFuzzyBatch:
-    """Tests for _fuzzy_batch Splink-first, trigram-fallback logic."""
+class TestFuzzyBatch:
+    """Tests for _fuzzy_batch RapidFuzz-first, trigram-fallback logic."""
 
-    def test_fuzzy_batch_tries_splink_first_then_trigram(self, matcher, monkeypatch):
-        """_fuzzy_batch should try Splink first, then trigram for leftovers."""
-        splink_called = {"value": False}
+    def test_fuzzy_batch_tries_rapidfuzz_first_then_trigram(self, matcher, monkeypatch):
+        """_fuzzy_batch should try RapidFuzz first, then trigram for leftovers."""
+        rapidfuzz_called = {"value": False}
         trigram_called = {"value": False}
 
-        def fake_splink(records, batch_size=10000):
-            splink_called["value"] = True
-            # Splink matches record S1, leaves S2 unmatched
+        def fake_rapidfuzz(records):
+            rapidfuzz_called["value"] = True
+            # RapidFuzz matches record S1, leaves S2 unmatched
             matched = [matcher._make_result(
-                "S1", "F7-SP", "FUZZY_SPLINK_ADAPTIVE", "probabilistic",
-                "MEDIUM", 0.78, {"match_probability": 0.78}
+                "S1", "F7-RF", "FUZZY_SPLINK_ADAPTIVE", "probabilistic",
+                "MEDIUM", 0.85, {"name_similarity": 0.85}
             )]
             unmatched = [r for r in records if str(r["id"]) != "S1"]
             return matched, unmatched
@@ -555,8 +555,7 @@ class TestSplinkFuzzyBatch:
                 "MEDIUM", 0.72, {"similarity": 0.72}
             )]
 
-        monkeypatch.setattr(matcher, "_splink_available", lambda: True)
-        monkeypatch.setattr(matcher, "_fuzzy_batch_splink", fake_splink)
+        monkeypatch.setattr(matcher, "_fuzzy_batch_rapidfuzz", fake_rapidfuzz)
         monkeypatch.setattr(matcher, "_fuzzy_batch_trigram", fake_trigram)
 
         records = [
@@ -565,16 +564,19 @@ class TestSplinkFuzzyBatch:
         ]
         results = matcher._fuzzy_batch(records)
 
-        assert splink_called["value"] is True
+        assert rapidfuzz_called["value"] is True
         assert trigram_called["value"] is True
         assert len(results) == 2
         methods = {r["method"] for r in results}
         assert "FUZZY_SPLINK_ADAPTIVE" in methods
         assert "FUZZY_TRIGRAM" in methods
 
-    def test_fuzzy_batch_skips_splink_when_unavailable(self, matcher, monkeypatch):
-        """When Splink is unavailable, _fuzzy_batch should use trigram only."""
+    def test_fuzzy_batch_falls_back_on_rapidfuzz_error(self, matcher, monkeypatch):
+        """When RapidFuzz errors, _fuzzy_batch should fall back to trigram."""
         trigram_called = {"value": False}
+
+        def fake_rapidfuzz_error(records):
+            raise RuntimeError("RapidFuzz failed")
 
         def fake_trigram(records, batch_size=200):
             trigram_called["value"] = True
@@ -583,7 +585,7 @@ class TestSplinkFuzzyBatch:
                 "MEDIUM", 0.72, {"similarity": 0.72}
             )]
 
-        monkeypatch.setattr(matcher, "_splink_available", lambda: False)
+        monkeypatch.setattr(matcher, "_fuzzy_batch_rapidfuzz", fake_rapidfuzz_error)
         monkeypatch.setattr(matcher, "_fuzzy_batch_trigram", fake_trigram)
 
         records = [{"id": "S1", "name": "Alpha", "state": "CA", "city": "LA"}]
@@ -593,11 +595,11 @@ class TestSplinkFuzzyBatch:
         assert len(results) == 1
         assert results[0]["method"] == "FUZZY_TRIGRAM"
 
-    def test_fuzzy_batch_splink_matches_all_no_trigram(self, matcher, monkeypatch):
-        """When Splink matches everything, trigram should NOT be called."""
+    def test_fuzzy_batch_rapidfuzz_matches_all_no_trigram(self, matcher, monkeypatch):
+        """When RapidFuzz matches everything, trigram should NOT be called."""
         trigram_called = {"value": False}
 
-        def fake_splink(records, batch_size=10000):
+        def fake_rapidfuzz(records):
             matched = [matcher._make_result(
                 str(r["id"]), f"F7-{r['id']}", "FUZZY_SPLINK_ADAPTIVE",
                 "probabilistic", "HIGH", 0.90, {}
@@ -608,8 +610,7 @@ class TestSplinkFuzzyBatch:
             trigram_called["value"] = True
             return []
 
-        monkeypatch.setattr(matcher, "_splink_available", lambda: True)
-        monkeypatch.setattr(matcher, "_fuzzy_batch_splink", fake_splink)
+        monkeypatch.setattr(matcher, "_fuzzy_batch_rapidfuzz", fake_rapidfuzz)
         monkeypatch.setattr(matcher, "_fuzzy_batch_trigram", fake_trigram)
 
         records = [
@@ -623,19 +624,17 @@ class TestSplinkFuzzyBatch:
         # Trigram should not be called when remaining is empty
         assert trigram_called["value"] is False
 
-    def test_splink_result_uses_correct_method_and_tier(self, matcher, monkeypatch):
-        """Splink matches should use FUZZY_SPLINK_ADAPTIVE method and
+    def test_fuzzy_result_uses_correct_method_and_tier(self, matcher, monkeypatch):
+        """Fuzzy matches should use FUZZY_SPLINK_ADAPTIVE method and
         probabilistic tier with correct TIER_RANK."""
         assert "FUZZY_SPLINK_ADAPTIVE" in dm.TIER_RANK
         assert dm.TIER_RANK["FUZZY_SPLINK_ADAPTIVE"] == 45
         assert dm.TIER_RANK["FUZZY_TRIGRAM"] == 40
-        # Splink rank is higher than trigram = preferred when both match
+        # RapidFuzz rank is higher than trigram = preferred when both match
         assert dm.TIER_RANK["FUZZY_SPLINK_ADAPTIVE"] > dm.TIER_RANK["FUZZY_TRIGRAM"]
 
-    def test_load_f7_target_df_caches(self, matcher, monkeypatch):
-        """_load_f7_target_df should cache the DataFrame after first load."""
-        import pandas as pd
-
+    def test_load_f7_targets_for_rapidfuzz_caches(self, matcher, monkeypatch):
+        """_load_f7_targets_for_rapidfuzz should cache after first load."""
         call_count = {"value": 0}
 
         class CacheCursor:
@@ -648,23 +647,23 @@ class TestSplinkFuzzyBatch:
             @property
             def description(self):
                 return [("id",), ("name_normalized",), ("state",),
-                        ("city",), ("zip",), ("naics",), ("street_address",)]
+                        ("city",), ("zip",), ("naics",)]
             def fetchall(self):
                 call_count["value"] += 1
-                return [("F7-1", "acme", "CA", "LA", "90001", "1234", "123 Main")]
+                return [("F7-1", "acme", "CA", "LA", "90001", "1234")]
 
         class CacheConn:
             def cursor(self):
                 return CacheCursor()
 
         matcher.conn = CacheConn()
-        # Clear any cached df
-        if hasattr(matcher, "_f7_target_df"):
-            del matcher._f7_target_df
+        # Clear any cached targets
+        if hasattr(matcher, "_f7_targets_rf"):
+            del matcher._f7_targets_rf
 
-        df1 = matcher._load_f7_target_df()
-        df2 = matcher._load_f7_target_df()
+        t1 = matcher._load_f7_targets_for_rapidfuzz()
+        t2 = matcher._load_f7_targets_for_rapidfuzz()
 
         assert call_count["value"] == 1  # only one DB call
-        assert len(df1) == 1
-        assert df1 is df2  # same object (cached)
+        assert len(t1) == 1
+        assert t1 is t2  # same object (cached)

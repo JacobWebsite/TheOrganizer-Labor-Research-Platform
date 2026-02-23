@@ -16,7 +16,7 @@ Cascade tiers (evaluated most-specific to least-specific):
   2. name_standard + city + state (confidence 0.95)
   3. name_standard + state (confidence 0.90)
   4. name_aggressive + state (confidence 0.75)
-  5a. Splink adaptive fuzzy (multi-field probabilistic, >= 0.60)
+  5a. RapidFuzz blocked matching (token_sort_ratio >= 0.80)
   5b. Trigram fuzzy fallback (name similarity >= 0.4)
 
 Collision resolution order:
@@ -55,7 +55,7 @@ class DeterministicMatcher:
     """Cascade deterministic matcher with best-match-wins logic."""
     HIGH_THRESHOLD = 0.85
     MEDIUM_THRESHOLD = 0.70
-    DEFAULT_MIN_NAME_SIM = 0.70
+    DEFAULT_MIN_NAME_SIM = 0.80
 
     def __init__(self, conn, run_id: str, source_system: str,
                  dry_run: bool = False, skip_fuzzy: bool = False):
@@ -433,9 +433,12 @@ class DeterministicMatcher:
 
         # Guard against geography-dominated false positives: require minimum
         # name similarity even in collision disambiguation mode.
+        # Mirror fuzzy-batch floor behavior by using Splink-normalized names
+        # when present in output, with standard-normalized fallback.
         from rapidfuzz import fuzz as _rf_fuzz
-        target_name_norm = normalize_name_standard(target_name)
-        name_similarity = _rf_fuzz.token_sort_ratio(name_std, target_name_norm) / 100.0
+        source_name_norm = str(top.get("name_normalized_l") or name_std)
+        target_name_norm = str(top.get("name_normalized_r") or normalize_name_standard(target_name))
+        name_similarity = _rf_fuzz.token_sort_ratio(source_name_norm, target_name_norm) / 100.0
         if name_similarity < self.min_name_similarity:
             return None
 
@@ -643,20 +646,220 @@ class DeterministicMatcher:
 
         return results, still_unmatched
 
+    def _fuzzy_batch_rapidfuzz(self, records: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+        """
+        Tier 5a: Batched fuzzy matching using RapidFuzz with SQL-style blocking.
+
+        Replaces Splink probabilistic matching with direct name similarity scoring.
+        Uses the same 3 blocking rules to generate candidate pairs, then scores
+        with rapidfuzz.fuzz.token_sort_ratio and applies the 0.80 floor.
+
+        Tie-breaking for equal name similarity: city match > zip match > NAICS match.
+
+        Returns (matched_results, still_unmatched_records) so that trigram
+        can be tried on the leftovers.
+        """
+        from collections import defaultdict
+        from rapidfuzz import fuzz as _rf_fuzz
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            tqdm = None
+
+        # Load F7 targets (reuses cached DataFrame loader, convert to dicts)
+        f7_targets = self._load_f7_targets_for_rapidfuzz()
+
+        # Build source records
+        source_rows = []
+        source_lookup = {}  # id -> source row for tie-breaking fields
+        for rec in records:
+            name = rec.get("name") or ""
+            state = (rec.get("state") or "").upper().strip()
+            name_std = normalize_name_standard(name)
+            if not name_std or not state or len(name_std) < 3:
+                continue
+            sid = str(rec["id"])
+            city = (rec.get("city") or "").upper().strip()
+            zipcode = (rec.get("zip") or "").strip()[:5]
+            naics = (rec.get("naics") or "").strip()
+            source_rows.append({
+                "id": sid,
+                "name_normalized": name_std,
+                "state": state,
+                "city": city,
+                "zip": zipcode,
+                "naics": naics,
+            })
+            source_lookup[sid] = {
+                "name": name_std, "state": state, "city": city,
+                "zip": zipcode, "naics": naics,
+            }
+
+        if not source_rows:
+            return [], records
+
+        print(f"  RapidFuzz: processing {len(source_rows):,} candidates "
+              f"against {len(f7_targets):,} targets")
+
+        # Build blocking indexes over F7 targets
+        idx_state_name3 = defaultdict(list)
+        idx_state_city = defaultdict(list)
+        idx_zip3_name2 = defaultdict(list)
+
+        for t in f7_targets:
+            tid = t["id"]
+            tname = t["name_normalized"]
+            tstate = t["state"]
+            tcity = t["city"]
+            tzip = t["zip"]
+            tnaics = t["naics"]
+            entry = (tid, tname, tcity, tzip, tnaics)
+
+            tname_upper = tname.upper()
+            if tstate and tname and len(tname) >= 3:
+                idx_state_name3[(tstate, tname_upper[:3])].append(entry)
+            if tstate and tcity:
+                idx_state_city[(tstate, tcity)].append(entry)
+            if tzip and len(tzip) >= 3 and tname and len(tname) >= 2:
+                idx_zip3_name2[(tzip[:3], tname_upper[:2])].append(entry)
+
+        # Score candidates
+        results = []
+        matched_source_ids = set()
+
+        iterator = source_rows
+        if tqdm is not None:
+            iterator = tqdm(source_rows, desc="  RapidFuzz scoring",
+                            unit="rec", smoothing=0.1)
+
+        for src in iterator:
+            sid = src["id"]
+            sname = src["name_normalized"]
+            sstate = src["state"]
+            scity = src["city"]
+            szip = src["zip"]
+            snaics = src["naics"]
+            sname_upper = sname.upper()
+
+            # Collect candidates from all blocking rules (deduplicated by target id)
+            seen_tids = set()
+            candidates = []
+
+            # Block 1: state + name[:3]
+            for entry in idx_state_name3.get((sstate, sname_upper[:3]), []):
+                if entry[0] not in seen_tids:
+                    seen_tids.add(entry[0])
+                    candidates.append(entry)
+
+            # Block 2: state + city
+            if scity:
+                for entry in idx_state_city.get((sstate, scity), []):
+                    if entry[0] not in seen_tids:
+                        seen_tids.add(entry[0])
+                        candidates.append(entry)
+
+            # Block 3: zip[:3] + name[:2]
+            if szip and len(szip) >= 3:
+                for entry in idx_zip3_name2.get((szip[:3], sname_upper[:2]), []):
+                    if entry[0] not in seen_tids:
+                        seen_tids.add(entry[0])
+                        candidates.append(entry)
+
+            if not candidates:
+                continue
+
+            # Score all candidates and find best match with tie-breaking
+            best_sim = 0.0
+            best_tiebreak = (-1, -1, -1)  # (city_match, zip_match, naics_match)
+            best_match = None
+
+            for tid, tname, tcity, tzip, tnaics in candidates:
+                sim = _rf_fuzz.token_sort_ratio(sname, tname) / 100.0
+                if sim < self.min_name_similarity:
+                    continue
+
+                # Tie-breaking: city > zip > naics (1 if match, 0 if not)
+                tb = (
+                    1 if (scity and tcity and scity == tcity) else 0,
+                    1 if (szip and tzip and szip == tzip) else 0,
+                    1 if (snaics and tnaics and snaics == tnaics) else 0,
+                )
+
+                if sim > best_sim or (sim == best_sim and tb > best_tiebreak):
+                    best_sim = sim
+                    best_tiebreak = tb
+                    best_match = (tid, tname, sim)
+
+            if best_match:
+                tid, tname, sim = best_match
+                band = self._band_for_score(sim)
+                evidence = {
+                    "source_name": sname,
+                    "target_name": tname,
+                    "state": sstate,
+                    "name_similarity": round(sim, 3),
+                    "match_method_detail": "rapidfuzz_token_sort_ratio",
+                }
+                results.append(self._make_result(
+                    sid, tid,
+                    "FUZZY_SPLINK_ADAPTIVE", "probabilistic", band, sim,
+                    evidence
+                ))
+                matched_source_ids.add(sid)
+
+        print(f"  RapidFuzz: {len(results):,} matches from "
+              f"{len(source_rows):,} candidates")
+
+        # Records not matched fall through to trigram
+        still_unmatched = [
+            r for r in records if str(r["id"]) not in matched_source_ids
+        ]
+
+        return results, still_unmatched
+
+    def _load_f7_targets_for_rapidfuzz(self):
+        """Load F7 employer targets as list of dicts for RapidFuzz blocking."""
+        if hasattr(self, "_f7_targets_rf"):
+            return self._f7_targets_rf
+
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT employer_id AS id,
+                       COALESCE(name_aggressive, name_standard) AS name_normalized,
+                       UPPER(COALESCE(state, '')) AS state,
+                       UPPER(COALESCE(city, '')) AS city,
+                       COALESCE(zip, '') AS zip,
+                       COALESCE(naics, '') AS naics
+                FROM f7_employers_deduped
+                WHERE name_standard IS NOT NULL
+            """)
+            cols = [d[0] for d in cur.description]
+            rows = cur.fetchall()
+
+        targets = [dict(zip(cols, row)) for row in rows]
+        for t in targets:
+            t["id"] = str(t["id"])
+        self._f7_targets_rf = targets
+        print(f"  RapidFuzz: loaded {len(targets):,} F7 target records")
+        return targets
+
     def _fuzzy_batch(self, records: List[Dict], batch_size: int = 200) -> List[Dict]:
-        """Tier 5 fuzzy matching: Splink first, trigram fallback."""
+        """Tier 5 fuzzy matching: RapidFuzz first, trigram fallback."""
         results = []
         remaining = records
 
-        # Try Splink first (multi-field probabilistic matching)
-        if self._splink_available():
-            splink_results, remaining = self._fuzzy_batch_splink(records)
-            results.extend(splink_results)
-            if splink_results:
-                print(f"  Splink matched {len(splink_results):,}, "
+        # Try RapidFuzz blocked matching first (replaced Splink)
+        try:
+            rf_results, remaining = self._fuzzy_batch_rapidfuzz(records)
+            results.extend(rf_results)
+            if rf_results:
+                print(f"  RapidFuzz matched {len(rf_results):,}, "
                       f"{len(remaining):,} remaining for trigram")
+        except Exception as e:
+            print(f"  RapidFuzz error, falling back to trigram: {e}")
+            remaining = records
 
-        # Trigram fallback for records Splink couldn't match
+        # Trigram fallback for records RapidFuzz couldn't match
         if remaining:
             trigram_results = self._fuzzy_batch_trigram(
                 remaining, batch_size=batch_size
