@@ -1412,6 +1412,21 @@ def _resolve_employer_url(
     return None, "none"
 
 
+def _sanitize_markdown(text: str) -> str:
+    """Replace Unicode chars that break Windows cp1252 with ASCII equivalents."""
+    replacements = {
+        "\u2192": "->", "\u2190": "<-", "\u2194": "<->",
+        "\u2013": "-", "\u2014": "--", "\u2018": "'", "\u2019": "'",
+        "\u201c": '"', "\u201d": '"', "\u2026": "...", "\u00a0": " ",
+        "\u2022": "*", "\u2023": ">", "\u25aa": "*", "\u25cf": "*",
+        "\u2713": "[x]", "\u2717": "[ ]", "\u00b7": "*",
+    }
+    for char, repl in replacements.items():
+        text = text.replace(char, repl)
+    # Strip any remaining non-ASCII that could cause encoding errors
+    return text.encode("ascii", errors="replace").decode("ascii")
+
+
 def _truncate_markdown(text: str, limit: int) -> str:
     """Truncate markdown at a paragraph or sentence boundary."""
     if not text or len(text) <= limit:
@@ -1480,7 +1495,9 @@ async def _scrape_pages(base_url: str) -> dict:
                                 else str(res.markdown)
                             )
                         if raw and len(raw.strip()) > 100:
-                            text = _truncate_markdown(raw.strip(), char_limit)
+                            text = _truncate_markdown(
+                                _sanitize_markdown(raw.strip()), char_limit
+                            )
                             break
                 except Exception:
                     pass
@@ -1536,10 +1553,24 @@ def scrape_employer_website(
             }
 
         import asyncio
+        import io
 
-        result_data = asyncio.run(
-            asyncio.wait_for(_scrape_pages(resolved_url), timeout=_SCRAPE_TIMEOUT)
-        )
+        # Crawl4AI prints Unicode chars (arrows, etc.) during browser init.
+        # Windows cp1252 stdout can't encode them, so redirect to devnull.
+        _orig_stdout, _orig_stderr = sys.stdout, sys.stderr
+        try:
+            sys.stdout = io.TextIOWrapper(
+                io.BytesIO(), encoding="utf-8", errors="replace"
+            )
+            sys.stderr = io.TextIOWrapper(
+                io.BytesIO(), encoding="utf-8", errors="replace"
+            )
+            result_data = asyncio.run(
+                asyncio.wait_for(_scrape_pages(resolved_url), timeout=_SCRAPE_TIMEOUT)
+            )
+        finally:
+            sys.stdout = _orig_stdout
+            sys.stderr = _orig_stderr
         result_data["url_source"] = url_source
 
         if not result_data.get("homepage_text"):
