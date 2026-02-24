@@ -113,14 +113,268 @@ def _progress(run_id: int, step: str, pct: int):
     _update_run(run_id, current_step=step, progress_pct=min(pct, 100))
 
 
+def _ensure_vocab_entries():
+    """Ensure vocabulary entries added after initial schema creation exist."""
+    conn = _conn()
+    cur = conn.cursor()
+    # federal_contract_status was missing from the original seed data
+    cur.execute("""
+        INSERT INTO research_fact_vocabulary
+            (attribute_name, display_name, dossier_section, data_type,
+             existing_column, existing_table, description)
+        VALUES ('federal_contract_status', 'Federal Contractor', 'financial', 'boolean',
+                'is_federal_contractor', 'federal_contract_recipients',
+                'Whether the employer is a federal contractor')
+        ON CONFLICT (attribute_name) DO NOTHING
+    """)
+    conn.commit()
+    conn.close()
+
+
 def _load_vocabulary() -> dict[str, dict]:
     """Load the fact vocabulary into a lookup dict keyed by attribute_name."""
+    _ensure_vocab_entries()
     conn = _conn()
     cur = conn.cursor()
     cur.execute("SELECT * FROM research_fact_vocabulary")
     rows = cur.fetchall()
     conn.close()
     return {r["attribute_name"]: dict(r) for r in rows}
+
+
+# ---------------------------------------------------------------------------
+# Result Caching
+# ---------------------------------------------------------------------------
+
+# Default cache window: 7 days. Tool results don't change often.
+CACHE_MAX_AGE_HOURS = int(os.getenv("RESEARCH_CACHE_HOURS", "168"))
+
+
+def _check_cache(employer_id: Optional[int], tool_name: str,
+                 max_age_hours: int = CACHE_MAX_AGE_HOURS) -> Optional[dict]:
+    """Check for a recent successful result for this tool+employer.
+
+    Returns the cached row (result_summary, tool_params) or None.
+    """
+    if not employer_id:
+        return None
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT ra.result_summary, ra.tool_params
+        FROM research_actions ra
+        JOIN research_runs rr ON ra.run_id = rr.id
+        WHERE ra.tool_name = %s AND ra.data_found = TRUE
+          AND rr.employer_id = %s
+          AND rr.started_at > NOW() - make_interval(hours := %s)
+        ORDER BY ra.created_at DESC LIMIT 1
+    """, (tool_name, employer_id, max_age_hours))
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# Gap-Aware Web Search (Phase 5.2)
+# ---------------------------------------------------------------------------
+
+def _ensure_query_effectiveness_table():
+    """Create the query effectiveness table if it doesn't exist."""
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS research_query_effectiveness (
+            id                      SERIAL PRIMARY KEY,
+            gap_type                TEXT NOT NULL,
+            company_type            VARCHAR(30),
+            industry_sector         VARCHAR(10),
+            query_template          TEXT NOT NULL,
+            times_used              INTEGER DEFAULT 0,
+            times_produced_result   INTEGER DEFAULT 0,
+            avg_facts_produced      REAL DEFAULT 0,
+            last_used_at            TIMESTAMPTZ,
+            created_at              TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(gap_type, query_template)
+        )
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_qe_gap
+        ON research_query_effectiveness(gap_type)
+    """)
+    conn.commit()
+    conn.close()
+
+
+# Maps each data gap to targeted search queries.
+# {company} and {state} and {year} are filled at runtime.
+_GAP_QUERY_TEMPLATES = {
+    # When Mergent misses (48% miss rate)
+    "employee_count": [
+        '"{company}" number of employees',
+        '"{company}" workforce size headcount',
+        '"{company}" company size LinkedIn',
+    ],
+    "revenue": [
+        '"{company}" annual revenue sales',
+        '"{company}" revenue financial results {year}',
+    ],
+    "website_url": [
+        '"{company}" official website {state}',
+    ],
+    # When OSHA misses
+    "osha_violations": [
+        '"{company}" OSHA violations safety citations',
+        '"{company}" workplace safety inspection {state}',
+    ],
+    # When NLRB misses
+    "nlrb_activity": [
+        '"{company}" NLRB union election filing',
+        '"{company}" unfair labor practice charge',
+        '"{company}" union organizing campaign {year}',
+    ],
+    # When WHD misses
+    "whd_violations": [
+        '"{company}" wage theft Department of Labor',
+        '"{company}" Fair Labor Standards Act violation',
+    ],
+    # When 990 misses (nonprofits)
+    "nonprofit_financials": [
+        '"{company}" 990 tax return nonprofit revenue',
+        '"{company}" GuideStar ProPublica nonprofit',
+    ],
+    # Always-run queries (refined from current static 6)
+    "recent_news": [
+        '"{company}" news {year}',
+        '"{company}" layoffs expansion acquisition {year}',
+    ],
+    "labor_stance": [
+        '"{company}" union stance labor relations',
+        '"{company}" anti-union OR pro-union workers',
+    ],
+    "worker_conditions": [
+        '"{company}" Glassdoor employee reviews working conditions',
+        '"{company}" worker complaints lawsuit labor',
+    ],
+}
+
+# Maps tool names to the gap types they cover
+_TOOL_GAP_MAP = {
+    "search_mergent": ["employee_count", "revenue", "website_url"],
+    "search_osha": ["osha_violations"],
+    "search_nlrb": ["nlrb_activity"],
+    "search_whd": ["whd_violations"],
+    "search_990": ["nonprofit_financials"],
+}
+
+
+def _get_best_queries(gap_type: str, company_type: Optional[str] = None,
+                      min_uses: int = 3) -> list[str]:
+    """Return query templates ranked by effectiveness.
+
+    After ~20-30 runs, the system naturally surfaces templates that work
+    and suppresses those that don't.
+    """
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT query_template
+            FROM research_query_effectiveness
+            WHERE gap_type = %s AND times_used >= %s
+              AND (company_type = %s OR company_type IS NULL)
+            ORDER BY times_produced_result::float / NULLIF(times_used, 0) DESC
+            LIMIT 5
+        """, (gap_type, min_uses, company_type))
+        rows = cur.fetchall()
+        conn.close()
+        return [r["query_template"] for r in rows] if rows else []
+    except Exception:
+        return []
+
+
+def _build_web_search_queries(company_name: str, company_type: Optional[str],
+                               company_state: Optional[str],
+                               db_gaps: list[str],
+                               year: str = "2025") -> list[str]:
+    """Build targeted search queries based on which DB tools missed.
+
+    Args:
+        company_name: The employer name
+        company_type: public/private/nonprofit/government
+        company_state: 2-letter state code
+        db_gaps: list of tool_names that returned no data
+        year: current year for recency queries
+
+    Returns:
+        List of filled query strings, capped at 15.
+    """
+    queries = []
+    gap_types_used = []  # track (gap_type, template) for effectiveness logging
+
+    for tool_name in db_gaps:
+        for gap_key in _TOOL_GAP_MAP.get(tool_name, []):
+            # Check learned effectiveness first
+            best = _get_best_queries(gap_key, company_type)
+            templates = best or _GAP_QUERY_TEMPLATES.get(gap_key, [])
+            for t in templates[:2]:
+                queries.append(t)
+                gap_types_used.append((gap_key, t))
+
+    # Always-run queries
+    for key in ["recent_news", "labor_stance", "worker_conditions"]:
+        templates = _GAP_QUERY_TEMPLATES[key]
+        for t in templates[:1]:
+            queries.append(t)
+            gap_types_used.append((key, t))
+
+    # Fill placeholders
+    filled = []
+    for q in queries:
+        try:
+            filled.append(q.format(
+                company=company_name,
+                state=company_state or "",
+                year=year,
+            ))
+        except (KeyError, IndexError):
+            filled.append(q.replace("{company}", company_name))
+
+    return filled[:15], gap_types_used[:15]
+
+
+def _update_query_effectiveness(gap_types_queried: list[tuple],
+                                 facts_by_section: dict[str, int],
+                                 company_type: Optional[str] = None):
+    """Update hit rates for query templates after a run.
+
+    Args:
+        gap_types_queried: list of (gap_type, template) pairs from _build_web_search_queries
+        facts_by_section: dict mapping gap_type -> number of facts produced
+        company_type: employer type for segmented tracking
+    """
+    if not gap_types_queried:
+        return
+    try:
+        _ensure_query_effectiveness_table()
+        conn = _conn()
+        cur = conn.cursor()
+        for gap_type, template in gap_types_queried:
+            produced = 1 if facts_by_section.get(gap_type, 0) > 0 else 0
+            cur.execute("""
+                INSERT INTO research_query_effectiveness
+                    (gap_type, company_type, query_template,
+                     times_used, times_produced_result, last_used_at)
+                VALUES (%s, %s, %s, 1, %s, NOW())
+                ON CONFLICT (gap_type, query_template) DO UPDATE
+                SET times_used = research_query_effectiveness.times_used + 1,
+                    times_produced_result = research_query_effectiveness.times_produced_result + EXCLUDED.times_produced_result,
+                    company_type = COALESCE(EXCLUDED.company_type, research_query_effectiveness.company_type),
+                    last_used_at = NOW()
+            """, (gap_type, company_type, template, produced))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        _log.warning("Failed to update query effectiveness: %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -453,8 +707,7 @@ _TOOL_FACT_MAP = {
     "search_990": [
         ("nonprofit_revenue", "total_revenue"),
         ("nonprofit_assets", "total_assets"),
-        ("nonprofit_employees", "total_employees"),
-        ("nonprofit_ein", "ein"),
+        ("employee_count", "total_employees"),       # was nonprofit_employees (not in vocab)
     ],
     "search_osha": [
         ("osha_violation_count", "violation_count"),
@@ -477,26 +730,25 @@ _TOOL_FACT_MAP = {
     ],
     "search_mergent": [
         ("employee_count", "employees_all_sites"),
-        ("annual_revenue", "sales_amount"),
-        ("company_website", "website"),
+        ("revenue", "sales_amount"),                 # was annual_revenue (not in vocab)
+        ("website_url", "website"),                   # was company_website (not in vocab)
     ],
     "scrape_employer_website": [
-        ("company_website", "url"),
+        ("website_url", "url"),                       # was company_website (not in vocab)
     ],
 }
 
-# Maps attribute_name -> dossier_section
+# Maps attribute_name -> dossier_section (must match _TOOL_FACT_MAP keys)
 _ATTR_SECTION = {
     "nonprofit_revenue": "financial", "nonprofit_assets": "financial",
-    "nonprofit_employees": "workforce", "nonprofit_ein": "identity",
     "osha_violation_count": "workplace", "osha_serious_count": "workplace",
     "osha_penalty_total": "workplace",
     "nlrb_election_count": "labor", "nlrb_ulp_count": "labor",
     "whd_case_count": "workplace", "whd_backwages": "workplace",
     "federal_contract_status": "financial",
     "existing_contracts": "labor",
-    "employee_count": "workforce", "annual_revenue": "financial",
-    "company_website": "identity",
+    "employee_count": "financial", "revenue": "financial",
+    "website_url": "identity",
 }
 
 
@@ -588,6 +840,22 @@ def _try_parse_json(text: str) -> Optional[dict]:
         return json.loads(_fix_json_escapes(cleaned))
     except json.JSONDecodeError:
         pass
+
+    # Strategy 4: strip non-JSON prefix before first {
+    first_brace = text.find("{")
+    if first_brace > 0:
+        stripped = text[first_brace:]
+        try:
+            return json.loads(_fix_json_escapes(stripped))
+        except json.JSONDecodeError:
+            pass
+        # Also try trimming trailing garbage on the stripped version
+        last = stripped.rfind("}")
+        if last > 0:
+            try:
+                return json.loads(_fix_json_escapes(stripped[: last + 1]))
+            except json.JSONDecodeError:
+                pass
 
     return None
 
@@ -779,9 +1047,23 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             _log.info("Run %d: calling %s(%s)", run_id, tool_name,
                       json.dumps(tool_input, default=str)[:200])
 
-            # Execute the tool
+            # Check cache before executing the tool
+            cached = None
+            if tool_name in TOOL_REGISTRY and tool_name != "google_search":
+                cached = _check_cache(run.get("employer_id"), tool_name)
+
             t0 = time.time()
-            if tool_name == "google_search":
+            if cached:
+                # Use cached result instead of re-querying
+                result = {
+                    "found": True,
+                    "source": f"cache:{tool_name}",
+                    "summary": f"[Cached] {cached['result_summary'] or ''}",
+                    "data": {},
+                }
+                _log.info("Run %d: cache hit for %s (employer %s)",
+                          run_id, tool_name, run.get("employer_id"))
+            elif tool_name == "google_search":
                 # Gemini sometimes emits google_search as a function call
                 # even though it's not in our declarations. Reject it so
                 # Gemini focuses on the database tools instead.
@@ -807,9 +1089,10 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
                 }
             latency_ms = int((time.time() - t0) * 1000)
 
-            # Log to database
+            # Log to database (mark cached actions)
+            log_tool_name = f"{tool_name} (cached)" if cached else tool_name
             _log_action(
-                run_id, tool_name, tool_input, execution_order,
+                run_id, log_tool_name, tool_input, execution_order,
                 result, latency_ms,
                 company_context={
                     "company_name": run["company_name"],
@@ -851,13 +1134,14 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
     # Build a summary of what Phase 1 found / missed for targeted web search
     db_summaries = []
-    db_gaps = []
+    db_gaps = []   # tool names that returned no data
     conn_summary = _conn()
     cur_summary = conn_summary.cursor()
     cur_summary.execute(
         """SELECT tool_name, data_found, result_summary
            FROM research_actions
-           WHERE run_id = %s AND tool_name != 'google_search'
+           WHERE run_id = %s AND tool_name NOT LIKE '%%google_search%%'
+             AND tool_name NOT LIKE '%%(cached)%%'
            ORDER BY execution_order""",
         (run_id,),
     )
@@ -877,6 +1161,14 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     industry_naics = run.get("industry_naics") or ""
     company_state = run.get("company_state") or ""
 
+    # Build gap-aware query list
+    targeted_queries, gap_types_queried = _build_web_search_queries(
+        company_name, company_type, company_state, db_gaps
+    )
+    query_list = "\n".join(f"- {q}" for q in targeted_queries)
+    _log.info("Run %d: built %d targeted web queries from %d DB gaps (%s)",
+              run_id, len(targeted_queries), len(db_gaps), ", ".join(db_gaps))
+
     try:
         web_prompt = f"""You are a labor-relations research agent. You already queried internal government databases for **{company_name}** and found the following:
 
@@ -892,21 +1184,18 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 - State: {company_state}
 
 ## Your task:
-Search the web to fill gaps and add current context. Specifically search for:
+Search the web to fill gaps and add current context. Use these targeted searches (generated from our database gaps):
 
+{query_list}
+
+Search for EACH of these individually. Do not stop after one search. Try at least 5-6 different searches.
+
+Also check for:
 1. **Recent news** (2024-2026): layoffs, expansions, lawsuits, mergers, acquisitions, executive changes
-2. **Union organizing**: active campaigns, election results, strikes, work stoppages, union contract negotiations
-3. **Worker issues**: wage theft complaints, safety incidents, employee lawsuits, Glassdoor themes
+2. **Union organizing**: active campaigns, election results, strikes, work stoppages
+3. **Worker issues**: wage theft complaints, safety incidents, employee lawsuits
 4. **NLRB activity**: recent filings, unfair labor practice charges, board decisions
-5. **Company labor stance**: CEO/leadership statements about unions, anti-union consultants, captive audience meetings
-
-Search for EACH of these individually. Do not stop after one search. Try at least 5-6 different searches:
-- "{company_name}" union organizing 2024 2025
-- "{company_name}" workers strike labor
-- "{company_name}" NLRB filing
-- "{company_name}" wage theft lawsuit
-- "{company_name}" layoffs employees 2025 2026
-- "{company_name}" working conditions safety
+5. **Company labor stance**: CEO/leadership statements about unions
 
 Return ALL findings as a JSON code block. Include EVERY fact you find, even if minor:
 
@@ -1166,6 +1455,41 @@ Be thorough. An empty section means you did not search hard enough. Every compan
         except Exception as merge_exc:
             _log.warning("Run %d: web merge phase failed (non-fatal): %s", run_id, merge_exc)
             final_text = original_final_text  # restore clean dossier on failure
+
+    # ------------------------------------------------------------------
+    # Track query effectiveness (Phase 5.2 learning)
+    # ------------------------------------------------------------------
+    if gap_types_queried:
+        try:
+            # Count which web sections produced facts
+            web_facts_by_gap = {}
+            if web_text.strip():
+                _web_data = None
+                _m = re.search(r"```(?:json)?\s*\n?(.*?)```", web_text, re.DOTALL)
+                if _m:
+                    try:
+                        _web_data = json.loads(_fix_json_escapes(_m.group(1).strip()))
+                    except json.JSONDecodeError:
+                        pass
+                if _web_data and isinstance(_web_data, dict):
+                    # Map web JSON sections to gap types
+                    _section_gap_map = {
+                        "recent_news": "recent_news",
+                        "organizing_activity": "nlrb_activity",
+                        "worker_issues": "worker_conditions",
+                        "nlrb_activity": "nlrb_activity",
+                        "company_labor_stance": "labor_stance",
+                        "company_context": "recent_news",
+                    }
+                    for sec_key, gap_key in _section_gap_map.items():
+                        val = _web_data.get(sec_key, [])
+                        if isinstance(val, list) and val:
+                            web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + len(val)
+                        elif isinstance(val, str) and val.strip():
+                            web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + 1
+            _update_query_effectiveness(gap_types_queried, web_facts_by_gap, company_type)
+        except Exception as qe_exc:
+            _log.warning("Run %d: query effectiveness tracking failed (non-fatal): %s", run_id, qe_exc)
 
     # ------------------------------------------------------------------
     # Parse dossier from final response

@@ -61,7 +61,8 @@ INSERT INTO research_fact_vocabulary (attribute_name, display_name, dossier_sect
 ('federal_obligations',  'Federal Contract Value',  'financial', 'currency', 'total_obligations',     'federal_contract_recipients', 'Total federal contract dollar amount'),
 ('federal_contract_count','Federal Contract Count',  'financial', 'number',  'contract_count',        'federal_contract_recipients', 'Number of federal contracts'),
 ('nonprofit_revenue',    'Nonprofit Total Revenue', 'financial', 'currency', 'total_revenue',         'national_990_filers',    'Total revenue from IRS Form 990'),
-('nonprofit_assets',     'Nonprofit Total Assets',  'financial', 'currency', 'total_assets',          'national_990_filers',    'Total assets from IRS Form 990');
+('nonprofit_assets',     'Nonprofit Total Assets',  'financial', 'currency', 'total_assets',          'national_990_filers',    'Total assets from IRS Form 990'),
+('federal_contract_status','Federal Contractor',     'financial', 'boolean',  'is_federal_contractor', 'federal_contract_recipients', 'Whether the employer is a federal contractor');
 
 -- SECTION: workforce (Workforce Intelligence)
 INSERT INTO research_fact_vocabulary (attribute_name, display_name, dossier_section, data_type, existing_column, existing_table, description) VALUES
@@ -261,4 +262,28 @@ CREATE TABLE IF NOT EXISTS research_strategies (
 );
 
 CREATE INDEX idx_strategies_lookup ON research_strategies(industry_naics_2digit, company_type, company_size_bucket);
+
+
+-- ============================================================================
+-- TABLE 6: research_query_effectiveness
+-- Tracks which web search query templates produce results for each gap type.
+-- Populated automatically after each research run (Phase 5.2).
+-- After ~20-30 runs per gap type, the system surfaces the best queries.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS research_query_effectiveness (
+    id                      SERIAL PRIMARY KEY,
+    gap_type                TEXT NOT NULL,           -- e.g. 'employee_count', 'revenue', 'nlrb_activity'
+    company_type            VARCHAR(30),             -- public/private/nonprofit/government (NULL = all)
+    industry_sector         VARCHAR(10),             -- 2-digit NAICS (NULL = all)
+    query_template          TEXT NOT NULL,            -- The template with {company} placeholder
+    times_used              INTEGER DEFAULT 0,
+    times_produced_result   INTEGER DEFAULT 0,
+    avg_facts_produced      REAL DEFAULT 0,
+    last_used_at            TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(gap_type, query_template)
+);
+
+CREATE INDEX IF NOT EXISTS idx_qe_gap ON research_query_effectiveness(gap_type);
 
