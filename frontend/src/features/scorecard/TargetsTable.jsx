@@ -71,12 +71,23 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
       cell: ({ getValue }) => <SourceBadge source={getValue()} />,
     },
     {
-      id: 'sources',
-      header: 'Sources',
+      id: 'coverage',
+      header: 'Coverage',
       accessorKey: 'source_count',
       cell: ({ getValue }) => {
-        const c = getValue()
-        return <span className="text-xs text-muted-foreground">{c} source{c !== 1 ? 's' : ''}</span>
+        const c = getValue() || 0
+        const pct = Math.min((c / 8) * 100, 100)
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs tabular-nums w-7 text-right">{c}/8</span>
+            <div className="h-1.5 w-12 bg-muted overflow-hidden">
+              <div
+                className={`h-full ${c >= 4 ? 'bg-green-500' : c >= 2 ? 'bg-amber-500' : 'bg-red-400'}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        )
       },
     },
     {
@@ -139,8 +150,10 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b hover:bg-accent/50 cursor-pointer transition-colors"
+                className="border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                tabIndex={0}
                 onClick={() => navigate(`/employers/MASTER-${row.original.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/employers/MASTER-${row.original.id}`) }}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-3 py-2">

@@ -1,6 +1,14 @@
 import { cn } from '@/lib/utils'
 
 const TIER_MAP = {
+  // Phase 2 canonical tier names
+  EIN_EXACT: 4,
+  NAME_CITY_STATE_EXACT: 3,
+  NAME_STATE_EXACT: 3,
+  NAME_AGGRESSIVE_STATE: 2,
+  FUZZY_SPLINK_ADAPTIVE: 2,
+  FUZZY_TRIGRAM: 1,
+  // Legacy tier names (backward compat)
   EIN_MATCH: 4,
   NAME_CITY_STATE: 3,
   NAME_STATE: 3,

@@ -7,11 +7,13 @@ const FACTORS = [
   { key: 'score_nlrb', label: 'NLRB Activity', weight: '3x' },
   { key: 'score_contracts', label: 'Gov Contracts', weight: '2x' },
   { key: 'score_industry_growth', label: 'Industry Growth', weight: '2x' },
-  { key: 'score_similarity', label: 'Peer Similarity', weight: '2x' },
+  { key: 'score_similarity', label: 'Peer Similarity', weight: null, disabled: true },
   { key: 'score_osha', label: 'OSHA Safety', weight: '1x' },
   { key: 'score_whd', label: 'Wage & Hour', weight: '1x' },
   { key: 'score_financial', label: 'Financial', weight: '1x' },
 ]
+
+const ACTIVE_FACTOR_COUNT = FACTORS.filter(f => !f.disabled).length
 
 function getBarColor(value) {
   if (value >= 7) return 'bg-red-600'
@@ -19,7 +21,19 @@ function getBarColor(value) {
   return 'bg-red-200'
 }
 
-function ScoreBar({ label, weight, value, explanation }) {
+function ScoreBar({ label, weight, value, explanation, disabled }) {
+  if (disabled) {
+    return (
+      <div className="space-y-1 opacity-50">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">{label}</span>
+          <span className="text-xs text-muted-foreground italic">Under Development</span>
+        </div>
+        <div className="h-2 w-full bg-muted overflow-hidden" />
+      </div>
+    )
+  }
+
   const hasValue = value != null
   const displayValue = hasValue ? Number(value).toFixed(1) : null
   const widthPct = hasValue ? Math.min((value / 10) * 100, 100) : 0
@@ -53,8 +67,9 @@ function ScoreBar({ label, weight, value, explanation }) {
 export function ScorecardSection({ scorecard, explanations }) {
   if (!scorecard) return null
 
-  const factorsWithData = FACTORS.filter(f => scorecard[f.key] != null)
-  const coverage = Math.round((factorsWithData.length / FACTORS.length) * 100)
+  const activeFactors = FACTORS.filter(f => !f.disabled)
+  const factorsWithData = activeFactors.filter(f => scorecard[f.key] != null)
+  const coverage = Math.round((factorsWithData.length / ACTIVE_FACTOR_COUNT) * 100)
 
   return (
     <Card>
@@ -63,20 +78,21 @@ export function ScorecardSection({ scorecard, explanations }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {FACTORS.map(({ key, label, weight }) => (
+          {FACTORS.map(({ key, label, weight, disabled }) => (
             <ScoreBar
               key={key}
               label={label}
               weight={weight}
               value={scorecard[key]}
               explanation={explanations?.[key]}
+              disabled={disabled}
             />
           ))}
         </div>
       </CardContent>
       <CardFooter>
         <p className="text-xs text-muted-foreground">
-          {factorsWithData.length} of {FACTORS.length} factors available ({coverage}% coverage)
+          {factorsWithData.length} of {ACTIVE_FACTOR_COUNT} factors available ({coverage}% coverage)
         </p>
       </CardFooter>
     </Card>

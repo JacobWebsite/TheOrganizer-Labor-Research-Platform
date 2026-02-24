@@ -9,7 +9,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 import psycopg2
 
 from .config import (
@@ -69,11 +69,8 @@ app.add_middleware(LoggingMiddleware)
 
 
 # ---------- Frontend ----------
-@app.get("/")
-def serve_frontend():
-    return FileResponse(os.path.join(str(FILES_DIR), "organizer_v5.html"))
-
-
+# Legacy organizer_v5.html archived to archive/old_frontend/.
+# React frontend served separately via Vite dev server or static build.
 app.mount("/files", StaticFiles(directory=str(FILES_DIR)), name="files")
 
 

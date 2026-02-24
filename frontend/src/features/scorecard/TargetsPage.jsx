@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Target, SearchX } from 'lucide-react'
 import { useTargetsState } from './useTargetsState'
 import { useNonUnionTargets } from '@/shared/api/targets'
@@ -11,6 +12,8 @@ const PAGE_SIZE = 50
 
 export function TargetsPage() {
   const { filters, sort, order, page, hasActiveFilters, setFilter, clearFilter, clearAll, setSort, setPage } = useTargetsState()
+
+  useEffect(() => { document.title = 'Organizing Targets - The Organizer' }, [])
 
   const { data, isLoading, isError, error } = useNonUnionTargets({
     q: filters.q || undefined,
@@ -35,9 +38,17 @@ export function TargetsPage() {
       </div>
 
       <HelpSection>
-        <p><strong>What this page is for:</strong> Employers ranked by their potential for a successful organizing campaign, based on available data signals.</p>
-        <p><strong>Quality score:</strong> A data completeness indicator showing how many scoring factors have data for each employer. Higher quality = more reliable assessment.</p>
-        <p><strong>Tier labels:</strong> Priority (top 3%) are highest-value targets. Strong (next 12%) are very promising. Promising (next 25%) have good potential. Moderate and Low have fewer signals.</p>
+        <p><strong>What this page is for:</strong> This page shows organizing targets -- employers ranked by their potential for a successful organizing campaign. These are employers where the available data suggests favorable conditions for workers to organize.</p>
+        <p><strong>Tier summary cards:</strong> The cards at the top show how many employers fall into each tier. Click a tier card to filter the table below to only that tier.</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>Priority (top 3%):</strong> Highest-value targets. Start here when planning campaigns.</li>
+          <li><strong>Strong (next 12%):</strong> Very promising. Worth detailed assessment.</li>
+          <li><strong>Promising (next 25%):</strong> Good potential. Investigate further.</li>
+          <li><strong>Moderate (next 35%):</strong> Some signals. Keep on the radar.</li>
+          <li><strong>Low (bottom 25%):</strong> Few signals in current data.</li>
+        </ul>
+        <p>Tier counts update whenever new data is loaded into the system. The same employer may shift tiers over time as new information becomes available.</p>
+        <p><strong>Bulk actions:</strong> Select multiple employers using the checkboxes, then use the action bar to export CSV or flag all for follow-up.</p>
       </HelpSection>
 
       <TargetStats />
@@ -73,7 +84,7 @@ export function TargetsPage() {
 
       {data && data.total > 0 && (
         <>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground" aria-live="polite">
             {data.total.toLocaleString()} target{data.total !== 1 ? 's' : ''} found
           </p>
           <TargetsTable

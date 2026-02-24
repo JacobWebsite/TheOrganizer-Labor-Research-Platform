@@ -13,7 +13,25 @@ const FLAG_TYPES = [
   { value: 'DATA_QUALITY', label: 'Data Quality', color: 'bg-red-50 text-red-700' },
   { value: 'NEEDS_REVIEW', label: 'Needs Review', color: 'bg-blue-50 text-blue-700' },
   { value: 'VERIFIED_OK', label: 'Verified OK', color: 'bg-green-100 text-green-800' },
+  { value: 'HOT_TARGET', label: 'Hot Target', color: 'bg-orange-50 text-orange-700' },
+  { value: 'NEEDS_RESEARCH', label: 'Needs Research', color: 'bg-cyan-50 text-cyan-700' },
+  { value: 'ACTIVE_CAMPAIGN', label: 'Active Campaign', color: 'bg-rose-50 text-rose-700' },
+  { value: 'FOLLOW_UP', label: 'Follow Up', color: 'bg-yellow-50 text-yellow-700' },
+  { value: 'DEAD_END', label: 'Dead End', color: 'bg-gray-100 text-gray-600' },
 ]
+
+const PRIORITY_OPTIONS = [
+  { value: '', label: 'No priority' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'LOW', label: 'Low' },
+]
+
+const PRIORITY_STYLES = {
+  HIGH: 'bg-red-100 text-red-700',
+  MEDIUM: 'bg-yellow-100 text-yellow-700',
+  LOW: 'bg-slate-100 text-slate-600',
+}
 
 function getFlagStyle(type) {
   return FLAG_TYPES.find((f) => f.value === type)?.color || 'bg-stone-100 text-stone-600'
@@ -28,6 +46,7 @@ export function ResearchNotesCard({ employerId, sourceType, sourceId }) {
   const flagMutation = useFlagEmployer()
   const [showForm, setShowForm] = useState(false)
   const [flagType, setFlagType] = useState('')
+  const [priority, setPriority] = useState('')
   const [notes, setNotes] = useState('')
 
   const flags = data?.flags || []
@@ -40,10 +59,12 @@ export function ResearchNotesCard({ employerId, sourceType, sourceId }) {
       source_type: sourceType || 'F7',
       source_id: sourceId || employerId,
       flag_type: flagType,
+      priority: priority || null,
       notes: notes.trim() || null,
     }, {
       onSuccess: () => {
         setFlagType('')
+        setPriority('')
         setNotes('')
         setShowForm(false)
       },
@@ -60,6 +81,11 @@ export function ResearchNotesCard({ employerId, sourceType, sourceId }) {
                 <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium shrink-0 ${getFlagStyle(f.flag_type)}`}>
                   {getFlagLabel(f.flag_type)}
                 </span>
+                {f.priority && (
+                  <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium shrink-0 ${PRIORITY_STYLES[f.priority] || ''}`}>
+                    {f.priority}
+                  </span>
+                )}
                 <div className="flex-1 min-w-0">
                   {f.notes && <p className="text-sm">{f.notes}</p>}
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -83,6 +109,14 @@ export function ResearchNotesCard({ employerId, sourceType, sourceId }) {
                 <option value="">Select type...</option>
                 {FLAG_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium mb-1 block">Priority</label>
+              <Select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label="Priority">
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
               </Select>
             </div>

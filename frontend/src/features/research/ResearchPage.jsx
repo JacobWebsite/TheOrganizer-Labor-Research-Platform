@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Microscope, SearchX, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { NewResearchModal } from './NewResearchModal'
 
 export function ResearchPage() {
   const navigate = useNavigate()
+  useEffect(() => { document.title = 'Research - The Organizer' }, [])
   const [modalOpen, setModalOpen] = useState(false)
   const { filters, page, PAGE_SIZE, hasActiveFilters, setFilter, clearFilter, clearAll, setPage } = useResearchState()
 

@@ -556,18 +556,22 @@ def unified_employer_detail(canonical_id: str):
 def create_flag(flag: FlagCreate, user=Depends(require_auth)):
     """Create a review flag for an employer."""
     valid_types = ['ALREADY_UNION', 'DUPLICATE', 'LABOR_ORG_NOT_EMPLOYER',
-                   'DEFUNCT', 'DATA_QUALITY', 'NEEDS_REVIEW', 'VERIFIED_OK']
+                   'DEFUNCT', 'DATA_QUALITY', 'NEEDS_REVIEW', 'VERIFIED_OK',
+                   'HOT_TARGET', 'NEEDS_RESEARCH', 'ACTIVE_CAMPAIGN', 'FOLLOW_UP', 'DEAD_END']
     if flag.flag_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid flag_type. Must be one of: {valid_types}")
+    valid_priorities = [None, 'HIGH', 'MEDIUM', 'LOW']
+    if flag.priority not in valid_priorities:
+        raise HTTPException(status_code=400, detail=f"Invalid priority. Must be one of: {valid_priorities}")
 
     with get_db() as conn:
         with conn.cursor() as cur:
             try:
                 cur.execute("""
-                    INSERT INTO employer_review_flags (source_type, source_id, flag_type, notes)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING id, flag_type, notes, created_at
-                """, [flag.source_type, flag.source_id, flag.flag_type, flag.notes])
+                    INSERT INTO employer_review_flags (source_type, source_id, flag_type, priority, notes)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id, flag_type, priority, notes, created_at
+                """, [flag.source_type, flag.source_id, flag.flag_type, flag.priority, flag.notes])
                 conn.commit()
                 return {"flag": cur.fetchone()}
             except psycopg2.errors.UniqueViolation:

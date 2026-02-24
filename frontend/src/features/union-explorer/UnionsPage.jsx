@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, SearchX, LayoutList, GitBranch } from 'lucide-react'
 import { useUnionsState } from './useUnionsState'
 import { useUnionSearch, useNationalUnions } from '@/shared/api/unions'
@@ -14,6 +14,9 @@ const PAGE_SIZE = 50
 
 export function UnionsPage() {
   const { filters, page, hasActiveFilters, setFilter, clearFilter, clearAll, setPage } = useUnionsState()
+
+  useEffect(() => { document.title = 'Union Explorer - The Organizer' }, [])
+
   const [viewMode, setViewMode] = useState('list')
 
   const nationalQuery = useNationalUnions()
@@ -43,10 +46,15 @@ export function UnionsPage() {
       </div>
 
       <HelpSection>
-        <p><strong>What this page is for:</strong> Browse and research unions, their organizational structure, and the employers they represent.</p>
-        <p><strong>National unions overview:</strong> Top affiliations by membership. Click an affiliation chip to filter the table below.</p>
-        <p><strong>Filters:</strong> Narrow results by affiliation, sector, state, minimum members, or whether the union has linked employers.</p>
-        <p><strong>Union profiles:</strong> Click any union row to see detailed membership trends, financials, employers, and elections.</p>
+        <p><strong>What this page is for:</strong> Browse and research unions, their organizational structure, and the employers they represent. Use the search bar to find a specific union, or browse the hierarchy tree to explore how unions are organized.</p>
+        <p><strong>Hierarchy tree:</strong> Unions are organized in a parent-child structure. National and international unions are at the top, with regional bodies and local unions underneath. Click the arrow to expand any level.</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>Affiliation (e.g. AFL-CIO, Change to Win):</strong> The largest groupings of unions.</li>
+          <li><strong>International/National union (e.g. SEIU, IBEW):</strong> Individual unions that operate across the country.</li>
+          <li><strong>Local union (e.g. SEIU Local 1199):</strong> The local chapter that directly represents workers at specific employers.</li>
+        </ul>
+        <p><strong>Union profile header:</strong> Abbreviation, affiliation, member count, number of employers, and number of local chapters.</p>
+        <p><strong>Relationship map:</strong> The expandable list below the header shows the full organizational tree -- from the national union down through its locals and the specific employers each local represents. Click any employer name to open their employer profile.</p>
       </HelpSection>
 
       <NationalUnionsSummary

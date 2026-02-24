@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,14 @@ export function EmployerProfilePage() {
   // Scorecard detail (explanations) — only for F7, after profile loads
   const scorecardQuery = useScorecardDetail(id, { enabled: isF7 && !!data })
   const dataSourcesQuery = useEmployerDataSources(id, { enabled: isF7 && !!data })
+
+  // Update page title with employer name when data loads
+  const employerName = data?.employer?.employer_name || data?.display_name || data?.employer_name
+  useEffect(() => {
+    document.title = employerName
+      ? `${employerName} - The Organizer`
+      : 'Employer Profile - The Organizer'
+  }, [employerName])
 
   const handleBack = () => {
     // Try to go back in history; if no history, go to search
@@ -145,10 +154,37 @@ export function EmployerProfilePage() {
 
       <ProfileHeader employer={employer} scorecard={scorecard} sourceType="F7" />
       <HelpSection>
-        <p><strong>Score (0-10):</strong> This employer's overall organizing potential, calculated from up to 8 different factors. If a factor has no data, it's skipped rather than counted against the employer.</p>
-        <p><strong>Factor bars:</strong> Each bar shows how this employer scored on one factor, rated 0-10. Factors weighted (3x) matter three times as much as (1x) factors. A grayed-out bar with a dash means no data.</p>
-        <p><strong>Source badges:</strong> Which government databases have records for this employer. More badges generally means more complete data.</p>
-        <p><strong>Confidence dots:</strong> How confident the system is that records were correctly matched to this employer. 4 dots = matched on unique ID. 1 dot = fuzzy name match only.</p>
+        <p><strong>Score (0-10):</strong> This employer's overall organizing potential, calculated from up to 8 different factors. The score only uses factors where we actually have data -- if we're missing information on a factor, it's skipped rather than counted against the employer. A score of 8.0 based on 7 factors is more reliable than an 8.0 based on 3 factors. The number of factors used is shown below the score.</p>
+        <p><strong>Tiers -- what they mean and what to do with them:</strong></p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>Priority (top 3%):</strong> The strongest organizing targets in the entire database. Multiple strong signals across strategic position, leverage, and worker conditions. Action: prioritize for active campaign planning and resource allocation.</li>
+          <li><strong>Strong (next 12%):</strong> Very promising targets with solid data across several factors. Action: worth detailed research and preliminary outreach assessment.</li>
+          <li><strong>Promising (next 25%):</strong> Good potential but may be missing data or have mixed signals. Action: monitor and investigate further.</li>
+          <li><strong>Moderate (next 35%):</strong> Some positive signals but not enough to stand out. Action: keep on the radar but don't prioritize over higher-tier targets.</li>
+          <li><strong>Low (bottom 25%):</strong> Few organizing signals in the available data. Action: unlikely to be a strong target based on current information, but new data could change this.</li>
+        </ul>
+        <p><strong>Factor bars:</strong> Each bar shows how this employer scored on one of 8 factors, rated 0-10. Factors are weighted by importance -- (3x) factors matter three times as much as (1x) factors in the final score. A grayed-out factor with a dash means we have no data for that factor.</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>Union Proximity (3x):</strong> Whether companies in the same corporate family already have unions. Strongest predictor -- the corporate parent has already dealt with unions elsewhere.</li>
+          <li><strong>Employer Size (3x):</strong> Larger employers offer more impact per campaign. Employers under 15 employees score zero.</li>
+          <li><strong>NLRB Activity (3x):</strong> Nearby union election momentum (within 25 miles, similar industry) and this employer's own election history. Past losses count as a negative.</li>
+          <li><strong>Gov Contracts (2x):</strong> Federal, state, or city government contracts create public accountability and regulatory leverage. Multiple contract levels score higher.</li>
+          <li><strong>Industry Growth (2x):</strong> BLS-projected 10-year industry growth rate. Faster-growing industries mean more workers entering the field.</li>
+          <li><strong>OSHA Safety (1x):</strong> Workplace safety violations. More violations and more serious violations (willful, repeat) score higher. Recent ones count more.</li>
+          <li><strong>WHD Wage Theft (1x):</strong> Wage and hour violations including back wages, overtime, and minimum wage violations.</li>
+          <li><strong>Financial (1x):</strong> Revenue scale, asset cushion, and revenue-per-worker from 990 filings or SEC data.</li>
+        </ul>
+        <p><strong>Source badges -- what each database is:</strong></p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>F-7:</strong> DOL Form LM-10/F-7 filings. Employers with union contracts are required to file these.</li>
+          <li><strong>OSHA:</strong> Occupational Safety and Health Administration inspection records.</li>
+          <li><strong>NLRB:</strong> National Labor Relations Board case records -- election petitions, results, and unfair labor practice complaints.</li>
+          <li><strong>WHD:</strong> Wage and Hour Division enforcement records -- wage theft, overtime, minimum wage investigations.</li>
+          <li><strong>SAM:</strong> System for Award Management -- federal government contractor database.</li>
+          <li><strong>SEC:</strong> Securities and Exchange Commission filings -- public company data from EDGAR.</li>
+        </ul>
+        <p><strong>Confidence dots:</strong> How confident the system is that records from a data source were correctly matched to this employer. 4 dots = matched on unique ID (EIN or exact name + address). 3 dots = name + state or city. 2 dots = fuzzy name similarity + location. 1 dot = name similarity alone -- treat with caution.</p>
+        <p><strong>Employee count range:</strong> Different databases collect employee counts at different times using different definitions. The platform shows the range across all sources so you can see the spread. The scoring system uses the average.</p>
       </HelpSection>
       <ScorecardSection scorecard={scorecard} explanations={explanations} />
       <UnionRelationshipsCard employer={employer} />

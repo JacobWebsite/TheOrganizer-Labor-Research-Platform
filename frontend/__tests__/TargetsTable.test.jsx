@@ -109,11 +109,11 @@ describe('TargetsTable', () => {
     expect(screen.getByText('Nonprofit')).toBeInTheDocument()
   })
 
-  it('shows source count text', () => {
+  it('shows coverage column with X/8 format', () => {
     renderTable()
-    expect(screen.getByText('4 sources')).toBeInTheDocument()
-    expect(screen.getByText('1 source')).toBeInTheDocument()
-    expect(screen.getByText('2 sources')).toBeInTheDocument()
+    expect(screen.getByText('4/8')).toBeInTheDocument()
+    expect(screen.getByText('1/8')).toBeInTheDocument()
+    expect(screen.getByText('2/8')).toBeInTheDocument()
   })
 
   it('shows pagination when total exceeds page size', () => {

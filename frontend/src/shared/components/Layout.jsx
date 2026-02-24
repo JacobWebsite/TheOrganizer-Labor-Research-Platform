@@ -11,8 +11,11 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-background">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:text-sm">
+        Skip to main content
+      </a>
       <NavBar />
-      <main className="mx-auto max-w-7xl px-4 pt-20 pb-8">
+      <main id="main-content" className="mx-auto max-w-7xl px-4 pt-20 pb-8">
         {!isSearchHero && (
           <div className="mb-4">
             <Breadcrumbs />

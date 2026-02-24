@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Search, LayoutList, LayoutGrid, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,8 @@ const PAGE_SIZE = 25
 
 export function SearchPage() {
   const { filters, page, hasActiveSearch, setFilter, clearFilter, clearAll, setPage } = useSearchState()
+
+  useEffect(() => { document.title = 'Search - The Organizer' }, [])
 
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('search-view-mode') || 'table' } catch { return 'table' }
@@ -52,7 +54,7 @@ export function SearchPage() {
           <h1 className="text-4xl font-bold tracking-tight">Employer Search</h1>
         </div>
         <p className="text-muted-foreground mb-8 text-center max-w-md">
-          Search across {(107_025).toLocaleString()} employers from NLRB elections, LM filings, and more.
+          Search across 100,000+ employers from NLRB elections, LM filings, and more.
         </p>
         <div className="w-full max-w-xl">
           <SearchBar variant="hero" initialValue="" onSearch={handleSearch} />
@@ -69,9 +71,18 @@ export function SearchPage() {
       </div>
 
       <HelpSection>
-        <p><strong>Search bar:</strong> Search by employer name, city, or state. Results appear after you type at least 3 characters.</p>
-        <p><strong>Advanced Filters:</strong> Click Filters to narrow results by state, industry (NAICS code), or data source.</p>
-        <p><strong>Results table:</strong> Click any employer name to open their full profile. Click column headers to sort. Source badges show which government databases have records for each employer.</p>
+        <p><strong>Search bar:</strong> Search by employer name, city, or state. Results appear after you type at least 3 characters. The search looks across all employer names in the database, including alternate names and former names.</p>
+        <p><strong>Advanced Filters:</strong> Click to expand additional filters that narrow your results:</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm">
+          <li><strong>State:</strong> Filter to employers in a specific state.</li>
+          <li><strong>Industry:</strong> Filter by NAICS code. Start typing an industry name to see options.</li>
+          <li><strong>Employee size:</strong> Filter to employers within a size range (e.g. 100-500).</li>
+          <li><strong>Score tier:</strong> Show only employers in a specific tier (Priority, Strong, etc.).</li>
+          <li><strong>Data sources:</strong> Show only employers with records in specific databases.</li>
+          <li><strong>Union status:</strong> Show only employers with existing union contracts, or only those without.</li>
+        </ul>
+        <p><strong>Results table columns:</strong> Click any employer name to open their full profile. Click column headers to sort. The arrow indicates which column is currently sorted.</p>
+        <p><strong>Table/Card toggle:</strong> Switch between a compact table view (more results visible) and a card view (more detail per result). Both show the same data.</p>
       </HelpSection>
 
       <SearchFilters
@@ -98,7 +109,7 @@ export function SearchPage() {
       {data && data.total > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground" aria-live="polite">
               {data.total.toLocaleString()} employer{data.total !== 1 ? 's' : ''} found
             </p>
             <div className="flex items-center border">

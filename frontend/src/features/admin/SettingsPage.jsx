@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Settings, ShieldAlert } from 'lucide-react'
 import { useAuthStore } from '@/shared/stores/authStore'
 import { HelpSection } from '@/shared/components/HelpSection'
@@ -11,6 +12,8 @@ import { UserRegistrationCard } from './UserRegistrationCard'
 
 export function SettingsPage() {
   const user = useAuthStore((s) => s.user)
+
+  useEffect(() => { document.title = 'Administration - The Organizer' }, [])
 
   if (!user || user.role !== 'admin') {
     return (
@@ -30,9 +33,15 @@ export function SettingsPage() {
       </div>
       <HelpSection>
         <p><strong>This page is only visible to administrators.</strong></p>
-        <p><strong>System Health:</strong> Green dots indicate services are running normally. Red means something needs attention.</p>
-        <p><strong>Data Freshness:</strong> Shows when each data source was last updated. Stale data (highlighted red) may need a refresh.</p>
-        <p><strong>Match Review:</strong> Review matches flagged for quality. Approve correct matches or reject incorrect ones.</p>
+        <p><strong>Data freshness:</strong> Shows when each data source was last updated. Government databases are updated on different schedules -- some monthly, some quarterly, some annually. Stale data (more than 6 months old) is highlighted. Refresh buttons trigger a new data pull from the source.</p>
+        <p><strong>Match review queue:</strong> When users click "Report a problem" on an employer profile, it appears here. Each item shows which employer and which data source the user flagged, along with the current match confidence. Admins can approve the match (dismiss the flag) or reject it (unlink the data source from that employer).</p>
+        <p><strong>System health:</strong> Database size, API response times (slower than 2 seconds may indicate a problem), and error rates (should be near zero).</p>
+        <p><strong>User management:</strong> Add, remove, or change roles for platform users.</p>
+        <ul className='list-disc pl-5 space-y-1 text-sm'>
+          <li><strong>Viewer:</strong> Can search and view everything but cannot flag, export, or report problems.</li>
+          <li><strong>Researcher:</strong> Can flag employers, export CSVs, and report bad matches.</li>
+          <li><strong>Admin:</strong> Full access including this admin panel, score weights, and user management.</li>
+        </ul>
       </HelpSection>
       <div className='grid grid-cols-1 gap-6 md:grid-cols-2'>
         <HealthStatusCard />

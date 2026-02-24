@@ -75,7 +75,7 @@ export function SearchBar({ variant = 'compact', initialValue = '', onSearch }) 
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} role="search">
         <div className="relative">
           <Search className={cn(
             'absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground',
@@ -103,6 +103,9 @@ export function SearchBar({ variant = 'compact', initialValue = '', onSearch }) 
       {/* Autocomplete dropdown */}
       {isOpen && suggestions.length > 0 && (
         <div className="absolute z-50 mt-1 w-full border bg-popover shadow-lg">
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-b bg-muted/30">
+            Employers
+          </div>
           {suggestions.map((emp, i) => (
             <button
               key={emp.canonical_id}
