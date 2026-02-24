@@ -2,6 +2,12 @@
 
 Extracted from CLAUDE.md during project cleanup (2026-02-06).
 
+### 2026-02-23i (Phase 2A: Data Enrichment — Claude Code)
+**Tasks:** Geocoding (Census Bureau batch API), NAICS inference, NLRB participant cleanup, MV rebuilds.
+**Results:** Geocoding 73.8%->83.3% (13,974 new), NAICS 89.2%->89.3% (229 new), 492K NLRB junk rows NULLed. 3 new scripts. All MVs rebuilt. Fixed has_corpwatch stats crash. 549 pass / 1 skip. 156 frontend pass.
+**Commit:** `98238d6`
+**Summary:** `docs/session-summaries/SESSION_SUMMARY_2026-02-23i_phase2a_enrichment.md`
+
 ### 2026-02-17b (Phase D1: Auth Hardening — Claude Code)
 **Tasks:** Harden authentication to be enforced by default, add role-based authorization to admin and write endpoints.
 

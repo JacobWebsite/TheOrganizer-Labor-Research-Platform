@@ -4,11 +4,89 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-23 (Claude Code: Research Agent Phase 5.2 complete)
+**Last manually updated:** 2026-02-23 (Claude Code: Phase 2A Data Enrichment)
 
 ---
 
-## Latest Update (2026-02-23 — Research Agent Phase 5.2: Reliability, Caching, Gap-Aware Search)
+## Latest Update (2026-02-23 — Phase 2A Data Enrichment)
+
+### Geocoding: 73.8% -> 83.3% Coverage
+- Census Bureau batch geocoder: 8,940 new matches (3 batches of 10K submitted)
+- ZIP centroid fallback for PO boxes: 5,034 new
+- Total new geocodes: 13,974. Still missing: 24,512.
+- Scripts: `scripts/etl/geocode_batch_prep.py`, `scripts/etl/geocode_batch_run.py`
+
+### NAICS Inference: 89.2% -> 89.3%
+- OSHA-inferred: +214. Keyword-inferred: +15 (healthcare/rehab). Total new: 229.
+- Remaining gap: 15,659 (10.7%). Existing scripts, no code changes.
+
+### NLRB Participant Cleanup: 492K Junk Rows Fixed
+- NULLed 379,558 city + 379,558 state + 492,196 zip values (literal CSV headers imported as data)
+- State backfill from co-participants cancelled (too slow even with indexes -- 30 min on 1.9M row self-join)
+- Script: `scripts/etl/clean_nlrb_participants.py` (two-phase: NULLing commits separately from backfill)
+
+### MVs Rebuilt
+- `mv_unified_scorecard`: 146,863 rows, avg=4.18
+- `mv_employer_data_sources`: 146,863 rows. Fixed `has_corpwatch` crash in stats.
+- `mv_employer_search`: 107,321 rows
+
+### Tests: 549 backend (549 pass / 1 skip), 156 frontend (all pass)
+
+Commit: `98238d6`
+
+---
+
+## Previous Update (2026-02-23 — CorpWatch SEC EDGAR ETL Executed + Master Seeding)
+
+### CorpWatch ETL: EXECUTED SUCCESSFULLY
+
+**Full ETL pipeline completed (~20 min). 14.7M rows loaded across 7 tables:**
+
+| Table | Rows Loaded | Notes |
+|-------|-------------|-------|
+| `corpwatch_companies` | 1,421,198 | 673,494 US, 286,568 with EIN (20.2%), 749,489 distinct CIKs |
+| `corpwatch_locations` | 2,622,962 | 744,527 backfilled onto companies |
+| `corpwatch_names` | 2,435,330 | Historical name variants |
+| `corpwatch_relationships` | 3,517,388 | Parent-child (COPY bulk load, 28s) |
+| `corpwatch_subsidiaries` | 4,463,030 | Exhibit 21 disclosures (358K non-US skipped) |
+| `corpwatch_filing_index` | 208,503 | SEC filing metadata |
+| `corpwatch_f7_matches` | (populated by crosswalk) | CIK bridge matches |
+
+**Master Employers Seeding (6 stages):**
+
+| Stage | Description | Count |
+|-------|-------------|-------|
+| 1 | F7 bridge (via corpwatch_f7_matches) | 0 (no prior matches) |
+| 2 | EIN match to existing masters | 1,565 |
+| 3 | Canonical name + state match | 3,359 |
+| 4 | New master_employers rows (source_origin='corpwatch', is_public=TRUE) | 668,454 |
+| 5 | Backfill source IDs for new rows | 670,620 |
+| 6a | Enrich is_public=TRUE on matched masters | 4,258 |
+| 6b | EIN backfill on masters | 2,122 |
+| **Total source IDs** | | **675,544** |
+
+**Crosswalk + Hierarchy:**
+- CIK bridge: 3,560 crosswalk rows linked to CorpWatch, 2,240 UML entries created
+- Hierarchy: 97,804 new CORPWATCH edges added (total 222,924, was 125,120)
+
+**Updated table counts:**
+- `master_employers`: ~3.4M (was 2.7M, +668K corpwatch)
+- `master_employer_source_ids`: ~3.76M (was 3.08M, +675K corpwatch)
+- `corporate_hierarchy`: 222,924 edges (was 125,120, +97.8K)
+
+**Runtime fixes applied during execution:**
+- Extended `chk_master_source_system` CHECK constraint to include 'corpwatch'
+- Extended `chk_master_source_origin` CHECK constraint to include 'corpwatch'
+- Fixed UML INSERT: `match_method` (not `method`), added `run_id`, `target_system`, `match_tier`, `confidence_band`
+- Added `DISTINCT ON` + `ON CONFLICT DO NOTHING` for crosswalk dedup
+
+**Still pending:**
+- Deterministic matching: `py scripts/matching/run_deterministic.py corpwatch --rematch-all --batch 1/4` through `4/4`
+- MV rebuilds (DROP+CREATE for has_corpwatch column in employer_data_sources)
+
+---
+
+## Previous Update (2026-02-23 — Research Agent Phase 5.2: Reliability, Caching, Gap-Aware Search)
 
 ### Research Agent Phase 5.2: DONE
 
@@ -30,7 +108,7 @@
 
 ## Previous Update (2026-02-23 — CorpWatch SEC EDGAR Import Code Complete)
 
-### CorpWatch Import: CODE COMPLETE, Ready to Run
+### CorpWatch Import: CODE COMPLETE (ETL now executed -- see Latest Update above)
 
 **Built the complete ETL + matching pipeline for CorpWatch SEC EDGAR data (2003-2025):**
 - **What:** 1.43M companies, 3.5M parent-child relationships, 4.8M Exhibit 21 subsidiary disclosures, 293K EIN↔CIK cross-reference. Dramatically expands corporate hierarchy (currently 125K edges from GLEIF+Mergent) and crosswalk (currently 3,313 employers).
