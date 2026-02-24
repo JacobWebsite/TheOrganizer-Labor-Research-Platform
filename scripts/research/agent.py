@@ -1567,6 +1567,13 @@ Be thorough. An empty section means you did not search hard enough. Every compan
         progress_pct=100,
     )
 
+    # Auto-grade the completed run (non-blocking)
+    try:
+        from scripts.research.auto_grader import grade_and_save
+        grade_and_save(run_id)
+    except Exception as e:
+        _log.warning("Auto-grading failed for run %d: %s", run_id, e)
+
     summary = {
         "status": "completed",
         "run_id": run_id,

@@ -30,7 +30,7 @@ const MOCK_RUNS = {
       duration_seconds: 90,
       sections_filled: 7,
       total_facts_found: 32,
-      overall_quality_score: 0.85,
+      overall_quality_score: 7.5,
       progress_pct: 100,
       current_step: 'Done',
     },

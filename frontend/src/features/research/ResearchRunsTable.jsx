@@ -67,9 +67,13 @@ export function ResearchRunsTable({ runs, total, page, pageSize, onPageChange })
                 <td className="px-3 py-2 text-muted-foreground">{run.industry_naics || '-'}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">{formatDuration(run.duration_seconds)}</td>
                 <td className="px-3 py-2 text-right">{run.total_facts_found ?? '-'}</td>
-                <td className="px-3 py-2 text-right">
+                <td className={cn('px-3 py-2 text-right font-medium',
+                  run.overall_quality_score != null
+                    ? run.overall_quality_score >= 7 ? 'text-green-600' : run.overall_quality_score >= 5 ? 'text-yellow-600' : 'text-red-600'
+                    : ''
+                )}>
                   {run.overall_quality_score != null
-                    ? `${Math.round(run.overall_quality_score * 100)}%`
+                    ? Number(run.overall_quality_score).toFixed(1)
                     : '-'}
                 </td>
                 <td className="px-3 py-2 text-right">{run.sections_filled != null ? `${run.sections_filled}/7` : '-'}</td>

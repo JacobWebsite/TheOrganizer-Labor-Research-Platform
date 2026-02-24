@@ -127,11 +127,45 @@ export function ResearchResultPage() {
       {isCompleted && result && (
         <>
           {result.quality_score != null && (
-            <p className="text-sm text-muted-foreground">
-              Overall quality: <span className="font-medium">{Math.round(result.quality_score * 100)}%</span>
-              {' '}&middot;{' '}
-              {result.total_facts} fact{result.total_facts !== 1 ? 's' : ''} across {result.sections_filled} section{result.sections_filled !== 1 ? 's' : ''}
-            </p>
+            <div className="border rounded-lg p-4 bg-card">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">Research Quality</h3>
+                <span className={`text-2xl font-bold ${
+                  result.quality_score >= 7 ? 'text-green-600' : result.quality_score >= 5 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {result.quality_score.toFixed(1)}<span className="text-sm font-normal text-muted-foreground">/10</span>
+                </span>
+              </div>
+              {result.quality_dimensions && (
+                <div className="space-y-2">
+                  {[
+                    { key: 'coverage', label: 'Coverage', weight: '20%' },
+                    { key: 'source_quality', label: 'Source Quality', weight: '35%' },
+                    { key: 'consistency', label: 'Consistency', weight: '25%' },
+                    { key: 'freshness', label: 'Freshness', weight: '15%' },
+                    { key: 'efficiency', label: 'Efficiency', weight: '5%' },
+                  ].map(({ key, label, weight }) => {
+                    const val = result.quality_dimensions[key]
+                    if (val == null) return null
+                    return (
+                      <div key={key} className="flex items-center gap-2 text-sm">
+                        <span className="w-28 text-muted-foreground shrink-0">{label} <span className="text-xs">({weight})</span></span>
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${val >= 7 ? 'bg-green-500' : val >= 5 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                            style={{ width: `${(val / 10) * 100}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-right font-medium">{val.toFixed(1)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-3">
+                {result.total_facts} fact{result.total_facts !== 1 ? 's' : ''} across {result.sections_filled} section{result.sections_filled !== 1 ? 's' : ''}
+              </p>
+            </div>
           )}
 
           {SECTION_ORDER.map((sectionKey) => (

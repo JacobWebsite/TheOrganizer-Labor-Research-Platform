@@ -63,7 +63,7 @@ export function DossierHeader({ status, onRunAgain }) {
         )}
 
         {!isInProgress && (
-          <div className="grid grid-cols-2 gap-4 mt-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 mt-3 sm:grid-cols-5">
             <div>
               <p className="text-xs text-muted-foreground">Duration</p>
               <p className="text-sm font-medium">{formatDuration(status?.duration_seconds)}</p>
@@ -79,6 +79,15 @@ export function DossierHeader({ status, onRunAgain }) {
             <div>
               <p className="text-xs text-muted-foreground">Tools Called</p>
               <p className="text-sm font-medium">{status?.total_tools_called ?? '-'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Quality</p>
+              <p className={cn('text-sm font-medium', status?.overall_quality_score != null
+                ? status.overall_quality_score >= 7 ? 'text-green-600' : status.overall_quality_score >= 5 ? 'text-yellow-600' : 'text-red-600'
+                : ''
+              )}>
+                {status?.overall_quality_score != null ? `${Number(status.overall_quality_score).toFixed(1)}/10` : '-'}
+              </p>
             </div>
           </div>
         )}

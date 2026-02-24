@@ -88,7 +88,14 @@ const MOCK_RESULT = {
     { tool_name: 'query_nlrb', execution_order: 3, data_found: true, facts_extracted: 3, latency_ms: 200, result_summary: '15 elections, 4 ULPs' },
     { tool_name: 'query_sec', execution_order: 4, data_found: false, facts_extracted: 0, latency_ms: 150, result_summary: 'No SEC filings matched' },
   ],
-  quality_score: 0.85,
+  quality_score: 7.5,
+  quality_dimensions: {
+    coverage: 8.0,
+    source_quality: 7.2,
+    consistency: 9.0,
+    freshness: 6.5,
+    efficiency: 8.0,
+  },
 }
 
 function renderResultPage(runId = '1') {
@@ -164,7 +171,19 @@ describe('ResearchResultPage', () => {
     useResearchStatus.mockReturnValue({ data: MOCK_STATUS_COMPLETED, isLoading: false, isError: false })
     useResearchResult.mockReturnValue({ data: MOCK_RESULT, isLoading: false, isError: false })
     renderResultPage()
-    expect(screen.getByText('85%')).toBeInTheDocument()
+    expect(screen.getByText('7.5')).toBeInTheDocument()
+    expect(screen.getByText('Research Quality')).toBeInTheDocument()
+  })
+
+  it('renders quality dimension bars for completed run', () => {
+    useResearchStatus.mockReturnValue({ data: MOCK_STATUS_COMPLETED, isLoading: false, isError: false })
+    useResearchResult.mockReturnValue({ data: MOCK_RESULT, isLoading: false, isError: false })
+    renderResultPage()
+    expect(screen.getByText(/Coverage/)).toBeInTheDocument()
+    expect(screen.getByText(/Source Quality/)).toBeInTheDocument()
+    expect(screen.getByText(/Consistency/)).toBeInTheDocument()
+    expect(screen.getByText(/Freshness/)).toBeInTheDocument()
+    expect(screen.getByText(/Efficiency/)).toBeInTheDocument()
   })
 
   it('renders action log for completed run', () => {

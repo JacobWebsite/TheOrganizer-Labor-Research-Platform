@@ -138,7 +138,7 @@ def get_research_status(run_id: int):
                 SELECT id, company_name, status, current_step, progress_pct,
                        started_at, completed_at, duration_seconds,
                        total_tools_called, total_facts_found, sections_filled,
-                       total_cost_cents
+                       total_cost_cents, overall_quality_score, quality_dimensions
                 FROM research_runs
                 WHERE id = %s
             """, (run_id,))
@@ -219,6 +219,7 @@ def get_research_result(run_id: int):
         "facts_by_section": sections,          # Individual facts grouped
         "action_log": [dict(a) for a in actions],  # What the agent did
         "quality_score": float(run['overall_quality_score']) if run['overall_quality_score'] else None,
+        "quality_dimensions": run['quality_dimensions'] if run['quality_dimensions'] else None,
     }
 
 
