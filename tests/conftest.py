@@ -13,9 +13,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 # Auth-specific tests set their own secret via fixture patching.
 os.environ["DISABLE_AUTH"] = "true"
 os.environ["LABOR_JWT_SECRET"] = ""
+os.environ["RATE_LIMIT_REQUESTS"] = "0"  # Disable rate limiting for tests
 
 from starlette.testclient import TestClient
 from api.main import app
+
+# Patch rate limit in all modules that imported it by value
+import api.config as _cfg
+import api.middleware.rate_limit as _rl
+_cfg.RATE_LIMIT_REQUESTS = 0
+_rl.RATE_LIMIT_REQUESTS = 0
 
 
 @pytest.fixture(scope="session")
