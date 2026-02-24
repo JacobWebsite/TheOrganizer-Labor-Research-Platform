@@ -4,11 +4,92 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-23 (Claude Code: Phase 1 Data Trust complete)
+**Last manually updated:** 2026-02-23 (Claude Code: Research Agent Phase 5.2 complete)
 
 ---
 
-## Latest Update (2026-02-23 — Phase 1 Data Trust DONE)
+## Latest Update (2026-02-23 — Research Agent Phase 5.2: Reliability, Caching, Gap-Aware Search)
+
+### Research Agent Phase 5.2: DONE
+
+**Fixed the 10.6% zero-fact failure rate and added intelligence to web search:**
+
+- **Vocabulary fix (Part A):** 5 broken `_TOOL_FACT_MAP` entries corrected (nonprofit_employees, nonprofit_ein, annual_revenue, company_website). Added `federal_contract_status` to vocabulary. JSON repair Strategy 4 added (strip non-JSON prefix). Zero-fact runs should drop from 10.6% to ~0%.
+- **Result caching (Part B):** `_check_cache()` reuses recent tool results (7-day window) for repeat employers. Starbucks repeat run: 120s->100s (-17%), 45K->33K tokens (-28%), 6->4 cents (-33%).
+- **Gap-aware web search (Part C):** Replaced static 6-query web search with dynamic 8-15 targeted queries based on which DB tools missed. `_GAP_QUERY_TEMPLATES` (10 gap types), `_TOOL_GAP_MAP`, `_build_web_search_queries()`. Query effectiveness learning via `research_query_effectiveness` table — after ~20-30 runs, system automatically surfaces best-performing templates.
+- **Tests:** 31 new (7 classes), 549 total pass / 1 skip. Commit `5d343fb`.
+
+**Research Agent Phase 5 status:**
+- **5.1** Internal tools + external tools + logging + agent + frontend: DONE
+- **5.1 Employer scraper:** DONE (Crawl4AI)
+- **5.2** Strategy memory + caching + gap-aware search + learning: **DONE**
+- **5.3** Auto Scoring: NOT started (needs D16, D17, D18)
+- **5.4** Query Refinement: Partially done (template-level tracking built in 5.2, full mutation deferred)
+
+---
+
+## Previous Update (2026-02-23 — CorpWatch SEC EDGAR Import Code Complete)
+
+### CorpWatch Import: CODE COMPLETE, Ready to Run
+
+**Built the complete ETL + matching pipeline for CorpWatch SEC EDGAR data (2003-2025):**
+- **What:** 1.43M companies, 3.5M parent-child relationships, 4.8M Exhibit 21 subsidiary disclosures, 293K EIN↔CIK cross-reference. Dramatically expands corporate hierarchy (currently 125K edges from GLEIF+Mergent) and crosswalk (currently 3,313 employers).
+- **Files created:**
+  - `scripts/etl/load_corpwatch.py` — Main ETL script with 12 steps (schema, 6 CSV loaders, indexes, crosswalk extension, CIK bridge, hierarchy enrichment, verification). Supports `--step` for individual execution.
+  - `scripts/matching/adapters/corpwatch_adapter.py` — Standard matching adapter (load_unmatched, load_all, write_legacy, SOURCE_SYSTEM='corpwatch')
+  - `docs/CORPWATCH_IMPORT_PLAN.md` — Full implementation plan with code, runbook, and verification queries
+- **Files modified:**
+  - `scripts/matching/run_deterministic.py` — Added `corpwatch_adapter` import + ADAPTERS dict entry
+  - `scripts/scoring/build_employer_data_sources.py` — Added `has_corpwatch` flag to UML CTE, SELECT, source_count, and stats printing
+- **Tables to create (7):** `corpwatch_companies` (~361K), `corpwatch_locations` (~400K), `corpwatch_relationships` (~3.5M), `corpwatch_subsidiaries` (~2M), `corpwatch_names` (~500K), `corpwatch_filing_index` (~208K), `corpwatch_f7_matches`
+- **Matching plan:** CIK bridge (instant, ~3-5K matches) -> full 6-tier deterministic in 4 sequential batches (~361K US companies, expected 15-30K total matches)
+- **CSV location:** `C:\Users\jakew\Downloads\corpwatch_api_tables_csv\corpwatch_api_tables_csv\` (~8.5GB total, importing ~2.1GB, skipping 6.4GB of zero-value filing metadata)
+- **Tests:** All 518 backend tests pass with the new code (verified). No regressions.
+- **To run:** See `docs/CORPWATCH_IMPORT_PLAN.md` for full runbook. Quick version:
+  ```
+  py scripts/etl/load_corpwatch.py                                    # Full ETL (~20 min)
+  py scripts/matching/run_deterministic.py corpwatch --rematch-all --batch 1/4
+  py scripts/matching/run_deterministic.py corpwatch --rematch-all --batch 2/4
+  py scripts/matching/run_deterministic.py corpwatch --rematch-all --batch 3/4
+  py scripts/matching/run_deterministic.py corpwatch --rematch-all --batch 4/4
+  py scripts/scoring/build_employer_data_sources.py                   # Rebuild MV (DROP+CREATE, SQL changed)
+  ```
+- **Roadmap:** Added as Phase 2A.7 in `MASTER_ROADMAP_2026_02_23.md`
+
+### Previous: 2026-02-23 — Research Agent Web Search + Frontend
+
+### Research Agent: Web Search + Frontend DONE
+
+**Built the complete research deep dive system:**
+- **Frontend (13 new files):** Research list page (`/research`), dossier result viewer (`/research/:runId`), progress polling, "Run Deep Dive" button on employer profiles. 22 new tests (156 total frontend tests, all pass).
+- **Web search via Gemini Google Search grounding:** Three-phase approach — Phase 1 (DB function calling), Phase 2 (Google Search grounding in separate API call), Phase 3 (patch-based merge into dossier). Free with existing `GOOGLE_API_KEY`.
+- **Name matching fix:** `_name_like_clause()` helper generates both spaced and non-spaced LIKE patterns (e.g., `%FED EX%` AND `%FEDEX%`). Applied to all 8 DB search tools. SEC additionally sorts by `is_public DESC, LENGTH(company_name) ASC`.
+- **Patch-based web merge:** Instead of asking Gemini to reproduce entire 40K+ char JSON, it returns a small JSON patch (`assessment_additions`, `web_facts`, `web_sources`) applied programmatically. Fallback preserves original dossier on failure.
+- **Agent:** Gemini 2.5 Flash (not Claude) via `google-genai` SDK. 10 internal DB tools + Google Search grounding. Guided autonomy with recommended tool order.
+- **Logging:** `research_runs`, `research_actions`, `research_facts` tables. Google search queries logged as `google_search` actions.
+- **~20 test runs completed:** Penske, FedEx, and others. Assessment sections now include web-sourced context (strikes, NLRB rulings, layoffs, Reddit worker sentiment).
+- **Commits:** `25f3d9d` (web search), `d071bac` (name matching + merge reliability), `40d2c4e` (dossier rendering), `12490dd` (frontend), `63b8f79` (session summary).
+
+**Key technical lesson:** Gemini API cannot combine `function_declarations` and `google_search` tools in same request (returns 400). Must use separate API calls.
+
+**Research Agent Phase 5 status (per RESEARCH_AGENT_IMPLEMENTATION_PLAN.md):**
+- **5.1.1** Internal DB tools: DONE (10 tools)
+- **5.1.2** External tools: Web search DONE (Gemini grounding). `scrape_employer_website` and `search_job_postings` NOT built.
+- **5.1.3** Logging tables: DONE
+- **5.1.4** Agent prompt: DONE (7-section dossier, guided autonomy)
+- **5.1.5** Orchestration: DONE (Gemini tool use + web search + patch merge)
+- **5.1.6** Test runs: ~20 completed (need 10-15 more across diverse industries)
+- **Frontend**: DONE
+- **5.2** Strategy Memory: NOT started (table exists, not populated/injected)
+- **5.3** Auto Scoring: NOT started
+- **5.4** Query Refinement: Deferred (needs 100+ runs)
+
+**Decisions resolved for research agent:**
+- D10: Web search = Gemini Google Search grounding (free, not Claude built-in or Tavily)
+- D12: Runs as FastAPI background task (not CLI-first)
+- D13: Guided autonomy (recommended order, can deviate)
+
+### Previous: Phase 1 Data Trust DONE (2026-02-23)
 
 **Multi-agent execution:** Claude (scoring fixes), Codex (investigations I1-I5, junk cleanup), Gemini (OSHA cleanup 1.4, data coverage 1.5B, investigations I6-I10).
 
@@ -62,7 +143,15 @@
 | mergent | 1,045 |
 | BMF | 9 |
 
-### What's Next: Phase 2 (Matching Quality Overhaul)
+### What's Next: Research Agent Phase 5.1.6+ / Phase 2
+
+**Research Agent (priority):**
+- **5.1.6** Run 10-15 more companies across diverse industries (healthcare, manufacturing, hospitality, building services, retail, transportation)
+- **Employer website scraper** (`scrape_employer_website`) — Crawl4AI integration
+- **5.2 Strategy Memory** — Populate `research_strategies` table, inject hit-rate recommendations into prompt
+- **5.3 Auto Scoring** — Post-run quality grading (coverage, source quality, consistency, freshness, efficiency)
+
+**Phase 2 (Matching Quality Overhaul):**
 - **Track A (Claude):** Splink model retune (2.1), OSHA re-run with new model (2.2), evaluate other sources (2.3), MV rebuild (2.6).
 - **Track B (Codex):** Employer grouping fix (2.4, I8 findings), NAICS inference (2A.2, I9 findings), Multi-employer flagging (2A.6, I10 findings).
 - **Deferred:** Geocoding (2A.4), NLRB xref rebuild (2A.5), master employer dedup quality.
