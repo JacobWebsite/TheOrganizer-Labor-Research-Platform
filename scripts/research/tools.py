@@ -1317,19 +1317,262 @@ def search_web(company_name: str, query: Optional[str] = None, **_kw) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# TOOL 12: scrape_employer_website  (deferred to Phase 2 / Crawl4AI)
+# TOOL 12: scrape_employer_website  (Crawl4AI)
 # ---------------------------------------------------------------------------
 
-def scrape_employer_website(company_name: str, url: Optional[str] = None, **_kw) -> dict:
-    """Stub — website scraping requires Crawl4AI async runtime.
-    Will be implemented when the full agent loop is in place."""
-    return {
-        "found": False,
-        "source": "web_scrape",
-        "summary": "Website scraping is not yet implemented (Phase 2).",
-        "data": {},
-        "error": "Not yet implemented.",
+# Page budgets: (paths_to_try, char_limit)
+_SCRAPE_PAGES = [
+    ("homepage", ["/"], 3000),
+    ("about", ["/about", "/about-us", "/company"], 2500),
+    ("careers", ["/careers", "/jobs"], 1500),
+    ("news", ["/news", "/press", "/newsroom"], 1000),
+]
+_SCRAPE_TOTAL_BUDGET = 8000
+_SCRAPE_TIMEOUT = 28.0  # seconds — guarantees return within ~30s
+
+
+def _normalize_url(raw: Optional[str]) -> Optional[str]:
+    """Normalise a URL from Mergent or user input.
+
+    Mergent stores values like ``WWW.COMPANY.COM`` or ``N/A``.
+    Returns a clean ``https://...`` URL or None.
+    """
+    if not raw:
+        return None
+    cleaned = str(raw).strip()
+    if not cleaned or cleaned.upper() in ("N/A", "NA", "NAN", "NONE", "NULL", ""):
+        return None
+    cleaned = cleaned.lower()
+    if not cleaned.startswith(("http://", "https://")):
+        cleaned = "https://" + cleaned
+    return cleaned.rstrip("/")
+
+
+def _resolve_employer_url(
+    company_name: str,
+    url: Optional[str] = None,
+    employer_id: Optional[str] = None,
+) -> tuple[Optional[str], str]:
+    """Three-tier URL resolution. Returns (url, url_source)."""
+    # Tier 1: provided URL
+    if url:
+        norm = _normalize_url(url)
+        if norm:
+            return norm, "provided"
+
+    # Tier 2: Mergent via employer_id -> unified_match_log -> mergent_employers
+    if employer_id:
+        try:
+            conn = _conn()
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT source_id FROM unified_match_log
+                WHERE source_system = 'mergent'
+                  AND target_id = %s
+                  AND status = 'active'
+                LIMIT 1
+            """, (employer_id,))
+            r = cur.fetchone()
+            if r:
+                cur.execute(
+                    "SELECT website FROM mergent_employers WHERE duns = %s LIMIT 1",
+                    (r["source_id"],),
+                )
+                mr = cur.fetchone()
+                if mr:
+                    norm = _normalize_url(mr.get("website"))
+                    if norm:
+                        conn.close()
+                        return norm, "mergent_db"
+            conn.close()
+        except Exception as exc:
+            _log.debug("Tier-2 URL lookup failed: %s", exc)
+
+    # Tier 3: Mergent by company name
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+        name_clause, name_params = _name_like_clause("UPPER(company_name)", company_name)
+        cur.execute(f"""
+            SELECT company_name, website FROM mergent_employers
+            WHERE {name_clause} AND website IS NOT NULL AND website != ''
+            ORDER BY employees_all_sites DESC NULLS LAST
+            LIMIT 5
+        """, name_params)
+        candidates = cur.fetchall()
+        candidates = _filter_by_name_similarity(candidates, company_name, "company_name")
+        conn.close()
+        if candidates:
+            norm = _normalize_url(candidates[0].get("website"))
+            if norm:
+                return norm, "name_search"
+    except Exception as exc:
+        _log.debug("Tier-3 URL lookup failed: %s", exc)
+
+    return None, "none"
+
+
+def _truncate_markdown(text: str, limit: int) -> str:
+    """Truncate markdown at a paragraph or sentence boundary."""
+    if not text or len(text) <= limit:
+        return text or ""
+    # Try paragraph boundary
+    cut = text.rfind("\n\n", 0, limit)
+    if cut > limit * 0.5:
+        return text[:cut].rstrip()
+    # Try sentence boundary
+    for sep in (". ", ".\n", "! ", "? "):
+        cut = text.rfind(sep, 0, limit)
+        if cut > limit * 0.3:
+            return text[: cut + 1].rstrip()
+    # Hard cut at word boundary
+    cut = text.rfind(" ", 0, limit)
+    if cut > 0:
+        return text[:cut].rstrip() + "..."
+    return text[:limit]
+
+
+async def _scrape_pages(base_url: str) -> dict:
+    """Async core — scrape homepage + subpages with Crawl4AI.
+
+    Returns a dict with keys: homepage_text, about_text, careers_text,
+    news_text, pages_scraped, total_chars, url.
+    """
+    from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
+
+    browser_cfg = BrowserConfig(
+        headless=True,
+        user_agent="LaborResearchPlatform/1.0 (Academic Research; contact: jakewartel@gmail.com)",
+    )
+    run_cfg = CrawlerRunConfig(
+        page_timeout=15000,
+        wait_until="domcontentloaded",
+        cache_mode=CacheMode.BYPASS,
+        check_robots_txt=True,
+        verbose=False,
+    )
+
+    result_data = {
+        "url": base_url,
+        "homepage_text": None,
+        "about_text": None,
+        "careers_text": None,
+        "news_text": None,
+        "pages_scraped": 0,
+        "total_chars": 0,
     }
+
+    import asyncio as _aio
+
+    async with AsyncWebCrawler(config=browser_cfg) as crawler:
+        for page_key, paths, char_limit in _SCRAPE_PAGES:
+            text = None
+            for path in paths:
+                page_url = base_url.rstrip("/") + path if path != "/" else base_url
+                try:
+                    res = await crawler.arun(url=page_url, config=run_cfg)
+                    if res.success:
+                        raw = ""
+                        if res.markdown:
+                            raw = (
+                                res.markdown.raw_markdown
+                                if hasattr(res.markdown, "raw_markdown")
+                                else str(res.markdown)
+                            )
+                        if raw and len(raw.strip()) > 100:
+                            text = _truncate_markdown(raw.strip(), char_limit)
+                            break
+                except Exception:
+                    pass
+                await _aio.sleep(0.5)
+
+            data_key = f"{page_key}_text"
+            if text:
+                result_data[data_key] = text
+                result_data["pages_scraped"] += 1
+                result_data["total_chars"] += len(text)
+            else:
+                result_data[data_key] = None
+
+            # Homepage is required — if it failed, stop early
+            if page_key == "homepage" and not text:
+                return result_data
+
+            # Respect total budget
+            if result_data["total_chars"] >= _SCRAPE_TOTAL_BUDGET:
+                break
+
+    return result_data
+
+
+def scrape_employer_website(
+    company_name: str,
+    *,
+    url: Optional[str] = None,
+    employer_id: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Scrape the employer's website for company info, leadership, careers, and news."""
+    source = "web_scrape:employer_website"
+    try:
+        from crawl4ai import AsyncWebCrawler  # noqa: F401 — availability check
+    except ImportError:
+        return {
+            "found": False,
+            "source": source,
+            "summary": "Crawl4AI not installed.",
+            "data": {},
+            "error": "Crawl4AI not installed.",
+        }
+
+    try:
+        resolved_url, url_source = _resolve_employer_url(company_name, url, employer_id)
+        if not resolved_url:
+            return {
+                "found": False,
+                "source": source,
+                "summary": f"No website URL found for {company_name}.",
+                "data": {"url_source": "none"},
+            }
+
+        import asyncio
+
+        result_data = asyncio.run(
+            asyncio.wait_for(_scrape_pages(resolved_url), timeout=_SCRAPE_TIMEOUT)
+        )
+        result_data["url_source"] = url_source
+
+        if not result_data.get("homepage_text"):
+            return {
+                "found": False,
+                "source": source,
+                "summary": f"Could not fetch homepage at {resolved_url}.",
+                "data": result_data,
+            }
+
+        from urllib.parse import urlparse
+        domain = urlparse(resolved_url).netloc
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": (
+                f"Scraped {result_data['pages_scraped']} page(s) from {domain} "
+                f"({result_data['total_chars']:,} chars total)."
+            ),
+            "data": result_data,
+        }
+
+    except asyncio.TimeoutError:
+        return {
+            "found": False,
+            "source": source,
+            "summary": f"Website scrape timed out after {_SCRAPE_TIMEOUT}s.",
+            "data": {},
+            "error": "Timeout",
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -1494,12 +1737,13 @@ TOOL_DEFINITIONS = [
     # search_web removed — replaced by Gemini Google Search grounding in agent.py
     {
         "name": "scrape_employer_website",
-        "description": "Scrape the employer's website for company info, job postings, leadership, and locations. Provide the URL if known. (Currently a placeholder — returns no data.)",
+        "description": "Scrape the employer's website for company info, leadership, careers/job postings, and news. If you don't have a URL, the tool will look it up in the Mergent database. Tip: if search_mergent returned a 'website' field, pass that URL here.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "company_name": {"type": "string", "description": "Company name"},
-                "url": {"type": "string", "description": "Company website URL if known"},
+                "employer_id": {"type": "string", "description": "F7 employer_id for Mergent URL lookup"},
+                "url": {"type": "string", "description": "Company website URL if known (e.g. from search_mergent)"},
             },
             "required": ["company_name"],
         },

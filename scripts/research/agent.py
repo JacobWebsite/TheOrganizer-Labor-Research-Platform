@@ -62,7 +62,8 @@ _OUTPUT_COST_PER_1K = 0.25   # $2.50/M output
 _INTERNAL_TOOLS = [
     "search_osha", "search_nlrb", "search_whd", "search_sec",
     "search_sam", "search_990", "search_contracts", "search_mergent",
-    "get_industry_profile", "get_similar_employers", "google_search",
+    "get_industry_profile", "get_similar_employers", "scrape_employer_website",
+    "google_search",
 ]
 
 # Dossier sections
@@ -132,7 +133,7 @@ def _build_gemini_tools() -> list[types.Tool]:
     for td in TOOL_DEFINITIONS:
         # Skip stubs — web search uses a separate grounding phase,
         # scraper is not yet implemented
-        if td["name"] in ("search_web", "scrape_employer_website"):
+        if td["name"] in ("search_web",):
             continue
 
         schema = td["input_schema"]
@@ -218,7 +219,9 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - BLS industry profile (get_industry_profile) -- needs a NAICS code
    - Similar organized employers (get_similar_employers)
 
-3. **Synthesize** your findings into the dossier.
+3. **Scrape employer website** (scrape_employer_website) -- if search_mergent returned a website URL, pass it here. Otherwise the tool will look it up. Returns homepage, about, careers, and news text.
+
+4. **Synthesize** your findings into the dossier.
 
 IMPORTANT: Do NOT attempt to call google_search or any web search tool. Web search is handled separately after your database queries. Focus ONLY on the database tools listed above.
 
@@ -476,6 +479,9 @@ _TOOL_FACT_MAP = {
         ("employee_count", "employees_all_sites"),
         ("annual_revenue", "sales_amount"),
         ("company_website", "website"),
+    ],
+    "scrape_employer_website": [
+        ("company_website", "url"),
     ],
 }
 
