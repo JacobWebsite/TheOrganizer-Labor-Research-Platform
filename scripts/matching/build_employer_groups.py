@@ -85,53 +85,7 @@ SKIP_REASONS = {'SAG_AFTRA_SIGNATORY', 'SIGNATORY_PATTERN'}
 GENERIC_TOKENS = {
     "construction", "contractor", "contractors", "builders", "building",
     "service", "services", "equipment",
-    # Phase 2.4 additions — directional/regional/descriptive words that produce
-    # mega-merges when they are the *only* token left after aggressive normalisation
-    "maintenance", "electric", "community", "national", "american",
-    "general", "continental", "pacific", "pioneer", "metropolitan",
-    "industrial", "commercial", "universal", "premier", "standard",
-    "central", "southern", "northern", "western", "eastern", "midwest",
-    "united", "international", "federal", "republic", "liberty",
-    "heritage", "trinity", "alliance", "patriot", "cornerstone",
 }
-
-# Major US cities / geographic words that commonly appear as the sole
-# aggressive-normalised employer name and cause unrelated employers to merge.
-GEOGRAPHIC_TOKENS = {
-    # cities from I8 problem groups
-    "san diego", "cincinnati", "metropolitan", "portland", "sacramento",
-    "pittsburgh", "cleveland", "memphis", "milwaukee", "oakland",
-    "tucson", "omaha", "reno", "tulsa", "boise",
-    # top-50 US cities that appear in employer names
-    "houston", "chicago", "dallas", "phoenix", "detroit", "seattle",
-    "denver", "atlanta", "miami", "boston", "charlotte", "nashville",
-    "austin", "columbus", "indianapolis", "jacksonville", "louisville",
-    "baltimore", "buffalo", "norfolk", "richmond", "tampa",
-    "las vegas", "los angeles", "san francisco", "san antonio",
-    "new orleans", "new york", "kansas city", "salt lake city",
-    "st louis", "st paul", "fort worth", "long beach", "el paso",
-    "santa fe", "santa cruz", "santa barbara", "santa rosa",
-    # state / region names that also appear alone
-    "california", "florida", "texas", "michigan", "ohio", "virginia",
-    "georgia", "carolina", "colorado", "arizona", "oregon",
-    "connecticut", "alabama", "tennessee", "missouri", "maryland",
-    "wisconsin", "minnesota", "kentucky", "oklahoma", "arkansas",
-    "mississippi", "nebraska", "montana", "hawaii", "alaska",
-    "new england", "northwest", "southeast", "southwest", "northeast",
-    "mid atlantic",
-}
-
-# Pre-split multi-word geographic tokens into a set of frozen tuples for
-# efficient lookup.  Single-word entries stored in a separate set so we can
-# do O(1) membership tests on both.
-_GEO_SINGLE = set()
-_GEO_MULTI = {}  # normalised multi-word string -> True
-for _g in GEOGRAPHIC_TOKENS:
-    _parts = _g.split()
-    if len(_parts) == 1:
-        _GEO_SINGLE.add(_g)
-    else:
-        _GEO_MULTI[_g] = True
 
 SINGLE_INITIAL_GENERIC_RE = re.compile(
     r"^[a-z]\s+(construction|contractor|contractors|builders|building|service|services|equipment)$"
@@ -142,22 +96,6 @@ KNOWN_BRANDS = {
         r"\b(healthcare services group|health services group|hcsg)\b", re.IGNORECASE
     ),
     "brand:first_student": re.compile(r"\bfirst\s+student\b", re.IGNORECASE),
-    # Phase 2.4 additions — consolidate fragmented multi-state chains
-    "brand:aramark": re.compile(r"\b(aramark)\b", re.IGNORECASE),
-    "brand:sodexo": re.compile(r"\b(sodexo|sdh)\b", re.IGNORECASE),
-    "brand:alsco": re.compile(r"\b(alsco)\b", re.IGNORECASE),
-    "brand:ameripride": re.compile(r"\b(ameripride)\b", re.IGNORECASE),
-    "brand:compass_group": re.compile(r"\b(compass\s+group|compass)\b", re.IGNORECASE),
-    "brand:starbucks": re.compile(r"\b(starbucks)\b", re.IGNORECASE),
-    "brand:mv_transportation": re.compile(r"\b(mv\s+transportation)\b", re.IGNORECASE),
-    "brand:waste_management": re.compile(r"\b(waste\s+management)\b", re.IGNORECASE),
-    "brand:safeway": re.compile(r"\b(safeway)\b", re.IGNORECASE),
-    "brand:unicco": re.compile(r"\b(unicco)\b", re.IGNORECASE),
-    "brand:pepsico": re.compile(r"\b(pepsico|pepsi)\b", re.IGNORECASE),
-    "brand:dhl": re.compile(r"\b(dhl)\b", re.IGNORECASE),
-    "brand:abm": re.compile(r"\b(abm)\b", re.IGNORECASE),
-    "brand:securitas": re.compile(r"\b(securitas)\b", re.IGNORECASE),
-    "brand:loomis": re.compile(r"\b(loomis)\b", re.IGNORECASE),
 }
 
 
@@ -177,11 +115,6 @@ def _known_brand_key(name_standard):
 
 
 def _is_generic_group_name(name_aggressive, employer_name_standard):
-    """Return True if name_aggressive is too generic for state-only grouping.
-
-    Generic names are forced into city+state grouping (Phase 1) so that
-    unrelated employers sharing a city/directional name don't merge.
-    """
     na = (name_aggressive or "").strip().lower()
     if not na:
         return False
@@ -191,33 +124,10 @@ def _is_generic_group_name(name_aggressive, employer_name_standard):
     toks = na.split()
     if SINGLE_INITIAL_GENERIC_RE.match(na):
         return True
-
-    # Single token that is generic or a geographic name
-    if len(toks) == 1 and (toks[0] in GENERIC_TOKENS or toks[0] in _GEO_SINGLE):
+    if len(toks) == 1 and toks[0] in GENERIC_TOKENS:
         return True
-
-    # 1-2 tokens where every token is generic, geographic, or a single letter
-    if len(toks) <= 2:
-        generic_or_geo = GENERIC_TOKENS | _GEO_SINGLE
-        if all(t in generic_or_geo or len(t) == 1 for t in toks):
-            return True
-
-    # Multi-word geographic name (e.g. "san diego", "las vegas", "new york")
-    if na in _GEO_MULTI:
+    if len(toks) <= 2 and all(t in GENERIC_TOKENS or len(t) == 1 for t in toks):
         return True
-
-    # Two tokens where the full phrase is a known multi-word geo
-    if len(toks) == 2 and na in _GEO_MULTI:
-        return True  # already caught above, but explicit for clarity
-
-    # Three tokens where first two are a multi-word geo + one generic
-    if len(toks) == 3:
-        first_two = f"{toks[0]} {toks[1]}"
-        last_two = f"{toks[1]} {toks[2]}"
-        if (first_two in _GEO_MULTI and (toks[2] in GENERIC_TOKENS or len(toks[2]) == 1)):
-            return True
-        if (last_two in _GEO_MULTI and (toks[0] in GENERIC_TOKENS or len(toks[0]) == 1)):
-            return True
 
     std = (employer_name_standard or "").strip().lower()
     if re.match(
@@ -351,7 +261,7 @@ def load_employers(conn):
     with conn.cursor() as cur:
         cur.execute("""
             SELECT e.employer_id, e.employer_name, e.name_aggressive, e.name_standard,
-                   e.city, e.state, e.naics,
+                   e.city, e.state,
                    e.latest_union_fnum, e.latest_unit_size,
                    um.aff_abbr,
                    e.is_historical, e.exclude_from_counts, e.exclude_reason,
@@ -492,110 +402,6 @@ def build_groups(rows, skip_cross_state=False, min_states=2):
     return final_groups
 
 
-# ---------------------------------------------------------------------------
-# NAICS-based group validation (post-processing)
-# ---------------------------------------------------------------------------
-
-# 2-digit NAICS -> super-sector label
-NAICS_SUPER_SECTORS = {}
-for _codes, _label in [
-    ({31, 32, 33}, "Manufacturing"),
-    ({42, 44, 45}, "Trade"),
-    ({48, 49}, "Transport/Warehouse"),
-    ({51, 52, 53, 54, 55, 56}, "Services"),
-    ({61, 62}, "Healthcare/Education"),
-    ({71, 72}, "Entertainment/Food"),
-    ({21, 23}, "Construction/Mining"),
-    ({11}, "Agriculture"),
-    ({22}, "Utilities"),
-    ({81}, "Other Services"),
-    ({92}, "Government"),
-]:
-    for _c in _codes:
-        NAICS_SUPER_SECTORS[_c] = _label
-
-
-def _naics_to_super_sector(naics_code):
-    """Map a NAICS code (string or int) to its super-sector label, or None."""
-    if not naics_code:
-        return None
-    try:
-        code_2 = int(str(naics_code)[:2])
-    except (ValueError, TypeError):
-        return None
-    return NAICS_SUPER_SECTORS.get(code_2)
-
-
-def _split_groups_by_naics(groups, min_group_size=5, dominance_threshold=0.80):
-    """Split groups where members span multiple unrelated NAICS super-sectors.
-
-    For each group with ``min_group_size``+ members that have NAICS data:
-    - If one super-sector accounts for ``dominance_threshold``+ of members -> keep
-    - Otherwise -> split into sub-groups by super-sector
-
-    Members with NULL NAICS stay in the largest sub-group.
-
-    Returns (new_groups, split_count) where new_groups replaces the input list.
-    """
-    new_groups = []
-    split_count = 0
-
-    for g in groups:
-        members = g['members']
-        if len(members) < min_group_size:
-            new_groups.append(g)
-            continue
-
-        # Map members to super-sectors
-        sector_map = defaultdict(list)  # sector_label -> [member]
-        null_members = []
-        for m in members:
-            ss = _naics_to_super_sector(m.get('naics'))
-            if ss is None:
-                null_members.append(m)
-            else:
-                sector_map[ss].append(m)
-
-        # If no NAICS data at all, keep group as-is
-        if not sector_map:
-            new_groups.append(g)
-            continue
-
-        total_with_naics = sum(len(v) for v in sector_map.values())
-        # Check for dominant sector
-        dominant = max(sector_map.items(), key=lambda kv: len(kv[1]))
-        if len(dominant[1]) / total_with_naics >= dominance_threshold:
-            new_groups.append(g)
-            continue
-
-        # Split: create one sub-group per super-sector
-        split_count += 1
-        sorted_sectors = sorted(sector_map.items(), key=lambda kv: -len(kv[1]))
-
-        # Assign null-NAICS members to the largest sector sub-group
-        sorted_sectors[0] = (sorted_sectors[0][0],
-                             sorted_sectors[0][1] + null_members)
-
-        for sector_label, sector_members in sorted_sectors:
-            if len(sector_members) < 2:
-                # Singletons after split don't form groups — skip them
-                continue
-            canonical = max(sector_members, key=_rep_score)
-            workers = _consolidated_workers(sector_members)
-            new_groups.append({
-                'canonical_name': canonical['employer_name'],
-                'canonical_employer_id': canonical['employer_id'],
-                'state': g['state'],
-                'member_count': len(sector_members),
-                'consolidated_workers': workers,
-                'is_cross_state': g['is_cross_state'],
-                'states': g['states'],
-                'members': sector_members,
-            })
-
-    return new_groups, split_count
-
-
 def write_groups(conn, groups, dry_run=False):
     """Write groups to DB: TRUNCATE + rebuild."""
     if dry_run:
@@ -692,85 +498,11 @@ def print_stats(groups):
               f"{g['member_count']:>4} members  {g['consolidated_workers']:>8,} workers")
 
 
-def validate_groups(groups, max_mixed_naics=75):
-    """Run post-build validation checks. Returns True if all checks pass."""
-    from rapidfuzz import fuzz
-
-    print("\n--- Validation Checks ---")
-    ok = True
-
-    # 1. Count groups with mixed 2-digit NAICS (>3 distinct codes)
-    mixed_naics_groups = []
-    for g in groups:
-        naics_codes = set()
-        for m in g['members']:
-            n = m.get('naics')
-            if n:
-                try:
-                    naics_codes.add(int(str(n)[:2]))
-                except (ValueError, TypeError):
-                    pass
-        if len(naics_codes) > 3:
-            mixed_naics_groups.append((g, len(naics_codes)))
-    mixed_naics_groups.sort(key=lambda x: -x[1])
-
-    print(f"[validate] Groups with >3 distinct NAICS sectors: {len(mixed_naics_groups)}")
-    if mixed_naics_groups:
-        for g, cnt in mixed_naics_groups[:10]:
-            state = ','.join(g['states'][:3]) if g['is_cross_state'] else (g['state'] or '??')
-            print(f"  {g['canonical_name'][:45]:<45} {state:<10} "
-                  f"{g['member_count']:>4} members  {cnt} NAICS sectors")
-    if len(mixed_naics_groups) > max_mixed_naics:
-        print(f"  WARN: {len(mixed_naics_groups)} mixed-NAICS groups > threshold {max_mixed_naics}")
-        ok = False
-
-    # 2. Count groups where canonical_name doesn't match any member well
-    poor_name_groups = []
-    for g in groups:
-        canon = g['canonical_name'] or ""
-        best = 0
-        for m in g['members']:
-            ratio = fuzz.token_sort_ratio(canon, m.get('employer_name') or "")
-            if ratio > best:
-                best = ratio
-        if best < 80:
-            poor_name_groups.append((g, best))
-    print(f"[validate] Groups with poor canonical name match (<80): {len(poor_name_groups)}")
-    if poor_name_groups:
-        for g, score in poor_name_groups[:5]:
-            print(f"  {g['canonical_name'][:50]:<50} best_ratio={score}")
-
-    # 3. Top 10 largest groups for manual review
-    top = sorted(groups, key=lambda g: g['member_count'], reverse=True)[:10]
-    print(f"\n[validate] Top 10 largest groups:")
-    for g in top:
-        state = ','.join(g['states'][:3]) if g['is_cross_state'] else (g['state'] or '??')
-        if g['is_cross_state'] and len(g['states']) > 3:
-            state += f"+{len(g['states'])-3}"
-        # Collect NAICS super-sectors
-        sectors = set()
-        for m in g['members']:
-            ss = _naics_to_super_sector(m.get('naics'))
-            if ss:
-                sectors.add(ss)
-        sector_str = ','.join(sorted(sectors)[:3]) if sectors else 'no NAICS'
-        print(f"  {g['canonical_name'][:45]:<45} {state:<15} "
-              f"{g['member_count']:>4} members  [{sector_str}]")
-
-    if ok:
-        print("\n[validate] All checks passed.")
-    else:
-        print("\n[validate] Some checks FAILED — review output above.")
-    return ok
-
-
 def main():
     parser = argparse.ArgumentParser(description="Build canonical employer groups")
     parser.add_argument('--dry-run', action='store_true', help="Print stats without writing")
     parser.add_argument('--skip-cross-state', action='store_true', help="Skip cross-state merge")
     parser.add_argument('--min-states', type=int, default=2, help="Min states for cross-state merge")
-    parser.add_argument('--validate', action='store_true', help="Run post-build validation checks")
-    parser.add_argument('--skip-naics-split', action='store_true', help="Skip NAICS-based group splitting")
     args = parser.parse_args()
 
     conn = get_connection()
@@ -788,21 +520,10 @@ def main():
         groups = build_groups(rows,
                              skip_cross_state=args.skip_cross_state,
                              min_states=args.min_states)
-        print(f"[group] Built {len(groups):,} groups (pre-NAICS split)")
-
-        # NAICS-based group splitting
-        if not args.skip_naics_split:
-            groups, split_count = _split_groups_by_naics(groups)
-            if split_count:
-                print(f"[group] NAICS split: {split_count} groups split by sector "
-                      f"-> {len(groups):,} groups total")
+        print(f"[group] Built {len(groups):,} groups")
 
         # Print stats
         print_stats(groups)
-
-        # Validate
-        if args.validate:
-            valid = validate_groups(groups)
 
         # Write
         write_groups(conn, groups, dry_run=args.dry_run)
@@ -817,9 +538,6 @@ def main():
                 cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE is_canonical_rep = TRUE")
                 rc = cur.fetchone()[0]
                 print(f"\n[verify] Groups: {gc:,}, Grouped employers: {ec:,}, Canonical reps: {rc:,}")
-
-        if args.validate and not valid:
-            sys.exit(1)
 
     finally:
         conn.close()
