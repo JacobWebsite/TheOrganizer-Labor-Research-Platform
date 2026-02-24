@@ -228,6 +228,8 @@ If the state is known, pass it where accepted.
 
 If a tool returns no results for a long company name, try again with a well-known abbreviation or shorter name (e.g., "University of Pittsburgh Medical Center" -> try "UPMC", "United Parcel Service" -> try "UPS"). The database tools now handle acronym matching automatically, but Gemini-chosen alternate names can help too.
 
+If search_990 returns financial data (revenue, assets, employees), include it prominently in the "financial" section. Nonprofit 990 data is critical intelligence -- never omit it from the dossier.
+
 You MAY skip tools that clearly don't apply (e.g., skip search_sec for nonprofits, skip search_990 for public companies). Briefly note each skip and why.
 
 ## Dossier Fact Vocabulary
@@ -268,12 +270,13 @@ After gathering data from all relevant tools, produce your final answer as a sin
 }}
 ```
 
-For the **assessment** section, write original analysis:
-- `organizing_summary`: 2-3 paragraph assessment of organizing potential
-- `campaign_strengths`: list of key advantages
-- `campaign_challenges`: list of key obstacles
-- `similar_organized`: list of comparable organized employers
-- `recommended_approach`: suggested strategy
+For the **assessment** section, provide factual analysis only:
+- `data_summary`: 2-3 paragraph factual summary of what the data reveals. State what was found, patterns, and what is notable. No strategy recommendations.
+- `web_intelligence`: Key findings from web search beyond database records. Include dates and sources.
+- `source_contradictions`: Contradictions between data sources (e.g., DB says no NLRB activity but web reports ongoing campaigns).
+- `data_gaps`: Critical information missing or unverifiable.
+
+Do NOT include: recommended_approach, similar_organized, or strategic advice.
 
 For the **sources** section:
 - `section_confidence`: object mapping each section to "high"/"medium"/"low"
@@ -331,6 +334,39 @@ def _log_action(
 # Fact saving
 # ---------------------------------------------------------------------------
 
+def _flatten_fact_value(val, val_json):
+    """Ensure attribute_value is always a displayable string.
+
+    When Gemini sets attribute_value to None but puts data in
+    attribute_value_json, we derive a human-readable string so the
+    frontend never shows raw JSON or [object Object].
+    """
+    if val is not None:
+        return val
+    if val_json is None:
+        return None
+    # val is None but val_json has data — derive a display string
+    if isinstance(val_json, str):
+        try:
+            parsed = json.loads(val_json)
+        except (json.JSONDecodeError, TypeError):
+            return val_json
+        val_json = parsed
+    if isinstance(val_json, list):
+        if not val_json:
+            return None
+        if all(isinstance(x, str) for x in val_json):
+            return ", ".join(val_json)
+        return f"{len(val_json)} item(s)"
+    if isinstance(val_json, dict):
+        parts = []
+        for k, v in val_json.items():
+            if v is not None:
+                parts.append(f"{k}: {v}")
+        return ", ".join(parts) if parts else None
+    return str(val_json)
+
+
 def _save_facts(run_id: int, employer_id: Optional[int], facts: list[dict], vocabulary: dict) -> int:
     """Save parsed facts to research_facts. Returns count saved."""
     if not facts:
@@ -352,6 +388,9 @@ def _save_facts(run_id: int, employer_id: Optional[int], facts: list[dict], voca
             val_json = json.dumps(val_json)
         elif not val_json:
             val_json = None
+
+        # Ensure attribute_value is always a displayable string
+        val = _flatten_fact_value(val, val_json)
 
         if val is not None and not isinstance(val, str):
             val = json.dumps(val) if isinstance(val, (dict, list)) else str(val)
@@ -400,6 +439,104 @@ def _save_facts(run_id: int, employer_id: Optional[int], facts: list[dict], voca
     conn.commit()
     conn.close()
     return saved
+
+
+# ---------------------------------------------------------------------------
+# Fallback fact extraction from research_actions
+# ---------------------------------------------------------------------------
+
+# Maps tool_name -> list of (attribute_name, extractor_key_or_None)
+_TOOL_FACT_MAP = {
+    "search_990": [
+        ("nonprofit_revenue", "total_revenue"),
+        ("nonprofit_assets", "total_assets"),
+        ("nonprofit_employees", "total_employees"),
+        ("nonprofit_ein", "ein"),
+    ],
+    "search_osha": [
+        ("osha_violation_count", "violation_count"),
+        ("osha_serious_count", "serious_count"),
+        ("osha_penalty_total", "penalty_total"),
+    ],
+    "search_nlrb": [
+        ("nlrb_election_count", "election_count"),
+        ("nlrb_ulp_count", "ulp_count"),
+    ],
+    "search_whd": [
+        ("whd_case_count", "case_count"),
+        ("whd_backwages", "total_backwages"),
+    ],
+    "search_sam": [
+        ("federal_contract_status", "is_federal_contractor"),
+    ],
+    "search_contracts": [
+        ("existing_contracts", "contract_count"),
+    ],
+    "search_mergent": [
+        ("employee_count", "employees_all_sites"),
+        ("annual_revenue", "sales_amount"),
+        ("company_website", "website"),
+    ],
+}
+
+# Maps attribute_name -> dossier_section
+_ATTR_SECTION = {
+    "nonprofit_revenue": "financial", "nonprofit_assets": "financial",
+    "nonprofit_employees": "workforce", "nonprofit_ein": "identity",
+    "osha_violation_count": "workplace", "osha_serious_count": "workplace",
+    "osha_penalty_total": "workplace",
+    "nlrb_election_count": "labor", "nlrb_ulp_count": "labor",
+    "whd_case_count": "workplace", "whd_backwages": "workplace",
+    "federal_contract_status": "financial",
+    "existing_contracts": "labor",
+    "employee_count": "workforce", "annual_revenue": "financial",
+    "company_website": "identity",
+}
+
+
+def _extract_fallback_facts(run_id: int) -> list[dict]:
+    """Extract basic facts from research_actions when dossier JSON parsing fails.
+
+    Tool results are already persisted in research_actions during Phase 1.
+    This function harvests them into the facts format so 990 data (and all
+    other tool data) survives even when Gemini produces unparseable JSON.
+    """
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT tool_name, data_found, result_summary, tool_params
+        FROM research_actions
+        WHERE run_id = %s AND data_found = TRUE
+        ORDER BY execution_order
+    """, (run_id,))
+    actions = cur.fetchall()
+    conn.close()
+
+    facts = []
+    for action in actions:
+        tool_name = action["tool_name"]
+        mapping = _TOOL_FACT_MAP.get(tool_name, [])
+        summary = action.get("result_summary") or ""
+
+        for attr_name, _key in mapping:
+            # We don't have the raw data dict here (only the summary was
+            # persisted), so use the summary as the attribute_value.
+            section = _ATTR_SECTION.get(attr_name, "identity")
+            facts.append({
+                "dossier_section": section,
+                "attribute_name": attr_name,
+                "attribute_value": summary[:500],
+                "attribute_value_json": None,
+                "source_type": "database",
+                "source_name": tool_name,
+                "confidence": 0.8,
+            })
+            # Only emit one fact per tool for fallback (the summary covers it)
+            break
+
+    _log.info("Fallback extraction produced %d facts from %d successful actions",
+              len(facts), len(actions))
+    return facts
 
 
 # ---------------------------------------------------------------------------
@@ -1046,6 +1183,15 @@ Be thorough. An empty section means you did not search hard enough. Every compan
     _progress(run_id, "Saving facts...", 90)
 
     facts_list = dossier_data.get("facts", [])
+
+    # Fallback: if dossier parse failed (or produced no facts), harvest
+    # basic facts from the already-persisted research_actions.  This
+    # ensures 990 data and all other tool results survive even when
+    # Gemini produces unparseable JSON.
+    if not facts_list and dossier_data.get("parse_error"):
+        _log.info("Run %d: dossier parse failed — extracting fallback facts from research_actions", run_id)
+        facts_list = _extract_fallback_facts(run_id)
+
     facts_saved = _save_facts(
         run_id,
         run.get("employer_id"),

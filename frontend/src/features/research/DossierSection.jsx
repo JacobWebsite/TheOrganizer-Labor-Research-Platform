@@ -28,6 +28,8 @@ const KEY_LABELS = {
   campaign_strengths: 'Strengths', campaign_challenges: 'Challenges',
   recommended_approach: 'Recommended Approach', similar_organized: 'Similar Organized Employers',
   source_list: 'Sources Used', data_gaps: 'Data Gaps', section_confidence: 'Confidence by Section',
+  data_summary: 'Data Summary', web_intelligence: 'Web Intelligence',
+  source_contradictions: 'Source Contradictions',
 }
 
 function labelFor(key) {
@@ -86,8 +88,8 @@ function RenderValue({ value }) {
             {value.slice(0, 20).map((row, i) => (
               <tr key={i} className="border-t">
                 {cols.map((col) => (
-                  <td key={col} className="px-2 py-1 whitespace-nowrap max-w-[200px] truncate" title={String(row[col] ?? '')}>
-                    {row[col] == null ? '-' : typeof row[col] === 'boolean' ? (row[col] ? 'Yes' : 'No') : String(row[col])}
+                  <td key={col} className="px-2 py-1 whitespace-nowrap max-w-[200px] truncate" title={formatCellValue(row[col])}>
+                    {formatCellValue(row[col])}
                   </td>
                 ))}
               </tr>
@@ -108,7 +110,7 @@ function RenderValue({ value }) {
         {Object.entries(value).map(([k, v]) => (
           <div key={k} className="flex gap-2 text-sm">
             <dt className="font-medium text-muted-foreground whitespace-nowrap">{labelFor(k)}:</dt>
-            <dd>{typeof v === 'object' ? JSON.stringify(v) : String(v ?? '-')}</dd>
+            <dd><RenderValue value={v} /></dd>
           </div>
         ))}
       </dl>
@@ -116,6 +118,16 @@ function RenderValue({ value }) {
   }
 
   return <span>{String(value)}</span>
+}
+
+/** Format a cell value for table display — handles nested objects/arrays. */
+function formatCellValue(val) {
+  if (val == null) return '-'
+  if (typeof val === 'object') {
+    if (Array.isArray(val)) return val.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ')
+    return Object.entries(val).map(([k, v]) => `${k}: ${v}`).join(', ')
+  }
+  return typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val)
 }
 
 export function DossierSection({ sectionKey, facts, dossierData }) {

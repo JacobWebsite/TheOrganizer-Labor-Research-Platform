@@ -2,8 +2,18 @@ import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 
 function formatValue(value, valueJson) {
   if (valueJson != null) {
-    if (Array.isArray(valueJson)) return valueJson.join(', ')
-    if (typeof valueJson === 'object') return JSON.stringify(valueJson)
+    if (Array.isArray(valueJson)) {
+      if (valueJson.length === 0) return '-'
+      if (typeof valueJson[0] === 'string') return valueJson.join(', ')
+      if (typeof valueJson[0] === 'object') {
+        const preview = Object.entries(valueJson[0]).map(([k, v]) => `${k}: ${v}`).join(', ')
+        return `${valueJson.length} record(s) — ${preview}`
+      }
+      return valueJson.join(', ')
+    }
+    if (typeof valueJson === 'object') {
+      return Object.entries(valueJson).map(([k, v]) => `${k}: ${v}`).join(', ')
+    }
   }
   return value || '-'
 }

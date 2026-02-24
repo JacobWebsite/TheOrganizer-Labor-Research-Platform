@@ -141,6 +141,22 @@ def _name_like_clause(column: str, company_name: str) -> tuple[str, list[str]]:
     return f"({clauses})", patterns
 
 
+def _filter_by_name_similarity(rows, company_name, name_column, threshold=0.50):
+    """Post-query filter using RapidFuzz token_sort_ratio.
+
+    Applied only on name-based fallback paths (not employer_id paths) to
+    remove false matches like "Federal Express Employees Credit Union"
+    matching "FedEx".  Threshold 0.50 is intentionally lenient — the LIKE
+    clause already did rough filtering.
+    """
+    from rapidfuzz import fuzz
+    upper = company_name.upper().strip()
+    return [
+        r for r in rows
+        if fuzz.token_sort_ratio(upper, (r.get(name_column) or r[name_column] or "").upper()) >= threshold * 100
+    ]
+
+
 # ---------------------------------------------------------------------------
 # TOOL 1: search_osha
 # ---------------------------------------------------------------------------
@@ -186,17 +202,18 @@ def search_osha(
             name_clause, name_params = _name_like_clause("UPPER(estab_name)", company_name)
             if state:
                 cur.execute(f"""
-                    SELECT establishment_id FROM osha_establishments
+                    SELECT establishment_id, estab_name FROM osha_establishments
                     WHERE {name_clause} AND site_state = %s
-                    LIMIT 20
+                    LIMIT 50
                 """, (*name_params, state.upper()))
             else:
                 cur.execute(f"""
-                    SELECT establishment_id FROM osha_establishments
+                    SELECT establishment_id, estab_name FROM osha_establishments
                     WHERE {name_clause}
-                    LIMIT 20
+                    LIMIT 50
                 """, name_params)
-            estab_ids = [r["establishment_id"] for r in cur.fetchall()]
+            matched = _filter_by_name_similarity(cur.fetchall(), company_name, "estab_name")
+            estab_ids = [r["establishment_id"] for r in matched]
 
         if not estab_ids:
             conn.close()
@@ -309,7 +326,7 @@ def search_nlrb(
                 FROM nlrb_employer_xref x
                 JOIN nlrb_participants p
                   ON UPPER(p.participant_name) = UPPER(x.nlrb_employer_name)
-                 AND p.participant_type LIKE '%%Employer%%'
+                 AND p.participant_type = 'Employer'
                 WHERE x.f7_employer_id = %s
             """, (employer_id,))
             case_numbers.update(r["case_number"] for r in cur.fetchall())
@@ -325,20 +342,21 @@ def search_nlrb(
             name_clause, name_params = _name_like_clause("UPPER(participant_name)", company_name)
             if state:
                 cur.execute(f"""
-                    SELECT DISTINCT case_number FROM nlrb_participants
+                    SELECT DISTINCT case_number, participant_name FROM nlrb_participants
                     WHERE {name_clause}
-                      AND participant_type LIKE '%%Employer%%'
+                      AND participant_type = 'Employer'
                       AND UPPER(state) = %s
-                    LIMIT 100
+                    LIMIT 200
                 """, (*name_params, state.upper()))
             else:
                 cur.execute(f"""
-                    SELECT DISTINCT case_number FROM nlrb_participants
+                    SELECT DISTINCT case_number, participant_name FROM nlrb_participants
                     WHERE {name_clause}
-                      AND participant_type LIKE '%%Employer%%'
-                    LIMIT 100
+                      AND participant_type = 'Employer'
+                    LIMIT 200
                 """, name_params)
-            case_numbers.update(r["case_number"] for r in cur.fetchall())
+            filtered = _filter_by_name_similarity(cur.fetchall(), company_name, "participant_name")
+            case_numbers.update(r["case_number"] for r in filtered)
 
         if not case_numbers:
             conn.close()
@@ -359,6 +377,19 @@ def search_nlrb(
         """, (case_list,))
         elections_raw = _safe_list(cur.fetchall())
 
+        # Enrich elections with employer names from participants
+        election_case_nums = list({r["case_number"] for r in elections_raw})
+        employer_names_by_case = {}
+        if election_case_nums:
+            cur.execute("""
+                SELECT case_number, participant_name
+                FROM nlrb_participants
+                WHERE case_number = ANY(%s)
+                  AND participant_type = 'Employer'
+            """, (election_case_nums,))
+            for r in cur.fetchall():
+                employer_names_by_case.setdefault(r["case_number"], []).append(r["participant_name"])
+
         # Deduplicate by case_number (keep first = most recent)
         seen_cases = set()
         elections = []
@@ -366,6 +397,16 @@ def search_nlrb(
             cn = row["case_number"]
             if cn not in seen_cases:
                 seen_cases.add(cn)
+                # Add employer name
+                emp_names = employer_names_by_case.get(cn, [])
+                row["employer_name"] = emp_names[0] if emp_names else None
+                # Add outcome string
+                if row.get("union_won") is True:
+                    row["outcome"] = "Union Won"
+                elif row.get("union_won") is False:
+                    row["outcome"] = "Union Lost"
+                else:
+                    row["outcome"] = "Pending"
                 elections.append(row)
 
         wins = sum(1 for e in elections if e.get("union_won"))
@@ -488,16 +529,25 @@ def search_whd(
             legal_clause, legal_params = _name_like_clause("UPPER(legal_name)", company_name)
             trade_clause, trade_params = _name_like_clause("UPPER(trade_name)", company_name)
             q = f"""
-                SELECT id FROM whd_cases
+                SELECT id, legal_name, trade_name FROM whd_cases
                 WHERE ({legal_clause} OR {trade_clause})
             """
             params: list = [*legal_params, *trade_params]
             if state:
                 q += " AND state = %s"
                 params.append(state.upper())
-            q += " LIMIT 50"
+            q += " LIMIT 100"
             cur.execute(q, params)
-            case_ids = [r["id"] for r in cur.fetchall()]
+            raw = cur.fetchall()
+            # Filter: either legal_name or trade_name must be similar
+            from rapidfuzz import fuzz
+            upper_cn = company_name.upper().strip()
+            filtered = [
+                r for r in raw
+                if fuzz.token_sort_ratio(upper_cn, (r.get("legal_name") or "").upper()) >= 50
+                or fuzz.token_sort_ratio(upper_cn, (r.get("trade_name") or "").upper()) >= 50
+            ]
+            case_ids = [r["id"] for r in filtered]
 
         if not case_ids:
             conn.close()
@@ -702,9 +752,11 @@ def search_sam(
             if state:
                 q += " AND physical_state = %s"
                 params.append(state.upper())
-            q += " ORDER BY last_update_date DESC NULLS LAST LIMIT 1"
+            q += " ORDER BY last_update_date DESC NULLS LAST LIMIT 5"
             cur.execute(q, params)
-            sam_row = cur.fetchone()
+            candidates = cur.fetchall()
+            candidates = _filter_by_name_similarity(candidates, company_name, "legal_business_name")
+            sam_row = candidates[0] if candidates else None
 
         if not sam_row:
             conn.close()
@@ -877,16 +929,21 @@ def search_contracts(
                 SELECT r.employer_id, r.union_file_number, r.bargaining_unit_size,
                        r.notice_date,
                        u.union_name, u.aff_abbr, u.members AS union_members,
-                       u.city AS union_city, u.state AS union_state
+                       u.city AS union_city, u.state AS union_state,
+                       e.employer_name
                 FROM f7_union_employer_relations r
                 JOIN f7_employers_deduped e ON e.employer_id = r.employer_id
                 LEFT JOIN unions_master u ON u.f_num = CAST(r.union_file_number AS TEXT)
                 WHERE {name_clause}
                 ORDER BY r.notice_date DESC NULLS LAST
-                LIMIT 50
+                LIMIT 100
             """, name_params)
 
-        rows = _safe_list(cur.fetchall())
+        raw_rows = cur.fetchall()
+        # Filter name-based results by similarity (employer_id path skips this)
+        if not employer_id:
+            raw_rows = _filter_by_name_similarity(raw_rows, company_name, "employer_name")
+        rows = _safe_list(raw_rows)
         conn.close()
 
         if not rows:
@@ -1112,7 +1169,7 @@ def get_similar_employers(
             FROM nlrb_elections e
             JOIN nlrb_participants p
               ON p.case_number = e.case_number
-             AND p.participant_type LIKE '%%Employer%%'
+             AND p.participant_type = 'Employer'
             WHERE e.election_date >= CURRENT_DATE - INTERVAL '3 years'
             ORDER BY e.election_date DESC
             LIMIT 10
@@ -1178,9 +1235,11 @@ def search_mergent(
             if state:
                 q += " AND state = %s"
                 params.append(state.upper())
-            q += " ORDER BY employees_all_sites DESC NULLS LAST LIMIT 1"
+            q += " ORDER BY employees_all_sites DESC NULLS LAST LIMIT 5"
             cur.execute(q, params)
-            row = cur.fetchone()
+            candidates = cur.fetchall()
+            candidates = _filter_by_name_similarity(candidates, company_name, "company_name")
+            row = candidates[0] if candidates else None
 
         if not row:
             conn.close()
@@ -1209,6 +1268,15 @@ def search_mergent(
             "location_type": row.get("location_type"),
             "state": row.get("state"),
             "city": row.get("city"),
+            "website": row.get("website"),
+            "phone": row.get("phone"),
+            "street_address": row.get("street_address"),
+            "zip": row.get("zip"),
+            "county": row.get("county"),
+            "trade_name": row.get("trade_name"),
+            "former_name": row.get("former_name"),
+            "line_of_business": row.get("line_of_business"),
+            "minority_owned": row.get("minority_owned"),
         }
 
         summary = f"Mergent: {data['company_name']}. "
@@ -1218,6 +1286,8 @@ def search_mergent(
             summary += f"Revenue: ${data['sales_amount']:,.0f}. "
         if data.get("parent_name"):
             summary += f"Parent: {data['parent_name']}. "
+        if data.get("website"):
+            summary += f"Website: {data['website']}. "
         summary += f"NAICS {data.get('naics_primary', 'N/A')}: {data.get('naics_primary_desc', 'N/A')}."
 
         return {"found": True, "source": source, "summary": summary, "data": data}
