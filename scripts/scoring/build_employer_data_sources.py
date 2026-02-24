@@ -25,10 +25,11 @@ uml_sources AS (
     SELECT target_id,
            bool_or(source_system = 'sec') AS has_sec,
            bool_or(source_system = 'gleif') AS has_gleif,
-           bool_or(source_system = 'mergent') AS has_mergent
+           bool_or(source_system = 'mergent') AS has_mergent,
+           bool_or(source_system = 'corpwatch') AS has_corpwatch
     FROM unified_match_log
     WHERE status = 'active'
-      AND source_system IN ('sec', 'gleif', 'mergent')
+      AND source_system IN ('sec', 'gleif', 'mergent', 'corpwatch')
     GROUP BY target_id
 ),
 -- Legacy match tables: one boolean per F7 employer
@@ -82,6 +83,7 @@ SELECT
     COALESCE(u.has_sec, FALSE) AS has_sec,
     COALESCE(u.has_gleif, FALSE) AS has_gleif,
     COALESCE(u.has_mergent, FALSE) AS has_mergent,
+    COALESCE(u.has_corpwatch, FALSE) AS has_corpwatch,
 
     -- Source count
     (CASE WHEN om.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
@@ -92,6 +94,7 @@ SELECT
      + CASE WHEN COALESCE(u.has_sec, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(u.has_gleif, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(u.has_mergent, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN COALESCE(u.has_corpwatch, FALSE) THEN 1 ELSE 0 END
     ) AS source_count,
 
     -- Corporate crosswalk (denormalized)
