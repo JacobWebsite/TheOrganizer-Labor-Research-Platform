@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db_config import get_connection
 from scripts.matching.deterministic_matcher import DeterministicMatcher
-from scripts.matching.adapters import osha_adapter, whd_adapter, n990_adapter, sam_adapter, sec_adapter_module, bmf_adapter_module
+from scripts.matching.adapters import osha_adapter, whd_adapter, n990_adapter, sam_adapter, sec_adapter_module, bmf_adapter_module, corpwatch_adapter
 
 ADAPTERS = {
     "osha": osha_adapter,
@@ -34,6 +34,7 @@ ADAPTERS = {
     "sam": sam_adapter,
     "sec": sec_adapter_module,
     "bmf": bmf_adapter_module,
+    "corpwatch": corpwatch_adapter,
 }
 
 CHECKPOINT_DIR = Path(__file__).resolve().parent.parent.parent / "checkpoints"
@@ -391,7 +392,7 @@ def _print_quality_report(source_name, batch_num, total_batches, matcher, matche
 
 def main():
     parser = argparse.ArgumentParser(description="Run deterministic matching")
-    parser.add_argument("source", choices=["osha", "whd", "990", "sam", "sec", "bmf", "all"],
+    parser.add_argument("source", choices=["osha", "whd", "990", "sam", "sec", "bmf", "corpwatch", "all"],
                         help="Source system to match")
     parser.add_argument("--limit", type=int, help="Limit number of source records")
     parser.add_argument("--dry-run", action="store_true", help="Don't write to database")
@@ -432,7 +433,7 @@ def main():
     conn = get_connection()
     try:
         if args.source == "all":
-            for name in ["osha", "whd", "990", "sam", "sec", "bmf"]:
+            for name in ["osha", "whd", "990", "sam", "sec", "bmf", "corpwatch"]:
                 run_source(conn, name, ADAPTERS[name], args)
         else:
             run_source(conn, args.source, ADAPTERS[args.source], args)
