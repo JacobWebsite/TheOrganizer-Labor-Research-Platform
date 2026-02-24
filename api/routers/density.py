@@ -303,9 +303,9 @@ def get_state_density_by_govt_level(state: str):
                     "total": round(fed_contribution + state_contribution + local_contribution, 1)
                 },
                 "comparison_to_national": {
-                    "federal": {"state": result['est_federal_density'], "national": 25.3, "premium": round(result['est_federal_density'] - 25.3, 1)},
-                    "state": {"state": result['est_state_density'], "national": 27.8, "premium": round(result['est_state_density'] - 27.8, 1)},
-                    "local": {"state": result['est_local_density'], "national": 38.2, "premium": round(result['est_local_density'] - 38.2, 1)}
+                    "federal": {"state": float(result['est_federal_density']), "national": 25.3, "premium": round(float(result['est_federal_density']) - 25.3, 1)},
+                    "state": {"state": float(result['est_state_density']), "national": 27.8, "premium": round(float(result['est_state_density']) - 27.8, 1)},
+                    "local": {"state": float(result['est_local_density']), "national": 38.2, "premium": round(float(result['est_local_density']) - 38.2, 1)}
                 }
             }
 

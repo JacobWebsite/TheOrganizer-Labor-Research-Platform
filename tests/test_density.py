@@ -66,7 +66,6 @@ class TestDensityByGovtLevel:
         r = client.get("/api/density/by-govt-level")
         assert r.status_code == 200
 
-    @pytest.mark.xfail(reason="Known bug: Decimal - float TypeError in density.py:306", raises=Exception)
     def test_by_state(self, client):
         r = client.get("/api/density/by-govt-level/NY")
         assert r.status_code == 200

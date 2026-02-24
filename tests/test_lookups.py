@@ -72,7 +72,7 @@ class TestLookupMetros:
         data = r.json()
         assert "metros" in data
         assert isinstance(data["metros"], list)
-        # May be empty if f7_employers_deduped.cbsa_code is unpopulated
+        assert len(data["metros"]) > 0
 
 
 class TestLookupCities:

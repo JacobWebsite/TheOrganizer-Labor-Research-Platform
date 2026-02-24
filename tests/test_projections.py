@@ -33,20 +33,19 @@ class TestIndustryProjections:
 
 
 class TestOccupationProjections:
-    """Tests for GET /api/projections/occupations/{naics_code}
-
-    NOTE: Router queries emp_2024/emp_change_pct but actual columns are
-    employment_2024/employment_change_pct. Returns 503 until column names fixed.
-    """
+    """Tests for GET /api/projections/occupations/{naics_code}"""
 
     def test_valid_naics(self, client):
         r = client.get("/api/projections/occupations/62")
-        # Known bug: column name mismatch (emp_2024 vs employment_2024)
-        assert r.status_code in (200, 503)
+        assert r.status_code == 200
+        data = r.json()
+        assert "occupations" in data
+        assert data["naics_code"] == "62"
 
     def test_custom_limit(self, client):
         r = client.get("/api/projections/occupations/62", params={"limit": 5})
-        assert r.status_code in (200, 503)
+        assert r.status_code == 200
+        assert len(r.json()["occupations"]) <= 5
 
 
 class TestSectorSubIndustries:
@@ -87,20 +86,19 @@ class TestMatrixCodeLookup:
 
 
 class TestMatrixCodeOccupations:
-    """Tests for GET /api/projections/matrix/{matrix_code}/occupations
-
-    NOTE: Same column name mismatch as occupations endpoint. Returns 503.
-    """
+    """Tests for GET /api/projections/matrix/{matrix_code}/occupations"""
 
     def test_valid_code(self, client):
         r = client.get("/api/projections/matrix/620000/occupations")
-        # Known bug: column name mismatch in router
-        assert r.status_code in (200, 503)
+        assert r.status_code == 200
+        data = r.json()
+        assert "occupations" in data
+        assert "summary" in data
 
     def test_sort_options(self, client):
         for sort in ["employment", "growth", "change"]:
             r = client.get("/api/projections/matrix/620000/occupations", params={"sort_by": sort, "limit": 5})
-            assert r.status_code in (200, 503)
+            assert r.status_code == 200
 
 
 class TestProjectionsSearch:
@@ -144,12 +142,10 @@ class TestEmployerProjections:
             pytest.skip("No employers with NAICS")
 
         r = client.get(f"/api/employer/{row[0]}/projections")
-        # May 503 if DB pool exhausted from prior column-name bugs
-        assert r.status_code in (200, 503)
-        if r.status_code == 200:
-            data = r.json()
-            assert "employer" in data
-            assert "industry_outlook" in data
+        assert r.status_code == 200
+        data = r.json()
+        assert "employer" in data
+        assert "industry_outlook" in data
 
 
 class TestLegacyProjections:

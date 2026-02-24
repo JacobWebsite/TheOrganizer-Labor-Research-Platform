@@ -85,16 +85,11 @@ def get_metros():
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT c.cbsa_code, c.cbsa_title, c.cbsa_type,
-                       COUNT(DISTINCT e.employer_id) as employer_count,
-                       SUM(e.latest_unit_size) as total_workers,
                        m.pct_members as union_density
                 FROM cbsa_definitions c
-                LEFT JOIN f7_employers_deduped e ON e.cbsa_code = c.cbsa_code
                 LEFT JOIN msa_union_stats m ON m.fips_code = c.cbsa_code AND m.sector = 'Total'
                 WHERE c.cbsa_type = 'Metropolitan'
-                GROUP BY c.cbsa_code, c.cbsa_title, c.cbsa_type, m.pct_members
-                HAVING COUNT(DISTINCT e.employer_id) > 0
-                ORDER BY COUNT(DISTINCT e.employer_id) DESC
+                ORDER BY m.pct_members DESC NULLS LAST
             """)
             return {"metros": cur.fetchall()}
 

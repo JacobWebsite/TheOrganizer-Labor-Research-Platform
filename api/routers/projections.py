@@ -104,10 +104,10 @@ def get_occupation_projections_v2(naics_code: str, limit: int = Query(15, le=50)
 
             # Get occupations for this industry
             cur.execute("""
-                SELECT occupation_code, occupation_title, emp_2024, emp_change_pct
+                SELECT occupation_code, occupation_title, employment_2024, employment_change_pct
                 FROM bls_industry_occupation_matrix
                 WHERE industry_code = %s
-                ORDER BY emp_2024 DESC NULLS LAST
+                ORDER BY employment_2024 DESC NULLS LAST
                 LIMIT %s
             """, [industry_code, limit])
             occupations = cur.fetchall()
@@ -253,9 +253,9 @@ def get_occupations_by_matrix_code(
             # Build query
             query = """
                 SELECT occupation_code, occupation_title, occupation_type,
-                       emp_2024, emp_2024_pct_industry, emp_2024_pct_occupation,
-                       emp_2034, emp_2034_pct_industry, emp_2034_pct_occupation,
-                       emp_change, emp_change_pct, display_level
+                       employment_2024, percent_of_industry, percent_of_occupation,
+                       employment_2034, percent_of_industry_2034, percent_of_occupation_2034,
+                       employment_change, employment_change_pct
                 FROM bls_industry_occupation_matrix
                 WHERE industry_code = %s
             """
@@ -266,16 +266,16 @@ def get_occupations_by_matrix_code(
                 params.append(occupation_type)
 
             if min_employment is not None:
-                query += " AND emp_2024 >= %s"
+                query += " AND employment_2024 >= %s"
                 params.append(min_employment)
 
             # Sort options
             if sort_by == "growth":
-                query += " ORDER BY emp_change_pct DESC NULLS LAST"
+                query += " ORDER BY employment_change_pct DESC NULLS LAST"
             elif sort_by == "change":
-                query += " ORDER BY emp_change DESC NULLS LAST"
+                query += " ORDER BY employment_change DESC NULLS LAST"
             else:
-                query += " ORDER BY emp_2024 DESC NULLS LAST"
+                query += " ORDER BY employment_2024 DESC NULLS LAST"
 
             query += " LIMIT %s"
             params.append(limit)
@@ -289,11 +289,11 @@ def get_occupations_by_matrix_code(
             # Get summary stats
             cur.execute("""
                 SELECT
-                    SUM(emp_2024) FILTER (WHERE occupation_code = '00-0000') as total_2024,
-                    SUM(emp_2034) FILTER (WHERE occupation_code = '00-0000') as total_2034,
+                    SUM(employment_2024) FILTER (WHERE occupation_code = '00-0000') as total_2024,
+                    SUM(employment_2034) FILTER (WHERE occupation_code = '00-0000') as total_2034,
                     COUNT(*) FILTER (WHERE occupation_type = 'Line Item') as detailed_count,
-                    COUNT(*) FILTER (WHERE emp_change_pct > 0) as growing_count,
-                    COUNT(*) FILTER (WHERE emp_change_pct < 0) as declining_count
+                    COUNT(*) FILTER (WHERE employment_change_pct > 0) as growing_count,
+                    COUNT(*) FILTER (WHERE employment_change_pct < 0) as declining_count
                 FROM bls_industry_occupation_matrix
                 WHERE industry_code = %s
             """, [matrix_code])
@@ -429,10 +429,10 @@ def get_employer_projections(employer_id: str):
 
             # Get top 10 occupations
             cur.execute("""
-                SELECT occupation_code, occupation_title, emp_2024, emp_change_pct
+                SELECT occupation_code, occupation_title, employment_2024, employment_change_pct
                 FROM bls_industry_occupation_matrix
                 WHERE industry_code = %s
-                ORDER BY emp_2024 DESC NULLS LAST
+                ORDER BY employment_2024 DESC NULLS LAST
                 LIMIT 10
             """, [matrix_code])
             top_occupations = cur.fetchall()

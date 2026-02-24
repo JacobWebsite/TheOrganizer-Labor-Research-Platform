@@ -3,7 +3,7 @@
 NOTE: Sector target views (v_{sector}_organizing_targets, v_{sector}_target_stats,
 v_{sector}_unionized) do not currently exist for most sectors. The /api/sectors/list
 endpoint works (queries mergent_employers directly), but per-sector endpoints that
-reference these views will return 503. Tests skip gracefully when views are missing.
+reference these views will return 404. Tests handle this gracefully.
 """
 import pytest
 
@@ -65,9 +65,10 @@ class TestSectorTargets:
             pytest.skip("No sector keys match SECTOR_VIEWS")
 
         r = client.get(f"/api/sectors/{sector}/targets", params={"limit": 5})
-        # 503 if the view doesn't exist in DB
-        if r.status_code == 503:
-            pytest.skip(f"View v_{sector}_organizing_targets does not exist")
+        # 404 if the view doesn't exist in DB
+        if r.status_code == 404:
+            assert "not yet created" in r.json()["detail"]
+            return
         assert r.status_code == 200
         data = r.json()
         assert "total" in data
