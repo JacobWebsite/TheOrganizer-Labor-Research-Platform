@@ -193,9 +193,9 @@ class CBAProcessor:
         return inserted
 
     def _extract_ai_best_effort(self, text: str) -> list[ProvisionExtraction]:
-        bounded_text = text[:120000]
-        if len(bounded_text) > 50000:
-            return []
+        # langextract handles chunking via max_char_buffer=6000
+        # Cap at 500K chars (~250 pages) to avoid extreme API costs
+        bounded_text = text[:500000]
         try:
             return self.extractor.extract(bounded_text)
         except Exception:
