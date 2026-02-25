@@ -178,10 +178,10 @@ def print_report(data: dict):
     d = data["quality_dimensions"]
     print("\n## Quality Dimensions (avg / min / max)")
     for dim in ["coverage", "source_quality", "consistency", "freshness", "efficiency"]:
-        avg = d.get(f"{dim}_avg", "?")
-        mn = d.get(f"{dim}_min", "?")
-        mx = d.get(f"{dim}_max", "?")
-        print(f"  {dim:20s}  {avg:>6}  {mn:>6}  {mx:>6}")
+        avg = d.get(f"{dim}_avg") or "?"
+        mn = d.get(f"{dim}_min") or "?"
+        mx = d.get(f"{dim}_max") or "?"
+        print(f"  {dim:20s}  {str(avg):>6}  {str(mn):>6}  {str(mx):>6}")
 
     print("\n## Tool Hit Rates")
     print(f"  {'Tool':<30s} {'Calls':>6} {'Hit%':>6} {'Latency':>8}")

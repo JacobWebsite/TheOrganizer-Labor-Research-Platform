@@ -757,7 +757,7 @@ Example:
         client = genai.Client(api_key=api_key)
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=[types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=prompt)],

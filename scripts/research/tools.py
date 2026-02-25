@@ -1489,7 +1489,7 @@ def _google_search_url(
         )
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=[types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=prompt)],
@@ -1752,7 +1752,7 @@ def search_sec_proxy(
         )
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=[types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=prompt)],
@@ -1837,7 +1837,7 @@ def search_job_postings(
         )
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=[types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=prompt)],
