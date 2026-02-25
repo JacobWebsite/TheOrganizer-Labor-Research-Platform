@@ -1,11 +1,11 @@
 """
 Build corporate_identifier_crosswalk table.
-Links SEC, GLEIF, Mergent, and F7 employers via multiple matching tiers:
+Links SEC, GLEIF, Mergent, CorpWatch, and F7 employers via multiple matching tiers:
 
-Tier 1: EIN exact match (SEC <-> Mergent)
-Tier 2: LEI exact match (SEC <-> GLEIF)
-Tier 3: Normalized name + state (all sources)
-Tier 4: Propagate - if A<->B and B<->C, link A<->C
+Tier 1:  EIN exact match (SEC <-> Mergent)
+Tier 2:  LEI exact match (SEC <-> GLEIF)
+Tier 2b: EIN backfill (F7 via 990/CorpWatch EINs)
+Tier 3:  Normalized name + state (all sources)
 
 Creates:
   - corporate_identifier_crosswalk: unified ID mapping
@@ -43,6 +43,7 @@ def create_crosswalk_table():
             gleif_id INTEGER,
             gleif_lei VARCHAR(20),
             mergent_duns VARCHAR(20),
+            corpwatch_id INTEGER,
             f7_employer_id TEXT,
             -- Best name/metadata
             canonical_name TEXT,
@@ -50,6 +51,10 @@ def create_crosswalk_table():
             ticker VARCHAR(20),
             is_public BOOLEAN DEFAULT FALSE,
             state VARCHAR(10),
+            -- Federal contracting (populated by _match_usaspending.py)
+            is_federal_contractor BOOLEAN DEFAULT FALSE,
+            federal_obligations NUMERIC,
+            federal_contract_count INTEGER,
             -- Match metadata
             match_tier TEXT,
             match_confidence TEXT,
@@ -127,6 +132,115 @@ def tier2_lei_sec_gleif():
     conn.commit()
     print(f'  New rows: {new_rows:,}, updated existing: {updated:,} in {time.time()-start:.1f}s')
     return new_rows
+
+
+def tier2b_ein_f7_backfill():
+    """Tier 2b: Bridge F7 employers to crosswalk via EINs from 990/CorpWatch matches."""
+    print('\n=== Tier 2b: EIN backfill (F7 via 990/CorpWatch) ===')
+    start = time.time()
+
+    # Build CTE of F7 employers with known EINs (pick largest unit per EIN)
+    f7_eins_cte = """
+        WITH f7_eins AS (
+            SELECT DISTINCT m.ein, m.f7_employer_id, f.latest_unit_size
+            FROM national_990_f7_matches m
+            JOIN f7_employers_deduped f ON f.employer_id = m.f7_employer_id
+            WHERE m.ein IS NOT NULL AND LENGTH(m.ein) >= 8
+            UNION
+            SELECT DISTINCT cwc.ein, cfm.f7_employer_id, f.latest_unit_size
+            FROM corpwatch_f7_matches cfm
+            JOIN corpwatch_companies cwc ON cwc.cw_id = cfm.cw_id
+            JOIN f7_employers_deduped f ON f.employer_id = cfm.f7_employer_id
+            WHERE cwc.ein IS NOT NULL AND LENGTH(cwc.ein) >= 8
+        ),
+        best_f7_per_ein AS (
+            SELECT DISTINCT ON (ein) ein, f7_employer_id
+            FROM f7_eins ORDER BY ein, latest_unit_size DESC NULLS LAST
+        )
+    """
+
+    # Step 1: UPDATE existing crosswalk rows that have an EIN but no F7 link
+    cur.execute(f"""
+        {f7_eins_cte}
+        UPDATE corporate_identifier_crosswalk c
+        SET f7_employer_id = b.f7_employer_id,
+            match_tier = c.match_tier || '+EIN_F7_BACKFILL'
+        FROM best_f7_per_ein b
+        WHERE c.ein = b.ein AND c.f7_employer_id IS NULL
+    """)
+    updated = cur.rowcount
+    conn.commit()
+    print(f'  Step 1 - Updated existing rows with F7 link: {updated:,}')
+
+    # Step 2: INSERT new rows for F7 employers with EINs not already in crosswalk
+    cur.execute(f"""
+        {f7_eins_cte}
+        INSERT INTO corporate_identifier_crosswalk
+            (f7_employer_id, ein, canonical_name, state,
+             match_tier, match_confidence)
+        SELECT DISTINCT ON (b.f7_employer_id)
+            b.f7_employer_id, b.ein,
+            f.employer_name, f.state,
+            'EIN_F7_BACKFILL', 'MEDIUM'
+        FROM best_f7_per_ein b
+        JOIN f7_employers_deduped f ON f.employer_id = b.f7_employer_id
+        WHERE NOT EXISTS (
+            SELECT 1 FROM corporate_identifier_crosswalk c
+            WHERE c.f7_employer_id = b.f7_employer_id
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM corporate_identifier_crosswalk c
+            WHERE c.ein = b.ein
+        )
+        ORDER BY b.f7_employer_id, b.ein
+    """)
+    inserted = cur.rowcount
+    conn.commit()
+    print(f'  Step 2 - Inserted new F7 rows: {inserted:,}')
+
+    # Step 3: Cross-link newly inserted rows to SEC/Mergent where EINs match
+    cur.execute("""
+        UPDATE corporate_identifier_crosswalk c
+        SET sec_id = s.id, sec_cik = s.cik,
+            ticker = COALESCE(c.ticker, s.ticker),
+            is_public = COALESCE(s.is_public, c.is_public),
+            canonical_name = COALESCE(s.company_name, c.canonical_name)
+        FROM sec_companies s
+        WHERE c.ein = s.ein AND c.sec_id IS NULL
+          AND c.match_tier = 'EIN_F7_BACKFILL'
+          AND s.ein IS NOT NULL
+    """)
+    sec_linked = cur.rowcount
+    conn.commit()
+
+    cur.execute("""
+        UPDATE corporate_identifier_crosswalk c
+        SET mergent_duns = m.duns,
+            canonical_name = COALESCE(c.canonical_name, m.company_name)
+        FROM mergent_employers m
+        WHERE c.ein = m.ein AND c.mergent_duns IS NULL
+          AND c.match_tier = 'EIN_F7_BACKFILL'
+          AND m.ein IS NOT NULL
+    """)
+    mergent_linked = cur.rowcount
+    conn.commit()
+
+    # Also link to CorpWatch
+    cur.execute("""
+        UPDATE corporate_identifier_crosswalk c
+        SET corpwatch_id = cwc.cw_id
+        FROM corpwatch_companies cwc
+        WHERE c.ein = cwc.ein AND c.corpwatch_id IS NULL
+          AND c.match_tier = 'EIN_F7_BACKFILL'
+          AND cwc.ein IS NOT NULL
+    """)
+    cw_linked = cur.rowcount
+    conn.commit()
+
+    elapsed = time.time() - start
+    print(f'  Step 3 - Cross-linked: SEC={sec_linked:,}, Mergent={mergent_linked:,}, CorpWatch={cw_linked:,}')
+    print(f'  Total: {updated + inserted:,} F7 links added in {elapsed:.1f}s')
+    return updated + inserted
 
 
 def tier3_name_state():
@@ -302,6 +416,7 @@ def create_indexes():
         'CREATE INDEX idx_cic_gleif ON corporate_identifier_crosswalk(gleif_id) WHERE gleif_id IS NOT NULL',
         'CREATE INDEX idx_cic_lei ON corporate_identifier_crosswalk(gleif_lei) WHERE gleif_lei IS NOT NULL',
         'CREATE INDEX idx_cic_mergent ON corporate_identifier_crosswalk(mergent_duns) WHERE mergent_duns IS NOT NULL',
+        'CREATE INDEX idx_cic_corpwatch ON corporate_identifier_crosswalk(corpwatch_id) WHERE corpwatch_id IS NOT NULL',
         'CREATE INDEX idx_cic_f7 ON corporate_identifier_crosswalk(f7_employer_id) WHERE f7_employer_id IS NOT NULL',
         'CREATE INDEX idx_cic_ein ON corporate_identifier_crosswalk(ein) WHERE ein IS NOT NULL',
         'CREATE INDEX idx_cic_family ON corporate_identifier_crosswalk(corporate_family_id)',
@@ -452,7 +567,12 @@ def print_summary():
     cur.execute('SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE mergent_duns IS NOT NULL')
     print(f'With Mergent link: {cur.fetchone()[0]:,}')
     cur.execute('SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE f7_employer_id IS NOT NULL')
-    print(f'With F7 link: {cur.fetchone()[0]:,}')
+    f7_count = cur.fetchone()[0]
+    cur.execute('SELECT COUNT(*) FROM f7_employers_deduped')
+    f7_total = cur.fetchone()[0]
+    print(f'With F7 link: {f7_count:,} ({100*f7_count/f7_total:.1f}% of {f7_total:,})')
+    cur.execute('SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE corpwatch_id IS NOT NULL')
+    print(f'With CorpWatch link: {cur.fetchone()[0]:,}')
     cur.execute('SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE is_public = TRUE')
     print(f'Public companies: {cur.fetchone()[0]:,}')
 
@@ -462,6 +582,7 @@ def print_summary():
         WHERE (CASE WHEN sec_id IS NOT NULL THEN 1 ELSE 0 END +
                CASE WHEN gleif_id IS NOT NULL THEN 1 ELSE 0 END +
                CASE WHEN mergent_duns IS NOT NULL THEN 1 ELSE 0 END +
+               CASE WHEN corpwatch_id IS NOT NULL THEN 1 ELSE 0 END +
                CASE WHEN f7_employer_id IS NOT NULL THEN 1 ELSE 0 END) >= 3
     """)
     print(f'Linked to 3+ sources: {cur.fetchone()[0]:,}')
@@ -471,7 +592,7 @@ def print_summary():
         WHERE sec_id IS NOT NULL AND gleif_id IS NOT NULL
           AND mergent_duns IS NOT NULL AND f7_employer_id IS NOT NULL
     """)
-    print(f'Linked to all 4 sources: {cur.fetchone()[0]:,}')
+    print(f'Linked to all 4+ sources: {cur.fetchone()[0]:,}')
 
     # Hierarchy
     cur.execute('SELECT COUNT(*) FROM corporate_hierarchy')
@@ -487,11 +608,13 @@ def print_summary():
                sec_id IS NOT NULL as has_sec,
                gleif_id IS NOT NULL as has_gleif,
                mergent_duns IS NOT NULL as has_mergent,
+               corpwatch_id IS NOT NULL as has_cw,
                f7_employer_id IS NOT NULL as has_f7
         FROM corporate_identifier_crosswalk
         WHERE (CASE WHEN sec_id IS NOT NULL THEN 1 ELSE 0 END +
                CASE WHEN gleif_id IS NOT NULL THEN 1 ELSE 0 END +
                CASE WHEN mergent_duns IS NOT NULL THEN 1 ELSE 0 END +
+               CASE WHEN corpwatch_id IS NOT NULL THEN 1 ELSE 0 END +
                CASE WHEN f7_employer_id IS NOT NULL THEN 1 ELSE 0 END) >= 3
         ORDER BY canonical_name
         LIMIT 10
@@ -501,7 +624,8 @@ def print_summary():
         if row[5]: sources.append('SEC')
         if row[6]: sources.append('GLEIF')
         if row[7]: sources.append('MRGNT')
-        if row[8]: sources.append('F7')
+        if row[8]: sources.append('CW')
+        if row[9]: sources.append('F7')
         print(f'  {row[0]} | EIN={row[1]} ticker={row[2]} state={row[3]} | {"+".join(sources)}')
 
 
@@ -511,6 +635,7 @@ if __name__ == '__main__':
     create_crosswalk_table()
     tier1_ein_sec_mergent()
     tier2_lei_sec_gleif()
+    tier2b_ein_f7_backfill()
     tier3_name_state()
     assign_family_ids()
     create_indexes()

@@ -45,7 +45,7 @@ class TestMVSchema:
                     'latest_union_fnum', 'latest_union_name',
                     'is_historical', 'canonical_group_id', 'is_canonical_rep',
                     'has_osha', 'has_nlrb', 'has_whd', 'has_990',
-                    'has_sam', 'has_sec', 'has_gleif', 'has_mergent',
+                    'has_sam', 'has_sec', 'has_gleif', 'has_mergent', 'has_corpwatch',
                     'source_count',
                     'corporate_family_id', 'sec_cik', 'gleif_lei',
                     'mergent_duns', 'ein', 'ticker', 'is_public',
@@ -163,7 +163,8 @@ class TestMVDataIntegrity:
                     SELECT COUNT(*) FROM mv_employer_data_sources
                     WHERE source_count != (
                         has_osha::int + has_nlrb::int + has_whd::int + has_990::int +
-                        has_sam::int + has_sec::int + has_gleif::int + has_mergent::int
+                        has_sam::int + has_sec::int + has_gleif::int + has_mergent::int +
+                        has_corpwatch::int
                     )
                 """)
                 bad = cur.fetchone()[0]
@@ -180,7 +181,8 @@ class TestMVDataIntegrity:
                     SELECT COUNT(*) FROM mv_employer_data_sources
                     WHERE source_count = 0
                       AND (has_osha OR has_nlrb OR has_whd OR has_990
-                           OR has_sam OR has_sec OR has_gleif OR has_mergent)
+                           OR has_sam OR has_sec OR has_gleif OR has_mergent
+                           OR has_corpwatch)
                 """)
                 bad = cur.fetchone()[0]
                 assert bad == 0, f"{bad} zero-source employers have true flags"
