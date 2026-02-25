@@ -1077,6 +1077,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     tools_called = 0
     tools_called_set: set[str] = set()
     final_text = ""
+    _consecutive_web_only_turns = 0  # Track turns where Gemini only calls google_search
 
     # ------------------------------------------------------------------
     # Agent loop
@@ -1120,12 +1121,35 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
         # Execute each function call and build responses
         function_responses = []
+        _rejected_web_calls = 0
         for part in function_calls:
             fc = part.function_call
-            execution_order += 1
-            tools_called += 1
             tool_name = fc.name
             tool_input = dict(fc.args) if fc.args else {}
+
+            # --- Reject web-search calls silently (don't count as real tools) ---
+            if tool_name in ("google_search", "search_web"):
+                _rejected_web_calls += 1
+                _log.info("Run %d: rejected %s call #%d (not available in Phase 1)",
+                          run_id, tool_name, _rejected_web_calls)
+                function_responses.append(
+                    types.Part.from_function_response(
+                        name=tool_name,
+                        response={
+                            "found": False, "source": tool_name,
+                            "summary": "STOP calling this tool. Web search is NOT available here. "
+                                       "You MUST use only the database tools: search_osha, search_nlrb, "
+                                       "search_whd, search_sec, search_sam, search_990, search_contracts, "
+                                       "search_mergent, get_industry_profile, get_similar_employers, "
+                                       "scrape_employer_website. Produce your dossier JSON now.",
+                            "data": {},
+                        },
+                    )
+                )
+                continue
+
+            execution_order += 1
+            tools_called += 1
             tools_called_set.add(tool_name)
 
             # Update progress
@@ -1138,7 +1162,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
             # Check cache before executing the tool
             cached = None
-            if tool_name in TOOL_REGISTRY and tool_name != "google_search":
+            if tool_name in TOOL_REGISTRY:
                 cached = _check_cache(run.get("employer_id"), tool_name)
 
             t0 = time.time()
@@ -1152,15 +1176,6 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
                 }
                 _log.info("Run %d: cache hit for %s (employer %s)",
                           run_id, tool_name, run.get("employer_id"))
-            elif tool_name in ("google_search", "search_web"):
-                # Gemini sometimes emits google_search or search_web as
-                # function calls even though they're not in our declarations.
-                # Reject them so Gemini focuses on the database tools.
-                result = {
-                    "found": False, "source": tool_name,
-                    "summary": "Web search is not available in this phase. Focus on the database tools listed in your instructions.",
-                    "data": {}, "error": f"{tool_name} is not a registered tool — web search runs separately after database queries",
-                }
             elif tool_name in TOOL_REGISTRY:
                 try:
                     result = TOOL_REGISTRY[tool_name](**tool_input)
@@ -1205,6 +1220,18 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
                 parts=function_responses,
             )
         )
+
+        # If ALL calls this turn were rejected web-search calls, track it.
+        # After 2 consecutive web-only turns, break — Gemini is stuck.
+        if _rejected_web_calls > 0 and _rejected_web_calls == len(function_calls):
+            _consecutive_web_only_turns += 1
+            if _consecutive_web_only_turns >= 2:
+                _log.warning("Run %d: Gemini stuck calling google_search — breaking loop", run_id)
+                if text_parts:
+                    final_text = "\n".join(p.text for p in text_parts if p.text)
+                break
+        else:
+            _consecutive_web_only_turns = 0
 
     else:
         # Exhausted turns
