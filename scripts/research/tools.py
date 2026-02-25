@@ -1409,7 +1409,61 @@ def _resolve_employer_url(
     except Exception as exc:
         _log.debug("Tier-3 URL lookup failed: %s", exc)
 
+    # Tier 4: Google Search via Gemini grounding (lightweight, ~$0.001/call)
+    if os.environ.get("RESEARCH_SCRAPER_GOOGLE_FALLBACK", "true").lower() != "false":
+        try:
+            resolved = _google_search_url(company_name)
+            if resolved:
+                norm = _normalize_url(resolved)
+                if norm:
+                    return norm, "google_search"
+        except Exception as exc:
+            _log.debug("Tier-4 Google Search URL lookup failed: %s", exc)
+
     return None, "none"
+
+
+def _google_search_url(company_name: str) -> Optional[str]:
+    """Use Gemini + Google Search grounding to find a company's official URL.
+
+    Returns the URL string or None if not found.
+    """
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        prompt = (
+            f"What is the official website URL for the company \"{company_name}\"? "
+            "Return ONLY the URL, nothing else. If you cannot find it, respond with NONE."
+        )
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=256,
+            ),
+        )
+        candidate = response.candidates[0] if response.candidates else None
+        if not candidate or not candidate.content or not candidate.content.parts:
+            return None
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return None
+        # Extract URL from response (may contain extra text)
+        url_match = re.search(r'https?://[^\s<>"\']+', text)
+        return url_match.group(0) if url_match else None
+    except Exception as exc:
+        _log.debug("Google Search URL resolution failed: %s", exc)
+        return None
 
 
 def _sanitize_markdown(text: str) -> str:

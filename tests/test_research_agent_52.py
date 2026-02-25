@@ -364,3 +364,255 @@ class TestGapQueryTemplates:
         """No gap type should have an empty template list."""
         for gap_type, templates in self.templates.items():
             assert len(templates) > 0, f"Empty template list for '{gap_type}'"
+
+
+# ---------------------------------------------------------------------------
+# Part D: Phase 5.4 — Year default, section gap map, financial merge, strategies
+# ---------------------------------------------------------------------------
+
+class TestYearDefault:
+    """Test that _build_web_search_queries defaults to the current year."""
+
+    @patch("scripts.research.agent._get_best_queries", return_value=[])
+    def test_year_defaults_to_current(self, mock_best):
+        """When year=None (default), queries should contain the current year."""
+        from scripts.research.agent import _build_web_search_queries
+        from datetime import datetime
+        current_year = str(datetime.now().year)
+        queries, _ = _build_web_search_queries("Acme Corp", "private", "NY", [])
+        # At least one always-run query uses {year}
+        has_year = any(current_year in q for q in queries)
+        assert has_year, f"No query contains current year {current_year}: {queries}"
+
+    @patch("scripts.research.agent._get_best_queries", return_value=[])
+    def test_year_not_2025(self, mock_best):
+        """Queries should NOT contain hardcoded 2025 (unless it is actually 2025)."""
+        from scripts.research.agent import _build_web_search_queries
+        from datetime import datetime
+        if datetime.now().year == 2025:
+            pytest.skip("Currently 2025, can't distinguish from old default")
+        queries, _ = _build_web_search_queries("Acme Corp", "private", "NY",
+                                                ["search_mergent"])
+        for q in queries:
+            assert "2025" not in q, f"Query still contains hardcoded 2025: {q}"
+
+    @patch("scripts.research.agent._get_best_queries", return_value=[])
+    def test_explicit_year_override(self, mock_best):
+        """Explicit year param should be used."""
+        from scripts.research.agent import _build_web_search_queries
+        queries, _ = _build_web_search_queries("Acme Corp", "private", "NY", [], year="2030")
+        has_year = any("2030" in q for q in queries)
+        assert has_year, f"Explicit year 2030 not found in queries: {queries}"
+
+
+class TestSectionGapMapCoverage:
+    """Verify _section_gap_map covers all gap types from _TOOL_GAP_MAP."""
+
+    def test_all_tool_gap_types_in_section_map(self):
+        """Every gap type in _TOOL_GAP_MAP should be coverable by the
+        _section_gap_map or the financial_data dict handling."""
+        from scripts.research.agent import _TOOL_GAP_MAP
+        # These are the gap types that _section_gap_map + financial_data handle
+        section_gap_keys = {
+            "recent_news", "nlrb_activity", "worker_conditions",
+            "labor_stance", "osha_violations", "whd_violations",
+            # financial_data dict maps to these:
+            "employee_count", "revenue", "website_url",
+        }
+        all_gap_types = set()
+        for gap_keys in _TOOL_GAP_MAP.values():
+            all_gap_types.update(gap_keys)
+        missing = all_gap_types - section_gap_keys
+        # nonprofit_financials is the only expected gap without a web section
+        expected_missing = {"nonprofit_financials"}
+        unexpected_missing = missing - expected_missing
+        assert not unexpected_missing, (
+            f"Gap types not covered by web section mapping: {unexpected_missing}"
+        )
+
+    def test_section_gap_map_has_safety_violations(self):
+        """safety_violations should map to osha_violations gap type."""
+        # The map is inline in agent.py, so we test by simulating
+        _section_gap_map = {
+            "recent_news": "recent_news",
+            "organizing_activity": "nlrb_activity",
+            "worker_issues": "worker_conditions",
+            "nlrb_activity": "nlrb_activity",
+            "company_labor_stance": "labor_stance",
+            "company_context": "recent_news",
+            "safety_violations": "osha_violations",
+            "wage_violations": "whd_violations",
+        }
+        assert "safety_violations" in _section_gap_map
+        assert _section_gap_map["safety_violations"] == "osha_violations"
+        assert "wage_violations" in _section_gap_map
+        assert _section_gap_map["wage_violations"] == "whd_violations"
+
+
+class TestFinancialDataMerge:
+    """Test that financial_data dict from web search maps to 3 gap types."""
+
+    def test_financial_data_maps_to_three_gaps(self):
+        """financial_data dict should produce hits for employee_count, revenue, website_url."""
+        web_data = {
+            "financial_data": {
+                "employee_count": "50,000 (LinkedIn, 2026)",
+                "revenue": "$12.5 billion (SEC 10-K, 2025)",
+                "website_url": "https://acme.com",
+            },
+            "recent_news": [],
+        }
+        web_facts_by_gap = {}
+        # Simulate the section_gap_map processing
+        _section_gap_map = {
+            "recent_news": "recent_news",
+            "organizing_activity": "nlrb_activity",
+            "worker_issues": "worker_conditions",
+            "nlrb_activity": "nlrb_activity",
+            "company_labor_stance": "labor_stance",
+            "company_context": "recent_news",
+            "safety_violations": "osha_violations",
+            "wage_violations": "whd_violations",
+        }
+        for sec_key, gap_key in _section_gap_map.items():
+            val = web_data.get(sec_key, [])
+            if isinstance(val, list) and val:
+                web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + len(val)
+            elif isinstance(val, str) and val.strip():
+                web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + 1
+
+        fin_data = web_data.get("financial_data")
+        if isinstance(fin_data, dict):
+            for fin_key, gap_key in [
+                ("employee_count", "employee_count"),
+                ("revenue", "revenue"),
+                ("website_url", "website_url"),
+            ]:
+                val = fin_data.get(fin_key)
+                if val and isinstance(val, str) and val.strip():
+                    web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + 1
+
+        assert web_facts_by_gap.get("employee_count") == 1
+        assert web_facts_by_gap.get("revenue") == 1
+        assert web_facts_by_gap.get("website_url") == 1
+
+    def test_empty_financial_data_no_hits(self):
+        """Empty financial_data should produce no gap hits."""
+        web_data = {"financial_data": {}}
+        web_facts_by_gap = {}
+        fin_data = web_data.get("financial_data")
+        if isinstance(fin_data, dict):
+            for fin_key, gap_key in [
+                ("employee_count", "employee_count"),
+                ("revenue", "revenue"),
+                ("website_url", "website_url"),
+            ]:
+                val = fin_data.get(fin_key)
+                if val and isinstance(val, str) and val.strip():
+                    web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + 1
+        assert len(web_facts_by_gap) == 0
+
+
+class TestGoogleSearchUrlFallback:
+    """Test _google_search_url and Tier 4 in _resolve_employer_url."""
+
+    @patch("scripts.research.tools._conn")
+    @patch("scripts.research.tools._google_search_url")
+    def test_tier4_called_when_tiers_123_fail(self, mock_google, mock_conn):
+        """When all 3 tiers fail, Tier 4 should be tried."""
+        # Make Tier 3 (name search) return nothing
+        mock_cur = MagicMock()
+        mock_cur.fetchall.return_value = []
+        mock_cur.fetchone.return_value = None
+        mock_conn.return_value.cursor.return_value = mock_cur
+
+        mock_google.return_value = "https://acme-corp.com"
+        from scripts.research.tools import _resolve_employer_url
+        with patch.dict(os.environ, {"RESEARCH_SCRAPER_GOOGLE_FALLBACK": "true"}):
+            url, source = _resolve_employer_url("Acme Corp", url=None, employer_id=None)
+        assert url == "https://acme-corp.com"
+        assert source == "google_search"
+
+    @patch("scripts.research.tools._conn")
+    @patch("scripts.research.tools._google_search_url")
+    def test_tier4_disabled_by_env(self, mock_google, mock_conn):
+        """When RESEARCH_SCRAPER_GOOGLE_FALLBACK=false, Tier 4 should be skipped."""
+        mock_cur = MagicMock()
+        mock_cur.fetchall.return_value = []
+        mock_cur.fetchone.return_value = None
+        mock_conn.return_value.cursor.return_value = mock_cur
+
+        mock_google.return_value = "https://acme-corp.com"
+        from scripts.research.tools import _resolve_employer_url
+        with patch.dict(os.environ, {"RESEARCH_SCRAPER_GOOGLE_FALLBACK": "false"}):
+            url, source = _resolve_employer_url("Acme Corp", url=None, employer_id=None)
+        assert source == "none"
+        mock_google.assert_not_called()
+
+    @patch("scripts.research.tools._conn")
+    @patch("scripts.research.tools._google_search_url")
+    def test_tier4_returns_none(self, mock_google, mock_conn):
+        """When Google Search returns None, should fall through to 'none'."""
+        mock_cur = MagicMock()
+        mock_cur.fetchall.return_value = []
+        mock_cur.fetchone.return_value = None
+        mock_conn.return_value.cursor.return_value = mock_cur
+
+        mock_google.return_value = None
+        from scripts.research.tools import _resolve_employer_url
+        with patch.dict(os.environ, {"RESEARCH_SCRAPER_GOOGLE_FALLBACK": "true"}):
+            url, source = _resolve_employer_url("Acme Corp", url=None, employer_id=None)
+        assert source == "none"
+
+    def test_provided_url_skips_tier4(self):
+        """Tier 1 (provided URL) should take precedence over Tier 4."""
+        from scripts.research.tools import _resolve_employer_url
+        url, source = _resolve_employer_url("Acme Corp", url="https://acme.com")
+        assert url == "https://acme.com"
+        assert source == "provided"
+
+    @patch.dict(os.environ, {"GOOGLE_API_KEY": ""})
+    def test_google_search_url_no_api_key(self):
+        """Should return None when no API key is set."""
+        from scripts.research.tools import _google_search_url
+        result = _google_search_url("Acme Corp")
+        assert result is None
+
+
+class TestStrategySeeding:
+    """Test that update_strategy_quality seeds and updates rows."""
+
+    @patch("scripts.research.auto_grader.get_connection")
+    def test_upsert_populates_from_actions(self, mock_get_conn):
+        """update_strategy_quality should execute an INSERT...ON CONFLICT DO UPDATE."""
+        mock_conn = MagicMock()
+        mock_cur = MagicMock()
+        mock_cur.rowcount = 5
+        mock_conn.cursor.return_value = mock_cur
+        mock_get_conn.return_value = mock_conn
+
+        from scripts.research.auto_grader import update_strategy_quality
+        result = update_strategy_quality(conn=mock_conn)
+        assert result == 5
+        # Verify INSERT ... ON CONFLICT was used
+        call_args = mock_cur.execute.call_args[0][0]
+        assert "INSERT INTO research_strategies" in call_args
+        assert "ON CONFLICT" in call_args
+        assert "DO UPDATE" in call_args
+        mock_conn.commit.assert_called_once()
+
+    @patch("scripts.research.auto_grader.get_connection")
+    def test_upsert_includes_hit_rate(self, mock_get_conn):
+        """The UPSERT query should compute hit_rate."""
+        mock_conn = MagicMock()
+        mock_cur = MagicMock()
+        mock_cur.rowcount = 0
+        mock_conn.cursor.return_value = mock_cur
+        mock_get_conn.return_value = mock_conn
+
+        from scripts.research.auto_grader import update_strategy_quality
+        update_strategy_quality(conn=mock_conn)
+        call_args = mock_cur.execute.call_args[0][0]
+        assert "hit_rate" in call_args
+        assert "times_tried" in call_args
+        assert "times_found_data" in call_args

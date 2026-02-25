@@ -210,21 +210,24 @@ def _ensure_query_effectiveness_table():
 _GAP_QUERY_TEMPLATES = {
     # When Mergent misses (48% miss rate)
     "employee_count": [
-        '"{company}" number of employees',
-        '"{company}" workforce size headcount',
-        '"{company}" company size LinkedIn',
+        '"{company}" number of employees {year}',
+        '"{company}" employees site:linkedin.com',
+        '"{company}" workforce size headcount {state}',
     ],
     "revenue": [
-        '"{company}" annual revenue sales',
-        '"{company}" revenue financial results {year}',
+        '"{company}" annual revenue {year}',
+        '"{company}" revenue SEC 10-K billion million',
+        '"{company}" revenue financial results {state} {year}',
     ],
     "website_url": [
-        '"{company}" official website {state}',
+        '"{company}" official site',
+        '"{company}" homepage {state}',
     ],
     # When OSHA misses
     "osha_violations": [
-        '"{company}" OSHA violations safety citations',
-        '"{company}" workplace safety inspection {state}',
+        '"{company}" OSHA violations safety citations {state}',
+        '"{company}" OSHA inspection fine {year}',
+        '"{company}" workplace safety incident {state} {year}',
     ],
     # When NLRB misses
     "nlrb_activity": [
@@ -234,8 +237,9 @@ _GAP_QUERY_TEMPLATES = {
     ],
     # When WHD misses
     "whd_violations": [
-        '"{company}" wage theft Department of Labor',
-        '"{company}" Fair Labor Standards Act violation',
+        '"{company}" wage theft Department of Labor {state}',
+        '"{company}" FLSA violation back wages {year}',
+        '"{company}" Fair Labor Standards Act {state} {year}',
     ],
     # When 990 misses (nonprofits)
     "nonprofit_financials": [
@@ -295,7 +299,7 @@ def _get_best_queries(gap_type: str, company_type: Optional[str] = None,
 def _build_web_search_queries(company_name: str, company_type: Optional[str],
                                company_state: Optional[str],
                                db_gaps: list[str],
-                               year: str = "2025") -> list[str]:
+                               year: str = None) -> list[str]:
     """Build targeted search queries based on which DB tools missed.
 
     Args:
@@ -303,11 +307,13 @@ def _build_web_search_queries(company_name: str, company_type: Optional[str],
         company_type: public/private/nonprofit/government
         company_state: 2-letter state code
         db_gaps: list of tool_names that returned no data
-        year: current year for recency queries
+        year: current year for recency queries (defaults to current year)
 
     Returns:
         List of filled query strings, capped at 15.
     """
+    if year is None:
+        year = str(datetime.now().year)
     queries = []
     gap_types_used = []  # track (gap_type, template) for effectiveness logging
 
@@ -1191,7 +1197,7 @@ Search the web to fill gaps and add current context. Use these targeted searches
 Search for EACH of these individually. Do not stop after one search. Try at least 5-6 different searches.
 
 Also check for:
-1. **Recent news** (2024-2026): layoffs, expansions, lawsuits, mergers, acquisitions, executive changes
+1. **Recent news** ({datetime.now().year - 1}-{datetime.now().year}): layoffs, expansions, lawsuits, mergers, acquisitions, executive changes
 2. **Union organizing**: active campaigns, election results, strikes, work stoppages
 3. **Worker issues**: wage theft complaints, safety incidents, employee lawsuits
 4. **NLRB activity**: recent filings, unfair labor practice charges, board decisions
@@ -1215,6 +1221,17 @@ Return ALL findings as a JSON code block. Include EVERY fact you find, even if m
   ],
   "company_labor_stance": [
     "Leadership quotes, anti-union actions, policy statements (Source Name, YYYY-MM-DD)"
+  ],
+  "financial_data": {{
+    "employee_count": "Number of employees (Source Name, YYYY)",
+    "revenue": "Annual revenue in dollars (Source Name, YYYY)",
+    "website_url": "Official company website URL"
+  }},
+  "safety_violations": [
+    "OSHA citations, fines, workplace injuries, safety incidents (Source Name, YYYY-MM-DD)"
+  ],
+  "wage_violations": [
+    "Wage theft, DOL investigations, FLSA violations, back wages (Source Name, YYYY-MM-DD)"
   ],
   "company_context": "2-3 paragraph summary of what web sources reveal about this company's labor relations landscape, recent trajectory, and organizing potential",
   "sources": [
@@ -1379,6 +1396,44 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                             labor["recent_nlrb_web"] = existing_nlrb
                             dossier_body["labor"] = labor
 
+                    # --- Merge financial_data into identity/financial ---
+                    fin_data = web_data.get("financial_data")
+                    if isinstance(fin_data, dict):
+                        identity = dossier_body.get("identity", {}) or {}
+                        financial = dossier_body.get("financial", {}) or {}
+                        if fin_data.get("employee_count"):
+                            identity.setdefault("employee_count_web", fin_data["employee_count"])
+                        if fin_data.get("revenue"):
+                            financial.setdefault("revenue_web", fin_data["revenue"])
+                        if fin_data.get("website_url"):
+                            identity.setdefault("website_url", fin_data["website_url"])
+                        dossier_body["identity"] = identity
+                        dossier_body["financial"] = financial
+
+                    # --- Merge safety_violations into workplace ---
+                    safety_violations = web_data.get("safety_violations", [])
+                    if safety_violations:
+                        workplace = dossier_body.get("workplace", {}) or {}
+                        existing_safety = workplace.get("safety_violations_web", [])
+                        for item in safety_violations:
+                            if isinstance(item, str) and item.strip():
+                                existing_safety.append(item)
+                        if existing_safety:
+                            workplace["safety_violations_web"] = existing_safety
+                            dossier_body["workplace"] = workplace
+
+                    # --- Merge wage_violations into workplace ---
+                    wage_violations = web_data.get("wage_violations", [])
+                    if wage_violations:
+                        workplace = dossier_body.get("workplace", {}) or {}
+                        existing_wage = workplace.get("wage_violations_web", [])
+                        for item in wage_violations:
+                            if isinstance(item, str) and item.strip():
+                                existing_wage.append(item)
+                        if existing_wage:
+                            workplace["wage_violations_web"] = existing_wage
+                            dossier_body["workplace"] = workplace
+
                     dossier_body["assessment"] = assessment
 
                     # --- Add web sources ---
@@ -1407,9 +1462,10 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                                 "dossier_section": "workplace",
                                 "attribute_name": "recent_labor_news",
                                 "attribute_value": item,
-                                "source_type": "web",
+                                "source_type": "web_search",
                                 "source_name": "google_search",
                                 "confidence": 0.7,
+                                "as_of_date": date.today().isoformat(),
                             })
                     # Add organizing activity as facts too
                     for item in organizing:
@@ -1418,9 +1474,67 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                                 "dossier_section": "labor",
                                 "attribute_name": "recent_organizing",
                                 "attribute_value": item,
-                                "source_type": "web",
+                                "source_type": "web_search",
                                 "source_name": "google_search",
                                 "confidence": 0.7,
+                                "as_of_date": date.today().isoformat(),
+                            })
+                    # Add financial data as facts
+                    if isinstance(fin_data, dict):
+                        _today_iso = date.today().isoformat()
+                        if fin_data.get("employee_count"):
+                            original_dossier.setdefault("facts", []).append({
+                                "dossier_section": "identity",
+                                "attribute_name": "employee_count",
+                                "attribute_value": fin_data["employee_count"],
+                                "source_type": "web_search",
+                                "source_name": "google_search",
+                                "confidence": 0.6,
+                                "as_of_date": _today_iso,
+                            })
+                        if fin_data.get("revenue"):
+                            original_dossier.setdefault("facts", []).append({
+                                "dossier_section": "financial",
+                                "attribute_name": "revenue",
+                                "attribute_value": fin_data["revenue"],
+                                "source_type": "web_search",
+                                "source_name": "google_search",
+                                "confidence": 0.6,
+                                "as_of_date": _today_iso,
+                            })
+                        if fin_data.get("website_url"):
+                            original_dossier.setdefault("facts", []).append({
+                                "dossier_section": "identity",
+                                "attribute_name": "website_url",
+                                "attribute_value": fin_data["website_url"],
+                                "source_type": "web_search",
+                                "source_name": "google_search",
+                                "confidence": 0.7,
+                                "as_of_date": _today_iso,
+                            })
+                    # Add safety violations as facts
+                    for item in safety_violations:
+                        if isinstance(item, str) and item.strip():
+                            original_dossier.setdefault("facts", []).append({
+                                "dossier_section": "workplace",
+                                "attribute_name": "osha_violation_web",
+                                "attribute_value": item,
+                                "source_type": "web_search",
+                                "source_name": "google_search",
+                                "confidence": 0.6,
+                                "as_of_date": date.today().isoformat(),
+                            })
+                    # Add wage violations as facts
+                    for item in wage_violations:
+                        if isinstance(item, str) and item.strip():
+                            original_dossier.setdefault("facts", []).append({
+                                "dossier_section": "workplace",
+                                "attribute_name": "whd_violation_web",
+                                "attribute_value": item,
+                                "source_type": "web_search",
+                                "source_name": "google_search",
+                                "confidence": 0.6,
+                                "as_of_date": date.today().isoformat(),
                             })
 
                     # Re-serialize the patched dossier as the final text
@@ -1480,6 +1594,8 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                         "nlrb_activity": "nlrb_activity",
                         "company_labor_stance": "labor_stance",
                         "company_context": "recent_news",
+                        "safety_violations": "osha_violations",
+                        "wage_violations": "whd_violations",
                     }
                     for sec_key, gap_key in _section_gap_map.items():
                         val = _web_data.get(sec_key, [])
@@ -1487,6 +1603,18 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                             web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + len(val)
                         elif isinstance(val, str) and val.strip():
                             web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + 1
+
+                    # Handle financial_data dict -> 3 separate gap types
+                    fin_data = _web_data.get("financial_data")
+                    if isinstance(fin_data, dict):
+                        for fin_key, gap_key in [
+                            ("employee_count", "employee_count"),
+                            ("revenue", "revenue"),
+                            ("website_url", "website_url"),
+                        ]:
+                            val = fin_data.get(fin_key)
+                            if val and isinstance(val, str) and val.strip():
+                                web_facts_by_gap[gap_key] = web_facts_by_gap.get(gap_key, 0) + 1
             _update_query_effectiveness(gap_types_queried, web_facts_by_gap, company_type)
         except Exception as qe_exc:
             _log.warning("Run %d: query effectiveness tracking failed (non-fatal): %s", run_id, qe_exc)

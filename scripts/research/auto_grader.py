@@ -362,10 +362,13 @@ def backfill_all_scores() -> int:
 
 def update_strategy_quality(conn=None) -> int:
     """
-    Update research_strategies.avg_quality based on graded runs.
+    Seed and update research_strategies from completed research runs.
 
-    For each tool/industry/type/size combo, compute the average overall_quality_score
-    of runs where that tool found data.
+    Uses UPSERT: INSERT rows from research_actions JOIN research_runs grouped
+    by (industry 2-digit NAICS, company_type, size_bucket, tool_name), then
+    updates avg_quality, hit_rate, avg_latency_ms from graded runs.
+
+    Returns the number of rows upserted.
     """
     close_conn = False
     if conn is None:
@@ -376,30 +379,42 @@ def update_strategy_quality(conn=None) -> int:
         cur = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
 
         cur.execute("""
-            UPDATE research_strategies rs
-            SET avg_quality = sub.avg_qual
-            FROM (
-                SELECT
-                    ra.tool_name,
-                    rr.industry_naics,
-                    rr.company_type,
-                    rr.employee_size_bucket,
-                    AVG(rr.overall_quality_score) AS avg_qual
-                FROM research_actions ra
-                JOIN research_runs rr ON rr.id = ra.run_id
-                WHERE rr.overall_quality_score IS NOT NULL
-                  AND ra.data_found = TRUE
-                GROUP BY ra.tool_name, rr.industry_naics, rr.company_type, rr.employee_size_bucket
-            ) sub
-            WHERE rs.tool_name = sub.tool_name
-              AND COALESCE(rs.industry_naics_2digit, '') = COALESCE(LEFT(sub.industry_naics, 2), '')
-              AND COALESCE(rs.company_type, '') = COALESCE(sub.company_type, '')
-              AND COALESCE(rs.company_size_bucket, '') = COALESCE(sub.employee_size_bucket, '')
+            INSERT INTO research_strategies
+                (industry_naics_2digit, company_type, company_size_bucket, tool_name,
+                 times_tried, times_found_data, hit_rate, avg_quality, avg_latency_ms,
+                 last_updated)
+            SELECT
+                COALESCE(LEFT(rr.industry_naics, 2), ''),
+                COALESCE(rr.company_type, ''),
+                COALESCE(rr.employee_size_bucket, ''),
+                ra.tool_name,
+                COUNT(*) AS times_tried,
+                COUNT(*) FILTER (WHERE ra.data_found = TRUE) AS times_found_data,
+                ROUND(
+                    COUNT(*) FILTER (WHERE ra.data_found = TRUE)::numeric
+                    / NULLIF(COUNT(*), 0), 4
+                ) AS hit_rate,
+                ROUND(AVG(rr.overall_quality_score) FILTER (WHERE ra.data_found = TRUE), 2),
+                COALESCE(AVG(ra.latency_ms)::integer, 0),
+                NOW()
+            FROM research_actions ra
+            JOIN research_runs rr ON rr.id = ra.run_id
+            WHERE rr.status = 'completed'
+            GROUP BY LEFT(rr.industry_naics, 2), rr.company_type,
+                     rr.employee_size_bucket, ra.tool_name
+            ON CONFLICT (industry_naics_2digit, company_type, company_size_bucket, tool_name)
+            DO UPDATE SET
+                times_tried = EXCLUDED.times_tried,
+                times_found_data = EXCLUDED.times_found_data,
+                hit_rate = EXCLUDED.hit_rate,
+                avg_quality = COALESCE(EXCLUDED.avg_quality, research_strategies.avg_quality),
+                avg_latency_ms = EXCLUDED.avg_latency_ms,
+                last_updated = NOW()
         """)
-        updated = cur.rowcount
+        upserted = cur.rowcount
         conn.commit()
-        _log.info("Updated avg_quality for %d strategy rows.", updated)
-        return updated
+        _log.info("Upserted %d strategy rows.", upserted)
+        return upserted
     finally:
         if close_conn:
             conn.close()
