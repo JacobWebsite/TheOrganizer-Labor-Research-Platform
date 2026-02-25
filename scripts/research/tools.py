@@ -1085,12 +1085,35 @@ def get_industry_profile(
             if sd:
                 state_density = _safe_dict(sd)
 
+        # Pay ranges: join occupation matrix with projections for median wages
+        pay_ranges = []
+        if occupations:
+            occ_codes = [o["occupation_code"] for o in occupations if o.get("occupation_code")]
+            if occ_codes:
+                cur.execute("""
+                    SELECT soc_code, occupation_title, median_wage_2024,
+                           typical_education
+                    FROM bls_occupation_projections
+                    WHERE soc_code = ANY(%s)
+                      AND median_wage_2024 IS NOT NULL
+                    ORDER BY median_wage_2024 DESC
+                """, (occ_codes,))
+                wage_rows = _safe_list(cur.fetchall())
+                for wr in wage_rows:
+                    pay_ranges.append({
+                        "occupation": wr["occupation_title"],
+                        "soc_code": wr["soc_code"],
+                        "median_annual_wage": wr["median_wage_2024"],
+                        "typical_education": wr.get("typical_education"),
+                    })
+
         conn.close()
 
         data = {
             "naics_code": naics,
             "bls_industry_code": bls_code,
             "top_occupations": occupations,
+            "pay_ranges": pay_ranges,
             "national_density": national_density,
             "state_density": state_density,
         }
@@ -1099,6 +1122,9 @@ def get_industry_profile(
         if occupations:
             top3 = ", ".join(f"{o['occupation_title']} ({o['percent_of_industry']}%)" for o in occupations[:3])
             summary += f"Top occupations: {top3}. "
+        if pay_ranges:
+            top_pay = ", ".join(f"{p['occupation']} (${p['median_annual_wage']:,.0f})" for p in pay_ranges[:3])
+            summary += f"Pay ranges: {top_pay}. "
         if national_density:
             summary += f"National union density: {national_density['union_density_pct']}%."
         if state_density:
@@ -1677,7 +1703,7 @@ TOOL_REGISTRY: dict[str, callable] = {
     "get_industry_profile": get_industry_profile,
     "get_similar_employers": get_similar_employers,
     "search_mergent": search_mergent,
-    "search_web": search_web,
+    # search_web removed — replaced by Gemini Google Search grounding in agent.py
     "scrape_employer_website": scrape_employer_website,
 }
 

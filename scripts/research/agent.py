@@ -89,6 +89,74 @@ def _safe(val: Any) -> Any:
     return val
 
 
+def _extract_financial_from_text(text: str) -> dict:
+    """Regex-extract employee count and revenue from raw web text.
+
+    Returns dict with keys 'employee_count', 'revenue' (strings or None).
+    Used as a fallback when Gemini doesn't produce a structured financial_data dict.
+    """
+    result = {}
+
+    # Employee count patterns: "150,000 employees", "~12000 workers"
+    emp_pattern = re.compile(
+        r'(?:approximately|about|around|~|over|nearly|more than|has)?\s*'
+        r'(\d[\d,]+)\s*(?:employees|workers|staff|associates|team members)',
+        re.IGNORECASE,
+    )
+    emp_matches = emp_pattern.findall(text)
+    if emp_matches:
+        # Take the largest number found (most likely to be total headcount)
+        counts = []
+        for m in emp_matches:
+            try:
+                counts.append(int(m.replace(",", "")))
+            except ValueError:
+                pass
+        if counts:
+            result["employee_count"] = f"{max(counts):,} employees (web source, {date.today().year})"
+
+    # Revenue patterns: "$1.2 billion", "$500 million", "$2.5B"
+    rev_pattern = re.compile(
+        r'\$\s*([\d.]+)\s*(billion|million|trillion|B|M|T)\b',
+        re.IGNORECASE,
+    )
+    rev_matches = rev_pattern.findall(text)
+    if rev_matches:
+        best_val = 0
+        best_str = ""
+        for num_str, unit in rev_matches:
+            try:
+                num = float(num_str)
+                unit_l = unit.lower()
+                if unit_l in ("billion", "b"):
+                    val = num * 1e9
+                elif unit_l in ("million", "m"):
+                    val = num * 1e6
+                elif unit_l in ("trillion", "t"):
+                    val = num * 1e12
+                else:
+                    val = num
+                if val > best_val:
+                    best_val = val
+                    best_str = f"${num_str} {unit}"
+            except ValueError:
+                pass
+        if best_str:
+            result["revenue"] = f"{best_str} (web source, {date.today().year})"
+
+    # Website URL pattern
+    url_pattern = re.compile(
+        r'(?:official\s+(?:website|site)|homepage|website)\s*(?:is|at|:)?\s*'
+        r'(https?://[^\s<>"]+)',
+        re.IGNORECASE,
+    )
+    url_match = url_pattern.search(text)
+    if url_match:
+        result["website_url"] = url_match.group(1).rstrip(".,;)")
+
+    return result
+
+
 def _update_run(run_id: int, **fields):
     """Update fields on the research_runs row."""
     if not fields:
@@ -500,6 +568,16 @@ You MAY skip tools that clearly don't apply (e.g., skip search_sec for nonprofit
 When you compile the final dossier, use ONLY these attribute names:
 {vocab_text}
 
+## CRITICAL FIELD RULES
+- You MUST include ALL sections in your JSON output, even if empty (use empty objects {{}}).
+- Within each section, include ALL vocabulary fields. Use null for fields with no data. Do NOT omit fields.
+- **employee_count** and **revenue** belong in the **financial** section, NOT identity.
+- **pay_ranges** belong in the **workforce** section (from BLS wage data).
+- **recent_labor_news** belongs in the **workplace** section.
+- **turnover_signals** belongs in the **workforce** section.
+- Do NOT invent non-vocabulary field names (e.g., no "employee_count_web", "revenue_web", "safety_violations_web").
+- For list-type fields (e.g., osha_violation_details, whd_violation_details), use JSON arrays.
+
 ## Output Format
 
 After gathering data from all relevant tools, produce your final answer as a single JSON code block with the following structure:
@@ -535,11 +613,14 @@ After gathering data from all relevant tools, produce your final answer as a sin
 
 For the **assessment** section, provide factual analysis only:
 - `data_summary`: 2-3 paragraph factual summary of what the data reveals. State what was found, patterns, and what is notable. No strategy recommendations.
+- `organizing_summary`: Key organizing intelligence synthesized from all sources.
+- `campaign_strengths`: List of factors favorable for organizing (from database + web).
+- `campaign_challenges`: List of obstacles to organizing (from database + web).
 - `web_intelligence`: Key findings from web search beyond database records. Include dates and sources.
 - `source_contradictions`: Contradictions between data sources (e.g., DB says no NLRB activity but web reports ongoing campaigns).
-- `data_gaps`: Critical information missing or unverifiable.
+- `data_gaps`: Critical information missing or unverifiable (use null for other assessment fields).
 
-Do NOT include: recommended_approach, similar_organized, or strategic advice.
+Do NOT include: recommended_approach, similar_organized, or strategic advice. Set those to null.
 
 For the **sources** section:
 - `section_confidence`: object mapping each section to "high"/"medium"/"low"
@@ -994,6 +1075,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     total_output_tokens = 0
     execution_order = 0
     tools_called = 0
+    tools_called_set: set[str] = set()
     final_text = ""
 
     # ------------------------------------------------------------------
@@ -1044,6 +1126,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             tools_called += 1
             tool_name = fc.name
             tool_input = dict(fc.args) if fc.args else {}
+            tools_called_set.add(tool_name)
 
             # Update progress
             pct = 10 + int(70 * (execution_order / max(len(_INTERNAL_TOOLS), 1)))
@@ -1069,14 +1152,14 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
                 }
                 _log.info("Run %d: cache hit for %s (employer %s)",
                           run_id, tool_name, run.get("employer_id"))
-            elif tool_name == "google_search":
-                # Gemini sometimes emits google_search as a function call
-                # even though it's not in our declarations. Reject it so
-                # Gemini focuses on the database tools instead.
+            elif tool_name in ("google_search", "search_web"):
+                # Gemini sometimes emits google_search or search_web as
+                # function calls even though they're not in our declarations.
+                # Reject them so Gemini focuses on the database tools.
                 result = {
-                    "found": False, "source": "google_search",
-                    "summary": "Web search is not available. Focus on the database tools listed in your instructions.",
-                    "data": {}, "error": "google_search is not a registered tool",
+                    "found": False, "source": tool_name,
+                    "summary": "Web search is not available in this phase. Focus on the database tools listed in your instructions.",
+                    "data": {}, "error": f"{tool_name} is not a registered tool — web search runs separately after database queries",
                 }
             elif tool_name in TOOL_REGISTRY:
                 try:
@@ -1129,6 +1212,43 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         # Collect whatever text we got in the last response
         if not final_text:
             final_text = "\n".join(p.text for p in parts if p.text)
+
+    # ------------------------------------------------------------------
+    # Phase 1.5: Force scraper if Gemini didn't call it
+    # ------------------------------------------------------------------
+    if "scrape_employer_website" not in tools_called_set:
+        _progress(run_id, "Scraping employer website...", 81)
+        try:
+            scrape_result = TOOL_REGISTRY["scrape_employer_website"](
+                company_name=run["company_name"],
+                employer_id=run.get("employer_id"),
+            )
+            execution_order += 1
+            tools_called += 1
+            tools_called_set.add("scrape_employer_website")
+            _log_action(
+                run_id, "scrape_employer_website (forced)",
+                {"company_name": run["company_name"], "employer_id": run.get("employer_id")},
+                execution_order,
+                scrape_result,
+                0,
+            )
+            # Parse scraper results into the dossier text if we have a dossier
+            if scrape_result.get("found"):
+                scrape_data = scrape_result.get("data", {})
+                # Try to patch the dossier with scraper findings
+                dossier_obj = _extract_dossier_json(final_text)
+                if dossier_obj and "dossier" in dossier_obj:
+                    body = dossier_obj["dossier"]
+                    identity = body.get("identity", {}) or {}
+                    if scrape_data.get("url") and not identity.get("website_url"):
+                        identity["website_url"] = scrape_data["url"]
+                    body["identity"] = identity
+                    # Re-serialize
+                    final_text = "```json\n" + json.dumps(dossier_obj, indent=2, default=str) + "\n```"
+                    _log.info("Run %d: forced scraper found URL: %s", run_id, scrape_data.get("url"))
+        except Exception as scrape_exc:
+            _log.warning("Run %d: forced scraper failed (non-fatal): %s", run_id, scrape_exc)
 
     # ------------------------------------------------------------------
     # Phase 2: Web search via Google Search grounding
@@ -1375,6 +1495,26 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                                 strengths.append(f"[Web] Worker issue: {item}")
                         assessment["campaign_strengths"] = strengths
 
+                    # Extract turnover signals from worker_issues
+                    _TURNOVER_KEYWORDS = re.compile(
+                        r'\b(turnover|quit|retention|hiring|understaffed|'
+                        r'attrition|shortage|staffing|vacancy|resign)',
+                        re.IGNORECASE,
+                    )
+                    if worker_issues:
+                        turnover_hits = []
+                        for item in worker_issues:
+                            if isinstance(item, str) and _TURNOVER_KEYWORDS.search(item):
+                                turnover_hits.append(item)
+                        if turnover_hits:
+                            workforce = dossier_body.get("workforce", {}) or {}
+                            existing_turnover = workforce.get("turnover_signals", [])
+                            if not isinstance(existing_turnover, list):
+                                existing_turnover = [existing_turnover] if existing_turnover else []
+                            existing_turnover.extend(turnover_hits)
+                            workforce["turnover_signals"] = existing_turnover
+                            dossier_body["workforce"] = workforce
+
                     # Add company labor stance as challenges
                     labor_stance = web_data.get("company_labor_stance", [])
                     if labor_stance:
@@ -1396,15 +1536,27 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                             labor["recent_nlrb_web"] = existing_nlrb
                             dossier_body["labor"] = labor
 
-                    # --- Merge financial_data into identity/financial ---
+                    # --- Merge financial_data into financial/identity ---
                     fin_data = web_data.get("financial_data")
-                    if isinstance(fin_data, dict):
+                    if not isinstance(fin_data, dict):
+                        fin_data = {}
+
+                    # Fallback: regex-extract from raw web text when Gemini
+                    # didn't produce a structured financial_data dict
+                    if not fin_data.get("employee_count") or not fin_data.get("revenue"):
+                        regex_fin = _extract_financial_from_text(web_text)
+                        for k, v in regex_fin.items():
+                            if not fin_data.get(k):
+                                fin_data[k] = v
+                                _log.info("Run %d: regex-extracted %s from web text", run_id, k)
+
+                    if fin_data:
                         identity = dossier_body.get("identity", {}) or {}
                         financial = dossier_body.get("financial", {}) or {}
                         if fin_data.get("employee_count"):
-                            identity.setdefault("employee_count_web", fin_data["employee_count"])
+                            financial.setdefault("employee_count", fin_data["employee_count"])
                         if fin_data.get("revenue"):
-                            financial.setdefault("revenue_web", fin_data["revenue"])
+                            financial.setdefault("revenue", fin_data["revenue"])
                         if fin_data.get("website_url"):
                             identity.setdefault("website_url", fin_data["website_url"])
                         dossier_body["identity"] = identity
@@ -1414,24 +1566,28 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                     safety_violations = web_data.get("safety_violations", [])
                     if safety_violations:
                         workplace = dossier_body.get("workplace", {}) or {}
-                        existing_safety = workplace.get("safety_violations_web", [])
+                        existing_safety = workplace.get("osha_violation_details", [])
+                        if not isinstance(existing_safety, list):
+                            existing_safety = [existing_safety] if existing_safety else []
                         for item in safety_violations:
                             if isinstance(item, str) and item.strip():
-                                existing_safety.append(item)
+                                existing_safety.append(f"[Web] {item}")
                         if existing_safety:
-                            workplace["safety_violations_web"] = existing_safety
+                            workplace["osha_violation_details"] = existing_safety
                             dossier_body["workplace"] = workplace
 
                     # --- Merge wage_violations into workplace ---
                     wage_violations = web_data.get("wage_violations", [])
                     if wage_violations:
                         workplace = dossier_body.get("workplace", {}) or {}
-                        existing_wage = workplace.get("wage_violations_web", [])
+                        existing_wage = workplace.get("whd_violation_details", [])
+                        if not isinstance(existing_wage, list):
+                            existing_wage = [existing_wage] if existing_wage else []
                         for item in wage_violations:
                             if isinstance(item, str) and item.strip():
-                                existing_wage.append(item)
+                                existing_wage.append(f"[Web] {item}")
                         if existing_wage:
-                            workplace["wage_violations_web"] = existing_wage
+                            workplace["whd_violation_details"] = existing_wage
                             dossier_body["workplace"] = workplace
 
                     dossier_body["assessment"] = assessment
@@ -1454,8 +1610,21 @@ Be thorough. An empty section means you did not search hard enough. Every compan
                         )
                     dossier_body["sources"] = sources_sec
 
-                    # --- Add web facts ---
+                    # --- Merge recent_news into workplace body ---
                     recent_news = web_data.get("recent_news", [])
+                    if recent_news:
+                        workplace = dossier_body.get("workplace", {}) or {}
+                        existing_news = workplace.get("recent_labor_news", [])
+                        if not isinstance(existing_news, list):
+                            existing_news = [existing_news] if existing_news else []
+                        for item in recent_news:
+                            if isinstance(item, str) and item.strip():
+                                existing_news.append(item)
+                        if existing_news:
+                            workplace["recent_labor_news"] = existing_news
+                            dossier_body["workplace"] = workplace
+
+                    # --- Add web facts ---
                     for item in recent_news:
                         if isinstance(item, str) and item.strip():
                             original_dossier.setdefault("facts", []).append({
@@ -1569,6 +1738,56 @@ Be thorough. An empty section means you did not search hard enough. Every compan
         except Exception as merge_exc:
             _log.warning("Run %d: web merge phase failed (non-fatal): %s", run_id, merge_exc)
             final_text = original_final_text  # restore clean dossier on failure
+
+    # ------------------------------------------------------------------
+    # Phase 4: Post-merge validation — copy facts to dossier body
+    # ------------------------------------------------------------------
+    # Facts array may contain data that didn't make it into the dossier body.
+    # This pass copies fact values into the appropriate dossier body sections.
+    try:
+        validated_dossier = _extract_dossier_json(final_text)
+        if validated_dossier and "dossier" in validated_dossier:
+            vd_body = validated_dossier["dossier"]
+            facts_arr = validated_dossier.get("facts", [])
+            missing_fields = []
+            patched = 0
+
+            for fact in facts_arr:
+                sec = fact.get("dossier_section")
+                attr = fact.get("attribute_name")
+                val = fact.get("attribute_value")
+                if not sec or not attr or not val:
+                    continue
+
+                sec_dict = vd_body.get(sec)
+                if not isinstance(sec_dict, dict):
+                    sec_dict = {}
+                    vd_body[sec] = sec_dict
+
+                # Copy fact to body if the field is empty
+                existing = sec_dict.get(attr)
+                if existing is None or existing == "" or existing == []:
+                    sec_dict[attr] = val
+                    patched += 1
+
+            # Log which vocabulary fields are still missing
+            for sec_name in _DOSSIER_SECTIONS:
+                sec_dict = vd_body.get(sec_name)
+                if not isinstance(sec_dict, dict):
+                    missing_fields.append(f"{sec_name}.*")
+                    continue
+                for key, val in sec_dict.items():
+                    if val is None:
+                        missing_fields.append(f"{sec_name}.{key}")
+
+            if patched:
+                final_text = "```json\n" + json.dumps(validated_dossier, indent=2, default=str) + "\n```"
+                _log.info("Run %d: validation patched %d fields from facts array", run_id, patched)
+            if missing_fields:
+                _log.info("Run %d: still missing %d fields: %s",
+                          run_id, len(missing_fields), ", ".join(missing_fields[:20]))
+    except Exception as val_exc:
+        _log.warning("Run %d: post-merge validation failed (non-fatal): %s", run_id, val_exc)
 
     # ------------------------------------------------------------------
     # Track query effectiveness (Phase 5.2 learning)
