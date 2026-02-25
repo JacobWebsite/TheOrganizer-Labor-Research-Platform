@@ -62,8 +62,9 @@ _OUTPUT_COST_PER_1K = 0.25   # $2.50/M output
 _INTERNAL_TOOLS = [
     "search_osha", "search_nlrb", "search_whd", "search_sec",
     "search_sam", "search_990", "search_contracts", "search_mergent",
-    "get_industry_profile", "get_similar_employers", "scrape_employer_website",
-    "google_search",
+    "search_sec_proxy", "search_job_postings", "get_workforce_demographics",
+    "get_industry_profile", "get_similar_employers",
+    "scrape_employer_website", "google_search",
 ]
 
 # Dossier sections
@@ -602,7 +603,8 @@ After gathering data from all relevant tools, produce your final answer as a sin
       "source_type": "database",
       "source_name": "...",
       "confidence": 0.9,
-      "as_of_date": "YYYY-MM-DD or null"
+      "as_of_date": "YYYY-MM-DD or null",
+      "contradicts_fact_attribute": "attribute_name_it_conflicts_with or null"
     }}
   ],
   "skipped_tools": [
@@ -630,6 +632,192 @@ For the **sources** section:
 Make sure every fact in the `facts` array uses an `attribute_name` from the vocabulary above. Use `attribute_value` for simple text/number values and `attribute_value_json` for complex objects (lists, dicts).
 
 Be thorough but efficient. Do not call the same tool twice with the same parameters."""
+
+
+def _patch_dossier_financials(dossier_data: dict, web_text: str = "") -> int:
+    """Scan narrative sections for missing financial data (Issue #1).
+
+    If employee_count or revenue are missing in the structured dossier,
+    we scan data_summary, web_intelligence, and organizing_summary for
+    patterns, then update the dossier and facts array.
+    """
+    if not dossier_data or "dossier" not in dossier_data:
+        return 0
+
+    body = dossier_data["dossier"]
+    financial = body.get("financial", {}) or {}
+    assessment = body.get("assessment", {}) or {}
+
+    # Gather all narrative text
+    narratives = [
+        assessment.get("data_summary") or "",
+        assessment.get("web_intelligence") or "",
+        assessment.get("organizing_summary") or "",
+        web_text or "",
+    ]
+    combined_text = "\n".join(narratives)
+    if not combined_text.strip():
+        return 0
+
+    # Extract patterns
+    extracted = _extract_financial_from_text(combined_text)
+    patched = 0
+
+    # Map extracted keys to vocab attribute names
+    _MAP = {
+        "employee_count": "employee_count",
+        "revenue": "revenue",
+        "website_url": "website_url",
+    }
+
+    for ext_key, attr_name in _MAP.items():
+        val = extracted.get(ext_key)
+        if not val:
+            continue
+
+        # Check if already present in dossier
+        sec = "identity" if ext_key == "website_url" else "financial"
+        target_sec = body.get(sec, {}) or {}
+        if not target_sec.get(attr_name):
+            target_sec[attr_name] = val
+            body[sec] = target_sec
+            patched += 1
+
+            # Also add to facts array if missing
+            facts = dossier_data.setdefault("facts", [])
+            if not any(f.get("attribute_name") == attr_name for f in facts):
+                facts.append({
+                    "dossier_section": sec,
+                    "attribute_name": attr_name,
+                    "attribute_value": val,
+                    "source_type": "web_search",
+                    "source_name": "regex_extraction",
+                    "confidence": 0.6,
+                    "as_of_date": date.today().isoformat(),
+                })
+
+    return patched
+
+
+def _fill_dossier_gaps(
+    run_id: int,
+    dossier_data: dict,
+    web_text: str,
+    vocabulary: dict
+) -> int:
+    """Perform a second LLM pass to fill remaining null fields (Issue #13).
+
+    Scans the raw web text specifically for fields that are still null
+    after the first pass and merging.
+    """
+    if not web_text or not dossier_data or "dossier" not in dossier_data:
+        return 0
+
+    body = dossier_data["dossier"]
+    missing = []
+    
+    # Identify null fields (excluding assessment/sources)
+    for sec_name in ["identity", "financial", "workforce", "labor", "workplace"]:
+        sec_dict = body.get(sec_name, {})
+        for key, val in sec_dict.items():
+            if val is None or val == "" or val == []:
+                missing.append(f"{sec_name}.{key}")
+
+    if not missing:
+        return 0
+
+    _log.info("Run %d: Second pass hunting for %d missing fields", run_id, len(missing))
+
+    # Build prompt for gap filling
+    gap_list = "\n".join(f"- {m}" for m in missing)
+    prompt = f"""You are a data extraction specialist. We have a research dossier with missing information.
+Your task is to scan the provided raw web text and extract values ONLY for these specific missing fields:
+
+{gap_list}
+
+## Raw Web Text:
+{web_text[:30000]}
+
+## Instructions:
+1. Return a JSON object where keys are the 'section.field' names and values are the extracted data.
+2. If the data is truly not present in the text, omit the key or use null.
+3. Use a concise string format for values.
+4. Do NOT re-extract information that is NOT on the missing list.
+5. Provide a 'source_name' for each find.
+
+Example:
+{{
+  "identity.year_founded": "1994 (Source: Wikipedia)",
+  "workforce.job_posting_count": "45 open positions (Source: Indeed)"
+}}
+"""
+
+    try:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        client = genai.Client(api_key=api_key)
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                max_output_tokens=4096,
+                temperature=0.0,
+            ),
+        )
+        
+        text = response.text
+        # Extract JSON block
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        found_data = None
+        if m:
+            try:
+                found_data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not found_data:
+            try:
+                found_data = json.loads(_fix_json_escapes(text.strip()))
+            except: pass
+
+        if not found_data or not isinstance(found_data, dict):
+            return 0
+
+        patched = 0
+        facts = dossier_data.setdefault("facts", [])
+        
+        for gap_key, val in found_data.items():
+            if not val or '.' not in gap_key:
+                continue
+            
+            sec, attr = gap_key.split('.', 1)
+            if attr not in vocabulary:
+                continue
+            
+            # Update dossier body
+            target_sec = body.get(sec, {})
+            if not target_sec.get(attr):
+                target_sec[attr] = val
+                body[sec] = target_sec
+                patched += 1
+                
+                # Update facts array
+                facts.append({
+                    "dossier_section": sec,
+                    "attribute_name": attr,
+                    "attribute_value": val,
+                    "source_type": "web_search",
+                    "source_name": "second_pass_gap_filler",
+                    "confidence": 0.55,
+                    "as_of_date": date.today().isoformat(),
+                })
+        
+        return patched
+
+    except Exception as e:
+        _log.warning("Run %d: Second-pass gap filler failed: %s", run_id, e)
+        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -711,15 +899,26 @@ def _flatten_fact_value(val, val_json):
     return str(val_json)
 
 
-def _save_facts(run_id: int, employer_id: Optional[int], facts: list[dict], vocabulary: dict) -> int:
-    """Save parsed facts to research_facts. Returns count saved."""
+def _save_facts(
+    run_id: int,
+    employer_id: Optional[int],
+    facts: list[dict],
+    vocabulary: dict,
+    tool_action_map: Optional[dict] = None,
+) -> int:
+    """Save parsed facts to research_facts. Returns count saved.
+
+    Links facts to their source research_actions via action_id.
+    """
     if not facts:
         return 0
 
     conn = _conn()
     cur = conn.cursor()
-    saved = 0
+    saved_ids = {}  # attribute_name -> fact_id
+    saved_count = 0
 
+    # Pass 1: save facts without contradiction links
     for f in facts:
         attr = f.get("attribute_name", "")
         if attr not in vocabulary:
@@ -758,16 +957,27 @@ def _save_facts(run_id: int, employer_id: Optional[int], facts: list[dict], voca
         except (ValueError, TypeError):
             confidence = 0.5
 
+        # Link to action_id
+        action_id = None
+        if tool_action_map:
+            # First try the raw source name as provided by Gemini
+            action_id = tool_action_map.get(f.get("source_name", ""))
+            # Then try a cached version if applicable
+            if not action_id:
+                action_id = tool_action_map.get(f"{f.get('source_name')} (cached)")
+
         cur.execute("""
             INSERT INTO research_facts
-                (run_id, employer_id, dossier_section, attribute_name,
+                (run_id, employer_id, action_id, dossier_section, attribute_name,
                  attribute_value, attribute_value_json,
                  source_type, source_name, source_url,
                  confidence, as_of_date)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             run_id,
             employer_id,
+            action_id,
             f.get("dossier_section", vocabulary[attr]["dossier_section"]),
             attr,
             val,
@@ -778,11 +988,24 @@ def _save_facts(run_id: int, employer_id: Optional[int], facts: list[dict], voca
             confidence,
             as_of_date,
         ))
-        saved += 1
+        row = cur.fetchone()
+        saved_ids[attr] = row["id"]
+        saved_count += 1
+
+    # Pass 2: resolve contradictions if Gemini provided a hint
+    for f in facts:
+        attr = f.get("attribute_name", "")
+        # Gemini can flag which attribute this fact contradicts
+        contradicted_attr = f.get("contradicts_fact_attribute")
+        if contradicted_attr and contradicted_attr in saved_ids and attr in saved_ids:
+            cur.execute(
+                "UPDATE research_facts SET contradicts_fact_id = %s WHERE id = %s",
+                (saved_ids[contradicted_attr], saved_ids[attr])
+            )
 
     conn.commit()
     conn.close()
-    return saved
+    return saved_count
 
 
 # ---------------------------------------------------------------------------
@@ -1076,6 +1299,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     execution_order = 0
     tools_called = 0
     tools_called_set: set[str] = set()
+    tool_action_map: dict[str, int] = {}  # tool_name -> latest action_id
     final_text = ""
     _consecutive_web_only_turns = 0  # Track turns where Gemini only calls google_search
 
@@ -1195,7 +1419,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
             # Log to database (mark cached actions)
             log_tool_name = f"{tool_name} (cached)" if cached else tool_name
-            _log_action(
+            action_id = _log_action(
                 run_id, log_tool_name, tool_input, execution_order,
                 result, latency_ms,
                 company_context={
@@ -1203,6 +1427,7 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
                     "employer_id": run.get("employer_id"),
                 },
             )
+            tool_action_map[tool_name] = action_id
 
             # Build function response for Gemini
             # Gemini expects the response as a dict (not a JSON string)
@@ -1249,13 +1474,20 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             scrape_result = TOOL_REGISTRY["scrape_employer_website"](
                 company_name=run["company_name"],
                 employer_id=run.get("employer_id"),
+                industry=run.get("industry_naics"),
+                state=run.get("company_state"),
             )
             execution_order += 1
             tools_called += 1
             tools_called_set.add("scrape_employer_website")
             _log_action(
                 run_id, "scrape_employer_website (forced)",
-                {"company_name": run["company_name"], "employer_id": run.get("employer_id")},
+                {
+                    "company_name": run["company_name"],
+                    "employer_id": run.get("employer_id"),
+                    "industry": run.get("industry_naics"),
+                    "state": run.get("company_state"),
+                },
                 execution_order,
                 scrape_result,
                 0,
@@ -1423,7 +1655,7 @@ Be thorough. An empty section means you did not search hard enough. Every compan
 
         execution_order += 1
         tools_called += 1
-        _log_action(
+        action_id = _log_action(
             run_id, "google_search",
             {"queries": search_queries_used[:10]},
             execution_order,
@@ -1434,6 +1666,7 @@ Be thorough. An empty section means you did not search hard enough. Every compan
              "data": {}},
             0,
         )
+        tool_action_map["google_search"] = action_id
 
         # Save original dossier text before web merge.
         original_final_text = final_text
@@ -1880,6 +2113,16 @@ Be thorough. An empty section means you did not search hard enough. Every compan
             "facts": [],
             "parse_error": "Could not extract structured JSON from agent response",
         }
+    else:
+        # Patch missing financials from narrative (Issue #1)
+        patched_count = _patch_dossier_financials(dossier_data, web_text)
+        if patched_count:
+            _log.info("Run %d: patched %d financial fields from narrative", run_id, patched_count)
+
+        # Second-pass gap filler (Issue #13)
+        gaps_filled = _fill_dossier_gaps(run_id, dossier_data, web_text, vocabulary)
+        if gaps_filled:
+            _log.info("Run %d: filled %d missing fields with second-pass extraction", run_id, gaps_filled)
 
     # ------------------------------------------------------------------
     # Save facts
@@ -1901,6 +2144,7 @@ Be thorough. An empty section means you did not search hard enough. Every compan
         run.get("employer_id"),
         facts_list,
         vocabulary,
+        tool_action_map=tool_action_map,
     )
 
     # Count sections with data

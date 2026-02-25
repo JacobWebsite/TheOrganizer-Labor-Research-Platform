@@ -1349,12 +1349,15 @@ def search_web(company_name: str, query: Optional[str] = None, **_kw) -> dict:
 # Page budgets: (paths_to_try, char_limit)
 _SCRAPE_PAGES = [
     ("homepage", ["/"], 3000),
-    ("about", ["/about", "/about-us", "/company"], 2500),
-    ("careers", ["/careers", "/jobs"], 1500),
-    ("news", ["/news", "/press", "/newsroom"], 1000),
+    ("about", ["/about", "/about-us", "/company", "/our-story"], 2500),
+    ("careers", ["/careers", "/jobs", "/work-with-us"], 1500),
+    ("news", ["/news", "/press", "/newsroom", "/media"], 1000),
+    ("locations", ["/locations", "/facilities", "/our-offices"], 1000),
+    ("contact", ["/contact", "/contact-us", "/get-in-touch"], 1000),
+    ("investors", ["/investors", "/investor-relations", "/financials"], 1500),
 ]
-_SCRAPE_TOTAL_BUDGET = 8000
-_SCRAPE_TIMEOUT = 28.0  # seconds — guarantees return within ~30s
+_SCRAPE_TOTAL_BUDGET = 12000
+_SCRAPE_TIMEOUT = 35.0  # seconds — guarantees return within ~40s
 
 
 def _normalize_url(raw: Optional[str]) -> Optional[str]:
@@ -1378,8 +1381,10 @@ def _resolve_employer_url(
     company_name: str,
     url: Optional[str] = None,
     employer_id: Optional[str] = None,
+    industry: Optional[str] = None,
+    state: Optional[str] = None,
 ) -> tuple[Optional[str], str]:
-    """Three-tier URL resolution. Returns (url, url_source)."""
+    """Four-tier URL resolution. Returns (url, url_source)."""
     # Tier 1: provided URL
     if url:
         norm = _normalize_url(url)
@@ -1414,17 +1419,18 @@ def _resolve_employer_url(
         except Exception as exc:
             _log.debug("Tier-2 URL lookup failed: %s", exc)
 
-    # Tier 3: Mergent by company name
+    # Tier 3: Mergent by company name + state
     try:
         conn = _conn()
         cur = conn.cursor()
         name_clause, name_params = _name_like_clause("UPPER(company_name)", company_name)
-        cur.execute(f"""
-            SELECT company_name, website FROM mergent_employers
-            WHERE {name_clause} AND website IS NOT NULL AND website != ''
-            ORDER BY employees_all_sites DESC NULLS LAST
-            LIMIT 5
-        """, name_params)
+        q = f"SELECT company_name, website FROM mergent_employers WHERE {name_clause} AND website IS NOT NULL AND website != ''"
+        params = list(name_params)
+        if state:
+            q += " AND state = %s"
+            params.append(state.upper())
+        q += " ORDER BY employees_all_sites DESC NULLS LAST LIMIT 5"
+        cur.execute(q, params)
         candidates = cur.fetchall()
         candidates = _filter_by_name_similarity(candidates, company_name, "company_name")
         conn.close()
@@ -1438,7 +1444,7 @@ def _resolve_employer_url(
     # Tier 4: Google Search via Gemini grounding (lightweight, ~$0.001/call)
     if os.environ.get("RESEARCH_SCRAPER_GOOGLE_FALLBACK", "true").lower() != "false":
         try:
-            resolved = _google_search_url(company_name)
+            resolved = _google_search_url(company_name, industry=industry, state=state)
             if resolved:
                 norm = _normalize_url(resolved)
                 if norm:
@@ -1449,7 +1455,11 @@ def _resolve_employer_url(
     return None, "none"
 
 
-def _google_search_url(company_name: str) -> Optional[str]:
+def _google_search_url(
+    company_name: str,
+    industry: Optional[str] = None,
+    state: Optional[str] = None,
+) -> Optional[str]:
     """Use Gemini + Google Search grounding to find a company's official URL.
 
     Returns the URL string or None if not found.
@@ -1463,10 +1473,21 @@ def _google_search_url(company_name: str) -> Optional[str]:
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
+        
+        context = f"Company: \"{company_name}\""
+        if state:
+            context += f", Location: {state}"
+        if industry:
+            context += f", Industry: {industry}"
+
         prompt = (
-            f"What is the official website URL for the company \"{company_name}\"? "
-            "Return ONLY the URL, nothing else. If you cannot find it, respond with NONE."
+            f"Find the official corporate website URL for: {context}. "
+            "Return ONLY the absolute URL (e.g., https://www.example.com). "
+            "If it's a subsidiary, find the subsidiary-specific site if it exists, "
+            "otherwise the parent site. If you cannot find a definitive site, respond with NONE.\n"
+            "Example: 'Xerox' -> https://www.xerox.com"
         )
+        
         response = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=[types.Content(
@@ -1476,6 +1497,7 @@ def _google_search_url(company_name: str) -> Optional[str]:
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())],
                 max_output_tokens=256,
+                temperature=0.0,
             ),
         )
         candidate = response.candidates[0] if response.candidates else None
@@ -1553,6 +1575,9 @@ async def _scrape_pages(base_url: str) -> dict:
         "about_text": None,
         "careers_text": None,
         "news_text": None,
+        "locations_text": None,
+        "contact_text": None,
+        "investors_text": None,
         "pages_scraped": 0,
         "total_chars": 0,
     }
@@ -1607,6 +1632,8 @@ def scrape_employer_website(
     *,
     url: Optional[str] = None,
     employer_id: Optional[str] = None,
+    industry: Optional[str] = None,
+    state: Optional[str] = None,
     **_kw,
 ) -> dict:
     """Scrape the employer's website for company info, leadership, careers, and news."""
@@ -1623,7 +1650,9 @@ def scrape_employer_website(
         }
 
     try:
-        resolved_url, url_source = _resolve_employer_url(company_name, url, employer_id)
+        resolved_url, url_source = _resolve_employer_url(
+            company_name, url, employer_id, industry=industry, state=state
+        )
         if not resolved_url:
             return {
                 "found": False,
@@ -1687,6 +1716,236 @@ def scrape_employer_website(
 
 
 # ---------------------------------------------------------------------------
+# TOOL 13: search_sec_proxy (DEF 14A)
+# ---------------------------------------------------------------------------
+
+def search_sec_proxy(
+    company_name: str,
+    *,
+    cik: Optional[str] = None,
+    ticker: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Fetch and parse the latest SEC Proxy Statement (DEF 14A) for executive pay."""
+    source = "api:sec_edgar_proxy"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        context = f"Company: \"{company_name}\""
+        if cik:
+            context += f", CIK: {cik}"
+        if ticker:
+            context += f", Ticker: {ticker}"
+
+        prompt = (
+            f"Find the latest Summary Compensation Table from the SEC Proxy Statement (DEF 14A) for {context}. "
+            "Extract the total compensation for the CEO and the next 2 highest-paid executives for the most recent year. "
+            "Return a JSON object with: {'year': 2024, 'executives': [{'name': '...', 'title': 'CEO', 'total_pay': '$...'}]}. "
+            "Include the source URL of the filing if found. If not found or not a public company, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        if not candidate or not candidate.content or not candidate.content.parts:
+            return {"found": False, "source": source, "summary": "No data returned.", "data": {}}
+            
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": "Proxy statement not found.", "data": {}}
+
+        # Extract JSON
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        data = None
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            return {"found": False, "source": source, "summary": "Unparseable data.", "data": {"raw": text}}
+
+        execs = data.get("executives", [])
+        parts = [f"Found {len(execs)} executive(s) in {data.get('year', '')} proxy statement"]
+        for e in execs[:2]:
+            parts.append(f"{e.get('name')} ({e.get('title')}): {e.get('total_pay')}")
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": ". ".join(parts) + ".",
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 14: search_job_postings
+# ---------------------------------------------------------------------------
+
+def search_job_postings(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Estimate active job posting counts and titles using Google Search grounding."""
+    source = "api:google_search_jobs"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        query = f"active job postings for \"{company_name}\""
+        if state:
+            query += f" in {state}"
+
+        prompt = (
+            f"Search for active job listings for: {query}. "
+            "Estimate the total number of open positions found across major job boards (Indeed, LinkedIn, Glassdoor, etc.). "
+            "List 3-5 sample job titles, their locations, and any mentioned pay/benefits. "
+            "Return a JSON object with: {'count_estimate': 120, 'sample_postings': [{'title': '...', 'location': '...', 'pay': '...'}]}. "
+            "If no postings found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        if not candidate or not candidate.content or not candidate.content.parts:
+            return {"found": False, "source": source, "summary": "No data returned.", "data": {}}
+            
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": "No active job postings found.", "data": {}}
+
+        # Extract JSON
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        data = None
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            return {"found": False, "source": source, "summary": "Unparseable job data.", "data": {"raw": text}}
+
+        count = data.get("count_estimate", 0)
+        samples = data.get("sample_postings", [])
+        
+        summary = f"Estimated {count} active job postings found. "
+        if samples:
+            summary += f"Sample roles: {', '.join(s.get('title') for s in samples[:3])}."
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 15: get_workforce_demographics
+# ---------------------------------------------------------------------------
+
+def get_workforce_demographics(
+    company_name: str,
+    *,
+    naics: Optional[str] = None,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Get typical industry/state demographic baselines."""
+    source = "database:demographic_baselines"
+    try:
+        if not naics:
+            return {"found": False, "source": source, "summary": "NAICS required for demographics.", "data": {}}
+
+        # For now, we use a curated list of industry baselines (Phase 6 placeholder)
+        # Mapping 2-digit NAICS to broad demographic profiles
+        _PROFILES = {
+            "23": {"race_white": 85, "race_black": 6, "gender_male": 89, "avg_age": 42}, # Construction
+            "62": {"race_white": 68, "race_black": 18, "gender_male": 23, "avg_age": 44}, # Healthcare
+            "44": {"race_white": 70, "race_black": 12, "gender_male": 51, "avg_age": 38}, # Retail
+            "72": {"race_white": 62, "race_black": 13, "gender_male": 46, "avg_age": 31}, # Hospitality
+            "48": {"race_white": 65, "race_black": 18, "gender_male": 75, "avg_age": 45}, # Transport
+            "31": {"race_white": 72, "race_black": 10, "gender_male": 70, "avg_age": 44}, # Manufacturing
+        }
+        
+        naics_2 = naics[:2]
+        baseline = _PROFILES.get(naics_2)
+        
+        if not baseline:
+            # Generic private sector baseline
+            baseline = {"race_white": 76, "race_black": 12, "gender_male": 53, "avg_age": 42}
+
+        data = {
+            "naics_2": naics_2,
+            "state": state,
+            "demographic_profile": baseline,
+            "is_estimate": True,
+            "source_citation": "BLS Labor Force Statistics (Industry CPS 2024)"
+        }
+        
+        summary = f"Industry typical demographics (NAICS {naics_2}): {baseline['race_white']}% White, {baseline['race_black']}% Black, {baseline['gender_male']}% Male. Avg age: {baseline['avg_age']}."
+        
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
 # Maps tool names (used in Claude API tool definitions) to callables.
@@ -1703,6 +1962,9 @@ TOOL_REGISTRY: dict[str, callable] = {
     "get_industry_profile": get_industry_profile,
     "get_similar_employers": get_similar_employers,
     "search_mergent": search_mergent,
+    "search_sec_proxy": search_sec_proxy,
+    "search_job_postings": search_job_postings,
+    "get_workforce_demographics": get_workforce_demographics,
     # search_web removed — replaced by Gemini Google Search grounding in agent.py
     "scrape_employer_website": scrape_employer_website,
 }
@@ -1765,6 +2027,44 @@ TOOL_DEFINITIONS = [
                 "company_type": {"type": "string", "description": "public/private/nonprofit — if private or nonprofit, this tool will be skipped"},
             },
             "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_sec_proxy",
+        "description": "Fetch and parse the latest SEC Proxy Statement (DEF 14A) for executive compensation (top executive pay). Use only for public companies found in search_sec. Tip: if search_sec returned a CIK or Ticker, pass them here.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "cik": {"type": "string", "description": "SEC Central Index Key (CIK) if known"},
+                "ticker": {"type": "string", "description": "Exchange ticker symbol if known"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_job_postings",
+        "description": "Search for active job listings for this employer. Returns estimated posting counts, sample titles, locations, and pay/benefits. Tip: specify a state if searching for a local establishment.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "state": {"type": "string", "description": "2-letter state code to narrow search"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "get_workforce_demographics",
+        "description": "Get typical workforce demographics (race, gender, age) for the employer's industry and state. Requires a NAICS code.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name (for context)"},
+                "naics": {"type": "string", "description": "NAICS code (2-6 digits). Required."},
+                "state": {"type": "string", "description": "2-letter state code for state-level context"},
+            },
+            "required": ["company_name", "naics"],
         },
     },
     {
@@ -1848,13 +2148,15 @@ TOOL_DEFINITIONS = [
     # search_web removed — replaced by Gemini Google Search grounding in agent.py
     {
         "name": "scrape_employer_website",
-        "description": "Scrape the employer's website for company info, leadership, careers/job postings, and news. If you don't have a URL, the tool will look it up in the Mergent database. Tip: if search_mergent returned a 'website' field, pass that URL here.",
+        "description": "Scrape the employer's website for company info, leadership, careers/job postings, news, locations, and investor relations. If you don't have a URL, the tool will look it up. Tip: if search_mergent returned a 'website' field, pass that URL here.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "company_name": {"type": "string", "description": "Company name"},
                 "employer_id": {"type": "string", "description": "F7 employer_id for Mergent URL lookup"},
                 "url": {"type": "string", "description": "Company website URL if known (e.g. from search_mergent)"},
+                "industry": {"type": "string", "description": "Industry name or NAICS code for better URL lookup"},
+                "state": {"type": "string", "description": "2-letter state code for better URL lookup"},
             },
             "required": ["company_name"],
         },

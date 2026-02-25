@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 from datetime import date, datetime
 from decimal import Decimal
@@ -98,6 +99,22 @@ def _score_source_quality(facts: List[dict]) -> float:
     return max(min(combined, 10.0), 0.0)
 
 
+def _extract_numeric(val: Any) -> Optional[float]:
+    """Extract a float from various types, including strings with suffixes/commas."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float, Decimal)):
+        return float(val)
+    if isinstance(val, str):
+        # Remove commas and common suffixes
+        cleaned = re.sub(r'[^\d.]', '', val.split(' ')[0].replace(',', ''))
+        try:
+            return float(cleaned) if cleaned else None
+        except ValueError:
+            return None
+    return None
+
+
 def _score_consistency(facts: List[dict]) -> float:
     """Consistency: penalize contradictions and large numeric divergences."""
     score = 10.0
@@ -109,11 +126,10 @@ def _score_consistency(facts: List[dict]) -> float:
     # Check employee_count divergence
     emp_values = []
     for f in facts:
-        if f.get("attribute_name") == "employee_count" and f.get("attribute_value"):
-            try:
-                emp_values.append(float(f["attribute_value"]))
-            except (ValueError, TypeError):
-                pass
+        if f.get("attribute_name") == "employee_count":
+            val = _extract_numeric(f.get("attribute_value"))
+            if val:
+                emp_values.append(val)
     if len(emp_values) > 1:
         min_val = min(emp_values)
         max_val = max(emp_values)
@@ -123,11 +139,10 @@ def _score_consistency(facts: List[dict]) -> float:
     # Check revenue divergence
     rev_values = []
     for f in facts:
-        if f.get("attribute_name") == "revenue" and f.get("attribute_value"):
-            try:
-                rev_values.append(float(f["attribute_value"]))
-            except (ValueError, TypeError):
-                pass
+        if f.get("attribute_name") == "revenue":
+            val = _extract_numeric(f.get("attribute_value"))
+            if val:
+                rev_values.append(val)
     if len(rev_values) > 1:
         min_val = min(rev_values)
         max_val = max(rev_values)
