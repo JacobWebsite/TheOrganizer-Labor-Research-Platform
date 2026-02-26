@@ -51,15 +51,27 @@ async def start_research_run(request: ResearchRequest, background_tasks: Backgro
     """
     with get_db() as conn:
         with conn.cursor() as cur:
-            # If employer_id provided, look up known info
+            # Auto-lookup employer_id if not provided
+            employer_id = request.employer_id
+            if not employer_id:
+                from scripts.research.employer_lookup import lookup_employer
+                emp_id, emp_name, method = lookup_employer(
+                    cur, request.company_name, request.state,
+                )
+                if emp_id:
+                    employer_id = emp_id
+                    _log.info("Auto-linked %r -> %s (%s) [%s]",
+                              request.company_name, emp_name, emp_id, method)
+
+            # If employer_id known (provided or auto-looked-up), fetch info
             known_info = {}
-            if request.employer_id:
+            if employer_id:
                 cur.execute("""
                     SELECT employer_name, naics, city, state, latest_unit_size
                     FROM f7_employers_deduped
                     WHERE employer_id = %s
                     LIMIT 1
-                """, (request.employer_id,))
+                """, (employer_id,))
                 row = cur.fetchone()
                 if row:
                     known_info = dict(row)
@@ -82,7 +94,7 @@ async def start_research_run(request: ResearchRequest, background_tasks: Backgro
                 RETURNING id
             """, (
                 request.company_name,
-                request.employer_id,
+                employer_id,
                 request.naics_code or known_info.get('naics'),
                 request.company_type,
                 request.state or known_info.get('state'),

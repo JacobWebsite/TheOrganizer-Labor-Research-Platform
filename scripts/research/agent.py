@@ -2754,12 +2754,24 @@ if __name__ == "__main__":
         # Create a new run
         conn = _conn()
         cur = conn.cursor()
+
+        # Auto-lookup employer_id if not provided
+        employer_id = args.employer_id
+        if not employer_id:
+            from scripts.research.employer_lookup import lookup_employer
+            emp_id, emp_name, method = lookup_employer(
+                cur, args.company, args.state,
+            )
+            if emp_id:
+                employer_id = emp_id
+                print(f"Auto-linked: {args.company} -> {emp_name} ({emp_id[:12]}) [{method}]")
+
         size_bucket = "medium"
-        if args.employer_id:
+        if employer_id:
             cur.execute("""
                 SELECT latest_unit_size FROM f7_employers_deduped
                 WHERE employer_id = %s
-            """, (args.employer_id,))
+            """, (employer_id,))
             r = cur.fetchone()
             if r and r["latest_unit_size"]:
                 sz = r["latest_unit_size"]
@@ -2773,7 +2785,7 @@ if __name__ == "__main__":
             RETURNING id
         """, (
             args.company,
-            args.employer_id,
+            employer_id,
             args.naics,
             args.type,
             args.state,
