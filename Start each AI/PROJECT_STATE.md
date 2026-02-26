@@ -4,11 +4,63 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-23 (Claude Code: Phase 2A Data Enrichment)
+**Last manually updated:** 2026-02-25 (Claude Code: Research-to-Scorecard Feedback Loop)
 
 ---
 
-## Latest Update (2026-02-23 — Phase 2A Data Enrichment)
+## Latest Update (2026-02-25 — Research-to-Scorecard Feedback Loop)
+
+### New: Dual-Path Research Enhancement Pipeline
+
+Research agent dossiers now feed back into the unified scorecard. Two paths based on whether the researched employer has a union:
+
+**Path A — Union Reference Enrichment (is_union_reference=TRUE):**
+When F7 (union) employers are researched, extracted features enrich the Gower reference pool. On next `compute_gower_similarity` refresh, ALL non-union employers get better similarity scores.
+
+**Path B — Direct Score Enhancement (is_union_reference=FALSE):**
+When non-union employers are researched, their scorecard factors are directly enhanced via `GREATEST(DB_score, research_score)` per factor in the MV.
+
+### New Table: `research_score_enhancements`
+- UNIQUE on `employer_id` (keeps best run per employer). 13 rows after initial backfill.
+- Quality gate: `overall_quality_score >= 7.0` AND `employer_id IS NOT NULL`.
+- Factor scores computed with same formulas as `build_unified_scorecard.py`: OSHA (violations/industry avg), NLRB (elections + ULP boost tiers), WHD (case count tiers), contracts (obligation tiers), financial (revenue scale), size (sweet spot 15-500).
+- UPSERT replaces only when `run_quality >= existing.run_quality`. COALESCE preserves non-NULL values from prior runs.
+- Script: `py scripts/scoring/create_research_enhancements.py`
+
+### MV Changes: `mv_unified_scorecard` (146,863 rows)
+8 new columns: `has_research`, `research_run_id`, `research_quality`, `research_weighted_score`, `score_delta`, `research_approach`, `research_trend`, `research_contradictions`. Added `research_enhanced` CTE with LEFT JOIN to `research_score_enhancements` (non-union path only). 2 new indexes (`idx_mv_us_has_research`, `idx_mv_us_score_delta`).
+
+### Pipeline Hook
+`agent.py` calls `compute_research_enhancements(run_id)` after `grade_and_save()`. Non-blocking (try/except). Backfill: `py scripts/research/auto_grader.py --backfill-enhancements`.
+
+### New API Endpoints
+- `GET /api/scorecard/unified` — new `has_research` filter, `score_delta` sort option
+- `GET /api/scorecard/unified/stats` — new `research_coverage` in response
+- `GET /api/scorecard/unified/{id}` — research fields + `research_dossier_url` link
+- `GET /api/research/candidates?type=non_union|union_reference` — suggests employers where research would have most impact
+
+### Tests: 831 backend (831 pass / 3 skip), 158 frontend (all pass)
+31 new tests in `tests/test_research_enhancements.py` (unit + integration + API).
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `scripts/scoring/create_research_enhancements.py` | **NEW** — table DDL + indexes |
+| `scripts/research/auto_grader.py` | +`compute_research_enhancements()`, +`backfill_enhancements()`, +`--backfill-enhancements` CLI |
+| `scripts/research/agent.py` | +5-line hook after `grade_and_save()` |
+| `scripts/scoring/build_unified_scorecard.py` | +`research_enhanced` CTE, +`research_weighted_score`, +`score_delta`, +2 indexes |
+| `api/routers/scorecard.py` | +`has_research` filter, +`score_delta` sort, +research columns in list/detail/stats |
+| `api/routers/research.py` | +`GET /api/research/candidates` endpoint |
+| `tests/test_research_enhancements.py` | **NEW** — 31 tests |
+
+### Key Technical Lesson
+`employer_comparables` uses integer IDs (from `mv_employer_features`), not F7 text `employer_id`. Cannot direct-join. Union reference candidates use simpler sort (source_count, unit_size) instead.
+
+Commit: `679f079`
+
+---
+
+## Previous Update (2026-02-23 — Phase 2A Data Enrichment)
 
 ### Geocoding: 73.8% -> 83.3% Coverage
 - Census Bureau batch geocoder: 8,940 new matches (3 batches of 10K submitted)
@@ -365,14 +417,14 @@ The API serves at `http://localhost:8001`. API docs at `http://localhost:8001/do
 ```bash
 py -m pytest tests/ -q
 ```
-492 backend tests. 491 pass, 1 skip. 134 frontend tests (21 files), all pass.
+831 backend tests. 831 pass, 3 skip. 158 frontend tests (23 files), all pass.
 
 ### Run Frontend Tests
 ```bash
 cd frontend
 npm.cmd test
 ```
-Expected current result: 21 files, 134 tests passed.
+Expected current result: 23 files, 158 tests passed.
 
 ### Run Frontend Production Build
 ```bash
@@ -448,6 +500,7 @@ Expected current result: build success, ~1877 modules transformed.
 | `mv_whd_employer_agg` | 330,419 |
 | `ar_assets_investments` | 304,816 |
 | `employer_comparables` | 269,785 |
+| `research_score_enhancements` | 13 |
 | `ar_membership` | 216,508 |
 | `ar_disbursements_total` | 216,372 |
 | `mv_organizing_scorecard` | 212,441 |
@@ -461,10 +514,10 @@ Expected current result: build success, ~1877 modules transformed.
 
 See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 
-**Summary:** 80 active pipeline scripts across 5 stages (134 including analysis):
+**Summary:** 81 active pipeline scripts across 5 stages (135 including analysis):
 - **Stage 1 -- ETL:** 28 scripts loading data from OSHA, WHD, SAM, SEC, NLRB, BLS, GLEIF, IRS BMF, O*NET, and more
 - **Stage 2 -- Matching:** 19 + 7 adapters + 5 matchers = 31 scripts linking records across databases
-- **Stage 3 -- Scoring:** 11 scripts (7 scoring + 4 ML) computing scorecards, search MV, and propensity model
+- **Stage 3 -- Scoring:** 12 scripts (8 scoring + 4 ML) computing scorecards, search MV, research enhancements, and propensity model
 - **Stage 4 -- Maintenance:** 7 scripts for periodic refresh, legacy table rebuilds, union resolution, cleanup
 - **Stage 5 -- Web Scraping:** 8 scripts for union website data extraction and SEC subsidiary extraction
 
@@ -476,6 +529,7 @@ See **`PIPELINE_MANIFEST.md`** for the complete script inventory.
 4.  Matching: py scripts/matching/build_employer_groups.py
 4.5 Scoring: py scripts/scoring/build_employer_data_sources.py --refresh
 4.6 Scoring: py scripts/scoring/build_unified_scorecard.py --refresh
+4.7 Research: py scripts/research/auto_grader.py --backfill-enhancements  (after research runs)
 5.  Scoring: py scripts/scoring/compute_nlrb_patterns.py
 6.  Scoring: py scripts/scoring/create_scorecard_mv.py --refresh
 7.  Scoring: py scripts/scoring/compute_gower_similarity.py --refresh-view
