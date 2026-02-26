@@ -10,7 +10,7 @@ const FACTORS = [
   { key: 'score_similarity', label: 'Peer Similarity', weight: null, disabled: true },
   { key: 'score_osha', label: 'OSHA Safety', weight: '1x' },
   { key: 'score_whd', label: 'Wage & Hour', weight: '1x' },
-  { key: 'score_financial', label: 'Financial', weight: '1x' },
+  { key: 'score_financial', label: 'Financial', weight: '2x' },
 ]
 
 const ACTIVE_FACTOR_COUNT = FACTORS.filter(f => !f.disabled).length

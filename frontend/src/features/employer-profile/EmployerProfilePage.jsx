@@ -166,13 +166,13 @@ export function EmployerProfilePage() {
         <p><strong>Factor bars:</strong> Each bar shows how this employer scored on one of 8 factors, rated 0-10. Factors are weighted by importance -- (3x) factors matter three times as much as (1x) factors in the final score. A grayed-out factor with a dash means we have no data for that factor.</p>
         <ul className="list-disc pl-5 space-y-1 text-sm">
           <li><strong>Union Proximity (3x):</strong> Whether companies in the same corporate family already have unions. Strongest predictor -- the corporate parent has already dealt with unions elsewhere.</li>
-          <li><strong>Employer Size (3x):</strong> Larger employers offer more impact per campaign. Employers under 15 employees score zero.</li>
-          <li><strong>NLRB Activity (3x):</strong> Nearby union election momentum (within 25 miles, similar industry) and this employer's own election history. Past losses count as a negative.</li>
-          <li><strong>Gov Contracts (2x):</strong> Federal, state, or city government contracts create public accountability and regulatory leverage. Multiple contract levels score higher.</li>
+          <li><strong>Employer Size (filter):</strong> Shown for context but not weighted in the score. Use it to filter searches by workforce size rather than as a ranking signal.</li>
+          <li><strong>NLRB Activity (3x):</strong> This employer's own NLRB election history and unfair labor practice (ULP) complaints filed against them. More elections and ULPs score higher, with recent activity weighted more heavily.</li>
+          <li><strong>Gov Contracts (2x):</strong> Federal government contracts create public accountability and regulatory leverage. Higher contract obligations score higher.</li>
           <li><strong>Industry Growth (2x):</strong> BLS-projected 10-year industry growth rate. Faster-growing industries mean more workers entering the field.</li>
           <li><strong>OSHA Safety (1x):</strong> Workplace safety violations. More violations and more serious violations (willful, repeat) score higher. Recent ones count more.</li>
           <li><strong>WHD Wage Theft (1x):</strong> Wage and hour violations including back wages, overtime, and minimum wage violations.</li>
-          <li><strong>Financial (1x):</strong> Revenue scale, asset cushion, and revenue-per-worker from 990 filings or SEC data.</li>
+          <li><strong>Financial (2x):</strong> Revenue scale, asset cushion, and revenue-per-worker from 990 filings or SEC data.</li>
         </ul>
         <p><strong>Source badges -- what each database is:</strong></p>
         <ul className="list-disc pl-5 space-y-1 text-sm">
