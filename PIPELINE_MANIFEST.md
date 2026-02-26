@@ -1,7 +1,7 @@
 # Pipeline Manifest — Labor Relations Research Platform
 
-**Last updated:** 2026-02-22
-**Active scripts:** 134 (down from 530+ before reorganization)
+**Last updated:** 2026-02-25
+**Active scripts:** 135 (down from 530+ before reorganization)
 
 ## How to Use This Document
 
@@ -119,7 +119,8 @@ These scripts build the organizing scorecard and related analysis. Run after mat
 | `scripts/scoring/update_whd_scores.py` | Updates labor violation scores using WHD + NYC Comptroller data | WHD matching complete | Before scorecard build |
 | `scripts/scoring/create_scorecard_mv.py` | **Creates/refreshes mv_organizing_scorecard** (212,441 rows, 9 factors, temporal decay). Use `--refresh` for concurrent update. Auto-inserts score_versions. | All matching + NLRB patterns | After matching stabilizes. `py scripts/scoring/create_scorecard_mv.py [--refresh]` |
 | `scripts/scoring/build_employer_data_sources.py` | **Creates/refreshes mv_employer_data_sources** (146,863 rows). Aggregates source availability per F7 employer (8 boolean flags + corporate crosswalk). Foundation for E3 unified scorecard. Use `--refresh` for concurrent update. | All matching complete, employer groups built | Pipeline step 4.5. `py scripts/scoring/build_employer_data_sources.py [--refresh]` |
-| `scripts/scoring/build_unified_scorecard.py` | **Creates/refreshes mv_unified_scorecard** (146,863 rows). Signal-strength scoring: 7 factors (OSHA, NLRB, WHD, contracts, union proximity, financial, size), each 0-10. Missing factors excluded. Unified score = avg of available factors. Use `--refresh` for concurrent update. | mv_employer_data_sources, all matching, BLS projections | Pipeline step 4.6. `py scripts/scoring/build_unified_scorecard.py [--refresh]` |
+| `scripts/scoring/build_unified_scorecard.py` | **Creates/refreshes mv_unified_scorecard** (146,863 rows). Signal-strength scoring: 7 factors (OSHA, NLRB, WHD, contracts, union proximity, financial, size), each 0-10. Missing factors excluded. Unified score = avg of available factors. LEFT JOINs research_score_enhancements for research-enhanced scores. Use `--refresh` for concurrent update. | mv_employer_data_sources, all matching, BLS projections, research_score_enhancements | Pipeline step 4.6. `py scripts/scoring/build_unified_scorecard.py [--refresh]` |
+| `scripts/scoring/create_research_enhancements.py` | **Creates research_score_enhancements table** (dual-path: union reference enrichment + direct non-union score enhancement). Stores factor scores + raw extracted values from research dossiers. Called automatically by auto_grader after research runs (quality >= 7.0). Use `--backfill-enhancements` on auto_grader.py to populate from existing runs. | research_runs, research_facts | Pipeline step 4.7 (table creation). `py scripts/scoring/create_research_enhancements.py` |
 | `scripts/scoring/rebuild_search_mv.py` | **Rebuilds mv_employer_search** (107,025 rows). Deduped search index with canonical group collapse + historical exclusion. 4 sources: F7, NLRB, VR, MANUAL. | f7_employers_deduped, employer groups, NLRB | After grouping changes. `py scripts/scoring/rebuild_search_mv.py` |
 | `scripts/scoring/compute_gower_similarity.py` | Gower distance similarity -- finds top-5 comparable employers per employer (269K comparables). 14 features including occupation overlap. | mv_organizing_scorecard, industry_occupation_overlap | After scorecard built. `py scripts/scoring/compute_gower_similarity.py [--refresh-view]` |
 
