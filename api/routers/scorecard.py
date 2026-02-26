@@ -343,8 +343,9 @@ def get_unified_scorecard_detail(employer_id: str):
                     f"best Gower distance {data.get('best_distance')}"
                 )
             explanations["weights"] = (
-                "Weights: union proximity 3x, size 3x, NLRB 3x, contracts 2x, "
-                "industry growth 2x, similarity 2x, OSHA 1x, WHD 1x."
+                "Weights: union proximity 3x, NLRB 3x, contracts 2x, "
+                "industry growth 2x, financial 2x, OSHA 1x, WHD 1x. "
+                "Size is a filter dimension (not weighted). Similarity disabled."
             )
 
             # Research enhancement info

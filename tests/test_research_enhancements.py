@@ -354,8 +354,8 @@ class TestUnifiedScorecardResearchColumns:
 
     def test_mv_has_research_columns(self):
         required = {
-            "has_research", "research_run_id", "research_weighted_score",
-            "research_quality", "score_delta",
+            "has_research", "research_run_id",
+            "research_quality", "strategic_delta",
             "research_approach", "research_trend", "research_contradictions",
         }
         conn = get_connection()

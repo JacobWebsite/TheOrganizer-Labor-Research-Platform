@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 const FACTORS = [
   { key: 'score_union_proximity', label: 'Union Proximity', weight: '3x' },
-  { key: 'score_size', label: 'Employer Size', weight: '3x' },
+  { key: 'score_size', label: 'Employer Size', weight: null, filter: true },
   { key: 'score_nlrb', label: 'NLRB Activity', weight: '3x' },
   { key: 'score_contracts', label: 'Gov Contracts', weight: '2x' },
   { key: 'score_industry_growth', label: 'Industry Growth', weight: '2x' },
@@ -21,7 +21,7 @@ function getBarColor(value) {
   return 'bg-red-200'
 }
 
-function ScoreBar({ label, weight, value, explanation, disabled }) {
+function ScoreBar({ label, weight, value, explanation, disabled, filter }) {
   if (disabled) {
     return (
       <div className="space-y-1 opacity-50">
@@ -44,6 +44,7 @@ function ScoreBar({ label, weight, value, explanation, disabled }) {
         <span className="font-medium">
           {label}
           {weight && <span className="ml-1 text-xs text-muted-foreground">({weight})</span>}
+          {filter && <span className="ml-1 text-xs text-muted-foreground italic">(filter only)</span>}
         </span>
         <span className={cn('text-xs', hasValue ? 'text-foreground' : 'text-muted-foreground')}>
           {hasValue ? displayValue : '\u2014'}
@@ -78,7 +79,7 @@ export function ScorecardSection({ scorecard, explanations }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {FACTORS.map(({ key, label, weight, disabled }) => (
+          {FACTORS.map(({ key, label, weight, disabled, filter }) => (
             <ScoreBar
               key={key}
               label={label}
@@ -86,6 +87,7 @@ export function ScorecardSection({ scorecard, explanations }) {
               value={scorecard[key]}
               explanation={explanations?.[key]}
               disabled={disabled}
+              filter={filter}
             />
           ))}
         </div>

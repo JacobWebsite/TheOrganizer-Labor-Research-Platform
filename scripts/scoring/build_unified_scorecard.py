@@ -280,10 +280,10 @@ raw_scores AS (
         END AS score_industry_growth,
 
         CASE
-            WHEN eds.latest_unit_size IS NULL THEN NULL
-            WHEN eds.latest_unit_size < 15 THEN 0
-            WHEN eds.latest_unit_size >= 500 THEN 10
-            ELSE ROUND((((eds.latest_unit_size - 15)::numeric / 485) * 10), 2)
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size) IS NULL THEN NULL
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size) < 15 THEN 0
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size) >= 500 THEN 10
+            ELSE ROUND((((COALESCE(eds.company_size, eds.latest_unit_size) - 15)::numeric / 485) * 10), 2)
         END AS score_size,
 
         sa.unionized_comparable_count,
@@ -377,11 +377,9 @@ scored AS (
         END AS score_financial
     FROM raw_scores rs
 ),
--- NOTE: The unified scorecard is most useful for NON-UNION employers.
--- F7 union employers serve as the reference dataset for Gower similarity
--- and propensity modeling. Research on union employers enriches that
--- reference pool (see research_score_enhancements.is_union_reference).
--- Research on non-union employers directly enhances their scores here.
+-- NOTE: Research enhancements are shown on ALL employer profiles regardless
+-- of union status. The is_union_reference flag is still used by the Gower
+-- similarity pipeline but does not gate profile visibility.
 research_enhanced AS (
     SELECT
         s.*,
@@ -399,25 +397,73 @@ research_enhanced AS (
         rse.recommended_approach AS research_approach,
         rse.financial_trend AS research_trend,
         rse.source_contradictions AS research_contradictions,
+        rse.score_stability AS rse_score_stability,
+        rse.score_anger AS rse_score_anger,
+        rse.turnover_rate_found,
+        rse.sentiment_score_found,
+        rse.revenue_per_employee_found,
         (rse.run_id IS NOT NULL) AS has_research
     FROM scored s
     LEFT JOIN research_score_enhancements rse
         ON rse.employer_id = s.employer_id
-        AND rse.is_union_reference = FALSE   -- only direct enhancements
+        -- No is_union_reference filter: show research on all employer profiles
+),
+strategic_pillars AS (
+    SELECT
+        s.*,
+        -- PILLAR 1: ANGER (Motivation)
+        -- Blends violations, ULP history, and research sentiment
+        COALESCE(
+            s.rse_score_anger,
+            LEAST(10, 
+                (COALESCE(s.enh_score_osha, 0) * 0.3)
+                + (COALESCE(s.enh_score_whd, 0) * 0.3)
+                + (CASE 
+                    WHEN s.nlrb_ulp_count = 0 THEN 0
+                    WHEN s.nlrb_ulp_count = 1 THEN 4
+                    WHEN s.nlrb_ulp_count BETWEEN 2 AND 3 THEN 6
+                    WHEN s.nlrb_ulp_count BETWEEN 4 AND 9 THEN 8
+                    ELSE 10
+                  END * 0.4)
+                + COALESCE(s.sentiment_score_found, 0) -- Research bonus
+            )
+        ) AS score_anger,
+
+        -- PILLAR 2: STABILITY (Winnability)
+        -- High score = Low turnover / High stability. "Stability is required for a committee."
+        COALESCE(
+            s.rse_score_stability,
+            CASE 
+                WHEN s.turnover_rate_found IS NOT NULL THEN (10 - s.turnover_rate_found)
+                -- If we have recent NLRB wins nearby, stability/momentum is higher (placeholder for momentum)
+                ELSE 5.0 -- Baseline stability
+            END
+        ) AS score_stability,
+
+        -- PILLAR 3: LEVERAGE (Power)
+        -- Blends proximity, contracts, financials (RPE), and growth
+        LEAST(10,
+            (COALESCE(s.score_union_proximity, 0) * 0.3)
+            + (COALESCE(s.enh_score_contracts, 0) * 0.2)
+            + (COALESCE(s.enh_score_financial, 0) * 0.2)
+            + (COALESCE(s.score_industry_growth, 0) * 0.15)
+            + (COALESCE(s.enh_score_size, 0) * 0.15)
+            + CASE WHEN s.revenue_per_employee_found > 500000 THEN 1 ELSE 0 END -- RPE Bonus
+        ) AS score_leverage
+    FROM research_enhanced s
 ),
 weighted AS (
     SELECT
         s.*,
         (
             CASE WHEN s.score_union_proximity IS NOT NULL THEN 3 ELSE 0 END
-            + CASE WHEN s.score_size IS NOT NULL THEN 3 ELSE 0 END
             + CASE WHEN s.score_nlrb IS NOT NULL THEN 3 ELSE 0 END
             + CASE WHEN s.score_contracts IS NOT NULL THEN 2 ELSE 0 END
             + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
             + CASE WHEN s.score_financial IS NOT NULL THEN 2 ELSE 0 END
-            -- score_similarity weight=0 until pipeline is fixed (D5)
             + CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_stability IS NOT NULL THEN 2 ELSE 0 END -- New stability weight
         ) AS total_weight,
         (
             CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
@@ -428,81 +474,56 @@ weighted AS (
             + CASE WHEN s.score_industry_growth IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_financial IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_size IS NOT NULL THEN 1 ELSE 0 END
-            -- score_similarity excluded from factors_available (D5)
+            + CASE WHEN s.has_research THEN 1 ELSE 0 END
         ) AS factors_available,
-        8 AS factors_total,
+        9 AS factors_total,
+        ROUND(
+            (
+                (COALESCE(s.score_anger, 0) * 3)
+                + (COALESCE(s.score_stability, 0) * 3)
+                + (COALESCE(s.score_leverage, 0) * 4)
+            )::numeric / 10,
+            2
+        ) AS weighted_score,
+        -- Keep original weighted score for comparison
         ROUND(
             (
                 COALESCE(s.score_union_proximity, 0) * 3
-                + COALESCE(s.score_size, 0) * 3
-                + COALESCE(s.score_nlrb, 0) * 3
-                + COALESCE(s.score_contracts, 0) * 2
+                + COALESCE(s.enh_score_nlrb, s.score_nlrb, 0) * 3
+                + COALESCE(s.enh_score_contracts, s.score_contracts, 0) * 2
                 + COALESCE(s.score_industry_growth, 0) * 2
-                + COALESCE(s.score_financial, 0) * 2
-                -- score_similarity * 0 (D5: weight=0)
-                + COALESCE(s.score_osha, 0)
-                + COALESCE(s.score_whd, 0)
+                + COALESCE(s.enh_score_financial, s.score_financial, 0) * 2
+                + COALESCE(s.enh_score_osha, s.score_osha, 0)
+                + COALESCE(s.enh_score_whd, s.score_whd, 0)
             )::numeric
             / NULLIF(
                 (
                     CASE WHEN s.score_union_proximity IS NOT NULL THEN 3 ELSE 0 END
-                    + CASE WHEN s.score_size IS NOT NULL THEN 3 ELSE 0 END
-                    + CASE WHEN s.score_nlrb IS NOT NULL THEN 3 ELSE 0 END
-                    + CASE WHEN s.score_contracts IS NOT NULL THEN 2 ELSE 0 END
+                    + CASE WHEN COALESCE(s.enh_score_nlrb, s.score_nlrb) IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN COALESCE(s.enh_score_contracts, s.score_contracts) IS NOT NULL THEN 2 ELSE 0 END
                     + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
-                    + CASE WHEN s.score_financial IS NOT NULL THEN 2 ELSE 0 END
-                    + CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
-                    + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+                    + CASE WHEN COALESCE(s.enh_score_financial, s.score_financial) IS NOT NULL THEN 2 ELSE 0 END
+                    + CASE WHEN COALESCE(s.enh_score_osha, s.score_osha) IS NOT NULL THEN 1 ELSE 0 END
+                    + CASE WHEN COALESCE(s.enh_score_whd, s.score_whd) IS NOT NULL THEN 1 ELSE 0 END
                 ),
                 0
             ),
             2
-        ) AS weighted_score,
-        -- Research-enhanced weighted score (uses GREATEST of DB vs research scores)
-        CASE WHEN s.has_research THEN
-            ROUND(
-                (
-                    COALESCE(s.score_union_proximity, 0) * 3
-                    + COALESCE(s.enh_score_size, s.score_size, 0) * 3
-                    + COALESCE(s.enh_score_nlrb, s.score_nlrb, 0) * 3
-                    + COALESCE(s.enh_score_contracts, s.score_contracts, 0) * 2
-                    + COALESCE(s.score_industry_growth, 0) * 2
-                    + COALESCE(s.enh_score_financial, s.score_financial, 0) * 2
-                    + COALESCE(s.enh_score_osha, s.score_osha, 0)
-                    + COALESCE(s.enh_score_whd, s.score_whd, 0)
-                )::numeric
-                / NULLIF(
-                    (
-                        CASE WHEN s.score_union_proximity IS NOT NULL THEN 3 ELSE 0 END
-                        + CASE WHEN COALESCE(s.enh_score_size, s.score_size) IS NOT NULL THEN 3 ELSE 0 END
-                        + CASE WHEN COALESCE(s.enh_score_nlrb, s.score_nlrb) IS NOT NULL THEN 3 ELSE 0 END
-                        + CASE WHEN COALESCE(s.enh_score_contracts, s.score_contracts) IS NOT NULL THEN 2 ELSE 0 END
-                        + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
-                        + CASE WHEN COALESCE(s.enh_score_financial, s.score_financial) IS NOT NULL THEN 2 ELSE 0 END
-                        + CASE WHEN COALESCE(s.enh_score_osha, s.score_osha) IS NOT NULL THEN 1 ELSE 0 END
-                        + CASE WHEN COALESCE(s.enh_score_whd, s.score_whd) IS NOT NULL THEN 1 ELSE 0 END
-                    ),
-                    0
-                ),
-                2
-            )
-        END AS research_weighted_score
-    FROM research_enhanced s
+        ) AS legacy_weighted_score
+    FROM strategic_pillars s
 ),
 ranked AS (
     SELECT
         w.*,
         w.weighted_score AS unified_score,
-        ROUND(100.0 * w.factors_available::numeric / 8, 1) AS coverage_pct,
+        ROUND(100.0 * w.factors_available::numeric / 9, 1) AS coverage_pct,
         PERCENT_RANK() OVER (ORDER BY w.weighted_score ASC NULLS FIRST) AS score_percentile
     FROM weighted w
 )
 SELECT
     r.*,
-    -- Research delta: how much research improved the score
-    CASE WHEN r.has_research AND r.research_weighted_score IS NOT NULL
-        THEN ROUND((r.research_weighted_score - COALESCE(r.weighted_score, 0))::numeric, 2)
-    END AS score_delta,
+    -- Strategic Delta: how much the new model shifted the score vs the legacy heuristic
+    ROUND((r.weighted_score - COALESCE(r.legacy_weighted_score, 0))::numeric, 2) AS strategic_delta,
     -- Flag columns (yes/no signals, NOT tier requirements per D2)
     CASE WHEN COALESCE(r.osha_latest_inspection, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
          OR COALESCE(r.whd_latest_finding, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
@@ -540,7 +561,7 @@ INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_mv_us_score_tier ON mv_unified_scorecard (score_tier)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_factors ON mv_unified_scorecard (factors_available)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_has_research ON mv_unified_scorecard (has_research) WHERE has_research = TRUE",
-    "CREATE INDEX IF NOT EXISTS idx_mv_us_score_delta ON mv_unified_scorecard (score_delta DESC NULLS LAST) WHERE score_delta IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS idx_mv_us_strategic_delta ON mv_unified_scorecard (strategic_delta DESC NULLS LAST) WHERE strategic_delta IS NOT NULL",
 ]
 
 

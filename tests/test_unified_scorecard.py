@@ -178,25 +178,25 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_factors_available_range(self):
-        """factors_available should be 0-8 under weighted model."""
+        """factors_available should be 0-factors_total."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT MIN(factors_available), MAX(factors_available) FROM mv_unified_scorecard")
-                mn, mx = cur.fetchone()
+                cur.execute("SELECT MIN(factors_available), MAX(factors_available), MAX(factors_total) FROM mv_unified_scorecard")
+                mn, mx, ft = cur.fetchone()
                 assert mn >= 0, f"Min factors_available is {mn}"
-                assert mx <= 8, f"Max factors_available is {mx}"
+                assert mx <= ft, f"Max factors_available ({mx}) exceeds factors_total ({ft})"
         finally:
             conn.close()
 
     def test_coverage_pct_consistent(self):
-        """coverage_pct should equal factors_available/8 * 100."""
+        """coverage_pct should equal factors_available/factors_total * 100."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(*) FROM mv_unified_scorecard
-                    WHERE ABS(coverage_pct - (factors_available::numeric / 8 * 100)) > 0.2
+                    WHERE ABS(coverage_pct - (factors_available::numeric / factors_total * 100)) > 0.2
                 """)
                 bad = cur.fetchone()[0]
                 assert bad == 0, f"{bad} rows have inconsistent coverage_pct"
