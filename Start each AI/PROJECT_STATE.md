@@ -1,14 +1,94 @@
 # PROJECT_STATE.md — Labor Relations Research Platform
 
-> **Document Purpose:** Session handoffs and live status — what just happened, latest numbers, active bugs. For technical details, see `CLAUDE.md`. For the plan, see `MASTER_ROADMAP_2026_02_23.md` (supersedes UNIFIED_ROADMAP_2026_02_19.md). For redesign decisions (scoring, React, UX), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`. For file locations, see `PROJECT_DIRECTORY.md`.
+> **Document Purpose:** Session handoffs and live status — what just happened, latest numbers, active bugs. For technical details, see `CLAUDE.md`. For the plan, see `UNIFIED_ROADMAP_FINAL_2026_02_26.md` (supersedes all prior roadmaps). For redesign decisions (scoring, React, UX), see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`. For file locations, see `PROJECT_DIRECTORY.md`. For audit findings, see `audits 2_25_2_26/` (7 reports from 3 AI tools).
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-25 (Claude Code: Research-to-Scorecard Feedback Loop)
+**Last manually updated:** 2026-02-26 (Claude Code: Trust Foundations + Conceptual Reframe)
 
 ---
 
-## Latest Update (2026-02-25 — Research-to-Scorecard Feedback Loop)
+## Conceptual Framework (Updated 2026-02-26)
+
+**Non-union employers are the targets. Union employers are reference data.**
+
+The platform exists to help organizers identify and evaluate non-union employers as organizing targets. Union employers (F7, NLRB wins, VR, etc.) are NOT targets — they are a reference dataset. They tell us what organized workplaces look like (industry, size, violation history, financial profile, geography) so we can find similar non-union employers.
+
+Think of it like a recommendation engine: union employers are "training data," non-union employers are "candidates."
+
+**Key design implications:**
+- The scorecard evaluates non-union employers, not union employers
+- Size is a filter dimension (precondition), not a scoring signal — an organizer already knows what size shop they're looking for (weight = 0)
+- Improving union employer data quality directly improves targeting quality — the two pools are not independent
+- The scoring framework may be restructured around Anger/Stability/Leverage dimensions (under investigation, see Gemini Deep Research report)
+
+---
+
+## Audit-Validated Findings (Feb 25-26, 2026 — 7 reports, 3 AI tools)
+
+Full reports in `audits 2_25_2_26/`. Key findings that affect all future work:
+
+### Score Validation
+- **Score IS predictive** (overturns prior conclusion). Win rates by tier: Priority 90.9%, Strong 84.7%, Promising 81.6%, Moderate 76.7%, Low 74.1%. Monotonic gradient.
+- **Selection bias:** Only 34% of NLRB elections (11,109 of 32,793) link to scored employers. Baseline win rate for F7-matched is 80.8% vs 68.0% overall.
+- **Factor predictive power:** NLRB +10.2pp (strongest), Industry Growth +9.6pp, Contracts +5.7pp, WHD/Financial +4.1pp each, Size +0.2pp (zero), Proximity +0.0pp (zero), OSHA -0.6pp (slightly predicts losses).
+- **"Data richness paradox":** Fewer factors = higher win rate (2-factor=88.2%, 8-factor=73.4%). More government data may mark "hardened" targets.
+
+### Known Data Quality Issues
+- **Priority tier:** 2,278 employers, 86% with zero enforcement data. Rank high on structural factors alone. Enforcement gate (>=1) would cut to 316.
+- **group_max_workers:** 100% NULL. Size uses bargaining-unit-level (median 28), not company-level (median 76 consolidated).
+- **Propensity model:** Hardcoded formula `0.3 + 0.35*violations + 0.35*density`. Accuracy 0.53 (coin flip). Not ML.
+- **Junk records:** "Employer Name", "M1", federal agencies, 525 names <=3 chars still in lower tiers.
+- **Fuzzy match FP rates:** 0.80-0.85=40-50%, 0.85-0.90=50-70%, 0.90-0.95=30-40%. Below-0.85 deactivated.
+- **Frontend text mismatches:** 4 specific claims (NLRB 25-mile, contracts scope, financial weight, similarity status) don't match code.
+- **Union Profile API:** `financial_trends` and `sister_locals` expected by frontend but not returned by API.
+- **Membership view overcounts 5x:** 72M vs BLS 14.3M.
+
+### Scoring Framework Under Review
+User is investigating alternatives to current 8-factor weighted model. Gemini proposes Anger/Stability/Leverage dimensions. Academic evidence (Bronfenbrenner) supports checklist approach over single composite number. Organizers use combinations of factors, not a single number. ALL scoring/tier/weight changes DEFERRED pending user decision.
+
+### Open Decisions (12 total, see `UNIFIED_ROADMAP_FINAL_2026_02_26.md`)
+Most critical: enforcement gate for Priority, Union Proximity weight, NLRB 25-mile build-or-descope, propensity model fate, scoring framework overhaul direction, launch approach.
+
+---
+
+## Latest Update (2026-02-26 — Trust Foundations + Employer Lookup)
+
+### Scoring: Size Weight Zeroed
+Size is a filter dimension, not a scoring signal. Weight changed from 3x to 0x in `build_unified_scorecard.py`. Frontend marks it as "(filter only)". Average weighted_score dropped from 4.18 to 3.66.
+
+### Research Agent: employer_id Auto-Lookup
+New `scripts/research/employer_lookup.py` — 3-strategy cascade (exact match on name_standard, prefix match for 2+ token queries, trigram similarity). Integrated into both API (`api/routers/research.py`) and CLI (`scripts/research/agent.py`) entry points. Backfilled 50 of 80 previously unlinked runs. Total linked: 74/104 (71%, was 23%). 40 runs newly eligible for score enhancements. 13 tests.
+
+### Fuzzy Match Cleanup
+New `scripts/maintenance/reject_low_fuzzy.py` — deactivated 9,505 fuzzy matches below 0.85 similarity in `unified_match_log` (superseded) + deleted 22,053 rows from adapter tables (osha/whd/sam_f7_matches). Active matches: ~125,925 (was ~135,430).
+
+### Infrastructure
+- **Backup:** Daily pg_dump at 3 AM via Windows Task Scheduler. Script: `scripts/maintenance/backup_labor_data.py`.
+- **Security:** Auth enabled by default (DISABLE_AUTH commented out in .env). `.env.example` expanded with all vars.
+- **DB cleanup:** Dropped 6 unused objects (all_employers_unified, splink_match_results, 4 dead views). Kept v_all_organizing_events (has live API dependents).
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `scripts/research/employer_lookup.py` | **NEW** — employer_id auto-lookup + backfill CLI |
+| `scripts/maintenance/reject_low_fuzzy.py` | **NEW** — fuzzy match deactivation |
+| `scripts/maintenance/setup_backup_task.ps1` | **NEW** — Task Scheduler setup |
+| `scripts/scoring/build_unified_scorecard.py` | Size weight 0x, research JOIN fix |
+| `api/routers/research.py` | Auto-lookup integration |
+| `scripts/research/agent.py` | Auto-lookup integration |
+| `api/routers/scorecard.py` | Weight explanation text |
+| `frontend/src/features/employer-profile/ScorecardSection.jsx` | Size as "(filter only)" |
+| `tests/test_employer_lookup.py` | **NEW** — 13 tests |
+| `.env.example` | Expanded to 36-line full template |
+
+### Tests: 927 backend (927 pass / 3 skip), 158 frontend (all pass)
+
+Commits: `a14adb7`, `041ac79`
+
+---
+
+## Previous Update (2026-02-25 — Research-to-Scorecard Feedback Loop)
 
 ### New: Dual-Path Research Enhancement Pipeline
 
