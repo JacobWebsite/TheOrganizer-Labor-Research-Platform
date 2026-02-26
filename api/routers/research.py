@@ -13,7 +13,7 @@ Phase 2+ (scaffolded but not active yet):
 """
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
@@ -286,7 +286,7 @@ def list_research_runs(
 # ---------------------------------------------------------------------------
 @router.get("/candidates")
 def get_research_candidates(
-    type: str = Query("non_union", pattern="^(non_union|union_reference)$",
+    type: Literal["non_union", "union_reference"] = Query("non_union",
                        description="non_union: best targets for direct enhancement; "
                                    "union_reference: best F7 employers to enrich the reference pool"),
     limit: int = Query(50, ge=1, le=200),
