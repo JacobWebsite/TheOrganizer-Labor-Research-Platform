@@ -240,39 +240,6 @@ def _explain_similarity(score):
     return "Low similarity to organized employers"
 
 
-def _get_propensity_context(cur, estab_id):
-    """Get propensity score for an establishment via F7 match path. Returns None if unavailable."""
-    try:
-        cur.execute("""
-            SELECT EXISTS(
-                SELECT 1 FROM information_schema.tables
-                WHERE table_name = 'ml_election_propensity_scores'
-            ) AS e
-        """)
-        if not cur.fetchone()["e"]:
-            return None
-        # Look up via osha_f7_matches -> employer_id
-        cur.execute("""
-            SELECT ps.propensity_score, ps.confidence_band, ps.model_name
-            FROM osha_f7_matches ofm
-            JOIN ml_election_propensity_scores ps ON ps.employer_id = ofm.f7_employer_id
-            WHERE ofm.establishment_id = %s
-            ORDER BY ps.confidence_band ASC
-            LIMIT 1
-        """, [estab_id])
-        row = cur.fetchone()
-        if not row:
-            return None
-        return {
-            "propensity_score": float(row["propensity_score"]),
-            "confidence_band": row["confidence_band"],
-            "model_name": row["model_name"],
-            "experimental": True,
-        }
-    except Exception:
-        return None
-
-
 def _build_explanations(row, is_rtw=None, win_rate=None):
     """Build the full score_explanations dict from a row."""
     return {
@@ -761,7 +728,6 @@ def get_scorecard_detail(estab_id: str):
                     "factors": nlrb_factors
                 },
                 "ulp_context": ulp_context,
-                "propensity_context": _get_propensity_context(cur, estab_id),
                 "context": {
                     "has_related_union": mv['has_f7_match'],
                     "nlrb_count": nlrb_count
@@ -1316,109 +1282,3 @@ def review_match(match_id: int, payload: MatchReviewAction, user=Depends(require
             return {"ok": True, "match": updated}
 
 
-@router.get("/api/organizing/propensity/{employer_id}")
-def get_propensity(employer_id: str):
-    """Return propensity score for a specific employer.
-    Experimental: NLRB election outcome prediction."""
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            # Check if table exists
-            cur.execute("""
-                SELECT EXISTS(
-                    SELECT 1 FROM information_schema.tables
-                    WHERE table_name = 'ml_election_propensity_scores'
-                ) AS e
-            """)
-            if not cur.fetchone()["e"]:
-                raise HTTPException(status_code=404, detail="Propensity scores not available")
-
-            cur.execute("""
-                SELECT ps.propensity_score, ps.confidence_band, ps.model_name,
-                       ps.feature_values, ps.created_at,
-                       mv.model_type, mv.test_auc
-                FROM ml_election_propensity_scores ps
-                LEFT JOIN ml_model_versions mv ON mv.model_version_id = ps.model_version_id
-                WHERE ps.employer_id = %s
-                ORDER BY ps.confidence_band ASC
-                LIMIT 1
-            """, [employer_id])
-            row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="No propensity score for this employer")
-
-            return {
-                "employer_id": employer_id,
-                "propensity_score": float(row["propensity_score"]),
-                "confidence_band": row["confidence_band"],
-                "model_name": row["model_name"],
-                "model_type": row.get("model_type"),
-                "model_auc": float(row["test_auc"]) if row.get("test_auc") else None,
-                "feature_values": row.get("feature_values"),
-                "scored_at": row["created_at"].isoformat() if row.get("created_at") else None,
-                "experimental": True,
-            }
-
-
-@router.get("/api/admin/propensity-models")
-def get_propensity_models(user=Depends(require_admin)):
-    """Return propensity model versions and performance metrics."""
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT EXISTS(
-                    SELECT 1 FROM information_schema.tables
-                    WHERE table_name = 'ml_model_versions'
-                ) AS e
-            """)
-            if not cur.fetchone()["e"]:
-                return {"models": [], "total": 0}
-
-            cur.execute("""
-                SELECT model_version_id, model_name, version_string, model_type,
-                       training_date, training_rows, test_rows,
-                       test_auc, test_brier_score, calibration_error,
-                       feature_list, parameters, feature_importance,
-                       score_stats, is_active, notes
-                FROM ml_model_versions
-                ORDER BY model_version_id DESC
-            """)
-            rows = cur.fetchall()
-
-            # Get score counts per model
-            cur.execute("""
-                SELECT EXISTS(
-                    SELECT 1 FROM information_schema.tables
-                    WHERE table_name = 'ml_election_propensity_scores'
-                ) AS e
-            """)
-            has_scores = cur.fetchone()["e"]
-            score_counts = {}
-            if has_scores:
-                cur.execute("""
-                    SELECT model_name, COUNT(*) as cnt
-                    FROM ml_election_propensity_scores
-                    GROUP BY model_name
-                """)
-                score_counts = {r["model_name"]: r["cnt"] for r in cur.fetchall()}
-
-            return {
-                "models": [
-                    {
-                        "model_version_id": r["model_version_id"],
-                        "model_name": r["model_name"],
-                        "version_string": r["version_string"],
-                        "model_type": r["model_type"],
-                        "training_date": r["training_date"].isoformat() if r.get("training_date") else None,
-                        "training_rows": r["training_rows"],
-                        "test_rows": r["test_rows"],
-                        "test_auc": float(r["test_auc"]) if r.get("test_auc") else None,
-                        "test_brier_score": float(r["test_brier_score"]) if r.get("test_brier_score") else None,
-                        "calibration_error": float(r["calibration_error"]) if r.get("calibration_error") else None,
-                        "is_active": r["is_active"],
-                        "notes": r["notes"],
-                        "scored_employers": score_counts.get(r["model_name"], 0),
-                    }
-                    for r in rows
-                ],
-                "total": len(rows),
-            }

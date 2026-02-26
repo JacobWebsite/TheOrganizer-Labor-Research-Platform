@@ -473,10 +473,10 @@ def get_union_detail(f_num: str, consolidated: bool = True):
 
             # Financial trends (used by profile charts)
             cur.execute("""
-                SELECT lm.yr_covered,
+                SELECT lm.yr_covered AS year,
                        SUM(am.number) FILTER (WHERE am.voting_eligibility = 'T') AS members,
-                       SUM(COALESCE(lm.ttl_assets, 0)) AS total_assets,
-                       SUM(COALESCE(lm.ttl_receipts, 0)) AS total_receipts
+                       SUM(COALESCE(lm.ttl_assets, 0)) AS assets,
+                       SUM(COALESCE(lm.ttl_receipts, 0)) AS receipts
                 FROM lm_data lm
                 LEFT JOIN ar_membership am ON am.rpt_id = lm.rpt_id
                 WHERE lm.f_num = %s

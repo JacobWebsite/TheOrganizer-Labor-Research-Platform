@@ -158,7 +158,6 @@ BLS industry density, state-level density by government level, county estimates 
 - `GET /api/organizing/summary` - Organizing summary statistics
 - `GET /api/organizing/by-state` - Organizing targets by state
 - `GET /api/organizing/siblings/{estab_id}` - Sibling establishments
-- `GET /api/organizing/propensity/{employer_id}` - ML propensity score
 
 ### Density (`/api/density/`)
 - `GET /api/density/by-state` - State-level density
@@ -184,7 +183,6 @@ BLS industry density, state-level density by government level, county estimates 
 - `GET /api/admin/match-quality` - Match quality metrics
 - `GET /api/admin/match-review` - Matches pending review
 - `POST /api/admin/match-review/{id}` - Approve/reject match
-- `GET /api/admin/propensity-models` - ML model versions
 - `GET /api/admin/employer-groups` - Canonical employer groups
 
 ### Additional Routers
@@ -219,7 +217,6 @@ py -m pytest tests/ -v
 | `test_naics_hierarchy_scoring.py` | 12 | Hierarchical NAICS similarity |
 | `test_temporal_decay.py` | 29 | OSHA/NLRB temporal decay |
 | `test_score_versioning.py` | 14 | Score version tracking |
-| `test_propensity_model.py` | 22 | ML propensity model |
 | `test_occupation_integration.py` | 11 | Occupation overlap and similarity |
 | `test_similarity_fallback.py` | 12 | Gower similarity fallbacks |
 | `test_db_config_migration_guard.py` | 3 | db_config migration guard |

@@ -22,16 +22,24 @@ This employer's overall organizing potential, calculated from up to 8 different 
 - **Low (bottom 25%):** Few organizing signals in the available data. Action: unlikely to be a strong target based on current information, but new data could change this.
 
 **Factor bars:**
-Each bar shows how this employer scored on one of 8 factors, rated 0-10. Factors are weighted by importance — (3x) factors matter three times as much as (1x) factors in the final score. A grayed-out factor with a dash means we have no data for that factor.
+Each bar shows how this employer scored on one of the strategic pillars, rated 0-10. Factors are weighted by importance — (3x) pillars matter three times as much as (1x) pillars in the final score. A grayed-out factor with a dash means we have no data for that factor.
 
-- **Union Proximity (3x):** Whether companies in the same corporate family already have unions. This is the strongest predictor of organizing success because it means the corporate parent has already dealt with unions elsewhere, and there may be existing relationships and momentum to build on.
-- **Employer Size (3x):** Larger employers offer more impact per organizing campaign — more workers covered, more resources justified. Employers under 15 employees score zero because they're generally not realistic organizing targets.
-- **NLRB Activity (3x):** A combination of nearby union election momentum (within 25 miles and similar industry) and this employer's own election history. Nearby wins are a strong signal. This employer's own past losses actually count as a negative because they suggest harder-than-average organizing conditions.
-- **Gov Contracts (2x):** Federal, state, or city government contracts. Contractors face public accountability and regulatory requirements that create organizing leverage. Having contracts at multiple levels (e.g. both federal and city) scores higher than just one.
-- **Industry Growth (2x):** How fast this employer's industry is projected to grow over the next 10 years, based on Bureau of Labor Statistics data. Faster-growing industries mean more workers entering the field and more opportunity.
-- **Statistical Similarity (2x):** How closely this employer resembles other employers that already have unions, based on size, industry, location, and other characteristics. A high score means "employers like this one tend to have unions."
-- **OSHA Safety (1x):** Workplace safety violations from federal OSHA inspections. More violations and more serious violations (willful, repeat) score higher. Violations fade in importance over time — recent ones count more than old ones.
-- **WHD Wage Theft (1x):** Wage and hour violations from Department of Labor Wage and Hour Division investigations. Includes back wages owed, overtime violations, and minimum wage violations. More cases score higher.
+### Pillar 1: Anger (Motivation)
+- **Anger Score (3x):** Blends safety/wage violations (OSHA/WHD), Unfair Labor Practice (ULP) history, and real-time worker sentiment from research. Higher scores indicate significant worker motivation and "friction" with management.
+- **OSHA Safety (1x component):** Workplace safety violations from federal OSHA inspections. More serious violations (willful, repeat) score higher.
+- **WHD Wage Theft (1x component):** Wage and hour violations from DOL investigations, including back wages owed and overtime violations.
+
+### Pillar 2: Stability (Winnability)
+- **Stability Score (3x):** High score = Low turnover. "Stability is required for building a committee." This factor rewards employers with stable workforces where organizers have time to build relationships, while penalizing high-churn environments.
+- **Employer Size (filter):** Shown for context but not weighted in the score. Size is a filtering dimension -- organizers already know what size shop they're looking for.
+
+### Pillar 3: Leverage (Power)
+- **Leverage Score (4x):** The strongest indicator of strategic power. Blends corporate ownership, government contracts, and financial strength.
+- **Union Proximity (2x component):** Whether companies in the same corporate family already have unions. This reveals the corporate parent's existing labor footprint.
+- **Gov Contracts (2x component):** Federal government contracts. Contractors face public accountability and regulatory requirements that create organizing leverage. (Note: State/City contracts planned but not yet integrated).
+- **NLRB Activity (3x component):** Based on this employer's own election and ULP history. (Note: Nearby-election momentum is planned but not active in the current version).
+- **Industry Growth (2x component):** BLS industry projections. Faster-growing industries mean more opportunity and potential long-term density.
+- **Revenue-per-Employee (Research):** A strategic signal showing high-leverage targets where labor costs are a smaller share of total production costs.
 
 **Source badges — what each database is:**
 - **F-7:** Department of Labor Form LM-10/F-7 filings. These are reports that employers with union contracts are required to file. If an employer has an F-7 badge, it means they have (or had) a union contract.

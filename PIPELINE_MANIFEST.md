@@ -126,11 +126,7 @@ These scripts build the organizing scorecard and related analysis. Run after mat
 
 ### ML Pipeline (scripts/ml/)
 
-| Script | What It Does | Depends On | Run When |
-|--------|-------------|------------|----------|
-| `scripts/ml/create_propensity_tables.py` | Creates ml_model_versions + ml_election_propensity_scores tables | Database | Once during Phase 5.5 setup |
-| `scripts/ml/feature_engineering.py` | Feature engineering for propensity model (log transforms, cyclical month, one-hot, temporal split) | Imported by train script | Not run directly |
-| `scripts/ml/train_propensity_model.py` | Trains propensity models (Model A AUC=0.72, Model B AUC=0.53). Scores 146K employers. | NLRB elections, OSHA matches, feature_engineering.py | Phase 5.5. `py scripts/ml/train_propensity_model.py [--dry-run] [--score-only]` |
+*Propensity model removed (2026-02-26). Hardcoded formula (not ML), Model B AUC=0.53 (coin flip). Scripts archived to `archive/propensity_model/`. DB tables dropped.*
 
 ---
 
@@ -192,8 +188,7 @@ Sequential pipeline for extracting data from union websites.
 5.   Scoring: py scripts/scoring/compute_nlrb_patterns.py
 6.   Scoring: py scripts/scoring/create_scorecard_mv.py --refresh
 7.   Scoring: py scripts/scoring/compute_gower_similarity.py --refresh-view
-8.   ML: py scripts/ml/train_propensity_model.py --score-only
-9.   Maintenance: py scripts/maintenance/create_data_freshness.py --refresh
+8.   Maintenance: py scripts/maintenance/create_data_freshness.py --refresh
 ```
 
 ---
