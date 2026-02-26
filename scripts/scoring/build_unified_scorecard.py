@@ -377,6 +377,34 @@ scored AS (
         END AS score_financial
     FROM raw_scores rs
 ),
+-- NOTE: The unified scorecard is most useful for NON-UNION employers.
+-- F7 union employers serve as the reference dataset for Gower similarity
+-- and propensity modeling. Research on union employers enriches that
+-- reference pool (see research_score_enhancements.is_union_reference).
+-- Research on non-union employers directly enhances their scores here.
+research_enhanced AS (
+    SELECT
+        s.*,
+        rse.run_id AS research_run_id,
+        rse.run_quality AS research_quality,
+        -- Use GREATEST: pick higher of DB score vs research score
+        -- NULL-safe: GREATEST(NULL, 5) = 5
+        GREATEST(s.score_osha, rse.score_osha) AS enh_score_osha,
+        GREATEST(s.score_nlrb, rse.score_nlrb) AS enh_score_nlrb,
+        GREATEST(s.score_whd, rse.score_whd) AS enh_score_whd,
+        GREATEST(s.score_contracts, rse.score_contracts) AS enh_score_contracts,
+        GREATEST(s.score_financial, rse.score_financial) AS enh_score_financial,
+        COALESCE(s.score_size, rse.score_size) AS enh_score_size,
+        -- Assessment fields
+        rse.recommended_approach AS research_approach,
+        rse.financial_trend AS research_trend,
+        rse.source_contradictions AS research_contradictions,
+        (rse.run_id IS NOT NULL) AS has_research
+    FROM scored s
+    LEFT JOIN research_score_enhancements rse
+        ON rse.employer_id = s.employer_id
+        AND rse.is_union_reference = FALSE   -- only direct enhancements
+),
 weighted AS (
     SELECT
         s.*,
@@ -429,8 +457,37 @@ weighted AS (
                 0
             ),
             2
-        ) AS weighted_score
-    FROM scored s
+        ) AS weighted_score,
+        -- Research-enhanced weighted score (uses GREATEST of DB vs research scores)
+        CASE WHEN s.has_research THEN
+            ROUND(
+                (
+                    COALESCE(s.score_union_proximity, 0) * 3
+                    + COALESCE(s.enh_score_size, s.score_size, 0) * 3
+                    + COALESCE(s.enh_score_nlrb, s.score_nlrb, 0) * 3
+                    + COALESCE(s.enh_score_contracts, s.score_contracts, 0) * 2
+                    + COALESCE(s.score_industry_growth, 0) * 2
+                    + COALESCE(s.enh_score_financial, s.score_financial, 0) * 2
+                    + COALESCE(s.enh_score_osha, s.score_osha, 0)
+                    + COALESCE(s.enh_score_whd, s.score_whd, 0)
+                )::numeric
+                / NULLIF(
+                    (
+                        CASE WHEN s.score_union_proximity IS NOT NULL THEN 3 ELSE 0 END
+                        + CASE WHEN COALESCE(s.enh_score_size, s.score_size) IS NOT NULL THEN 3 ELSE 0 END
+                        + CASE WHEN COALESCE(s.enh_score_nlrb, s.score_nlrb) IS NOT NULL THEN 3 ELSE 0 END
+                        + CASE WHEN COALESCE(s.enh_score_contracts, s.score_contracts) IS NOT NULL THEN 2 ELSE 0 END
+                        + CASE WHEN s.score_industry_growth IS NOT NULL THEN 2 ELSE 0 END
+                        + CASE WHEN COALESCE(s.enh_score_financial, s.score_financial) IS NOT NULL THEN 2 ELSE 0 END
+                        + CASE WHEN COALESCE(s.enh_score_osha, s.score_osha) IS NOT NULL THEN 1 ELSE 0 END
+                        + CASE WHEN COALESCE(s.enh_score_whd, s.score_whd) IS NOT NULL THEN 1 ELSE 0 END
+                    ),
+                    0
+                ),
+                2
+            )
+        END AS research_weighted_score
+    FROM research_enhanced s
 ),
 ranked AS (
     SELECT
@@ -442,6 +499,10 @@ ranked AS (
 )
 SELECT
     r.*,
+    -- Research delta: how much research improved the score
+    CASE WHEN r.has_research AND r.research_weighted_score IS NOT NULL
+        THEN ROUND((r.research_weighted_score - COALESCE(r.weighted_score, 0))::numeric, 2)
+    END AS score_delta,
     -- Flag columns (yes/no signals, NOT tier requirements per D2)
     CASE WHEN COALESCE(r.osha_latest_inspection, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
          OR COALESCE(r.whd_latest_finding, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
@@ -478,6 +539,8 @@ INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_mv_us_naics ON mv_unified_scorecard (naics)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_score_tier ON mv_unified_scorecard (score_tier)",
     "CREATE INDEX IF NOT EXISTS idx_mv_us_factors ON mv_unified_scorecard (factors_available)",
+    "CREATE INDEX IF NOT EXISTS idx_mv_us_has_research ON mv_unified_scorecard (has_research) WHERE has_research = TRUE",
+    "CREATE INDEX IF NOT EXISTS idx_mv_us_score_delta ON mv_unified_scorecard (score_delta DESC NULLS LAST) WHERE score_delta IS NOT NULL",
 ]
 
 

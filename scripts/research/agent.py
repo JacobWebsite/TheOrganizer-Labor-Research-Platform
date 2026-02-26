@@ -497,6 +497,46 @@ def _build_google_search_tool() -> list[types.Tool]:
 
 
 # ---------------------------------------------------------------------------
+# Strategy Hints
+# ---------------------------------------------------------------------------
+
+def _get_strategy_hints(naics: str, company_type: str, size_bucket: str) -> str:
+    """Query research_strategies for tool hit rates matching this employer's profile.
+
+    Returns a short text block appended to the system prompt, or empty string.
+    """
+    if not naics or naics == "unknown":
+        return ""
+    naics_2 = naics[:2]
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT tool_name,
+                   ROUND(hit_rate * 100)::int AS hit_pct,
+                   times_tried
+            FROM research_strategies
+            WHERE industry_naics_2digit = %s
+              AND (company_type = %s OR company_type IS NULL)
+              AND (company_size_bucket = %s OR company_size_bucket IS NULL)
+              AND times_tried >= 3
+            ORDER BY hit_rate DESC
+            LIMIT 10
+        """, (naics_2, company_type, size_bucket))
+        rows = cur.fetchall()
+        conn.close()
+        if not rows:
+            return ""
+        lines = [f"\n## Strategy Hints (from {len(rows)} past runs in NAICS {naics_2}):"]
+        for r in rows:
+            lines.append(f"- {r['tool_name']}: {r['hit_pct']}% hit rate ({r['times_tried']} runs)")
+        return "\n".join(lines) + "\n"
+    except Exception as e:
+        _log.debug("Strategy hints lookup failed (non-fatal): %s", e)
+        return ""
+
+
+# ---------------------------------------------------------------------------
 # System Prompt
 # ---------------------------------------------------------------------------
 
@@ -522,7 +562,7 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
     state = run.get("company_state") or "unknown"
     size_bucket = run.get("employee_size_bucket") or "unknown"
 
-    return f"""You are a labor-relations research agent. Your job is to compile a comprehensive organizing dossier on a single employer by querying internal databases.
+    prompt = f"""You are a labor-relations research agent. Your job is to compile a comprehensive organizing dossier on a single employer by querying internal databases.
 
 ## Company Under Research
 - **Name:** {company_name}
@@ -548,11 +588,16 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - BLS industry profile (get_industry_profile) -- needs a NAICS code
    - Similar organized employers (get_similar_employers)
 
-3. **Scrape employer website** (scrape_employer_website) -- if search_mergent returned a website URL, pass it here. Otherwise the tool will look it up. Returns homepage, about, careers, and news text.
+3. **Get additional enrichment** (these tools fill critical gaps):
+   - SEC proxy executive pay (search_sec_proxy) -- ONLY for public companies. Pass any CIK or ticker you found from search_sec results. Returns top executive compensation.
+   - Job postings estimate (search_job_postings) -- ALWAYS call this. Returns active job count and sample titles/pay. High turnover signal if count > 100.
+   - Workforce demographics (get_workforce_demographics) -- Call if NAICS is known. Returns industry demographic baselines (race, gender, age). NOTE: This data is industry-level, not company-specific. Always label it as "INDUSTRY BASELINE" in the dossier.
 
-4. **Synthesize** your findings into the dossier.
+4. **Scrape employer website** (scrape_employer_website) -- if search_mergent returned a website URL, pass it here. Otherwise the tool will look it up. Returns homepage, about, careers, and news text.
 
-IMPORTANT: Do NOT attempt to call google_search or any web search tool. Web search is handled separately after your database queries. Focus ONLY on the database tools listed above.
+5. **Synthesize** your findings into the dossier.
+
+IMPORTANT: Do NOT call `google_search` directly -- web search is handled separately after your database queries. But DO call `search_sec_proxy`, `search_job_postings`, and `get_workforce_demographics` as listed in step 3 above.
 
 Always pass the company_name parameter. If the employer_id is known (not "unknown"), pass it too for more precise matching.
 If the NAICS is known, pass it to get_industry_profile and get_similar_employers.
@@ -613,16 +658,18 @@ After gathering data from all relevant tools, produce your final answer as a sin
 }}
 ```
 
-For the **assessment** section, provide factual analysis only:
-- `data_summary`: 2-3 paragraph factual summary of what the data reveals. State what was found, patterns, and what is notable. No strategy recommendations.
+For the **assessment** section, provide factual analysis:
+- `data_summary`: 2-3 paragraph factual summary of what the data reveals. State what was found, patterns, and what is notable.
 - `organizing_summary`: Key organizing intelligence synthesized from all sources.
-- `campaign_strengths`: List of factors favorable for organizing (from database + web).
-- `campaign_challenges`: List of obstacles to organizing (from database + web).
+- `campaign_strengths`: List of factors favorable for organizing (from database + web). Aim for 3+ items.
+- `campaign_challenges`: List of obstacles to organizing (from database + web). Aim for 3+ items.
 - `web_intelligence`: Key findings from web search beyond database records. Include dates and sources.
-- `source_contradictions`: Contradictions between data sources (e.g., DB says no NLRB activity but web reports ongoing campaigns).
-- `data_gaps`: Critical information missing or unverifiable (use null for other assessment fields).
+- `source_contradictions`: Contradictions between data sources (e.g., DB says no NLRB activity but web reports ongoing campaigns). IMPORTANT: If any database tool returned 0 results but web/news sources show activity, you MUST note this here.
+- `data_gaps`: Critical information missing or unverifiable.
+- `recommended_approach`: A 2-3 sentence factual synthesis of organizing viability based on the data gathered. Ground it in specific facts from the dossier. Example: "With 120 ULP charges, existing Teamsters contracts at 3 facilities, and $156M in federal obligations, this employer has significant organizing pressure points. The high job posting volume (5,000+) suggests turnover that could fuel organizing interest." Do NOT leave this null.
+- `financial_trend`: One of "growing", "stable", "declining", or "unknown" followed by 1-sentence evidence (e.g., "growing - Revenue increased 15% YoY per 2025 10-K filing"). Derive from SEC filings, web news, or financial data.
 
-Do NOT include: recommended_approach, similar_organized, or strategic advice. Set those to null.
+Do NOT include: similar_organized. Set that to null.
 
 For the **sources** section:
 - `section_confidence`: object mapping each section to "high"/"medium"/"low"
@@ -632,6 +679,12 @@ For the **sources** section:
 Make sure every fact in the `facts` array uses an `attribute_name` from the vocabulary above. Use `attribute_value` for simple text/number values and `attribute_value_json` for complex objects (lists, dicts).
 
 Be thorough but efficient. Do not call the same tool twice with the same parameters."""
+
+    # Append strategy hints if available
+    hints = _get_strategy_hints(str(naics), str(company_type), str(size_bucket))
+    if hints:
+        return prompt + hints
+    return prompt
 
 
 def _patch_dossier_financials(dossier_data: dict, web_text: str = "") -> int:
@@ -818,6 +871,297 @@ Example:
     except Exception as e:
         _log.warning("Run %d: Second-pass gap filler failed: %s", run_id, e)
         return 0
+
+
+def _resolve_contradictions(dossier_data: dict) -> int:
+    """Detect DB-zero vs web-nonzero contradictions and populate source_contradictions.
+
+    Scans the dossier for cases where a database tool returned 0 (e.g.,
+    osha_violation_count=0) but web/assessment text mentions violations.
+    Writes findings to assessment.source_contradictions.
+
+    Returns number of contradictions found.
+    """
+    if not dossier_data or "dossier" not in dossier_data:
+        return 0
+
+    body = dossier_data["dossier"]
+    assessment = body.get("assessment", {}) or {}
+    workplace = body.get("workplace", {}) or {}
+    labor = body.get("labor", {}) or {}
+
+    # Collect all narrative text for searching
+    narratives = [
+        assessment.get("data_summary") or "",
+        assessment.get("organizing_summary") or "",
+        assessment.get("web_intelligence") or "",
+    ]
+    # Also check web-sourced list items
+    for items in [
+        assessment.get("campaign_strengths", []) or [],
+        assessment.get("campaign_challenges", []) or [],
+        workplace.get("recent_labor_news", []) or [],
+        workplace.get("osha_violation_details", []) or [],
+        workplace.get("whd_violation_details", []) or [],
+        labor.get("recent_nlrb_web", []) or [],
+    ]:
+        if isinstance(items, list):
+            narratives.extend(str(i) for i in items if i)
+        elif isinstance(items, str):
+            narratives.append(items)
+
+    combined_text = " ".join(narratives).lower()
+    if not combined_text.strip():
+        return 0
+
+    contradictions = []
+
+    # Check OSHA: DB says 0 but web mentions violations/fines/citations
+    osha_count = workplace.get("osha_violation_count")
+    if _is_zero_or_none(osha_count):
+        osha_keywords = re.compile(
+            r'\b(osha\s+(?:violation|citation|fine|penalt)|'
+            r'safety\s+violation|workplace\s+(?:injury|death|fatality)|'
+            r'osha\s+(?:cited|fined))\b', re.IGNORECASE,
+        )
+        if osha_keywords.search(combined_text):
+            contradictions.append(
+                f"Database matched 0 OSHA violations under employer name -- "
+                f"web sources report OSHA citations/fines. "
+                f"Likely caused by entity name mismatch (subsidiary names, DBA names)."
+            )
+            # Annotate the DB value
+            if osha_count is not None:
+                workplace["osha_violation_count"] = f"{osha_count} (DB name match -- see source_contradictions)"
+
+    # Check NLRB: DB says 0 elections/ULPs but web mentions organizing
+    nlrb_election = labor.get("nlrb_election_count")
+    nlrb_ulp = labor.get("nlrb_ulp_count")
+    if _is_zero_or_none(nlrb_election) and _is_zero_or_none(nlrb_ulp):
+        nlrb_keywords = re.compile(
+            r'\b(nlrb|unfair\s+labor\s+practice|ulp\s+charge|'
+            r'union\s+election|organizing\s+(?:campaign|drive|effort)|'
+            r'filed\s+(?:a\s+)?petition|bargaining\s+unit)\b', re.IGNORECASE,
+        )
+        if nlrb_keywords.search(combined_text):
+            contradictions.append(
+                f"Database matched 0 NLRB elections/ULP charges under employer name -- "
+                f"web sources report union organizing activity or NLRB filings. "
+                f"Likely caused by entity name mismatch or recent filings not yet in database."
+            )
+            if nlrb_election is not None:
+                labor["nlrb_election_count"] = f"{nlrb_election} (DB name match -- see source_contradictions)"
+            if nlrb_ulp is not None:
+                labor["nlrb_ulp_count"] = f"{nlrb_ulp} (DB name match -- see source_contradictions)"
+
+    # Check WHD: DB says 0 but web mentions wage theft
+    whd_count = workplace.get("whd_case_count")
+    if _is_zero_or_none(whd_count):
+        whd_keywords = re.compile(
+            r'\b(wage\s+theft|back\s+wages|flsa\s+violation|'
+            r'department\s+of\s+labor\s+(?:fine|investigation)|'
+            r'unpaid\s+(?:wages|overtime))\b', re.IGNORECASE,
+        )
+        if whd_keywords.search(combined_text):
+            contradictions.append(
+                f"Database matched 0 WHD cases under employer name -- "
+                f"web sources report wage violations or DOL investigations. "
+                f"Likely caused by entity name mismatch or settlement agreements."
+            )
+            if whd_count is not None:
+                workplace["whd_case_count"] = f"{whd_count} (DB name match -- see source_contradictions)"
+
+    # Write contradictions to assessment
+    if contradictions:
+        assessment["source_contradictions"] = contradictions
+        body["workplace"] = workplace
+        body["labor"] = labor
+        body["assessment"] = assessment
+        _log.info("Contradiction resolver found %d DB-vs-web mismatches", len(contradictions))
+
+    return len(contradictions)
+
+
+def _is_zero_or_none(val) -> bool:
+    """Check if a value represents zero or no data."""
+    if val is None:
+        return True
+    if isinstance(val, (int, float)) and val == 0:
+        return True
+    if isinstance(val, str):
+        stripped = val.strip()
+        if stripped in ("0", "0.0", "", "null", "None", "N/A"):
+            return True
+    return False
+
+
+def _extract_financial_trend(dossier_data: dict, web_text: str = "") -> bool:
+    """Extract financial_trend from web text and dossier narratives.
+
+    Populates assessment.financial_trend with "growing/stable/declining/unknown"
+    plus 1-sentence evidence.
+
+    Returns True if financial_trend was populated.
+    """
+    if not dossier_data or "dossier" not in dossier_data:
+        return False
+
+    body = dossier_data["dossier"]
+    assessment = body.get("assessment", {}) or {}
+
+    # Skip if already populated
+    if assessment.get("financial_trend"):
+        return False
+
+    # Gather text to scan
+    texts = [
+        assessment.get("data_summary") or "",
+        assessment.get("web_intelligence") or "",
+        assessment.get("organizing_summary") or "",
+        web_text or "",
+    ]
+    combined = " ".join(texts)
+    if not combined.strip():
+        return False
+
+    # Growth keywords
+    _GROWING = re.compile(
+        r'\b(revenue\s+(?:grew|increased|rose|surged|up)|'
+        r'record\s+(?:revenue|profits?|earnings)|'
+        r'expand(?:ing|ed|s)\s+(?:operations?|facilities|workforce)|'
+        r'opened\s+(?:new|additional)\s+(?:facilities|stores|locations)|'
+        r'year-over-year\s+(?:growth|increase)|'
+        r'strong\s+(?:financial|revenue|earnings)\s+growth|'
+        r'revenue\s+growth|grew\s+(?:by\s+)?\d+%|'
+        r'acquisition|acquired|IPO)\b', re.IGNORECASE,
+    )
+    _DECLINING = re.compile(
+        r'\b(revenue\s+(?:declined|decreased|fell|dropped|down)|'
+        r'layoffs?|laid\s+off|workforce\s+reduction|'
+        r'clos(?:ing|ed)\s+(?:facilities|stores|locations|plants)|'
+        r'bankrupt(?:cy)?|chapter\s+(?:7|11)|'
+        r'restructur(?:ing|ed)|downsiz(?:ing|ed)|'
+        r'declining\s+(?:revenue|sales|profits?)|'
+        r'loss(?:es)?(?:\s+of)?\s+\$|net\s+loss)\b', re.IGNORECASE,
+    )
+    _STABLE = re.compile(
+        r'\b(steady|stable\s+(?:revenue|growth|performance)|'
+        r'consistent\s+(?:revenue|performance|results)|'
+        r'maintained\s+(?:revenue|profitability))\b', re.IGNORECASE,
+    )
+
+    trend = None
+    evidence = None
+
+    # Search for evidence in order of priority
+    growing_match = _GROWING.search(combined)
+    declining_match = _DECLINING.search(combined)
+    stable_match = _STABLE.search(combined)
+
+    if declining_match:
+        # Extract context around the match
+        start = max(0, declining_match.start() - 50)
+        end = min(len(combined), declining_match.end() + 100)
+        context = combined[start:end].strip().replace("\n", " ")
+        trend = "declining"
+        evidence = context
+    elif growing_match:
+        start = max(0, growing_match.start() - 50)
+        end = min(len(combined), growing_match.end() + 100)
+        context = combined[start:end].strip().replace("\n", " ")
+        trend = "growing"
+        evidence = context
+    elif stable_match:
+        start = max(0, stable_match.start() - 50)
+        end = min(len(combined), stable_match.end() + 100)
+        context = combined[start:end].strip().replace("\n", " ")
+        trend = "stable"
+        evidence = context
+
+    if trend:
+        # Truncate evidence to ~150 chars
+        if evidence and len(evidence) > 150:
+            evidence = evidence[:147] + "..."
+        assessment["financial_trend"] = f"{trend} - {evidence}" if evidence else trend
+        body["assessment"] = assessment
+        return True
+
+    return False
+
+
+def _validate_employee_count(dossier_data: dict, run: dict) -> None:
+    """Validate employee count for plausibility (Phase 5.7).
+
+    For public companies or companies with large size_bucket, flag suspiciously
+    low employee counts (likely grabbed from a news snippet about layoffs
+    rather than actual headcount).
+    """
+    if not dossier_data or "dossier" not in dossier_data:
+        return
+
+    body = dossier_data["dossier"]
+    financial = body.get("financial", {}) or {}
+    emp_val = financial.get("employee_count")
+    if not emp_val:
+        return
+
+    # Parse the numeric value
+    emp_num = None
+    if isinstance(emp_val, (int, float)):
+        emp_num = int(emp_val)
+    elif isinstance(emp_val, str):
+        # Extract number: "27,000 employees (web source, 2026)" -> 27000
+        m = re.search(r'([\d,]+)', emp_val)
+        if m:
+            try:
+                emp_num = int(m.group(1).replace(",", ""))
+            except ValueError:
+                pass
+
+    if emp_num is None:
+        return
+
+    company_type = (run.get("company_type") or "").lower()
+    size_bucket = (run.get("employee_size_bucket") or "").lower()
+
+    # Flag suspiciously low counts for known-large entities
+    suspicious = False
+    reason = ""
+
+    if company_type == "public" and emp_num < 1000:
+        suspicious = True
+        reason = f"Public company with only {emp_num:,} employees seems low"
+    elif size_bucket == "large" and emp_num < 500:
+        suspicious = True
+        reason = f"Large-bucket employer with only {emp_num:,} employees seems low"
+
+    if suspicious:
+        # Don't overwrite, but add a warning annotation
+        financial["employee_count"] = f"{emp_val} (UNVERIFIED - {reason})"
+        body["financial"] = financial
+        _log.warning("Employee count validation: %s for %s",
+                     reason, run.get("company_name", "unknown"))
+
+
+def _count_null_fields(dossier_data: dict) -> tuple[int, int]:
+    """Count (total_fields, null_fields) across identity/financial/workforce/labor/workplace.
+
+    Returns (total, nulls). Useful for before/after measurement of patching.
+    """
+    if not dossier_data or "dossier" not in dossier_data:
+        return (0, 0)
+    body = dossier_data["dossier"]
+    total = 0
+    nulls = 0
+    for sec_name in ["identity", "financial", "workforce", "labor", "workplace"]:
+        sec_dict = body.get(sec_name)
+        if not isinstance(sec_dict, dict):
+            continue
+        for _key, val in sec_dict.items():
+            total += 1
+            if val is None or val == "" or val == []:
+                nulls += 1
+    return (total, nulls)
 
 
 # ---------------------------------------------------------------------------
@@ -1046,6 +1390,16 @@ _TOOL_FACT_MAP = {
     "scrape_employer_website": [
         ("website_url", "url"),                       # was company_website (not in vocab)
     ],
+    "search_sec_proxy": [
+        ("exec_compensation", "executives"),
+    ],
+    "search_job_postings": [
+        ("job_posting_count", "count_estimate"),
+        ("job_posting_details", "sample_postings"),
+    ],
+    "get_workforce_demographics": [
+        ("demographic_profile", "demographic_profile"),
+    ],
 }
 
 # Maps attribute_name -> dossier_section (must match _TOOL_FACT_MAP keys)
@@ -1059,6 +1413,10 @@ _ATTR_SECTION = {
     "existing_contracts": "labor",
     "employee_count": "financial", "revenue": "financial",
     "website_url": "identity",
+    "exec_compensation": "financial",
+    "job_posting_count": "workforce",
+    "job_posting_details": "workforce",
+    "demographic_profile": "workforce",
 }
 
 
@@ -1510,12 +1868,152 @@ def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             _log.warning("Run %d: forced scraper failed (non-fatal): %s", run_id, scrape_exc)
 
     # ------------------------------------------------------------------
+    # Phase 1.6: Force-call new enrichment tools
+    # ------------------------------------------------------------------
+    # These tools were added in Phase 5.5/5.6 but Gemini never calls them
+    # voluntarily, so we force them like the scraper above.
+
+    # 1.6a: search_sec_proxy — only for public companies where search_sec found data
+    if "search_sec_proxy" not in tools_called_set:
+        # Check if search_sec returned data (indicates public company)
+        _is_public = False
+        _sec_cik = None
+        _sec_ticker = None
+        try:
+            conn_check = _conn()
+            cur_check = conn_check.cursor()
+            cur_check.execute("""
+                SELECT data_found, result_summary
+                FROM research_actions
+                WHERE run_id = %s AND tool_name IN ('search_sec', 'search_sec (cached)')
+                  AND data_found = TRUE
+                ORDER BY execution_order DESC LIMIT 1
+            """, (run_id,))
+            sec_row = cur_check.fetchone()
+            conn_check.close()
+            if sec_row:
+                _is_public = True
+                _summary = sec_row["result_summary"] or ""
+                # Try to extract CIK/ticker from summary
+                cik_m = re.search(r'CIK[:\s]*(\d+)', _summary, re.IGNORECASE)
+                if cik_m:
+                    _sec_cik = cik_m.group(1)
+                ticker_m = re.search(r'ticker[:\s]*([A-Z]{1,5})', _summary, re.IGNORECASE)
+                if ticker_m:
+                    _sec_ticker = ticker_m.group(1)
+        except Exception:
+            pass
+
+        if _is_public:
+            _progress(run_id, "Fetching SEC proxy executive pay...", 82)
+            try:
+                t0 = time.time()
+                proxy_result = TOOL_REGISTRY["search_sec_proxy"](
+                    company_name=run["company_name"],
+                    cik=_sec_cik,
+                    ticker=_sec_ticker,
+                )
+                lat = int((time.time() - t0) * 1000)
+                execution_order += 1
+                tools_called += 1
+                tools_called_set.add("search_sec_proxy")
+                action_id = _log_action(
+                    run_id, "search_sec_proxy (forced)",
+                    {"company_name": run["company_name"], "cik": _sec_cik, "ticker": _sec_ticker},
+                    execution_order, proxy_result, lat,
+                )
+                tool_action_map["search_sec_proxy"] = action_id
+                if proxy_result.get("found"):
+                    dossier_obj = _extract_dossier_json(final_text)
+                    if dossier_obj and "dossier" in dossier_obj:
+                        financial = dossier_obj["dossier"].setdefault("financial", {})
+                        if not financial.get("exec_compensation"):
+                            financial["exec_compensation"] = proxy_result.get("data", {}).get("executives")
+                            final_text = "```json\n" + json.dumps(dossier_obj, indent=2, default=str) + "\n```"
+                    _log.info("Run %d: forced search_sec_proxy found exec pay", run_id)
+            except Exception as exc:
+                _log.warning("Run %d: forced search_sec_proxy failed (non-fatal): %s", run_id, exc)
+
+    # 1.6b: search_job_postings — always
+    if "search_job_postings" not in tools_called_set:
+        _progress(run_id, "Searching for job postings...", 83)
+        try:
+            t0 = time.time()
+            jobs_result = TOOL_REGISTRY["search_job_postings"](
+                company_name=run["company_name"],
+                state=run.get("company_state"),
+            )
+            lat = int((time.time() - t0) * 1000)
+            execution_order += 1
+            tools_called += 1
+            tools_called_set.add("search_job_postings")
+            action_id = _log_action(
+                run_id, "search_job_postings (forced)",
+                {"company_name": run["company_name"], "state": run.get("company_state")},
+                execution_order, jobs_result, lat,
+            )
+            tool_action_map["search_job_postings"] = action_id
+            if jobs_result.get("found"):
+                dossier_obj = _extract_dossier_json(final_text)
+                if dossier_obj and "dossier" in dossier_obj:
+                    workforce = dossier_obj["dossier"].setdefault("workforce", {})
+                    job_data = jobs_result.get("data", {})
+                    if not workforce.get("job_posting_count"):
+                        workforce["job_posting_count"] = job_data.get("count_estimate")
+                    if not workforce.get("job_posting_details"):
+                        workforce["job_posting_details"] = job_data.get("sample_postings")
+                    # Turnover signal if many postings
+                    count = job_data.get("count_estimate", 0)
+                    if isinstance(count, (int, float)) and count > 100 and not workforce.get("turnover_signals"):
+                        workforce["turnover_signals"] = f"High hiring volume ({count}+ open positions may indicate turnover)"
+                    final_text = "```json\n" + json.dumps(dossier_obj, indent=2, default=str) + "\n```"
+                _log.info("Run %d: forced search_job_postings found %s postings",
+                          run_id, jobs_result.get("data", {}).get("count_estimate", "?"))
+        except Exception as exc:
+            _log.warning("Run %d: forced search_job_postings failed (non-fatal): %s", run_id, exc)
+
+    # 1.6c: get_workforce_demographics — only if NAICS known
+    if "get_workforce_demographics" not in tools_called_set:
+        _naics = run.get("industry_naics") or ""
+        if _naics and _naics != "unknown":
+            _progress(run_id, "Getting workforce demographics...", 84)
+            try:
+                t0 = time.time()
+                demo_result = TOOL_REGISTRY["get_workforce_demographics"](
+                    company_name=run["company_name"],
+                    naics=_naics,
+                    state=run.get("company_state"),
+                )
+                lat = int((time.time() - t0) * 1000)
+                execution_order += 1
+                tools_called += 1
+                tools_called_set.add("get_workforce_demographics")
+                action_id = _log_action(
+                    run_id, "get_workforce_demographics (forced)",
+                    {"company_name": run["company_name"], "naics": _naics, "state": run.get("company_state")},
+                    execution_order, demo_result, lat,
+                )
+                tool_action_map["get_workforce_demographics"] = action_id
+                if demo_result.get("found"):
+                    dossier_obj = _extract_dossier_json(final_text)
+                    if dossier_obj and "dossier" in dossier_obj:
+                        workforce = dossier_obj["dossier"].setdefault("workforce", {})
+                        labeled_profile = demo_result.get("data", {}).get("demographic_profile")
+                        # Always overwrite with labeled version (has INDUSTRY BASELINE prefix)
+                        if labeled_profile:
+                            workforce["demographic_profile"] = labeled_profile
+                            final_text = "```json\n" + json.dumps(dossier_obj, indent=2, default=str) + "\n```"
+                    _log.info("Run %d: forced get_workforce_demographics found demographics", run_id)
+            except Exception as exc:
+                _log.warning("Run %d: forced get_workforce_demographics failed (non-fatal): %s", run_id, exc)
+
+    # ------------------------------------------------------------------
     # Phase 2: Web search via Google Search grounding
     # ------------------------------------------------------------------
     # Gemini cannot combine function_declarations and google_search in
     # one request, so we run a separate call with only Google Search
     # grounding enabled to enrich the dossier with current web context.
-    _progress(run_id, "Searching the web for current context...", 82)
+    _progress(run_id, "Searching the web for current context...", 85)
 
     # Build a summary of what Phase 1 found / missed for targeted web search
     db_summaries = []
@@ -1687,7 +2185,7 @@ Be thorough. An empty section means you did not search hard enough. Every compan
     # Parse web findings JSON directly from Phase 2 output, then apply
     # to the dossier programmatically. No extra LLM call needed.
     if web_text.strip():
-        _progress(run_id, "Merging web findings into dossier...", 84)
+        _progress(run_id, "Merging web findings into dossier...", 88)
         try:
             # Extract JSON from web search response
             web_data = None
@@ -2101,7 +2599,7 @@ Be thorough. An empty section means you did not search hard enough. Every compan
     # ------------------------------------------------------------------
     # Parse dossier from final response
     # ------------------------------------------------------------------
-    _progress(run_id, "Parsing dossier...", 85)
+    _progress(run_id, "Parsing dossier...", 90)
 
     dossier_data = _extract_dossier_json(final_text)
 
@@ -2115,19 +2613,37 @@ Be thorough. An empty section means you did not search hard enough. Every compan
         }
     else:
         # Patch missing financials from narrative (Issue #1)
+        total_before, nulls_before = _count_null_fields(dossier_data)
         patched_count = _patch_dossier_financials(dossier_data, web_text)
         if patched_count:
-            _log.info("Run %d: patched %d financial fields from narrative", run_id, patched_count)
+            _total_after, nulls_after = _count_null_fields(dossier_data)
+            _log.info("Run %d: _patch_dossier_financials: patched=%d, nulls %d->%d (of %d fields)",
+                       run_id, patched_count, nulls_before, nulls_after, total_before)
+
+        # Employee count validation (Phase 5.7)
+        _validate_employee_count(dossier_data, run)
+
+        # Resolve DB-vs-web contradictions (Phase 5.7)
+        contradictions_found = _resolve_contradictions(dossier_data)
+        if contradictions_found:
+            _log.info("Run %d: resolved %d DB-vs-web contradictions", run_id, contradictions_found)
+
+        # Extract financial_trend from narratives (Phase 5.7)
+        if _extract_financial_trend(dossier_data, web_text):
+            _log.info("Run %d: extracted financial_trend from narratives", run_id)
 
         # Second-pass gap filler (Issue #13)
+        total_before2, nulls_before2 = _count_null_fields(dossier_data)
         gaps_filled = _fill_dossier_gaps(run_id, dossier_data, web_text, vocabulary)
         if gaps_filled:
-            _log.info("Run %d: filled %d missing fields with second-pass extraction", run_id, gaps_filled)
+            _total_after2, nulls_after2 = _count_null_fields(dossier_data)
+            _log.info("Run %d: _fill_dossier_gaps: filled=%d, nulls %d->%d (of %d fields)",
+                       run_id, gaps_filled, nulls_before2, nulls_after2, total_before2)
 
     # ------------------------------------------------------------------
     # Save facts
     # ------------------------------------------------------------------
-    _progress(run_id, "Saving facts...", 90)
+    _progress(run_id, "Saving facts...", 93)
 
     facts_list = dossier_data.get("facts", [])
 
@@ -2191,6 +2707,13 @@ Be thorough. An empty section means you did not search hard enough. Every compan
         grade_and_save(run_id)
     except Exception as e:
         _log.warning("Auto-grading failed for run %d: %s", run_id, e)
+
+    # Compute scorecard enhancements (non-blocking)
+    try:
+        from scripts.research.auto_grader import compute_research_enhancements
+        compute_research_enhancements(run_id)
+    except Exception as e:
+        _log.warning("Scorecard enhancement failed for run %d: %s", run_id, e)
 
     summary = {
         "status": "completed",

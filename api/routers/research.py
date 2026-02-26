@@ -282,6 +282,67 @@ def list_research_runs(
 
 
 # ---------------------------------------------------------------------------
+# GET /api/research/candidates — Suggested employers for research
+# ---------------------------------------------------------------------------
+@router.get("/candidates")
+def get_research_candidates(
+    type: str = Query("non_union", pattern="^(non_union|union_reference)$",
+                       description="non_union: best targets for direct enhancement; "
+                                   "union_reference: best F7 employers to enrich the reference pool"),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """
+    Suggest employers where research would have the most impact.
+
+    - **non_union** (default): Non-union employers with high DB scores but few
+      data sources and no existing research. Sorted by potential uplift.
+    - **union_reference**: F7 union employers that appear as Gower comparables
+      for many non-union targets but have thin profiles. Enriching these
+      improves similarity scores for all non-union employers.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            if type == "non_union":
+                cur.execute("""
+                    SELECT
+                        s.employer_id, s.employer_name, s.state, s.city, s.naics,
+                        s.latest_unit_size, s.weighted_score, s.factors_available,
+                        s.score_tier, s.source_count,
+                        ROUND((s.weighted_score * (8 - s.factors_available))::numeric, 2)
+                            AS research_priority
+                    FROM mv_unified_scorecard s
+                    WHERE NOT s.has_research
+                      AND s.factors_available < 6
+                      AND s.weighted_score IS NOT NULL
+                    ORDER BY s.weighted_score * (8 - s.factors_available) DESC NULLS LAST
+                    LIMIT %s
+                """, (limit,))
+            else:
+                # union_reference: F7 employers with thin profiles
+                # Prioritize those with low source coverage
+                cur.execute("""
+                    SELECT
+                        f.employer_id, f.employer_name, f.state, f.city, f.naics,
+                        f.latest_unit_size,
+                        ds.source_count
+                    FROM f7_employers_deduped f
+                    JOIN mv_employer_data_sources ds ON ds.employer_id = f.employer_id
+                    LEFT JOIN research_score_enhancements rse
+                        ON rse.employer_id = f.employer_id
+                    WHERE rse.id IS NULL
+                      AND ds.source_count <= 2
+                      AND f.latest_unit_size IS NOT NULL
+                    ORDER BY ds.source_count ASC,
+                             f.latest_unit_size DESC NULLS LAST
+                    LIMIT %s
+                """, (limit,))
+
+            rows = cur.fetchall()
+
+    return {"candidates": [dict(r) for r in rows], "total": len(rows), "type": type}
+
+
+# ---------------------------------------------------------------------------
 # GET /api/research/vocabulary — List all valid fact attributes
 # ---------------------------------------------------------------------------
 @router.get("/vocabulary")

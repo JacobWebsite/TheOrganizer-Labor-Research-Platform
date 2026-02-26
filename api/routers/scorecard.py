@@ -100,7 +100,8 @@ def get_unified_scorecard(
     score_tier: Optional[str] = None,
     has_osha: Optional[bool] = None,
     has_nlrb: Optional[bool] = None,
-    sort: str = Query(default="score", pattern="^(score|size|factors|name)$"),
+    has_research: Optional[bool] = None,
+    sort: str = Query(default="score", pattern="^(score|size|factors|name|score_delta)$"),
     offset: int = Query(default=0, ge=0),
     page_size: int = Query(default=50, ge=1, le=200),
 ):
@@ -135,6 +136,10 @@ def get_unified_scorecard(
                 conditions.append("has_nlrb")
             if has_nlrb is False:
                 conditions.append("NOT has_nlrb")
+            if has_research is True:
+                conditions.append("has_research")
+            if has_research is False:
+                conditions.append("NOT has_research")
 
             where = " AND ".join(conditions)
 
@@ -143,6 +148,7 @@ def get_unified_scorecard(
                 "size": "latest_unit_size DESC NULLS LAST",
                 "factors": "factors_available DESC, weighted_score DESC NULLS LAST",
                 "name": "employer_name",
+                "score_delta": "score_delta DESC NULLS LAST",
             }
             order = sort_map.get(sort, sort_map["score"])
 
@@ -162,7 +168,9 @@ def get_unified_scorecard(
                        score_union_proximity, score_financial, score_size, score_similarity,
                        factors_available, factors_total,
                        total_weight, weighted_score, unified_score, coverage_pct,
-                       score_tier, score_tier_legacy
+                       score_tier, score_tier_legacy,
+                       has_research, research_run_id, research_weighted_score,
+                       score_delta, research_approach
                 FROM mv_unified_scorecard
                 WHERE {where}
                 ORDER BY {order}
@@ -235,11 +243,21 @@ def get_unified_scorecard_stats():
             """)
             factor_coverage = cur.fetchone()
 
+            cur.execute("""
+                SELECT
+                    COUNT(*) FILTER (WHERE has_research) AS researched,
+                    ROUND(AVG(score_delta) FILTER (WHERE score_delta IS NOT NULL)::numeric, 2) AS avg_delta,
+                    MAX(score_delta) AS max_delta
+                FROM mv_unified_scorecard
+            """)
+            research_stats = cur.fetchone()
+
             return {
                 "overview": overview,
                 "tier_distribution": tiers,
                 "factors_available_distribution": factor_dist,
                 "factor_coverage": factor_coverage,
+                "research_coverage": research_stats,
             }
 
 
@@ -328,6 +346,15 @@ def get_unified_scorecard_detail(employer_id: str):
                 "Weights: union proximity 3x, size 3x, NLRB 3x, contracts 2x, "
                 "industry growth 2x, similarity 2x, OSHA 1x, WHD 1x."
             )
+
+            # Research enhancement info
+            if data.get('has_research'):
+                delta = data.get('score_delta')
+                explanations['research'] = (
+                    f"Research-enhanced: run #{data.get('research_run_id')}, "
+                    f"delta {'+' if delta and delta > 0 else ''}{delta or 0}"
+                )
+                data['research_dossier_url'] = f"/api/research/result/{data['research_run_id']}"
 
             data['explanations'] = explanations
             return data
