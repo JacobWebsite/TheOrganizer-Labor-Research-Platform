@@ -21,7 +21,7 @@ function getBarColor(value) {
   return 'bg-[#d9cebb]'
 }
 
-function ScoreBar({ label, weight, value, explanation, disabled, filter }) {
+function ScoreBar({ label, weight, value, explanation, disabled, filter, enhanced }) {
   if (disabled) {
     return (
       <div className="space-y-1 opacity-50">
@@ -46,8 +46,11 @@ function ScoreBar({ label, weight, value, explanation, disabled, filter }) {
           {weight && <span className="ml-1 text-xs text-muted-foreground">({weight})</span>}
           {filter && <span className="ml-1 text-xs text-muted-foreground italic">(filter only)</span>}
         </span>
-        <span className={cn('text-xs', hasValue ? 'text-foreground' : 'text-muted-foreground')}>
-          {hasValue ? displayValue : '\u2014'}
+        <span className="flex items-center gap-1">
+          {enhanced && <span className="text-[10px] text-[#3a7d44] font-semibold" title="Enhanced by web research">R</span>}
+          <span className={cn('text-xs', hasValue ? 'text-foreground' : 'text-muted-foreground')}>
+            {hasValue ? displayValue : '\u2014'}
+          </span>
         </span>
       </div>
       <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
@@ -65,12 +68,31 @@ function ScoreBar({ label, weight, value, explanation, disabled, filter }) {
   )
 }
 
-export function ScorecardSection({ scorecard, explanations }) {
+const FACTOR_ENH_MAP = {
+  score_osha: 'enh_score_osha',
+  score_nlrb: 'enh_score_nlrb',
+  score_whd: 'enh_score_whd',
+  score_contracts: 'enh_score_contracts',
+  score_financial: 'enh_score_financial',
+  score_size: 'enh_score_size',
+}
+
+export function ScorecardSection({ scorecard, explanations, scorecardDetail }) {
   if (!scorecard) return null
 
   const activeFactors = FACTORS.filter(f => !f.disabled)
   const factorsWithData = activeFactors.filter(f => scorecard[f.key] != null)
   const coverage = Math.round((factorsWithData.length / ACTIVE_FACTOR_COUNT) * 100)
+
+  // Detect which factors were enhanced by research
+  const detail = scorecardDetail || {}
+  function isEnhanced(key) {
+    const enhKey = FACTOR_ENH_MAP[key]
+    if (!enhKey || !detail.has_research) return false
+    const base = scorecard[key]
+    const enh = detail[enhKey]
+    return base != null && enh != null && enh > base
+  }
 
   return (
     <Card>
@@ -88,6 +110,7 @@ export function ScorecardSection({ scorecard, explanations }) {
               explanation={explanations?.[key]}
               disabled={disabled}
               filter={filter}
+              enhanced={isEnhanced(key)}
             />
           ))}
         </div>
@@ -95,6 +118,11 @@ export function ScorecardSection({ scorecard, explanations }) {
       <CardFooter>
         <p className="text-xs text-muted-foreground">
           {factorsWithData.length} of {ACTIVE_FACTOR_COUNT} factors available ({coverage}% coverage)
+          {detail.has_research && (
+            <span className="ml-1">
+              -- <span className="text-[#3a7d44] font-medium">R</span> = enhanced by web research
+            </span>
+          )}
         </p>
       </CardFooter>
     </Card>

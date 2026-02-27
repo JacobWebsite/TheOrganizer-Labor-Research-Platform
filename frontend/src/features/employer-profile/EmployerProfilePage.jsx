@@ -21,6 +21,7 @@ import { GovernmentContractsCard } from './GovernmentContractsCard'
 import { WhdCard } from './WhdCard'
 import { ResearchNotesCard } from './ResearchNotesCard'
 import { DataProvenanceCard } from './DataProvenanceCard'
+import { ResearchInsightsCard } from './ResearchInsightsCard'
 
 export function EmployerProfilePage() {
   const { id } = useParams()
@@ -207,8 +208,9 @@ export function EmployerProfilePage() {
         <p><strong>Confidence dots:</strong> How confident the system is that records from a data source were correctly matched to this employer. 4 dots = matched on unique ID (EIN or exact name + address). 3 dots = name + state or city. 2 dots = fuzzy name similarity + location. 1 dot = name similarity alone -- treat with caution.</p>
         <p><strong>Employee count range:</strong> Different databases collect employee counts at different times using different definitions. The platform shows the range across all sources so you can see the spread. The scoring system uses the average.</p>
       </HelpSection>
-      <ScorecardSection scorecard={scorecard} explanations={explanations} />
+      <ScorecardSection scorecard={scorecard} explanations={explanations} scorecardDetail={scorecardQuery.data} />
       <DataProvenanceCard matchSummary={matchesQuery.data?.match_summary} />
+      <ResearchInsightsCard scorecard={scorecardQuery.data} />
       <UnionRelationshipsCard employer={employer} />
       <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} />
       <CorporateHierarchyCard employerId={id} />
