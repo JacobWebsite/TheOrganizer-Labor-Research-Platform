@@ -101,7 +101,7 @@ def get_unified_scorecard(
     has_osha: Optional[bool] = None,
     has_nlrb: Optional[bool] = None,
     has_research: Optional[bool] = None,
-    sort: str = Query(default="score", pattern="^(score|size|factors|name|score_delta)$"),
+    sort: str = Query(default="score", pattern="^(score|size|factors|name|strategic_delta|score_delta)$"),
     offset: int = Query(default=0, ge=0),
     page_size: int = Query(default=50, ge=1, le=200),
 ):
@@ -148,7 +148,8 @@ def get_unified_scorecard(
                 "size": "latest_unit_size DESC NULLS LAST",
                 "factors": "factors_available DESC, weighted_score DESC NULLS LAST",
                 "name": "employer_name",
-                "score_delta": "score_delta DESC NULLS LAST",
+                "strategic_delta": "strategic_delta DESC NULLS LAST",
+                "score_delta": "strategic_delta DESC NULLS LAST",
             }
             order = sort_map.get(sort, sort_map["score"])
 
@@ -169,8 +170,8 @@ def get_unified_scorecard(
                        factors_available, factors_total,
                        total_weight, weighted_score, unified_score, coverage_pct,
                        score_tier, score_tier_legacy,
-                       has_research, research_run_id, research_weighted_score,
-                       score_delta, research_approach
+                       has_research, research_run_id, research_quality,
+                       strategic_delta, research_approach
                 FROM mv_unified_scorecard
                 WHERE {where}
                 ORDER BY {order}
@@ -182,6 +183,9 @@ def get_unified_scorecard(
                 row["weighted_score"] = row.get("weighted_score", row.get("unified_score"))
                 row["unified_score"] = row.get("unified_score", row.get("weighted_score"))
                 row["legacy_score_tier"] = row.get("score_tier_legacy")
+                # Backward compat aliases for renamed columns
+                row["score_delta"] = row.get("strategic_delta")
+                row["research_weighted_score"] = row.get("research_quality")
 
             return {
                 "data": data,
@@ -246,8 +250,8 @@ def get_unified_scorecard_stats():
             cur.execute("""
                 SELECT
                     COUNT(*) FILTER (WHERE has_research) AS researched,
-                    ROUND(AVG(score_delta) FILTER (WHERE score_delta IS NOT NULL)::numeric, 2) AS avg_delta,
-                    MAX(score_delta) AS max_delta
+                    ROUND(AVG(strategic_delta) FILTER (WHERE strategic_delta IS NOT NULL)::numeric, 2) AS avg_delta,
+                    MAX(strategic_delta) AS max_delta
                 FROM mv_unified_scorecard
             """)
             research_stats = cur.fetchone()
@@ -295,6 +299,8 @@ def get_unified_scorecard_detail(employer_id: str):
             data["weighted_score"] = data.get("weighted_score", data.get("unified_score"))
             data["unified_score"] = data.get("unified_score", data.get("weighted_score"))
             data["legacy_score_tier"] = data.get("score_tier_legacy")
+            data["score_delta"] = data.get("strategic_delta")
+            data["research_weighted_score"] = data.get("research_quality")
 
             # Build score explanations
             explanations = {}
@@ -350,7 +356,7 @@ def get_unified_scorecard_detail(employer_id: str):
 
             # Research enhancement info
             if data.get('has_research'):
-                delta = data.get('score_delta')
+                delta = data.get('strategic_delta')
                 explanations['research'] = (
                     f"Research-enhanced: run #{data.get('research_run_id')}, "
                     f"delta {'+' if delta and delta > 0 else ''}{delta or 0}"

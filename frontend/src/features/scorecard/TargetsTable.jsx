@@ -71,6 +71,45 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
       cell: ({ getValue }) => <SourceBadge source={getValue()} />,
     },
     {
+      id: 'signals',
+      header: () => <div className="text-center">Signals</div>,
+      accessorKey: 'signals_present',
+      cell: ({ getValue }) => {
+        const s = getValue()
+        if (s == null) return <div className="text-center text-xs text-muted-foreground">--</div>
+        return (
+          <div className="text-center">
+            <span className={`inline-flex items-center px-1.5 py-0.5 text-xs font-semibold ${
+              s >= 4 ? 'bg-green-100 text-green-700' : s >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
+            }`}>
+              {s}/8
+            </span>
+          </div>
+        )
+      },
+    },
+    {
+      id: 'enforcement',
+      header: () => <div className="text-center">Enforce.</div>,
+      cell: ({ row }) => {
+        const d = row.original
+        if (!d.has_enforcement) return <div className="text-center text-xs text-muted-foreground">--</div>
+        const icons = []
+        if (d.signal_osha != null) icons.push('OSHA')
+        if (d.signal_whd != null) icons.push('WHD')
+        if (d.signal_nlrb != null) icons.push('NLRB')
+        return (
+          <div className="flex gap-0.5 justify-center">
+            {icons.map(i => (
+              <span key={i} className="inline-flex items-center px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-700">
+                {i}
+              </span>
+            ))}
+          </div>
+        )
+      },
+    },
+    {
       id: 'coverage',
       header: 'Coverage',
       accessorKey: 'source_count',

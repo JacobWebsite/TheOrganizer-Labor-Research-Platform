@@ -161,6 +161,26 @@ def _search_impl(
 
     offset = (page - 1) * limit
     q_params = params + [limit, offset]
+    # LEFT JOIN target scorecard signals for non-union discovery
+    ts_select = ""
+    ts_join = ""
+    if force_non_union_targets:
+        ts_select = """,
+          ts.signals_present,
+          ts.has_enforcement,
+          ts.enforcement_count,
+          ts.has_recent_violations,
+          ts.signal_osha,
+          ts.signal_whd,
+          ts.signal_nlrb,
+          ts.signal_contracts,
+          ts.signal_financial,
+          ts.signal_industry_growth,
+          ts.signal_union_density,
+          ts.pillar_anger,
+          ts.pillar_leverage"""
+        ts_join = f"LEFT JOIN mv_target_scorecard ts ON ts.master_id = m.{pk_col}"
+
     cur.execute(
         f"""
         SELECT
@@ -177,12 +197,14 @@ def _search_impl(
           m.source_origin,
           m.data_quality_score,
           COALESCE(src.source_count, 0) AS source_count
+          {ts_select}
         FROM master_employers m
         LEFT JOIN (
           SELECT master_id, COUNT(DISTINCT source_system) AS source_count
           FROM master_employer_source_ids
           GROUP BY master_id
         ) src ON src.master_id = m.{pk_col}
+        {ts_join}
         WHERE {where}
         ORDER BY {sort_col} {order_dir} NULLS LAST, m.{pk_col}
         LIMIT %s OFFSET %s

@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { HelpSection } from '@/shared/components/HelpSection'
 import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources } from '@/shared/api/profile'
-import { useTargetDetail } from '@/shared/api/targets'
+import { useTargetDetail, useTargetScorecardDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
 import { ScorecardSection } from './ScorecardSection'
+import { SignalInventory } from './SignalInventory'
 import { OshaSection } from './OshaSection'
 import { NlrbSection } from './NlrbSection'
 import { CrossReferencesSection } from './CrossReferencesSection'
@@ -109,14 +110,27 @@ export function EmployerProfilePage() {
     )
   }
 
-  // Master employer path — enriched basic view
+  // Master employer path — enriched view with signal inventory
+  const masterScorecardQuery = useTargetScorecardDetail(rawId, { enabled: isMaster && !!data })
+
   if (isMaster && data) {
+    const masterEmployer = data.master || data
+    const masterScorecard = masterScorecardQuery.data?.scorecard
+    const masterSignals = masterScorecardQuery.data?.signals
+
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1.5">
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
+        <ProfileHeader
+          employer={masterEmployer}
+          sourceType="MASTER"
+          isUnionReference={false}
+          targetSignals={masterScorecard}
+        />
+        <SignalInventory scorecard={masterScorecard} signals={masterSignals} />
         <BasicProfileView data={data} isMaster />
       </div>
     )
@@ -152,7 +166,12 @@ export function EmployerProfilePage() {
         Back
       </Button>
 
-      <ProfileHeader employer={employer} scorecard={scorecard} sourceType="F7" />
+      <ProfileHeader
+        employer={employer}
+        scorecard={scorecard}
+        sourceType="F7"
+        isUnionReference={data.is_union_reference === true}
+      />
       <HelpSection>
         <p><strong>Score (0-10):</strong> This employer's overall organizing potential, calculated from up to 8 different factors. The score only uses factors where we actually have data -- if we're missing information on a factor, it's skipped rather than counted against the employer. A score of 8.0 based on 7 factors is more reliable than an 8.0 based on 3 factors. The number of factors used is shown below the score.</p>
         <p><strong>Tiers -- what they mean and what to do with them:</strong></p>

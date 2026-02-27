@@ -10,6 +10,8 @@ const SORT_OPTIONS = [
   { value: 'quality', label: 'Quality (highest)' },
   { value: 'employees', label: 'Employees (largest)' },
   { value: 'name', label: 'Name (A-Z)' },
+  { value: 'signals', label: 'Signals (most)' },
+  { value: 'enforcement', label: 'Enforcement (most)' },
 ]
 
 const BOOL_OPTIONS = [
@@ -27,6 +29,8 @@ const FILTER_LABELS = {
   is_federal_contractor: 'Fed contractor',
   is_nonprofit: 'Nonprofit',
   min_quality: 'Min quality',
+  has_enforcement: 'Has enforcement',
+  min_signals: 'Min signals',
 }
 
 /**
@@ -71,6 +75,8 @@ export function TargetsFilters({ filters, sort, onSetFilter, onClearFilter, onCl
     filters.is_federal_contractor && { key: 'is_federal_contractor', label: `Fed contractor: ${filters.is_federal_contractor === 'true' ? 'Yes' : 'No'}` },
     filters.is_nonprofit && { key: 'is_nonprofit', label: `Nonprofit: ${filters.is_nonprofit === 'true' ? 'Yes' : 'No'}` },
     filters.min_quality && { key: 'min_quality', label: `Min quality: ${filters.min_quality}` },
+    filters.has_enforcement && { key: 'has_enforcement', label: `Enforcement: ${filters.has_enforcement === 'true' ? 'Yes' : 'No'}` },
+    filters.min_signals && { key: 'min_signals', label: `Min signals: ${filters.min_signals}` },
   ].filter(Boolean)
 
   return (
@@ -223,6 +229,28 @@ export function TargetsFilters({ filters, sort, onSetFilter, onClearFilter, onCl
             className="w-44 h-9"
             min={0}
             max={100}
+          />
+
+          <Select
+            value={filters.has_enforcement}
+            onChange={(e) => onSetFilter('has_enforcement', e.target.value)}
+            className="w-40"
+            aria-label="Has enforcement"
+          >
+            <option value="">Enforcement: Any</option>
+            {BOOL_OPTIONS.filter((o) => o.value).map((o) => (
+              <option key={o.value} value={o.value}>Enforcement: {o.label}</option>
+            ))}
+          </Select>
+
+          <Input
+            type="number"
+            value={filters.min_signals}
+            onChange={(e) => onSetFilter('min_signals', e.target.value)}
+            placeholder="Min signals (0-8)"
+            className="w-40 h-9"
+            min={0}
+            max={8}
           />
         </div>
       )}

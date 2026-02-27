@@ -49,6 +49,7 @@ from .routers import (
     profile,
     master,
     research,
+    target_scorecard,
 )
 
 app = FastAPI(
@@ -98,6 +99,7 @@ app.include_router(sectors.router)
 app.include_router(profile.router)
 app.include_router(master.router)
 app.include_router(research.router)
+app.include_router(target_scorecard.router)
 
 
 @app.exception_handler(psycopg2.Error)

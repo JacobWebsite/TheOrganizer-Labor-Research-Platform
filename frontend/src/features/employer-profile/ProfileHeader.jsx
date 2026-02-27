@@ -19,19 +19,21 @@ function formatNumber(n) {
   return Number(n).toLocaleString()
 }
 
-export function ProfileHeader({ employer, scorecard, sourceType }) {
+export function ProfileHeader({ employer, scorecard, sourceType, isUnionReference, targetSignals }) {
   if (!employer) return null
 
-  const name = employer.employer_name || employer.participant_name || 'Unknown Employer'
+  const name = employer.employer_name || employer.participant_name || employer.display_name || 'Unknown Employer'
   const city = employer.city || employer.unit_city
   const state = employer.state || employer.unit_state
   const location = [city, state].filter(Boolean).join(', ')
-  const workers = employer.consolidated_workers || employer.unit_size || employer.total_workers
-  const naicsCode = employer.naics_code || employer.naics_2digit
+  const workers = employer.consolidated_workers || employer.unit_size || employer.total_workers || employer.employee_count
+  const naicsCode = employer.naics_code || employer.naics_2digit || employer.naics
   const naicsDesc = employer.naics_description || employer.sector_name
   const unionName = employer.union_name
   const tier = scorecard?.score_tier
   const weightedScore = scorecard?.weighted_score
+  const signalsPresent = targetSignals?.signals_present ?? null
+  const hasEnforcement = targetSignals?.has_enforcement ?? false
 
   return (
     <Card>
@@ -93,7 +95,27 @@ export function ProfileHeader({ employer, scorecard, sourceType }) {
             </div>
           </div>
 
-          {weightedScore != null && (
+          {/* Non-union: signal count indicator */}
+          {signalsPresent != null && !isUnionReference && (
+            <div className="text-right shrink-0">
+              <div className={cn('text-3xl font-bold', hasEnforcement ? 'text-red-600' : 'text-stone-600')}>
+                {signalsPresent}/8
+              </div>
+              <div className="text-xs text-muted-foreground">Signals Detected</div>
+            </div>
+          )}
+
+          {/* Union reference: label instead of score */}
+          {isUnionReference && (
+            <div className="text-right shrink-0">
+              <span className="inline-flex items-center px-3 py-1.5 text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                Reference Data
+              </span>
+            </div>
+          )}
+
+          {/* Legacy: weighted score for F7 union employers without explicit flag */}
+          {weightedScore != null && !isUnionReference && signalsPresent == null && (
             <div className="text-right shrink-0">
               <div className="text-3xl font-bold">{Number(weightedScore).toFixed(1)}</div>
               <div className="text-xs text-muted-foreground">Weighted Score</div>

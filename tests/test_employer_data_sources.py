@@ -97,7 +97,8 @@ class TestMVDataIntegrity:
         finally:
             conn.close()
 
-    def test_osha_count_matches_legacy_table(self):
+    def test_osha_count_ge_legacy_table(self):
+        """MV has_osha should be >= osha_f7_matches (MV uses additional paths: crosswalk, master_source_ids)."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
@@ -105,13 +106,14 @@ class TestMVDataIntegrity:
                 mv_osha = cur.fetchone()[0]
                 cur.execute("SELECT COUNT(DISTINCT f7_employer_id) FROM osha_f7_matches")
                 legacy = cur.fetchone()[0]
-                assert mv_osha == legacy, (
-                    f"MV has_osha={mv_osha} but osha_f7_matches has {legacy} unique employers"
+                assert mv_osha >= legacy, (
+                    f"MV has_osha={mv_osha} should be >= osha_f7_matches {legacy}"
                 )
         finally:
             conn.close()
 
-    def test_whd_count_matches_legacy_table(self):
+    def test_whd_count_ge_legacy_table(self):
+        """MV has_whd should be >= whd_f7_matches (MV uses additional paths: crosswalk, master_source_ids)."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
@@ -119,8 +121,8 @@ class TestMVDataIntegrity:
                 mv_whd = cur.fetchone()[0]
                 cur.execute("SELECT COUNT(DISTINCT f7_employer_id) FROM whd_f7_matches")
                 legacy = cur.fetchone()[0]
-                assert mv_whd == legacy, (
-                    f"MV has_whd={mv_whd} but whd_f7_matches has {legacy} unique employers"
+                assert mv_whd >= legacy, (
+                    f"MV has_whd={mv_whd} should be >= whd_f7_matches {legacy}"
                 )
         finally:
             conn.close()

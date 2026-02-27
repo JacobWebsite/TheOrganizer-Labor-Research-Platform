@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS master_employers (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_master_source_origin
-        CHECK (source_origin IN ('f7', 'sam', 'mergent', 'osha', 'bmf', 'nlrb', 'sec', 'manual')),
+        CHECK (source_origin IN ('f7', 'sam', 'mergent', 'osha', 'bmf', 'nlrb', 'sec', 'manual', 'corpwatch', 'whd')),
     CONSTRAINT chk_master_data_quality_score
         CHECK (data_quality_score >= 0 AND data_quality_score <= 100),
     CONSTRAINT chk_master_employee_count
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS master_employer_source_ids (
     matched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (master_id, source_system, source_id),
     CONSTRAINT chk_master_source_system
-        CHECK (source_system IN ('f7', 'sam', 'mergent', 'osha', 'bmf', 'nlrb', 'sec', 'gleif', '990', 'manual')),
+        CHECK (source_system IN ('f7', 'sam', 'mergent', 'osha', 'bmf', 'nlrb', 'sec', 'gleif', '990', 'manual', 'corpwatch', 'whd')),
     CONSTRAINT chk_master_match_confidence
         CHECK (match_confidence IS NULL OR (match_confidence >= 0 AND match_confidence <= 1))
 );

@@ -206,14 +206,22 @@ def get_employer_profile(employer_id: str):
             )
             flags = cur.fetchall()
 
+            # Check if this employer is union (F7) or non-union
+            is_union = bool(employer.get("is_union", True))
+
             result = {
                 "employer": employer,
-                "unified_scorecard": unified_scorecard,
+                "is_union_reference": is_union,
+                "unified_scorecard": unified_scorecard if is_union else None,
                 "data_coverage": {
                     "external_source_count": external_source_count,
                     "factors_available": unified_scorecard.get("factors_available", 0) if unified_scorecard else 0,
                     "factors_total": unified_scorecard.get("factors_total", 8) if unified_scorecard else 8,
-                    "label": f"Score based on {unified_scorecard.get('factors_available', 0) if unified_scorecard else 0} of {unified_scorecard.get('factors_total', 8) if unified_scorecard else 8} factors ({external_source_count} external sources)"
+                    "label": (
+                        "Reference data (union employer)"
+                        if is_union
+                        else f"Signal inventory ({external_source_count} data sources)"
+                    ),
                 },
                 "osha": {
                     "summary": osha_summary,
