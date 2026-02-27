@@ -24,6 +24,8 @@ _SORT_MAP = {
     "employees": "ts.employee_count",
     "enforcement": "ts.enforcement_count",
     "source_count": "ts.source_count",
+    "research_quality": "ts.research_quality",
+    "gold_tier": "ts.gold_standard_tier",
 }
 
 _MV_EXISTS: Optional[bool] = None
@@ -53,7 +55,9 @@ def target_scorecard_list(
     is_federal_contractor: Optional[bool] = None,
     is_nonprofit: Optional[bool] = None,
     source_origin: Optional[str] = None,
-    sort: str = Query(default="signals", pattern="^(signals|name|employees|enforcement|source_count)$"),
+    has_research: Optional[bool] = None,
+    gold_standard_tier: Optional[str] = Query(default=None, pattern="^(stub|bronze|silver|gold|platinum)$"),
+    sort: str = Query(default="signals", pattern="^(signals|name|employees|enforcement|source_count|research_quality|gold_tier)$"),
     order: str = Query(default="desc", pattern="^(asc|desc)$"),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=50, ge=1, le=200),
@@ -100,6 +104,12 @@ def target_scorecard_list(
             if source_origin:
                 conditions.append("ts.source_origin = %s")
                 params.append(source_origin.lower())
+            if has_research is not None:
+                conditions.append("ts.has_research = %s")
+                params.append(has_research)
+            if gold_standard_tier:
+                conditions.append("ts.gold_standard_tier = %s")
+                params.append(gold_standard_tier)
 
             where = " AND ".join(conditions)
             sort_col = safe_sort_col(sort, _SORT_MAP, "signals")
@@ -136,7 +146,16 @@ def target_scorecard_list(
                     ts.has_recent_violations,
                     ts.pillar_anger,
                     ts.pillar_leverage,
-                    ts.pillar_stability
+                    ts.pillar_stability,
+                    ts.has_research,
+                    ts.research_quality,
+                    ts.gold_standard_tier,
+                    ts.enh_signal_osha,
+                    ts.enh_signal_whd,
+                    ts.enh_signal_nlrb,
+                    ts.enh_signal_contracts,
+                    ts.enh_signal_financial,
+                    ts.enh_signal_size
                 FROM mv_target_scorecard ts
                 WHERE {where}
                 ORDER BY {sort_col} {order_dir} NULLS LAST, ts.display_name ASC
@@ -228,6 +247,29 @@ def target_scorecard_stats():
             """)
             top_industries = cur.fetchall()
 
+            # Research coverage
+            cur.execute("SELECT COUNT(*) AS cnt FROM mv_target_scorecard WHERE has_research")
+            researched_count = int(cur.fetchone()["cnt"])
+            research_coverage = {"researched": researched_count}
+            if researched_count > 0:
+                cur.execute("""
+                    SELECT ROUND(AVG(research_quality)::numeric, 2) AS avg_quality,
+                           ROUND(MAX(research_quality)::numeric, 2) AS max_quality
+                    FROM mv_target_scorecard WHERE has_research
+                """)
+                rq = cur.fetchone()
+                research_coverage["avg_quality"] = float(rq["avg_quality"]) if rq["avg_quality"] else None
+                research_coverage["max_quality"] = float(rq["max_quality"]) if rq["max_quality"] else None
+
+            # Gold standard tier distribution
+            cur.execute("""
+                SELECT gold_standard_tier, COUNT(*) AS cnt
+                FROM mv_target_scorecard
+                GROUP BY gold_standard_tier
+                ORDER BY cnt DESC
+            """)
+            gold_tiers = [{"tier": r["gold_standard_tier"], "count": int(r["cnt"])} for r in cur.fetchall()]
+
             result = {
                 "total_scored": total,
                 "signal_coverage": signal_coverage,
@@ -236,6 +278,8 @@ def target_scorecard_stats():
                     "has_enforcement": enforcement_count,
                     "has_recent_violations": recent_count,
                 },
+                "research_coverage": research_coverage,
+                "gold_standard_tiers": gold_tiers,
                 "top_states": top_states,
                 "top_industries": top_industries,
             }
@@ -317,14 +361,50 @@ def target_scorecard_detail(master_id: int):
                 _add_signal("Employer Size", "filter", float(size_val),
                             f"{emp:,} employees (filter dimension, not a scoring signal)")
 
+            # Research section
+            research = None
+            if scorecard.get("has_research"):
+                research = {
+                    "run_id": scorecard.get("research_run_id"),
+                    "quality": float(scorecard["research_quality"]) if scorecard.get("research_quality") else None,
+                    "gold_standard_tier": scorecard.get("gold_standard_tier"),
+                    "approach": scorecard.get("research_approach"),
+                    "trend": scorecard.get("research_trend"),
+                    "contradictions": scorecard.get("research_contradictions"),
+                    "strengths": scorecard.get("research_strengths"),
+                    "challenges": scorecard.get("research_challenges"),
+                    "confidence": float(scorecard["research_confidence"]) if scorecard.get("research_confidence") else None,
+                    "enhanced_signals": {},
+                }
+                # Show which signals were upgraded by research
+                for base_col, enh_col, label in [
+                    ("signal_osha", "enh_signal_osha", "OSHA"),
+                    ("signal_whd", "enh_signal_whd", "WHD"),
+                    ("signal_nlrb", "enh_signal_nlrb", "NLRB"),
+                    ("signal_contracts", "enh_signal_contracts", "Contracts"),
+                    ("signal_financial", "enh_signal_financial", "Financial"),
+                    ("signal_size", "enh_signal_size", "Size"),
+                ]:
+                    base = scorecard.get(base_col)
+                    enh = scorecard.get(enh_col)
+                    if enh is not None and (base is None or float(enh) > float(base)):
+                        research["enhanced_signals"][label] = {
+                            "base": float(base) if base is not None else None,
+                            "enhanced": float(enh),
+                            "delta": round(float(enh) - (float(base) if base else 0), 2),
+                        }
+
             return {
                 "scorecard": scorecard,
                 "signals": signals,
+                "research": research,
                 "summary": {
                     "signals_present": scorecard.get("signals_present", 0),
                     "has_enforcement": scorecard.get("has_enforcement", False),
                     "enforcement_count": scorecard.get("enforcement_count", 0),
                     "has_recent_violations": scorecard.get("has_recent_violations", False),
+                    "has_research": scorecard.get("has_research", False),
+                    "gold_standard_tier": scorecard.get("gold_standard_tier", "stub"),
                     "pillar_anger": scorecard.get("pillar_anger"),
                     "pillar_leverage": scorecard.get("pillar_leverage"),
                     "pillar_stability": scorecard.get("pillar_stability"),

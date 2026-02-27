@@ -33,6 +33,7 @@ def test_weighted_columns_exist():
 
 
 def test_weighted_score_formula_consistency():
+    """weighted_score = (score_anger*3 + score_stability*3 + score_leverage*4) / 10"""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -40,20 +41,16 @@ def test_weighted_score_formula_consistency():
                 """
                 SELECT COUNT(*)
                 FROM mv_unified_scorecard
-                WHERE total_weight > 0
+                WHERE weighted_score IS NOT NULL
                   AND ABS(
                     weighted_score
-                    - (
+                    - ROUND(
                         (
-                            COALESCE(score_union_proximity, 0) * 3
-                          + COALESCE(score_size, 0) * 3
-                          + COALESCE(score_nlrb, 0) * 3
-                          + COALESCE(score_contracts, 0) * 2
-                          + COALESCE(score_industry_growth, 0) * 2
-                          + COALESCE(score_financial, 0) * 2
-                          + COALESCE(score_osha, 0)
-                          + COALESCE(score_whd, 0)
-                        ) / total_weight::numeric
+                            COALESCE(score_anger, 0) * 3
+                          + COALESCE(score_stability, 0) * 3
+                          + COALESCE(score_leverage, 0) * 4
+                        )::numeric / 10,
+                        2
                       )
                   ) > 0.02
                 """

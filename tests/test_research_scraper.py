@@ -134,11 +134,12 @@ class TestResolveEmployerUrl:
         assert source == "name_search"
 
     def test_no_url_found(self):
-        """All tiers fail when no DB access and no URL provided."""
+        """All tiers fail when no DB access, no URL, and no Google fallback."""
         from scripts.research.tools import _resolve_employer_url
 
-        # Tier 1 fails (no url), Tier 2/3 fail (DB errors are caught)
-        with patch("scripts.research.tools._conn", side_effect=Exception("no db")):
+        # Tier 1 fails (no url), Tier 2/3 fail (DB errors are caught), Tier 4 disabled
+        with patch("scripts.research.tools._conn", side_effect=Exception("no db")), \
+             patch.dict(os.environ, {"RESEARCH_SCRAPER_GOOGLE_FALLBACK": "false"}):
             url, source = _resolve_employer_url("Unknown Corp")
         assert url is None
         assert source == "none"
