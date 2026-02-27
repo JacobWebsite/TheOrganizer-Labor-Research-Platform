@@ -384,6 +384,36 @@ Gemini's research suggests the "one bad match" problem is the biggest trust risk
 
 ---
 
+### 2.7 — Research Agent Backfill Sprint
+
+🔧 **Action: Run research on 50-100 high-priority employers (both paths)**
+The research agent infrastructure is complete (24 tools, 6-dimension auto-grader, feedback loop to both scorecards), but has only ~10 high-quality runs. Before launch, the research feature needs enough data to be credible. Target: 50 union reference employers (Path A — enriches Gower similarity for everyone) and 50 non-union targets (Path B — directly enhances target scorecard).
+
+**Selection criteria:**
+- **Union Path A (50 runs):** Pick employers with 4+ scoring factors but low research coverage. These seed the similarity pipeline and demonstrate gold-standard dossiers.
+- **Non-Union Path B (50 runs):** Pick Priority/Strong tier targets with enforcement signals. These produce the most actionable dossiers for organizers.
+
+**Success metric:** 70%+ of runs score ≥ 7.0 quality (publishable). `research_score_enhancements` grows from ~10 to 70+ rows. Gold standard tiers: ≥30 bronze, ≥10 silver.
+
+*Source: Research agent investigation (Feb 27) | Effort: 8-12 hours (mostly execution time, minimal code)*
+
+---
+
+### 2.8 — Surface Research Quality in Frontend Profiles
+
+🔧 **Action: Show research dossier quality and contradictions in employer profiles**
+When an employer has research data, the profile page should display:
+- Research quality score (0-10) with a visual indicator
+- Key contradictions between DB and web sources (e.g., "DB shows 0 OSHA violations, web mentions safety incidents")
+- Data freshness indicator (when was research last run?)
+- Link to full dossier with 7 collapsible sections
+
+This builds on 2.2 (data confidence indicators) — research dossiers are the richest source of confidence metadata. The frontend components already exist (`DossierSection`, `ActionLog`) but aren't wired into employer profile pages.
+
+*Source: Research agent investigation (Feb 27) | Effort: 4-6 hours*
+
+---
+
 ## PHASE 3: Strategic Enrichment
 *Add new data sources and capabilities that make the core profiles genuinely valuable.*
 
@@ -483,7 +513,55 @@ Demographic data is powerful but comes with significant ethical considerations. 
 
 🔧 **Action: Review and rebuild the employer similarity system**
 The similarity pipeline exists but has problems: 269,000 comparable pairs were computed, but only 164 employers are actually connected through the graph. The similarity factor is currently weighted at 0x (disabled) in the scoring formula. Before re-enabling it, the pipeline needs review to ensure comparables are meaningful.
+
+**Connection to research:** The 2.7 backfill sprint (50 union Path A runs) will enrich union reference profiles, which directly feeds the 14-feature Gower similarity matrix. Better union data → better comparables for non-union targets. The current bridge only links 833/146K employers via name+state — research enrichment won't fix this structural problem, but it will improve quality for the employers that ARE linked.
 *Source: Claude Code R1 | Effort: 8-16 hours*
+
+---
+
+### 3.7 — Research Agent Learning Loop
+
+🔧 **Action: Activate per-industry tool optimization**
+The `research_strategies` table exists but is empty. After the 2.7 backfill sprint produces 100+ completed runs, populate this table with tool hit rates by industry (NAICS-2), company type, and size band. Then modify the agent to:
+1. **Reorder tools** — call high-hit-rate tools first for each industry
+2. **Skip low-value tools** — if a tool has < 10% hit rate for this industry×type combo, skip it (saves API cost and time)
+3. **Track query effectiveness** — `research_query_effectiveness` already has the schema; wire it into web search tool selection
+
+**Depends on:** 2.7 backfill sprint (needs data to learn from)
+
+**Success metric:** Average research run cost drops 20-30%. Average quality score increases 0.5+ points (better tool selection → better coverage).
+
+*Source: Research agent investigation (Feb 27) | Effort: 8-12 hours*
+
+---
+
+### 3.8 — Contradiction Resolution Workflow
+
+🔧 **Action: Build a review UI for DB vs. web disagreements**
+The auto-grader already detects contradictions (employee count divergence, violation count mismatches, NLRB discrepancies) and stores them in `source_contradictions`. But there's no workflow to resolve them — contradictions just sit there.
+
+Build a simple admin UI:
+- List all unresolved contradictions across research runs
+- For each: show DB value, web value, source URLs, confidence scores
+- Allow adjudication: "DB is correct" / "Web is correct" / "Both partially correct (note)"
+- Adjudicated facts update `research_facts` confidence and feed back into the next MV rebuild
+
+**Depends on:** 2.7 backfill sprint (needs contradictions to resolve)
+
+*Source: Research agent investigation (Feb 27) | Effort: 6-10 hours*
+
+---
+
+### 3.9 — State Labor Board Tools for Research Agent
+
+🔧 **Action: Add state PERB data as research agent tools**
+Expand the research agent's 24-tool toolkit with state-level labor board queries. This connects to 3.2 (Public Sector Data) — as PERB data is ingested for MN/WA pilot states, add corresponding `search_perb` tools to the research agent so dossiers can include state-level certifications, elections, and bargaining unit data.
+
+Also add tools for:
+- **State OSHA plans** — 22 states run their own OSHA programs with separate violation databases
+- **State wage theft databases** — Several states (NY, CA, MA) publish wage theft enforcement data beyond federal WHD
+
+*Source: Research agent investigation (Feb 27), Gemini R2 Research 3 | Effort: 10-16 hours (depends on 3.2 data availability)*
 
 ---
 
