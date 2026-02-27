@@ -8,8 +8,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from db_config import DB_CONFIG
-import psycopg2
+from db_config import get_connection
 
 OBJECTS_TO_DROP = [
     ("TABLE", "cba_wage_schedules"),
@@ -23,7 +22,7 @@ OBJECTS_TO_DROP = [
 
 
 def main():
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_connection()
     conn.autocommit = True
     cur = conn.cursor()
 
