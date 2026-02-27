@@ -1,0 +1,1956 @@
+[
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\auth.py",
+    "function": "login",
+    "method": "POST",
+    "path": "/api/auth/login",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\auth.py",
+    "function": "register",
+    "method": "POST",
+    "path": "/api/auth/register",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\auth.py",
+    "function": "refresh_token",
+    "method": "POST",
+    "path": "/api/auth/refresh",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\auth.py",
+    "function": "current_user",
+    "method": "GET",
+    "path": "/api/auth/me",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\cba.py",
+    "function": "search_cba_provisions",
+    "method": "GET",
+    "path": "/api/cba/provisions/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\cba.py",
+    "function": "list_cba_provision_classes",
+    "method": "GET",
+    "path": "/api/cba/provisions/classes",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\cba.py",
+    "function": "get_cba_document_detail",
+    "method": "GET",
+    "path": "/api/cba/documents/{cba_id:int}",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_multi_employer_stats",
+    "method": "GET",
+    "path": "/api/multi-employer/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_multi_employer_groups",
+    "method": "GET",
+    "path": "/api/multi-employer/groups",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_employer_agreement_info",
+    "method": "GET",
+    "path": "/api/employer/{employer_id}/agreement",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_employer_match_provenance",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/matches",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_corporate_family",
+    "method": "GET",
+    "path": "/api/corporate/family/{employer_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_corporate_hierarchy_stats",
+    "method": "GET",
+    "path": "/api/corporate/hierarchy/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "search_corporate_hierarchy",
+    "method": "GET",
+    "path": "/api/corporate/hierarchy/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_corporate_hierarchy",
+    "method": "GET",
+    "path": "/api/corporate/hierarchy/{employer_id}",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\corporate.py",
+    "function": "get_sec_company",
+    "method": "GET",
+    "path": "/api/corporate/sec/{cik}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_naics_density",
+    "method": "GET",
+    "path": "/api/density/naics/{naics_2digit}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_all_density",
+    "method": "GET",
+    "path": "/api/density/all",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_density_by_state",
+    "method": "GET",
+    "path": "/api/density/by-state",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_state_density_history",
+    "method": "GET",
+    "path": "/api/density/by-state/{state}/history",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_density_by_govt_level",
+    "method": "GET",
+    "path": "/api/density/by-govt-level",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_state_density_by_govt_level",
+    "method": "GET",
+    "path": "/api/density/by-govt-level/{state}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_density_by_county",
+    "method": "GET",
+    "path": "/api/density/by-county",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_county_density_detail",
+    "method": "GET",
+    "path": "/api/density/by-county/{fips}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_state_counties_density",
+    "method": "GET",
+    "path": "/api/density/by-state/{state}/counties",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_county_density_summary",
+    "method": "GET",
+    "path": "/api/density/county-summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_industry_density_rates",
+    "method": "GET",
+    "path": "/api/density/industry-rates",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_state_industry_comparison",
+    "method": "GET",
+    "path": "/api/density/state-industry-comparison",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_state_industry_detail",
+    "method": "GET",
+    "path": "/api/density/state-industry-comparison/{state}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_county_industry_detail",
+    "method": "GET",
+    "path": "/api/density/by-county/{fips}/industry",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_ny_county_density",
+    "method": "GET",
+    "path": "/api/density/ny/counties",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_ny_county_density_detail",
+    "method": "GET",
+    "path": "/api/density/ny/county/{fips}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_ny_zip_density",
+    "method": "GET",
+    "path": "/api/density/ny/zips",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_ny_zip_density_detail",
+    "method": "GET",
+    "path": "/api/density/ny/zip/{zip_code}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_ny_tract_density",
+    "method": "GET",
+    "path": "/api/density/ny/tracts",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_ny_tract_density_detail",
+    "method": "GET",
+    "path": "/api/density/ny/tract/{tract_fips}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\density.py",
+    "function": "get_ny_density_summary",
+    "method": "GET",
+    "path": "/api/density/ny/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_cities_for_state",
+    "method": "GET",
+    "path": "/api/employers/cities",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "search_employers",
+    "method": "GET",
+    "path": "/api/employers/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "fuzzy_search_employers",
+    "method": "GET",
+    "path": "/api/employers/fuzzy-search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "normalized_search_employers",
+    "method": "GET",
+    "path": "/api/employers/normalized-search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_data_coverage",
+    "method": "GET",
+    "path": "/api/employers/data-coverage",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "unified_employer_search",
+    "method": "GET",
+    "path": "/api/employers/unified-search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "unified_employer_detail",
+    "method": "GET",
+    "path": "/api/employers/unified-detail/{canonical_id:path}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "create_flag",
+    "method": "POST",
+    "path": "/api/employers/flags",
+    "depends": [
+      "require_auth"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_pending_flags",
+    "method": "GET",
+    "path": "/api/employers/flags/pending",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "refresh_unified_search",
+    "method": "POST",
+    "path": "/api/employers/refresh-search",
+    "depends": [
+      "require_auth"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "delete_flag",
+    "method": "DELETE",
+    "path": "/api/employers/flags/{flag_id}",
+    "depends": [
+      "require_auth"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_flags",
+    "method": "GET",
+    "path": "/api/employers/flags/by-employer/{canonical_id:path}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_flags_by_source",
+    "method": "GET",
+    "path": "/api/employers/flags/by-source",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_detail",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_related_filings",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/related-filings",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_groups_summary",
+    "method": "GET",
+    "path": "/api/admin/employer-groups",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_similar_employers",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/similar",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_data_sources",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/data-sources",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_osha",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/osha",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_nlrb",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/nlrb",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_nlrb_history",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/nlrb-history",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_workforce_profile",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/workforce-profile",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_naics_stats",
+    "method": "GET",
+    "path": "/api/naics/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employers_by_detailed_naics",
+    "method": "GET",
+    "path": "/api/employers/by-naics-detailed/{naics_code}",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_unified_employer_stats",
+    "method": "GET",
+    "path": "/api/employers/unified/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "search_unified_employers",
+    "method": "GET",
+    "path": "/api/employers/unified/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_unified_employer",
+    "method": "GET",
+    "path": "/api/employers/unified/{unified_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "search_osha_unified_matches",
+    "method": "GET",
+    "path": "/api/osha/unified-matches",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_unified_source_types",
+    "method": "GET",
+    "path": "/api/employers/unified/sources",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\employers.py",
+    "function": "get_employer_comparables",
+    "method": "GET",
+    "path": "/api/employers/{employer_id}/comparables",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\health.py",
+    "function": "get_platform_summary",
+    "method": "GET",
+    "path": "/api/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\health.py",
+    "function": "get_stats_breakdown",
+    "method": "GET",
+    "path": "/api/stats/breakdown",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\health.py",
+    "function": "health_check",
+    "method": "GET",
+    "path": "/api/health/details",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\lookups.py",
+    "function": "get_sectors",
+    "method": "GET",
+    "path": "/api/lookups/sectors",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\lookups.py",
+    "function": "get_affiliations",
+    "method": "GET",
+    "path": "/api/lookups/affiliations",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\lookups.py",
+    "function": "get_states",
+    "method": "GET",
+    "path": "/api/lookups/states",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\lookups.py",
+    "function": "get_naics_sectors",
+    "method": "GET",
+    "path": "/api/lookups/naics-sectors",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\lookups.py",
+    "function": "get_metros",
+    "method": "GET",
+    "path": "/api/lookups/metros",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\lookups.py",
+    "function": "get_cities_lookup",
+    "method": "GET",
+    "path": "/api/lookups/cities",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\lookups.py",
+    "function": "get_metro_stats",
+    "method": "GET",
+    "path": "/api/metros/{cbsa_code}/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\master.py",
+    "function": "master_search",
+    "method": "GET",
+    "path": "/api/master/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\master.py",
+    "function": "master_non_union_targets",
+    "method": "GET",
+    "path": "/api/master/non-union-targets",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\master.py",
+    "function": "master_detail",
+    "method": "GET",
+    "path": "/api/master/{master_id:int}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\master.py",
+    "function": "master_stats",
+    "method": "GET",
+    "path": "/api/master/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\museums.py",
+    "function": "search_museum_targets",
+    "method": "GET",
+    "path": "/api/museums/targets",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\museums.py",
+    "function": "get_museum_target_stats",
+    "method": "GET",
+    "path": "/api/museums/targets/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\museums.py",
+    "function": "get_museum_target_detail",
+    "method": "GET",
+    "path": "/api/museums/targets/{target_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\museums.py",
+    "function": "get_museum_target_cities",
+    "method": "GET",
+    "path": "/api/museums/targets/cities",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\museums.py",
+    "function": "get_unionized_museums",
+    "method": "GET",
+    "path": "/api/museums/unionized",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\museums.py",
+    "function": "get_museum_sector_summary",
+    "method": "GET",
+    "path": "/api/museums/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_summary",
+    "method": "GET",
+    "path": "/api/nlrb/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "search_nlrb_elections",
+    "method": "GET",
+    "path": "/api/nlrb/elections/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_elections_map",
+    "method": "GET",
+    "path": "/api/nlrb/elections/map",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_elections_by_year",
+    "method": "GET",
+    "path": "/api/nlrb/elections/by-year",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_elections_by_state",
+    "method": "GET",
+    "path": "/api/nlrb/elections/by-state",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_elections_by_affiliation",
+    "method": "GET",
+    "path": "/api/nlrb/elections/by-affiliation",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_election_detail",
+    "method": "GET",
+    "path": "/api/nlrb/election/{case_number}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "search_nlrb_ulp",
+    "method": "GET",
+    "path": "/api/nlrb/ulp/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_ulp_by_section",
+    "method": "GET",
+    "path": "/api/nlrb/ulp/by-section",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\nlrb.py",
+    "function": "get_nlrb_patterns",
+    "method": "GET",
+    "path": "/api/nlrb/patterns",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_organizing_summary",
+    "method": "GET",
+    "path": "/api/organizing/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_organizing_by_state",
+    "method": "GET",
+    "path": "/api/organizing/by-state",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_organizing_scorecard",
+    "method": "GET",
+    "path": "/api/organizing/scorecard",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_scorecard_detail",
+    "method": "GET",
+    "path": "/api/organizing/scorecard/{estab_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_sibling_employers",
+    "method": "GET",
+    "path": "/api/organizing/siblings/{estab_id}",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "refresh_scorecard",
+    "method": "POST",
+    "path": "/api/admin/refresh-scorecard",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_score_versions",
+    "method": "GET",
+    "path": "/api/admin/score-versions",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_data_freshness",
+    "method": "GET",
+    "path": "/api/admin/data-freshness",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "refresh_freshness",
+    "method": "POST",
+    "path": "/api/admin/refresh-freshness",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_match_quality",
+    "method": "GET",
+    "path": "/api/admin/match-quality",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_match_review",
+    "method": "GET",
+    "path": "/api/admin/match-review",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "review_match",
+    "method": "POST",
+    "path": "/api/admin/match-review/{match_id}",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_propensity",
+    "method": "GET",
+    "path": "/api/organizing/propensity/{employer_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\organizing.py",
+    "function": "get_propensity_models",
+    "method": "GET",
+    "path": "/api/admin/propensity-models",
+    "depends": [
+      "require_admin"
+    ],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\osha.py",
+    "function": "get_osha_summary",
+    "method": "GET",
+    "path": "/api/osha/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\osha.py",
+    "function": "search_osha_establishments",
+    "method": "GET",
+    "path": "/api/osha/establishments/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\osha.py",
+    "function": "get_osha_establishment",
+    "method": "GET",
+    "path": "/api/osha/establishments/{establishment_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\osha.py",
+    "function": "get_osha_by_state",
+    "method": "GET",
+    "path": "/api/osha/by-state",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\osha.py",
+    "function": "get_osha_high_severity",
+    "method": "GET",
+    "path": "/api/osha/high-severity",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\osha.py",
+    "function": "get_osha_organizing_targets",
+    "method": "GET",
+    "path": "/api/osha/organizing-targets",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\osha.py",
+    "function": "get_employer_safety_profile",
+    "method": "GET",
+    "path": "/api/osha/employer-safety/{f7_employer_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\profile.py",
+    "function": "get_employer_profile",
+    "method": "GET",
+    "path": "/api/profile/employers/{employer_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\profile.py",
+    "function": "get_union_profile",
+    "method": "GET",
+    "path": "/api/profile/unions/{f_num}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_projections_summary",
+    "method": "GET",
+    "path": "/api/projections/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_industry_projections",
+    "method": "GET",
+    "path": "/api/projections/industry/{naics_code}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_occupation_projections_v2",
+    "method": "GET",
+    "path": "/api/projections/occupations/{naics_code}",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_sector_sub_industries",
+    "method": "GET",
+    "path": "/api/projections/industries/{sector}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_industry_by_matrix_code",
+    "method": "GET",
+    "path": "/api/projections/matrix/{matrix_code}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_occupations_by_matrix_code",
+    "method": "GET",
+    "path": "/api/projections/matrix/{matrix_code}/occupations",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "search_industry_projections",
+    "method": "GET",
+    "path": "/api/projections/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_employer_projections",
+    "method": "GET",
+    "path": "/api/employer/{employer_id}/projections",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_naics_projections",
+    "method": "GET",
+    "path": "/api/projections/naics/{naics_2digit}",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\projections.py",
+    "function": "get_top_projections",
+    "method": "GET",
+    "path": "/api/projections/top",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\public_sector.py",
+    "function": "get_public_sector_stats",
+    "method": "GET",
+    "path": "/api/public-sector/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\public_sector.py",
+    "function": "get_public_sector_parent_unions",
+    "method": "GET",
+    "path": "/api/public-sector/parent-unions",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\public_sector.py",
+    "function": "search_public_sector_locals",
+    "method": "GET",
+    "path": "/api/public-sector/locals",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\public_sector.py",
+    "function": "search_public_sector_employers",
+    "method": "GET",
+    "path": "/api/public-sector/employers",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\public_sector.py",
+    "function": "get_public_sector_employer_types",
+    "method": "GET",
+    "path": "/api/public-sector/employer-types",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\public_sector.py",
+    "function": "get_public_sector_benchmarks",
+    "method": "GET",
+    "path": "/api/public-sector/benchmarks",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\research.py",
+    "function": "get_research_status",
+    "method": "GET",
+    "path": "/status/{run_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\research.py",
+    "function": "get_research_result",
+    "method": "GET",
+    "path": "/result/{run_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\research.py",
+    "function": "list_research_runs",
+    "method": "GET",
+    "path": "/runs",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\research.py",
+    "function": "get_research_candidates",
+    "method": "GET",
+    "path": "/candidates",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\research.py",
+    "function": "get_fact_vocabulary",
+    "method": "GET",
+    "path": "/vocabulary",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\research.py",
+    "function": "get_research_strategies",
+    "method": "GET",
+    "path": "/strategies",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_scorecard_list",
+    "method": "GET",
+    "path": "/api/scorecard/",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_scorecard_states",
+    "method": "GET",
+    "path": "/api/scorecard/states",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_score_versions",
+    "method": "GET",
+    "path": "/api/scorecard/versions",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_current_score_version",
+    "method": "GET",
+    "path": "/api/scorecard/versions/current",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_unified_scorecard",
+    "method": "GET",
+    "path": "/api/scorecard/unified",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_unified_scorecard_stats",
+    "method": "GET",
+    "path": "/api/scorecard/unified/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_unified_scorecard_states",
+    "method": "GET",
+    "path": "/api/scorecard/unified/states",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_unified_scorecard_detail",
+    "method": "GET",
+    "path": "/api/scorecard/unified/{employer_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\scorecard.py",
+    "function": "get_scorecard_item",
+    "method": "GET",
+    "path": "/api/scorecard/{estab_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\sectors.py",
+    "function": "list_sectors",
+    "method": "GET",
+    "path": "/api/sectors/list",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\sectors.py",
+    "function": "get_sector_summary",
+    "method": "GET",
+    "path": "/api/sectors/{sector}/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\sectors.py",
+    "function": "search_sector_targets",
+    "method": "GET",
+    "path": "/api/sectors/{sector}/targets",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\sectors.py",
+    "function": "get_sector_target_stats",
+    "method": "GET",
+    "path": "/api/sectors/{sector}/targets/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\sectors.py",
+    "function": "get_sector_target_cities",
+    "method": "GET",
+    "path": "/api/sectors/{sector}/targets/cities",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\sectors.py",
+    "function": "get_sector_target_detail",
+    "method": "GET",
+    "path": "/api/sectors/{sector}/targets/{target_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\sectors.py",
+    "function": "get_sector_unionized",
+    "method": "GET",
+    "path": "/api/sectors/{sector}/unionized",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\system.py",
+    "function": "system_health_check",
+    "method": "GET",
+    "path": "/api/health",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\system.py",
+    "function": "system_stats",
+    "method": "GET",
+    "path": "/api/stats",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\system.py",
+    "function": "system_data_freshness",
+    "method": "GET",
+    "path": "/api/system/data-freshness",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_national_trends",
+    "method": "GET",
+    "path": "/api/trends/national",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_affiliation_trends_summary",
+    "method": "GET",
+    "path": "/api/trends/affiliations/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_affiliation_trends",
+    "method": "GET",
+    "path": "/api/trends/by-affiliation/{aff_abbr}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_state_trends_summary",
+    "method": "GET",
+    "path": "/api/trends/states/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_state_trends",
+    "method": "GET",
+    "path": "/api/trends/by-state/{state}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_election_trends",
+    "method": "GET",
+    "path": "/api/trends/elections",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_election_trends_by_affiliation",
+    "method": "GET",
+    "path": "/api/trends/elections/by-affiliation/{aff_abbr}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\trends.py",
+    "function": "get_sector_trends",
+    "method": "GET",
+    "path": "/api/trends/sectors",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_union_cities",
+    "method": "GET",
+    "path": "/api/unions/cities",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "search_unions",
+    "method": "GET",
+    "path": "/api/unions/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_union_types",
+    "method": "GET",
+    "path": "/api/unions/types",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_national_unions",
+    "method": "GET",
+    "path": "/api/unions/national",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_national_union_detail",
+    "method": "GET",
+    "path": "/api/unions/national/{aff_abbr}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_union_organizing_capacity",
+    "method": "GET",
+    "path": "/api/unions/{file_number}/organizing-capacity",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_union_membership_history",
+    "method": "GET",
+    "path": "/api/unions/{file_number}/membership-history",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_union_detail",
+    "method": "GET",
+    "path": "/api/unions/{f_num}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_union_employers",
+    "method": "GET",
+    "path": "/api/unions/{f_num}/employers",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\unions.py",
+    "function": "get_locals_for_affiliation",
+    "method": "GET",
+    "path": "/api/unions/locals/{affiliation}",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_summary",
+    "method": "GET",
+    "path": "/api/vr/stats/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_by_year",
+    "method": "GET",
+    "path": "/api/vr/stats/by-year",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_by_state",
+    "method": "GET",
+    "path": "/api/vr/stats/by-state",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_by_affiliation",
+    "method": "GET",
+    "path": "/api/vr/stats/by-affiliation",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_map_data",
+    "method": "GET",
+    "path": "/api/vr/map",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_new_employers",
+    "method": "GET",
+    "path": "/api/vr/new-employers",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_pipeline",
+    "method": "GET",
+    "path": "/api/vr/pipeline",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "search_vr",
+    "method": "GET",
+    "path": "/api/vr/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\vr.py",
+    "function": "get_vr_detail",
+    "method": "GET",
+    "path": "/api/vr/{case_number}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\whd.py",
+    "function": "get_whd_summary",
+    "method": "GET",
+    "path": "/api/whd/summary",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\whd.py",
+    "function": "search_whd_cases",
+    "method": "GET",
+    "path": "/api/whd/search",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\whd.py",
+    "function": "get_whd_by_state",
+    "method": "GET",
+    "path": "/api/whd/by-state/{state}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": true
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\whd.py",
+    "function": "get_whd_employer_cases",
+    "method": "GET",
+    "path": "/api/whd/employer/{employer_id}",
+    "depends": [],
+    "query_validation": false,
+    "dynamic_sql_fstring": false,
+    "mentions_limit": false
+  },
+  {
+    "file": "C:\\Users\\jakew\\.local\\bin\\Labor Data Project_real\\api\\routers\\whd.py",
+    "function": "get_whd_top_violators",
+    "method": "GET",
+    "path": "/api/whd/top-violators",
+    "depends": [],
+    "query_validation": true,
+    "dynamic_sql_fstring": true,
+    "mentions_limit": true
+  }
+]

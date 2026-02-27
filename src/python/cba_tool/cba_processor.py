@@ -11,7 +11,19 @@ import pdfplumber
 
 from db_config import get_connection
 
-from .langextract_processor import LangExtractProcessor, ProvisionExtraction
+
+@dataclass
+class ProvisionExtraction:
+    """Provision extraction result — shared between AI and rule-engine paths."""
+    category: str
+    provision_class: str
+    provision_text: str
+    char_start: int
+    char_end: int
+    confidence_score: float
+    summary: str | None = None
+    modal_verb: str | None = None
+    legal_weight: float | None = None
 
 
 @dataclass
@@ -31,8 +43,36 @@ class DocumentText:
 class CBAProcessor:
     """End-to-end CBA ingestion and provision extraction pipeline."""
 
-    def __init__(self, *, model_id: str = "models/gemini-flash-latest") -> None:
-        self.extractor = LangExtractProcessor(model_id=model_id)
+    def __init__(self, *, model_id: str = "models/gemini-flash-latest", use_ai: bool = False) -> None:
+        self.use_ai = use_ai
+        self.model_id = model_id
+        self._extractor = None  # lazy-loaded
+        self._class_map: dict[str, str] | None = None
+
+    @property
+    def extractor(self):
+        """Lazy-import LangExtractProcessor only when AI is actually needed."""
+        if self._extractor is None:
+            from .langextract_processor import LangExtractProcessor
+            self._extractor = LangExtractProcessor(model_id=self.model_id)
+        return self._extractor
+
+    @property
+    def class_map(self) -> dict[str, str]:
+        """Get class→category mapping without requiring langextract."""
+        if self._class_map is None:
+            import json
+            config_path = Path(__file__).resolve().parents[3] / "config" / "cba_extraction_classes.json"
+            if config_path.exists():
+                payload = json.loads(config_path.read_text(encoding="utf-8"))
+                self._class_map = {
+                    item["name"]: item["category"]
+                    for item in payload.get("classes", [])
+                    if item.get("name") and item.get("category")
+                }
+            else:
+                self._class_map = {}
+        return self._class_map
 
     def _load_pdf_text(self, pdf_path: Path, *, max_pages: int | None = None) -> DocumentText:
         spans: list[PageSpan] = []
@@ -186,18 +226,37 @@ class CBAProcessor:
                     provision.modal_verb,
                     provision.legal_weight,
                     provision.confidence_score,
-                    self.extractor.model_id,
+                    self.model_id if self.use_ai else "rule_engine",
                 ],
             )
             inserted += 1
         return inserted
 
     def _extract_ai_best_effort(self, text: str) -> list[ProvisionExtraction]:
+        """Call langextract AI extraction. Only used when use_ai=True."""
+        if not self.use_ai:
+            return []
         # langextract handles chunking via max_char_buffer=6000
         # Cap at 500K chars (~250 pages) to avoid extreme API costs
         bounded_text = text[:500000]
         try:
-            return self.extractor.extract(bounded_text)
+            from .langextract_processor import ProvisionExtraction as LxProvision
+            raw = self.extractor.extract(bounded_text)
+            # Convert from langextract's ProvisionExtraction to ours
+            return [
+                ProvisionExtraction(
+                    category=p.category,
+                    provision_class=p.provision_class,
+                    provision_text=p.provision_text,
+                    char_start=p.char_start,
+                    char_end=p.char_end,
+                    confidence_score=p.confidence_score,
+                    summary=p.summary,
+                    modal_verb=p.modal_verb,
+                    legal_weight=p.legal_weight,
+                )
+                for p in raw
+            ]
         except Exception:
             return []
 
@@ -229,7 +288,7 @@ class CBAProcessor:
             if not provision_class:
                 continue
 
-            category = self.extractor.class_map.get(provision_class, "misc")
+            category = self.class_map.get(provision_class, "misc")
             modal_match = modal_re.search(sentence)
             extracted.append(
                 ProvisionExtraction(

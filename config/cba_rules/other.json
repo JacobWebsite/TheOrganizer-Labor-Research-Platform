@@ -1,0 +1,61 @@
+{
+  "category": "other",
+  "provision_classes": ["management_rights"],
+  "heading_signals": [
+    {"pattern": "\\b(duration|term\\s+of\\s+agreement|successor|savings|separability|miscellaneous|general\\s+provisions)\\b", "weight": 0.3},
+    {"pattern": "\\b(no\\s+strike|no\\s+lockout|zipper|entire\\s+agreement)\\b", "weight": 0.35},
+    {"pattern": "\\b(safety|health\\s+and\\s+safety|uniforms?|tools?|equipment)\\b", "weight": 0.2}
+  ],
+  "text_patterns": [
+    {
+      "name": "no_strike",
+      "pattern": "\\b(?:no\\s+strike|shall\\s+not\\s+(?:strike|engage\\s+in.*(?:strike|work\\s+stoppage))|no\\s+lockout)\\b",
+      "confidence": 0.90,
+      "provision_class": "management_rights",
+      "summary": "No-strike/no-lockout clause"
+    },
+    {
+      "name": "duration",
+      "pattern": "\\b(?:this\\s+agreement|contract)\\s+(?:shall\\s+)?(?:remain\\s+in\\s+(?:full\\s+)?(?:force|effect)|be\\s+effective|expire|terminate)\\s+(?:from|on|until|through)",
+      "confidence": 0.85,
+      "provision_class": "management_rights",
+      "summary": "Contract duration"
+    },
+    {
+      "name": "successorship",
+      "pattern": "\\b(?:successor|assign|merge|acquir|sale\\s+of\\s+(?:business|company))\\b.*(?:binding|obligations?|agreement|continue|assume)",
+      "confidence": 0.80,
+      "provision_class": "management_rights",
+      "summary": "Successorship clause"
+    },
+    {
+      "name": "separability",
+      "pattern": "\\b(?:separability|severability|savings|invalid|unlawful|void)\\b.*(?:provision|section|article|clause).*(?:remain|continue|not\\s+affect|be\\s+(?:severed|deleted))",
+      "confidence": 0.85,
+      "provision_class": "management_rights",
+      "summary": "Separability/severability clause"
+    },
+    {
+      "name": "zipper_clause",
+      "pattern": "\\b(?:entire\\s+agreement|zipper|waiver)\\b.*(?:supersedes?|constitutes?\\s+the\\s+entire|no\\s+(?:other|further)\\s+(?:obligation|duty)\\s+to\\s+(?:bargain|negotiate))",
+      "confidence": 0.85,
+      "provision_class": "management_rights",
+      "summary": "Zipper/entire agreement clause"
+    },
+    {
+      "name": "safety_health",
+      "pattern": "\\b(?:safety|health\\s+and\\s+safety|occupational\\s+safety|OSHA)\\b.*(?:comply|provide|maintain|equipment|training|committee|report)",
+      "confidence": 0.75,
+      "provision_class": "management_rights",
+      "summary": "Safety and health provisions"
+    },
+    {
+      "name": "uniforms_tools",
+      "pattern": "\\b(?:uniform|tool|equipment|protective\\s+(?:clothing|equipment|gear)|PPE)\\b.*(?:provide|furnish|reimburse|allowance|employer\\s+(?:shall|will))",
+      "confidence": 0.75,
+      "provision_class": "management_rights",
+      "summary": "Uniforms/tools/equipment"
+    }
+  ],
+  "negative_patterns": []
+}

@@ -1,0 +1,28 @@
+{
+  "routes": [
+    "/login",
+    "search",
+    "employers/:id",
+    "targets",
+    "unions",
+    "unions/:fnum",
+    "research",
+    "research/:runId",
+    "settings",
+    "*"
+  ],
+  "potential_dead": [
+    {
+      "route": "employers/:id",
+      "occurrences": 1
+    },
+    {
+      "route": "unions/:fnum",
+      "occurrences": 1
+    },
+    {
+      "route": "research/:runId",
+      "occurrences": 1
+    }
+  ]
+}

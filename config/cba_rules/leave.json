@@ -1,0 +1,99 @@
+{
+  "category": "leave",
+  "provision_classes": ["paid_leave", "family_medical_leave"],
+  "heading_signals": [
+    {"pattern": "\\b(vacation|sick\\s+leave|personal\\s+(?:day|leave)|holiday|bereavement|leave\\s+of\\s+absence)\\b", "weight": 0.35},
+    {"pattern": "\\b(paid\\s+time\\s+off|PTO|annual\\s+leave)\\b", "weight": 0.35},
+    {"pattern": "\\b(FMLA|family\\s+(?:and\\s+)?medical\\s+leave|parental\\s+leave)\\b", "weight": 0.4}
+  ],
+  "text_patterns": [
+    {
+      "name": "vacation_accrual",
+      "pattern": "\\b(?:vacation|annual\\s+leave|PTO)\\s+(?:shall\\s+)?(?:accrue|earn|be\\s+(?:entitled|granted|credited))\\s*(?:at\\s+(?:the\\s+)?rate\\s+of)?",
+      "confidence": 0.85,
+      "provision_class": "paid_leave",
+      "summary": "Vacation accrual"
+    },
+    {
+      "name": "vacation_days",
+      "pattern": "(?:\\d+|one|two|three|four|five|six)\\s+(?:weeks?|days?)\\s+(?:of\\s+)?(?:paid\\s+)?vacation",
+      "confidence": 0.85,
+      "provision_class": "paid_leave",
+      "summary": "Vacation days allotment"
+    },
+    {
+      "name": "sick_leave",
+      "pattern": "\\bsick\\s+(?:leave|time|days?)\\s+(?:shall|will|may)?\\s*(?:be|accrue|earn)",
+      "confidence": 0.85,
+      "provision_class": "paid_leave",
+      "summary": "Sick leave provision"
+    },
+    {
+      "name": "personal_days",
+      "pattern": "\\b(?:personal|floating)\\s+(?:day|leave|holiday)s?\\b",
+      "confidence": 0.80,
+      "provision_class": "paid_leave",
+      "summary": "Personal days"
+    },
+    {
+      "name": "holiday_list",
+      "pattern": "(?:following|recognized|observed|paid)\\s+holidays?.*(?:New\\s+Year|Martin\\s+Luther|President|Memorial|Independence|Labor\\s+Day|Thanksgiving|Christmas)",
+      "confidence": 0.90,
+      "provision_class": "paid_leave",
+      "summary": "Holiday list"
+    },
+    {
+      "name": "holiday_pay",
+      "pattern": "\\bholiday\\s+(?:pay|premium|rate|compensation)\\b",
+      "confidence": 0.80,
+      "provision_class": "paid_leave",
+      "summary": "Holiday pay"
+    },
+    {
+      "name": "bereavement",
+      "pattern": "\\b(?:bereavement|funeral|death\\s+in\\s+(?:the\\s+)?(?:immediate\\s+)?family)\\s+(?:leave|days?|time)",
+      "confidence": 0.85,
+      "provision_class": "paid_leave",
+      "summary": "Bereavement leave"
+    },
+    {
+      "name": "fmla",
+      "pattern": "\\b(?:FMLA|Family\\s+(?:and\\s+)?Medical\\s+Leave\\s+Act)\\b",
+      "confidence": 0.85,
+      "provision_class": "family_medical_leave",
+      "summary": "FMLA reference"
+    },
+    {
+      "name": "parental_leave",
+      "pattern": "\\b(?:parental|maternity|paternity|adoption|child\\s*(?:birth|rearing|bonding))\\s+leave\\b",
+      "confidence": 0.85,
+      "provision_class": "family_medical_leave",
+      "summary": "Parental leave"
+    },
+    {
+      "name": "union_leave",
+      "pattern": "\\b(?:union|organization)\\s+(?:leave|business|time\\s+off)\\b.*(?:attend|convention|meeting|training|negotiate)",
+      "confidence": 0.80,
+      "provision_class": "paid_leave",
+      "summary": "Union leave"
+    },
+    {
+      "name": "jury_duty",
+      "pattern": "\\b(?:jury\\s+duty|jury\\s+service|court\\s+(?:leave|appearance|duty))\\b(?!.{0,5}(?:,|\\bor\\b).{0,60}(?:group\\s+life|insurance|vacation))",
+      "confidence": 0.85,
+      "provision_class": "paid_leave",
+      "summary": "Jury duty leave"
+    },
+    {
+      "name": "military_leave",
+      "pattern": "\\b(?:military|USERRA|armed\\s+forces|National\\s+Guard)\\s+(?:leave|duty|service)\\b",
+      "confidence": 0.85,
+      "provision_class": "paid_leave",
+      "summary": "Military leave"
+    }
+  ],
+  "negative_patterns": [
+    {"pattern": "\\bleave\\s+(?:of|the)\\s+(?:premises|building|work\\s+area)\\b", "note": "Physical leaving, not time off"},
+    {"pattern": "(?:wages|hours|sick\\s+pay|vacations?|holidays?|insurance|relief\\s+periods?),?\\s*(?:,|and)?\\s*jury\\s+duty,?\\s*(?:,|or|and)?\\s*(?:group\\s+life|insurance|sick\\s+pay|vacations?|holidays?)", "note": "Fix 5: jury duty in a list of many labor topics = maintenance of standards, not leave"}
+  ]
+}

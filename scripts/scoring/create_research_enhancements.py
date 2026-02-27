@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS research_score_enhancements (
     score_contracts     NUMERIC(4,2),
     score_financial     NUMERIC(4,2),
     score_size          NUMERIC(4,2),
+    score_stability     NUMERIC(4,2),
+    score_anger         NUMERIC(4,2),
 
     -- Raw extracted values (for audit trail + Gower feature refresh)
     osha_violations_found       INTEGER,
@@ -52,6 +54,9 @@ CREATE TABLE IF NOT EXISTS research_score_enhancements (
     federal_obligations_found   BIGINT,
     year_founded_found          INTEGER,
     naics_found                 VARCHAR(10),
+    turnover_rate_found         NUMERIC(4,2),
+    sentiment_score_found       NUMERIC(4,2),
+    revenue_per_employee_found  NUMERIC,
 
     -- Assessment (display only -- not scored)
     recommended_approach    TEXT,

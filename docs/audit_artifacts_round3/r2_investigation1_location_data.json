@@ -1,0 +1,967 @@
+{
+  "f7_employers_deduped": {
+    "columns": [
+      [
+        "employer_id",
+        "text"
+      ],
+      [
+        "employer_name",
+        "text"
+      ],
+      [
+        "city",
+        "text"
+      ],
+      [
+        "state",
+        "text"
+      ],
+      [
+        "street",
+        "text"
+      ],
+      [
+        "zip",
+        "text"
+      ],
+      [
+        "latest_notice_date",
+        "text"
+      ],
+      [
+        "latest_unit_size",
+        "integer"
+      ],
+      [
+        "latest_union_fnum",
+        "integer"
+      ],
+      [
+        "latest_union_name",
+        "text"
+      ],
+      [
+        "naics",
+        "text"
+      ],
+      [
+        "healthcare_related",
+        "integer"
+      ],
+      [
+        "filing_count",
+        "integer"
+      ],
+      [
+        "potentially_defunct",
+        "integer"
+      ],
+      [
+        "latitude",
+        "real"
+      ],
+      [
+        "longitude",
+        "real"
+      ],
+      [
+        "geocode_status",
+        "text"
+      ],
+      [
+        "data_quality_flag",
+        "text"
+      ],
+      [
+        "employer_name_aggressive",
+        "text"
+      ],
+      [
+        "naics_detailed",
+        "character varying"
+      ],
+      [
+        "naics_source",
+        "character varying"
+      ],
+      [
+        "naics_confidence",
+        "numeric"
+      ],
+      [
+        "exclude_from_counts",
+        "boolean"
+      ],
+      [
+        "exclude_reason",
+        "character varying"
+      ],
+      [
+        "multi_employer_group_id",
+        "integer"
+      ],
+      [
+        "is_primary_in_group",
+        "boolean"
+      ],
+      [
+        "group_max_workers",
+        "integer"
+      ],
+      [
+        "cbsa_code",
+        "character varying"
+      ],
+      [
+        "whd_violation_count",
+        "integer"
+      ],
+      [
+        "whd_backwages",
+        "numeric"
+      ],
+      [
+        "whd_employees_violated",
+        "integer"
+      ],
+      [
+        "whd_penalties",
+        "numeric"
+      ],
+      [
+        "whd_child_labor",
+        "integer"
+      ],
+      [
+        "whd_repeat_violator",
+        "boolean"
+      ],
+      [
+        "corporate_parent_id",
+        "text"
+      ],
+      [
+        "is_historical",
+        "boolean"
+      ],
+      [
+        "name_standard",
+        "text"
+      ],
+      [
+        "name_aggressive",
+        "text"
+      ],
+      [
+        "name_fuzzy",
+        "text"
+      ],
+      [
+        "canonical_group_id",
+        "integer"
+      ],
+      [
+        "is_canonical_rep",
+        "boolean"
+      ],
+      [
+        "is_labor_org",
+        "boolean"
+      ],
+      [
+        "exclude_from_scoring",
+        "boolean"
+      ],
+      [
+        "is_association",
+        "boolean"
+      ]
+    ]
+  },
+  "nlrb_elections": {
+    "columns": [
+      [
+        "id",
+        "integer"
+      ],
+      [
+        "case_number",
+        "character varying"
+      ],
+      [
+        "election_type",
+        "character varying"
+      ],
+      [
+        "election_date",
+        "date"
+      ],
+      [
+        "ballot_type",
+        "character varying"
+      ],
+      [
+        "eligible_voters",
+        "integer"
+      ],
+      [
+        "void_ballots",
+        "integer"
+      ],
+      [
+        "challenges",
+        "integer"
+      ],
+      [
+        "runoff_required",
+        "boolean"
+      ],
+      [
+        "created_at",
+        "timestamp without time zone"
+      ],
+      [
+        "total_votes",
+        "integer"
+      ],
+      [
+        "union_won",
+        "boolean"
+      ],
+      [
+        "vote_margin",
+        "integer"
+      ]
+    ]
+  },
+  "nlrb_participants": {
+    "columns": [
+      [
+        "id",
+        "integer"
+      ],
+      [
+        "case_number",
+        "character varying"
+      ],
+      [
+        "participant_name",
+        "text"
+      ],
+      [
+        "participant_type",
+        "character varying"
+      ],
+      [
+        "participant_subtype",
+        "character varying"
+      ],
+      [
+        "address",
+        "text"
+      ],
+      [
+        "address_1",
+        "text"
+      ],
+      [
+        "address_2",
+        "text"
+      ],
+      [
+        "city",
+        "character varying"
+      ],
+      [
+        "state",
+        "character varying"
+      ],
+      [
+        "zip",
+        "character varying"
+      ],
+      [
+        "phone_number",
+        "character varying"
+      ],
+      [
+        "created_at",
+        "timestamp without time zone"
+      ],
+      [
+        "matched_olms_fnum",
+        "character varying"
+      ],
+      [
+        "matched_employer_id",
+        "text"
+      ],
+      [
+        "match_confidence",
+        "numeric"
+      ],
+      [
+        "match_method",
+        "character varying"
+      ]
+    ]
+  },
+  "f7_coverage": {
+    "total": 146863,
+    "geo_both": 122351,
+    "geo_any": 122351,
+    "city_state": 142817,
+    "zip_cnt": 142661
+  },
+  "nlrb_elections_loc_cols": [],
+  "nlrb_participants_loc_cols": [
+    "address",
+    "address_1",
+    "address_2",
+    "city",
+    "state",
+    "zip"
+  ],
+  "nlrb_participants_coverage": {
+    "total": 1906542,
+    "address_nn": 1691367,
+    "address_1_nn": 0,
+    "address_2_nn": 0,
+    "city_nn": 1526984,
+    "state_nn": 1526984,
+    "zip_nn": 1414346
+  },
+  "f7_sample": [
+    {
+      "employer_id": "18faf7410b3a8ad3",
+      "employer_name": "Northwest Cascade",
+      "city": "Puyallup",
+      "state": "WA",
+      "zip": "98373",
+      "latitude": 47.151638,
+      "longitude": -122.33325
+    },
+    {
+      "employer_id": "27680e98617ab1d0",
+      "employer_name": "AGC Maryland Chapter",
+      "city": "Lutherville",
+      "state": "MD",
+      "zip": "21093",
+      "latitude": 39.41932,
+      "longitude": -76.615906
+    },
+    {
+      "employer_id": "19774ab6c2dfba7a",
+      "employer_name": "Mondolez International ",
+      "city": "richmond",
+      "state": "VA",
+      "zip": "23231",
+      "latitude": 37.497734,
+      "longitude": -77.350555
+    },
+    {
+      "employer_id": "edf6a8af49f3caae",
+      "employer_name": "Building Owners and Managers Association of San Francisco",
+      "city": "San Francisco",
+      "state": "CA",
+      "zip": "94104",
+      "latitude": 37.79243,
+      "longitude": -122.40107
+    },
+    {
+      "employer_id": "9ec3bc8a27fcdf7d",
+      "employer_name": "Clune Construction Company, L.P.",
+      "city": "Chicago",
+      "state": "IL",
+      "zip": "60606",
+      "latitude": null,
+      "longitude": null
+    }
+  ],
+  "nlrb_elections_sample": [
+    {
+      "id": 99286,
+      "case_number": "22-RC-375583",
+      "election_type": "Initial",
+      "election_date": "2026-01-20",
+      "eligible_voters": 16,
+      "total_votes": 15,
+      "union_won": true
+    },
+    {
+      "id": 99284,
+      "case_number": "06-RC-372834",
+      "election_type": "Initial",
+      "election_date": "2026-01-16",
+      "eligible_voters": 21,
+      "total_votes": 19,
+      "union_won": false
+    },
+    {
+      "id": 99271,
+      "case_number": "06-RC-376367",
+      "election_type": "Initial",
+      "election_date": "2026-01-16",
+      "eligible_voters": 18,
+      "total_votes": 18,
+      "union_won": true
+    },
+    {
+      "id": 99273,
+      "case_number": "09-RC-377543",
+      "election_type": "Initial",
+      "election_date": "2026-01-16",
+      "eligible_voters": 11,
+      "total_votes": 9,
+      "union_won": false
+    },
+    {
+      "id": 99275,
+      "case_number": "13-RC-376888",
+      "election_type": "Initial",
+      "election_date": "2026-01-16",
+      "eligible_voters": 6,
+      "total_votes": null,
+      "union_won": null
+    }
+  ],
+  "nlrb_participants_sample": [
+    {
+      "id": 5730411,
+      "case_number": "29-CA-378266",
+      "participant_name": "Aaron Halegua, PLLC",
+      "participant_type": "Charging Party",
+      "address": "Erwin, TN\n37650",
+      "city": "",
+      "state": "",
+      "zip": "",
+      "matched_employer_id": null
+    },
+    {
+      "id": 5730410,
+      "case_number": "29-CA-378266",
+      "participant_name": "Aaron Halegua, PLLC",
+      "participant_type": "Charging Party",
+      "address": "New York, NY\n10012",
+      "city": "",
+      "state": "",
+      "zip": "",
+      "matched_employer_id": null
+    },
+    {
+      "id": 5730409,
+      "case_number": "29-CA-378266",
+      "participant_name": "Community Counseling and Mediation Services, Inc.",
+      "participant_type": "Charged Party / Respondent",
+      "address": "Brooklyn, NY\n11201",
+      "city": "",
+      "state": "",
+      "zip": "",
+      "matched_employer_id": null
+    },
+    {
+      "id": 5730408,
+      "case_number": "13-CA-378304",
+      "participant_name": "Ford Motor Company",
+      "participant_type": "Charged Party / Respondent",
+      "address": "Chicago, IL\n60633",
+      "city": "",
+      "state": "",
+      "zip": "",
+      "matched_employer_id": "97cd4f3350fa801c"
+    },
+    {
+      "id": 5730407,
+      "case_number": "13-CA-378304",
+      "participant_name": "",
+      "participant_type": "Charging Party",
+      "address": null,
+      "city": "",
+      "state": "",
+      "zip": "",
+      "matched_employer_id": null
+    }
+  ],
+  "geo_tables": [
+    "corpwatch_relationships",
+    "f7_union_employer_relations",
+    "nyc_osha_violations",
+    "osha_violation_summary",
+    "osha_violations_detail",
+    "platform_users",
+    "v_epi_platform_validation",
+    "v_epi_state_latest",
+    "v_nyc_employer_violations_summary",
+    "v_platform_master_metrics",
+    "v_platform_metrics",
+    "v_state_density_latest"
+  ],
+  "geo_table_details": {
+    "corpwatch_relationships": {
+      "count": 3517388,
+      "columns": [
+        [
+          "relation_id",
+          "integer"
+        ],
+        [
+          "source_cw_id",
+          "integer"
+        ],
+        [
+          "target_cw_id",
+          "integer"
+        ],
+        [
+          "relation_type",
+          "text"
+        ],
+        [
+          "relation_origin",
+          "text"
+        ],
+        [
+          "origin_id",
+          "integer"
+        ],
+        [
+          "year",
+          "integer"
+        ]
+      ],
+      "coverage": {
+        "total": 3517388,
+        "relation_id_nn": 3517388,
+        "relation_type_nn": 0,
+        "relation_origin_nn": 3517388
+      }
+    },
+    "f7_union_employer_relations": {
+      "count": 119445,
+      "columns": [
+        [
+          "id",
+          "integer"
+        ],
+        [
+          "employer_id",
+          "text"
+        ],
+        [
+          "union_file_number",
+          "integer"
+        ],
+        [
+          "bargaining_unit_size",
+          "integer"
+        ],
+        [
+          "notice_date",
+          "text"
+        ]
+      ],
+      "coverage": null
+    },
+    "nyc_osha_violations": {
+      "count": 3454,
+      "columns": [
+        [
+          "id",
+          "integer"
+        ],
+        [
+          "estab_name",
+          "text"
+        ],
+        [
+          "site_address",
+          "text"
+        ],
+        [
+          "site_city",
+          "text"
+        ],
+        [
+          "site_state",
+          "text"
+        ],
+        [
+          "site_zip",
+          "text"
+        ],
+        [
+          "naics_code",
+          "text"
+        ],
+        [
+          "sector",
+          "text"
+        ],
+        [
+          "inspection_number",
+          "text"
+        ],
+        [
+          "citation_id",
+          "text"
+        ],
+        [
+          "violation_type",
+          "text"
+        ],
+        [
+          "final_order_date",
+          "date"
+        ],
+        [
+          "num_exposed",
+          "integer"
+        ],
+        [
+          "osha_standard",
+          "text"
+        ],
+        [
+          "part_number_title",
+          "text"
+        ],
+        [
+          "subpart",
+          "text"
+        ],
+        [
+          "subpart_title",
+          "text"
+        ],
+        [
+          "union_status",
+          "text"
+        ],
+        [
+          "penalty_amount",
+          "numeric"
+        ],
+        [
+          "fatality",
+          "boolean"
+        ],
+        [
+          "event_description",
+          "text"
+        ],
+        [
+          "created_at",
+          "timestamp without time zone"
+        ]
+      ],
+      "coverage": {
+        "total": 3454,
+        "violation_type_nn": 3454
+      }
+    },
+    "osha_violation_summary": {
+      "count": 872163,
+      "columns": [
+        [
+          "id",
+          "integer"
+        ],
+        [
+          "establishment_id",
+          "character varying"
+        ],
+        [
+          "violation_type",
+          "character varying"
+        ],
+        [
+          "violation_count",
+          "integer"
+        ],
+        [
+          "total_penalties",
+          "numeric"
+        ],
+        [
+          "first_violation_date",
+          "date"
+        ],
+        [
+          "last_violation_date",
+          "date"
+        ]
+      ],
+      "coverage": {
+        "total": 872163,
+        "violation_type_nn": 872163,
+        "violation_count_nn": 872163,
+        "first_violation_date_nn": 872163,
+        "last_violation_date_nn": 872163
+      }
+    },
+    "osha_violations_detail": {
+      "count": 2245020,
+      "columns": [
+        [
+          "id",
+          "integer"
+        ],
+        [
+          "activity_nr",
+          "bigint"
+        ],
+        [
+          "establishment_id",
+          "character varying"
+        ],
+        [
+          "violation_type",
+          "character varying"
+        ],
+        [
+          "issuance_date",
+          "date"
+        ],
+        [
+          "current_penalty",
+          "numeric"
+        ],
+        [
+          "initial_penalty",
+          "numeric"
+        ],
+        [
+          "standard",
+          "character varying"
+        ],
+        [
+          "viol_desc",
+          "text"
+        ],
+        [
+          "citation_id",
+          "character varying"
+        ]
+      ],
+      "coverage": {
+        "total": 2245020,
+        "violation_type_nn": 2245020
+      }
+    },
+    "platform_users": {
+      "count": 0,
+      "columns": [
+        [
+          "id",
+          "integer"
+        ],
+        [
+          "username",
+          "character varying"
+        ],
+        [
+          "password_hash",
+          "character varying"
+        ],
+        [
+          "role",
+          "character varying"
+        ],
+        [
+          "created_at",
+          "timestamp without time zone"
+        ]
+      ],
+      "coverage": null
+    },
+    "v_epi_platform_validation": {
+      "count": 51,
+      "columns": [
+        [
+          "state",
+          "character varying"
+        ],
+        [
+          "epi_members",
+          "numeric"
+        ],
+        [
+          "epi_share",
+          "numeric"
+        ],
+        [
+          "platform_workers",
+          "bigint"
+        ],
+        [
+          "platform_coverage_pct",
+          "numeric"
+        ]
+      ],
+      "coverage": {
+        "total": 51,
+        "state_nn": 51,
+        "platform_workers_nn": 51,
+        "platform_coverage_pct_nn": 51
+      }
+    },
+    "v_epi_state_latest": {
+      "count": 51,
+      "columns": [
+        [
+          "state",
+          "character varying"
+        ],
+        [
+          "fips",
+          "character varying"
+        ],
+        [
+          "union_members",
+          "numeric"
+        ],
+        [
+          "union_share",
+          "numeric"
+        ],
+        [
+          "represented",
+          "numeric"
+        ],
+        [
+          "represented_share",
+          "numeric"
+        ]
+      ],
+      "coverage": {
+        "total": 51,
+        "state_nn": 51
+      }
+    },
+    "v_nyc_employer_violations_summary": {
+      "count": 4536,
+      "columns": [
+        [
+          "employer",
+          "text"
+        ],
+        [
+          "violation_count",
+          "bigint"
+        ],
+        [
+          "violation_types",
+          "ARRAY"
+        ],
+        [
+          "total_amount",
+          "numeric"
+        ],
+        [
+          "earliest_year",
+          "integer"
+        ],
+        [
+          "latest_year",
+          "integer"
+        ]
+      ],
+      "coverage": {
+        "total": 4536,
+        "violation_count_nn": 4536,
+        "violation_types_nn": 4536,
+        "latest_year_nn": 4536
+      }
+    },
+    "v_platform_master_metrics": {
+      "count": 11,
+      "columns": [
+        [
+          "category",
+          "text"
+        ],
+        [
+          "metric",
+          "text"
+        ],
+        [
+          "value",
+          "bigint"
+        ],
+        [
+          "description",
+          "text"
+        ]
+      ],
+      "coverage": null
+    },
+    "v_platform_metrics": {
+      "count": 5,
+      "columns": [
+        [
+          "dataset",
+          "text"
+        ],
+        [
+          "total_records",
+          "bigint"
+        ],
+        [
+          "matched_records",
+          "bigint"
+        ],
+        [
+          "match_rate_pct",
+          "numeric"
+        ]
+      ],
+      "coverage": null
+    },
+    "v_state_density_latest": {
+      "count": 51,
+      "columns": [
+        [
+          "state",
+          "character varying"
+        ],
+        [
+          "state_name",
+          "character varying"
+        ],
+        [
+          "private_density_pct",
+          "numeric"
+        ],
+        [
+          "private_year",
+          "integer"
+        ],
+        [
+          "public_density_pct",
+          "numeric"
+        ],
+        [
+          "public_year",
+          "integer"
+        ],
+        [
+          "public_is_estimated",
+          "boolean"
+        ],
+        [
+          "total_density_pct",
+          "numeric"
+        ],
+        [
+          "total_year",
+          "integer"
+        ]
+      ],
+      "coverage": {
+        "total": 51,
+        "state_nn": 51
+      }
+    }
+  }
+}

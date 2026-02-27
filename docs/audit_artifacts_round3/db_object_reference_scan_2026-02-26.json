@@ -1,0 +1,1617 @@
+{
+  "total": 322,
+  "unused": 151,
+  "low_ref": 34,
+  "objects": [
+    {
+      "name": "all_employers_unified",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "ar_assets_investments",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "ar_disbursements_emp_off",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "ar_disbursements_total",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "ar_membership",
+      "type": "BASE TABLE",
+      "mentions": 10
+    },
+    {
+      "name": "bls_fips_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "bls_industry_density",
+      "type": "BASE TABLE",
+      "mentions": 4
+    },
+    {
+      "name": "bls_industry_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "bls_industry_occupation_matrix",
+      "type": "BASE TABLE",
+      "mentions": 42
+    },
+    {
+      "name": "bls_industry_projections",
+      "type": "BASE TABLE",
+      "mentions": 30
+    },
+    {
+      "name": "bls_industry_union_density",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "bls_naics_mapping",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "bls_naics_sector_map",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "bls_national_industry_density",
+      "type": "BASE TABLE",
+      "mentions": 11
+    },
+    {
+      "name": "bls_national_union_trends",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "bls_occupation_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "bls_occupation_projections",
+      "type": "BASE TABLE",
+      "mentions": 9
+    },
+    {
+      "name": "bls_occupation_union_density",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "bls_state_density",
+      "type": "BASE TABLE",
+      "mentions": 18
+    },
+    {
+      "name": "bls_state_union_rates",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "bls_union_data",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "bls_union_series",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "cba_categories",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "cba_documents",
+      "type": "BASE TABLE",
+      "mentions": 16
+    },
+    {
+      "name": "cba_provisions",
+      "type": "BASE TABLE",
+      "mentions": 13
+    },
+    {
+      "name": "cba_reviews",
+      "type": "BASE TABLE",
+      "mentions": 3
+    },
+    {
+      "name": "cba_wage_schedules",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "cbsa_counties",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "cbsa_definitions",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "census_industry_naics_xwalk",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "census_occupation_soc_xwalk",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "contract_employer_matches",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "corporate_hierarchy",
+      "type": "BASE TABLE",
+      "mentions": 33
+    },
+    {
+      "name": "corporate_identifier_crosswalk",
+      "type": "BASE TABLE",
+      "mentions": 119
+    },
+    {
+      "name": "corpwatch_companies",
+      "type": "BASE TABLE",
+      "mentions": 49
+    },
+    {
+      "name": "corpwatch_f7_matches",
+      "type": "BASE TABLE",
+      "mentions": 19
+    },
+    {
+      "name": "corpwatch_filing_index",
+      "type": "BASE TABLE",
+      "mentions": 11
+    },
+    {
+      "name": "corpwatch_locations",
+      "type": "BASE TABLE",
+      "mentions": 15
+    },
+    {
+      "name": "corpwatch_names",
+      "type": "BASE TABLE",
+      "mentions": 12
+    },
+    {
+      "name": "corpwatch_relationships",
+      "type": "BASE TABLE",
+      "mentions": 16
+    },
+    {
+      "name": "corpwatch_subsidiaries",
+      "type": "BASE TABLE",
+      "mentions": 13
+    },
+    {
+      "name": "county_industry_shares",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "county_union_density_estimates",
+      "type": "BASE TABLE",
+      "mentions": 10
+    },
+    {
+      "name": "county_workforce_shares",
+      "type": "BASE TABLE",
+      "mentions": 3
+    },
+    {
+      "name": "crosswalk_affiliation_sector_map",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "crosswalk_f7_only_unions",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "crosswalk_sector_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "crosswalk_unions_master",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "data_source_freshness",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "deduplication_methodology",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "discovered_employers",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "employer_990_matches",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "employer_canonical_groups",
+      "type": "BASE TABLE",
+      "mentions": 34
+    },
+    {
+      "name": "employer_comparables",
+      "type": "BASE TABLE",
+      "mentions": 16
+    },
+    {
+      "name": "employer_review_flags",
+      "type": "BASE TABLE",
+      "mentions": 10
+    },
+    {
+      "name": "employers_990",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "employers_990_deduped",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "epi_state_benchmarks",
+      "type": "BASE TABLE",
+      "mentions": 9
+    },
+    {
+      "name": "epi_union_membership",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "estimated_state_industry_density",
+      "type": "BASE TABLE",
+      "mentions": 18
+    },
+    {
+      "name": "f7_adjustment_factors",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "f7_employer_merge_log",
+      "type": "BASE TABLE",
+      "mentions": 18
+    },
+    {
+      "name": "f7_employers",
+      "type": "BASE TABLE",
+      "mentions": 66
+    },
+    {
+      "name": "f7_employers_deduped",
+      "type": "BASE TABLE",
+      "mentions": 391
+    },
+    {
+      "name": "f7_federal_scores",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "f7_fnum_crosswalk",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "f7_industry_scores",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "f7_name_inference_rules",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "f7_union_employer_relations",
+      "type": "BASE TABLE",
+      "mentions": 56
+    },
+    {
+      "name": "federal_agencies",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "federal_bargaining_units",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "federal_contract_recipients",
+      "type": "BASE TABLE",
+      "mentions": 17
+    },
+    {
+      "name": "flra_olms_crosswalk",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "flra_olms_enhanced_crosswalk",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "flra_olms_union_map",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "form_990_estimates",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "gleif_ownership_links",
+      "type": "BASE TABLE",
+      "mentions": 17
+    },
+    {
+      "name": "gleif_us_entities",
+      "type": "BASE TABLE",
+      "mentions": 49
+    },
+    {
+      "name": "historical_merge_candidates",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "industry_occupation_overlap",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "irs_bmf",
+      "type": "BASE TABLE",
+      "mentions": 60
+    },
+    {
+      "name": "labor_990_olms_crosswalk",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "labor_orgs_990",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "labor_orgs_990_deduped",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "lm_data",
+      "type": "BASE TABLE",
+      "mentions": 111
+    },
+    {
+      "name": "manual_employers",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "master_employer_dedup_progress",
+      "type": "BASE TABLE",
+      "mentions": 3
+    },
+    {
+      "name": "master_employer_merge_log",
+      "type": "BASE TABLE",
+      "mentions": 15
+    },
+    {
+      "name": "master_employer_source_ids",
+      "type": "BASE TABLE",
+      "mentions": 86
+    },
+    {
+      "name": "master_employers",
+      "type": "BASE TABLE",
+      "mentions": 129
+    },
+    {
+      "name": "match_rate_baselines",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "match_run_results",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "match_runs",
+      "type": "BASE TABLE",
+      "mentions": 22
+    },
+    {
+      "name": "match_status_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "mergent_employers",
+      "type": "BASE TABLE",
+      "mentions": 101
+    },
+    {
+      "name": "ml_election_propensity_scores",
+      "type": "BASE TABLE",
+      "mentions": 21
+    },
+    {
+      "name": "ml_model_versions",
+      "type": "BASE TABLE",
+      "mentions": 14
+    },
+    {
+      "name": "msa_union_stats",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "naics_codes_reference",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "naics_sectors",
+      "type": "BASE TABLE",
+      "mentions": 13
+    },
+    {
+      "name": "naics_sic_crosswalk",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "naics_to_bls_industry",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "naics_version_crosswalk",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "national_990_f7_matches",
+      "type": "BASE TABLE",
+      "mentions": 19
+    },
+    {
+      "name": "national_990_filers",
+      "type": "BASE TABLE",
+      "mentions": 41
+    },
+    {
+      "name": "nhq_reconciled_membership",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nlrb_allegations",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "nlrb_case_types",
+      "type": "BASE TABLE",
+      "mentions": 10
+    },
+    {
+      "name": "nlrb_cases",
+      "type": "BASE TABLE",
+      "mentions": 22
+    },
+    {
+      "name": "nlrb_docket",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nlrb_election_results",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nlrb_elections",
+      "type": "BASE TABLE",
+      "mentions": 60
+    },
+    {
+      "name": "nlrb_employer_xref",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "nlrb_filings",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nlrb_participants",
+      "type": "BASE TABLE",
+      "mentions": 72
+    },
+    {
+      "name": "nlrb_regions",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "nlrb_sought_units",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nlrb_tallies",
+      "type": "BASE TABLE",
+      "mentions": 26
+    },
+    {
+      "name": "nlrb_union_xref",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nlrb_voluntary_recognition",
+      "type": "BASE TABLE",
+      "mentions": 18
+    },
+    {
+      "name": "nlrb_voting_units",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "ny_990_filers",
+      "type": "BASE TABLE",
+      "mentions": 20
+    },
+    {
+      "name": "ny_county_density_estimates",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "ny_state_contracts",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "ny_tract_density_estimates",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "ny_zip_density_estimates",
+      "type": "BASE TABLE",
+      "mentions": 4
+    },
+    {
+      "name": "nyc_contracts",
+      "type": "BASE TABLE",
+      "mentions": 4
+    },
+    {
+      "name": "nyc_debarment_list",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_discrimination",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_local_labor_laws",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_osha_violations",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_prevailing_wage",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_ulp_closed",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_ulp_open",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_wage_theft_litigation",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "nyc_wage_theft_nys",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "nyc_wage_theft_usdol",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "occupation_similarity",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "organizing_targets",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "osha_accidents",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "osha_establishments",
+      "type": "BASE TABLE",
+      "mentions": 53
+    },
+    {
+      "name": "osha_f7_matches",
+      "type": "BASE TABLE",
+      "mentions": 34
+    },
+    {
+      "name": "osha_unified_matches",
+      "type": "BASE TABLE",
+      "mentions": 9
+    },
+    {
+      "name": "osha_violation_summary",
+      "type": "BASE TABLE",
+      "mentions": 10
+    },
+    {
+      "name": "osha_violations_detail",
+      "type": "BASE TABLE",
+      "mentions": 17
+    },
+    {
+      "name": "platform_users",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "ps_bargaining_units",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "ps_employers",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "ps_parent_unions",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "ps_union_locals",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "public_sector_benchmarks",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "public_sector_employers",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "qcew_annual",
+      "type": "BASE TABLE",
+      "mentions": 19
+    },
+    {
+      "name": "qcew_industry_density",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "ref_nlrb_industry_win_rates",
+      "type": "BASE TABLE",
+      "mentions": 13
+    },
+    {
+      "name": "ref_nlrb_size_win_rates",
+      "type": "BASE TABLE",
+      "mentions": 9
+    },
+    {
+      "name": "ref_nlrb_state_win_rates",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "ref_osha_industry_averages",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "ref_rtw_states",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "research_actions",
+      "type": "BASE TABLE",
+      "mentions": 20
+    },
+    {
+      "name": "research_fact_vocabulary",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "research_facts",
+      "type": "BASE TABLE",
+      "mentions": 15
+    },
+    {
+      "name": "research_query_effectiveness",
+      "type": "BASE TABLE",
+      "mentions": 9
+    },
+    {
+      "name": "research_runs",
+      "type": "BASE TABLE",
+      "mentions": 41
+    },
+    {
+      "name": "research_score_enhancements",
+      "type": "BASE TABLE",
+      "mentions": 37
+    },
+    {
+      "name": "research_strategies",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "sam_entities",
+      "type": "BASE TABLE",
+      "mentions": 38
+    },
+    {
+      "name": "sam_f7_matches",
+      "type": "BASE TABLE",
+      "mentions": 12
+    },
+    {
+      "name": "score_versions",
+      "type": "BASE TABLE",
+      "mentions": 15
+    },
+    {
+      "name": "scrape_jobs",
+      "type": "BASE TABLE",
+      "mentions": 9
+    },
+    {
+      "name": "sec_companies",
+      "type": "BASE TABLE",
+      "mentions": 62
+    },
+    {
+      "name": "sector_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "sector_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "splink_match_results",
+      "type": "BASE TABLE",
+      "mentions": 23
+    },
+    {
+      "name": "state_abbrev",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "state_coverage_comparison",
+      "type": "BASE TABLE",
+      "mentions": 7
+    },
+    {
+      "name": "state_fips_map",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "state_govt_level_density",
+      "type": "BASE TABLE",
+      "mentions": 3
+    },
+    {
+      "name": "state_industry_density_comparison",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "state_industry_shares",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "state_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "state_sector_union_density",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "state_workforce_shares",
+      "type": "BASE TABLE",
+      "mentions": 1
+    },
+    {
+      "name": "teamsters_official_locals",
+      "type": "BASE TABLE",
+      "mentions": 6
+    },
+    {
+      "name": "unified_employers_osha",
+      "type": "BASE TABLE",
+      "mentions": 12
+    },
+    {
+      "name": "unified_match_log",
+      "type": "BASE TABLE",
+      "mentions": 164
+    },
+    {
+      "name": "union_fnum_resolution_log",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "union_hierarchy",
+      "type": "BASE TABLE",
+      "mentions": 15
+    },
+    {
+      "name": "union_match_status",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "union_naics_mapping",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "union_name_variants",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "union_names_crosswalk",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "union_organization_level",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "union_sector",
+      "type": "BASE TABLE",
+      "mentions": 2
+    },
+    {
+      "name": "union_sector_coverage",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "unions_master",
+      "type": "BASE TABLE",
+      "mentions": 171
+    },
+    {
+      "name": "unionstats_industry",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "unionstats_state",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "usaspending_f7_matches",
+      "type": "BASE TABLE",
+      "mentions": 15
+    },
+    {
+      "name": "v_990_by_org_type",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_990_by_state",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_990_olms_matched",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_affiliation_adjustment_factors",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_affiliation_industry_coverage",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_affiliation_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_afscme_targeting_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_afscme_targets_by_city",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_afscme_targets_by_industry",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_all_organizing_events",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_bls_coverage_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_bls_industry_density_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_bls_sector_coverage",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_cba_provision_search",
+      "type": "VIEW",
+      "mentions": 2
+    },
+    {
+      "name": "v_cbsa_state_lookup",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_city_cbsa_lookup",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_county_density_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_dedup_summary_by_affiliation",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_dedup_summary_by_level",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_deduplicated_membership",
+      "type": "VIEW",
+      "mentions": 4
+    },
+    {
+      "name": "v_deduplication_comparison",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_employer_industry_outlook",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_employer_naics_enhanced",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_employer_safety_profile",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_employer_search",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_employer_with_agreements",
+      "type": "VIEW",
+      "mentions": 8
+    },
+    {
+      "name": "v_employers_with_naics",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_epi_national_trend",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_epi_national_yoy",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_epi_platform_validation",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_epi_state_demographics",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_epi_state_latest",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_dedup_summary",
+      "type": "VIEW",
+      "mentions": 3
+    },
+    {
+      "name": "v_f7_employer_safety_profile",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_employers_adjusted",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_employers_current",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_employers_fully_adjusted",
+      "type": "VIEW",
+      "mentions": 3
+    },
+    {
+      "name": "v_f7_for_bls_counts",
+      "type": "VIEW",
+      "mentions": 9
+    },
+    {
+      "name": "v_f7_private_sector_cleaned",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_private_sector_reconciled",
+      "type": "VIEW",
+      "mentions": 2
+    },
+    {
+      "name": "v_f7_reconciled_private_sector",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_reconciliation_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_union_matched",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_f7_union_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_hierarchy_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_high_wage_growing_occupations",
+      "type": "VIEW",
+      "mentions": 4
+    },
+    {
+      "name": "v_industry_growth_opportunities",
+      "type": "VIEW",
+      "mentions": 3
+    },
+    {
+      "name": "v_industry_naics_coverage",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_industry_top_occupations",
+      "type": "VIEW",
+      "mentions": 8
+    },
+    {
+      "name": "v_industry_union_risk",
+      "type": "VIEW",
+      "mentions": 3
+    },
+    {
+      "name": "v_lm_with_f7_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_match_status_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_membership_by_affiliation",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_membership_by_sector",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_membership_by_state",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_multi_employer_groups",
+      "type": "VIEW",
+      "mentions": 11
+    },
+    {
+      "name": "v_naics_to_census_industry",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_naics_union_density",
+      "type": "VIEW",
+      "mentions": 6
+    },
+    {
+      "name": "v_nlrb_election_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_nlrb_employer_history",
+      "type": "VIEW",
+      "mentions": 7
+    },
+    {
+      "name": "v_nyc_employer_violations_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_occupation_union_outlook",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_organizing_by_state",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_organizing_by_year",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_organizing_scorecard",
+      "type": "VIEW",
+      "mentions": 6
+    },
+    {
+      "name": "v_osha_establishment_search",
+      "type": "VIEW",
+      "mentions": 3
+    },
+    {
+      "name": "v_osha_high_severity_recent",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_osha_organizing_targets",
+      "type": "VIEW",
+      "mentions": 9
+    },
+    {
+      "name": "v_osha_state_summary",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_platform_master_metrics",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_platform_metrics",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_ps_state_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_public_sector_coverage_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_public_sector_gap_estimate",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_public_sector_members",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_public_sector_state_recon",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_sector_coverage_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_sector_statistics",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_sector_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_seiu_nj_employers",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_soc_occupation_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_state_county_comparison",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_state_density_by_govt_level",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_state_density_latest",
+      "type": "VIEW",
+      "mentions": 5
+    },
+    {
+      "name": "v_state_epi_comparison",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_state_overview",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_state_union_activity",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_teamsters_comparison",
+      "type": "VIEW",
+      "mentions": 5
+    },
+    {
+      "name": "v_top_afscme_targets",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_top_unions_by_membership",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_unified_by_affiliation",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_unified_membership",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_union_activity_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_union_display_names",
+      "type": "VIEW",
+      "mentions": 3
+    },
+    {
+      "name": "v_union_f7_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_union_lm_detail",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_union_local_search",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_union_members_counted",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_union_members_deduplicated",
+      "type": "VIEW",
+      "mentions": 4
+    },
+    {
+      "name": "v_union_naics_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_union_name_lookup",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_vr_affiliation_summary",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_vr_by_affiliation",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_vr_by_state",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_vr_by_year",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_vr_cases_full",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_vr_data_quality",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_vr_map_data",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_vr_new_employers",
+      "type": "VIEW",
+      "mentions": 2
+    },
+    {
+      "name": "v_vr_state_summary",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_vr_summary",
+      "type": "VIEW",
+      "mentions": 0
+    },
+    {
+      "name": "v_vr_summary_stats",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "v_vr_to_f7_pipeline",
+      "type": "VIEW",
+      "mentions": 2
+    },
+    {
+      "name": "v_vr_yearly_summary",
+      "type": "VIEW",
+      "mentions": 1
+    },
+    {
+      "name": "vr_affiliation_patterns",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "vr_status_lookup",
+      "type": "BASE TABLE",
+      "mentions": 0
+    },
+    {
+      "name": "web_union_contracts",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "web_union_employers",
+      "type": "BASE TABLE",
+      "mentions": 13
+    },
+    {
+      "name": "web_union_membership",
+      "type": "BASE TABLE",
+      "mentions": 8
+    },
+    {
+      "name": "web_union_news",
+      "type": "BASE TABLE",
+      "mentions": 5
+    },
+    {
+      "name": "web_union_profiles",
+      "type": "BASE TABLE",
+      "mentions": 63
+    },
+    {
+      "name": "whd_cases",
+      "type": "BASE TABLE",
+      "mentions": 65
+    },
+    {
+      "name": "whd_f7_matches",
+      "type": "BASE TABLE",
+      "mentions": 13
+    }
+  ]
+}

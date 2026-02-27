@@ -1,13 +1,13 @@
-# Session Summary: Research Deep Dive Frontend
+# Session Summary: Research Deep Dive — Frontend + Web Search + Name Matching
 **Date:** 2026-02-23
-**Duration:** ~1 hour
+**Duration:** ~4 hours (across 2 context windows)
 **Agent:** Claude Opus
 
 ## What Was Done
 
-### Research Agent Frontend (13 new files + 6 modifications)
+### 1. Research Agent Frontend (13 new files + 6 modifications)
 
-Built the complete frontend for the research deep dive system (backend was already complete from commit `d8e9343`).
+Built the complete frontend for the research deep dive system.
 
 **New files:**
 1. `frontend/src/shared/api/research.js` — 5 TanStack Query hooks (start, status polling, result, runs list, vocabulary)
@@ -32,48 +32,75 @@ Built the complete frontend for the research deep dive system (backend was alrea
 5. `frontend/src/shared/components/PageSkeleton.jsx` — Added `research` + `research-result` skeleton variants
 6. `frontend/src/features/employer-profile/ProfileActionButtons.jsx` — Added Deep Dive button with Sonner toast progress polling
 
-### Bug Fix: Dossier Rendering
+### 2. Web Search via Gemini Google Search Grounding
 
-After initial deployment, user testing revealed dossier data was rendering as `[object Object]`. Root causes:
-1. **Data path:** Dossier JSON nests sections under `dossier_json.dossier`, not directly under `dossier_json`
-2. **Section keys:** Actual keys from agent are `identity`, `labor`, `financial`, `workforce`, `workplace`, `assessment`, `sources` — not the initially assumed names
-3. **Nested rendering:** Values contain arrays of objects (contracts, elections, workforce composition) that needed table rendering
+Added web search capability to the research agent using Gemini's native Google Search grounding.
 
-Fixed `DossierSection.jsx` with a `RenderValue` component that handles:
-- Strings (including long narratives as whitespace-preserving paragraphs)
-- Arrays of strings (as bullet lists)
-- Arrays of objects (as auto-generated tables with smart column headers)
-- Nested objects (as key-value definition lists)
+**Key changes to `scripts/research/agent.py`:**
+- Three-phase approach: Phase 1 (DB function calling) → Phase 2 (Google Search grounding in separate API call) → Phase 3 (patch-based merge)
+- `_build_google_search_tool()` — Returns `types.Tool(google_search=types.GoogleSearch())`
+- System prompt step 3: Web search instructions with suggested queries
+- Grounding metadata logging to `research_actions` table
+- Fallback: saves original dossier before web merge, restores on failure
+
+**Critical discovery:** Gemini API cannot combine `function_declarations` and `google_search` tools in the same request (returns 400 INVALID_ARGUMENT). Must use separate API calls.
+
+**Patch-based merge:** Instead of asking Gemini to reproduce entire 40K+ char dossier JSON, it returns a small JSON patch (`assessment_additions`, `web_facts`, `web_sources`) applied programmatically. This solved the reliability problem where Gemini couldn't reproduce large JSON without syntax errors.
+
+### 3. Name Matching Fix Across All 8 DB Tools
+
+**Problem:** `LIKE '%FED EX%'` does NOT match `FEDEX` (no space). Same issue for all companies with space variants.
+
+**Solution in `scripts/research/tools.py`:**
+- `_name_like_clause()` helper generates both original and space-stripped LIKE patterns
+- Applied to: `search_osha`, `search_nlrb` (participants + voluntary recognition), `search_whd`, `search_sec`, `search_sam` (entities + contract recipients), `search_990`, `search_contracts`, `search_mergent`
+- SEC additionally sorts by `is_public DESC, LENGTH(company_name) ASC` to prefer real companies over ABS/derivative names
+
+### 4. Dossier Rendering Bug Fix
+
+Fixed `[object Object]` rendering in dossier sections:
+- Data path: `dossier_json.dossier` not directly `dossier_json`
+- `RenderValue` component handles: strings, arrays of strings (bullets), arrays of objects (auto tables), nested objects (key-value), booleans, numbers
 - Empty sections auto-hidden
 
-## Key Decisions
-- Research agent does NOT search the web — internal DB only. Web search is Phase 5.1.2 (external tools).
+## Errors Encountered and Fixed
+
+1. **400 INVALID_ARGUMENT** — Can't mix `function_declarations` + `google_search` → two-phase approach
+2. **FedEx SEC finding Lehman ABS** — Space-stripped LIKE patterns + `is_public DESC` sort
+3. **JSON parse failure on merge** — Full dossier rewrite too large → patch-based approach
+4. **Patch extraction expecting "dossier" key** — Generic JSON extraction via regex + raw parse fallback
+5. **API serving stale code** — Clear `__pycache__`, kill all Python processes, restart fresh
 
 ## Commits
 - `12490dd` — Add research deep dive frontend: list page, dossier viewer, profile integration
-- (Bug fix committed after user testing — dossier rendering)
+- `40d2c4e` — Improve research dossier rendering with smart type-aware display
+- `25f3d9d` — Add web search to research agent via Gemini Google Search grounding
+- `d071bac` — Fix research agent name matching and web merge reliability
+- `63b8f79` — Add research agent session summary and update OSHA checkpoint
 
 ## Test Results
 - **156 frontend tests** (23 files), all passing (was 134 / 21 files)
-- **22 new tests** added
-- Build compiles cleanly (546 KB)
+- **492 backend tests**, 491 pass / 1 skip (unchanged)
+- **~20 research runs** completed (Penske, FedEx, and others via frontend)
+
+## Research Agent Phase 5 Status
+
+| Sub-phase | Status | Notes |
+|-----------|--------|-------|
+| 5.1.1 Internal DB tools | DONE | 10 tools working |
+| 5.1.2 External tools | PARTIAL | Web search DONE (Gemini grounding). `scrape_employer_website` + `search_job_postings` stubs only |
+| 5.1.3 Logging tables | DONE | `research_runs`, `research_actions`, `research_facts` |
+| 5.1.4 Agent prompt | DONE | 7-section dossier, guided autonomy, web search instructions |
+| 5.1.5 Orchestration | DONE | Gemini tool use + web search + patch merge |
+| 5.1.6 Test runs | ~20 done | Need 10-15 more across diverse industries |
+| Frontend | DONE | List, dossier viewer, profile integration, progress polling |
+| 5.2 Strategy Memory | NOT STARTED | Table exists, not populated or injected |
+| 5.3 Auto Scoring | NOT STARTED | |
+| 5.4 Query Refinement | DEFERRED | Needs 100+ runs |
 
 ## What's Next
-Per MASTER_ROADMAP_2026_02_23.md, the research agent is Phase 5. Current status:
-- **Phase 5.1.1** (Internal DB tools): DONE — 10+ tools working
-- **Phase 5.1.3** (Logging tables): DONE — schema live
-- **Phase 5.1.4** (Agent prompt): DONE — Gemini 2.5 Flash agent working
-- **Phase 5.1.5** (Orchestration): DONE — FastAPI background task
-- **Phase 5.1.6** (Test runs): IN PROGRESS — 6 runs completed
-- **Frontend**: DONE (this session)
-
-**Remaining Phase 5 work:**
-- **5.1.2** External tools (web search, news, job postings, employer website scraping) — 8-12 hours. Requires decision D10.
-- **5.2** Strategy Memory (auto-learning which tools work per industry) — 14-20 hours
-- **5.3** Auto Scoring (quality grading of dossiers) — 21-30 hours
-- **5.4** Query Refinement (prompt improvement loop) — not yet scoped
-
-**Other parallel tracks available:**
-- Phase 2 (Matching Quality Overhaul) — Splink retune, OSHA re-run
-- Phase 3 (Frontend Fixes) — score display updates, search consolidation
-- Phase 4 (CBA Tool) — OCR, provision extraction, React integration
+- **5.1.6:** Run 10-15 more companies across diverse industries (healthcare, manufacturing, hospitality, building services, retail, transportation)
+- **Employer website scraper:** `scrape_employer_website` Crawl4AI integration
+- **5.2 Strategy Memory:** Aggregate action logs → `research_strategies`, inject into prompt
+- **5.3 Auto Scoring:** Post-run quality grading
+- **Phase 2 (Matching Quality Overhaul):** Available in parallel

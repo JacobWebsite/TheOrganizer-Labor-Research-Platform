@@ -1,0 +1,131 @@
+{
+  "ALLOWED_ORIGINS": [
+    "api\\config.py"
+  ],
+  "ALLOW_INSECURE_ADMIN": [
+    "api\\config.py"
+  ],
+  "DB_HOST": [
+    "db_config.py",
+    "scripts\\etl\\_fetch_usaspending_api.py",
+    "scripts\\etl\\_integrate_qcew.py",
+    "scripts\\etl\\_match_usaspending.py",
+    "scripts\\etl\\build_crosswalk.py",
+    "scripts\\etl\\extract_gleif_us_optimized.py",
+    "scripts\\etl\\fetch_qcew.py",
+    "scripts\\etl\\load_gleif_bods.py",
+    "scripts\\etl\\load_national_990.py",
+    "scripts\\etl\\load_sec_edgar.py",
+    "scripts\\etl\\update_normalization.py",
+    "scripts\\matching\\splink_integrate.py"
+  ],
+  "DB_NAME": [
+    "db_config.py",
+    "scripts\\etl\\_fetch_usaspending_api.py",
+    "scripts\\etl\\_integrate_qcew.py",
+    "scripts\\etl\\_match_usaspending.py",
+    "scripts\\etl\\build_crosswalk.py",
+    "scripts\\etl\\extract_gleif_us_optimized.py",
+    "scripts\\etl\\fetch_qcew.py",
+    "scripts\\etl\\load_gleif_bods.py",
+    "scripts\\etl\\load_national_990.py",
+    "scripts\\etl\\load_sec_edgar.py",
+    "scripts\\etl\\update_normalization.py",
+    "scripts\\matching\\splink_integrate.py"
+  ],
+  "DB_PASSWORD": [
+    "db_config.py",
+    "scripts\\analysis\\find_literal_password_bug.py",
+    "scripts\\analysis\\fix_literal_password_bug.py",
+    "scripts\\etl\\_fetch_usaspending_api.py",
+    "scripts\\etl\\_integrate_qcew.py",
+    "scripts\\etl\\_match_usaspending.py",
+    "scripts\\etl\\build_crosswalk.py",
+    "scripts\\etl\\extract_gleif_us_optimized.py",
+    "scripts\\etl\\fetch_qcew.py",
+    "scripts\\etl\\load_gleif_bods.py",
+    "scripts\\etl\\load_national_990.py",
+    "scripts\\etl\\load_osha_violations.py",
+    "scripts\\etl\\load_osha_violations_detail.py",
+    "scripts\\etl\\load_sec_edgar.py",
+    "scripts\\etl\\update_normalization.py",
+    "scripts\\matching\\splink_integrate.py",
+    "src\\python\\nlrb\\load_nlrb_data.py"
+  ],
+  "DB_PORT": [
+    "db_config.py",
+    "scripts\\etl\\_fetch_usaspending_api.py",
+    "scripts\\etl\\_integrate_qcew.py",
+    "scripts\\etl\\_match_usaspending.py",
+    "scripts\\etl\\build_crosswalk.py",
+    "scripts\\etl\\extract_gleif_us_optimized.py",
+    "scripts\\etl\\fetch_qcew.py",
+    "scripts\\etl\\load_gleif_bods.py",
+    "scripts\\etl\\load_national_990.py",
+    "scripts\\etl\\load_sec_edgar.py",
+    "scripts\\etl\\update_normalization.py",
+    "scripts\\matching\\splink_integrate.py"
+  ],
+  "DB_USER": [
+    "db_config.py",
+    "scripts\\etl\\_fetch_usaspending_api.py",
+    "scripts\\etl\\_integrate_qcew.py",
+    "scripts\\etl\\_match_usaspending.py",
+    "scripts\\etl\\build_crosswalk.py",
+    "scripts\\etl\\extract_gleif_us_optimized.py",
+    "scripts\\etl\\fetch_qcew.py",
+    "scripts\\etl\\load_gleif_bods.py",
+    "scripts\\etl\\load_national_990.py",
+    "scripts\\etl\\load_sec_edgar.py",
+    "scripts\\etl\\update_normalization.py",
+    "scripts\\matching\\splink_integrate.py"
+  ],
+  "DISABLE_AUTH": [
+    "api\\config.py"
+  ],
+  "GOOGLE_API_KEY": [
+    "list_models.py",
+    "scripts\\research\\agent.py",
+    "scripts\\research\\tools.py",
+    "src\\python\\cba_tool\\cba_analyzer.py",
+    "src\\python\\cba_tool\\langextract_processor.py",
+    "test_langextract_minimal.py"
+  ],
+  "LABOR_JWT_SECRET": [
+    "api\\config.py",
+    "tests\\test_phase1_regression_guards.py"
+  ],
+  "LANGEXTRACT_API_KEY": [
+    "src\\python\\cba_tool\\langextract_processor.py"
+  ],
+  "MATCH_MIN_NAME_SIM": [
+    "scripts\\matching\\deterministic_matcher.py"
+  ],
+  "OPENAI_API_KEY": [
+    "scripts\\scraper\\extract_ex21.py"
+  ],
+  "RATE_LIMIT_REQUESTS": [
+    "api\\config.py"
+  ],
+  "RATE_LIMIT_WINDOW": [
+    "api\\config.py"
+  ],
+  "RESEARCH_AGENT_MAX_TOKENS": [
+    "scripts\\research\\agent.py"
+  ],
+  "RESEARCH_AGENT_MAX_TURNS": [
+    "scripts\\research\\agent.py"
+  ],
+  "RESEARCH_AGENT_MODEL": [
+    "scripts\\research\\agent.py"
+  ],
+  "RESEARCH_CACHE_HOURS": [
+    "scripts\\research\\agent.py"
+  ],
+  "RESEARCH_SCRAPER_GOOGLE_FALLBACK": [
+    "scripts\\research\\tools.py"
+  ],
+  "SEC_USER_AGENT": [
+    "scripts\\etl\\sec_edgar_full_index.py"
+  ]
+}

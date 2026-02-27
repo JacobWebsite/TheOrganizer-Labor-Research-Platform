@@ -73,6 +73,7 @@ SELECT
     e.is_historical,
     e.canonical_group_id,
     e.is_canonical_rep,
+    e.group_max_workers AS company_size,
 
     -- Source availability flags
     (om.f7_employer_id IS NOT NULL) AS has_osha,
@@ -136,6 +137,7 @@ INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_mv_eds_state ON mv_employer_data_sources (state)",
     "CREATE INDEX IF NOT EXISTS idx_mv_eds_source_count ON mv_employer_data_sources (source_count)",
     "CREATE INDEX IF NOT EXISTS idx_mv_eds_naics ON mv_employer_data_sources (naics)",
+    "CREATE INDEX IF NOT EXISTS idx_mv_eds_company_size ON mv_employer_data_sources (company_size)",
     "CREATE INDEX IF NOT EXISTS idx_mv_eds_has_osha ON mv_employer_data_sources (employer_id) WHERE has_osha",
 ]
 

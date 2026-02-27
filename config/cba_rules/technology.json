@@ -1,0 +1,47 @@
+{
+  "category": "technology",
+  "provision_classes": ["management_rights"],
+  "heading_signals": [
+    {"pattern": "\\b(technology|electronic|surveillance|monitoring|GPS|camera)\\b", "weight": 0.3},
+    {"pattern": "\\b(remote\\s+work|telework|work\\s+from\\s+home)\\b", "weight": 0.3},
+    {"pattern": "\\b(artificial\\s+intelligence|AI|automation)\\b", "weight": 0.35}
+  ],
+  "text_patterns": [
+    {
+      "name": "electronic_monitoring",
+      "pattern": "\\b(?:electronic\\s+(?:monitoring|surveillance)|GPS\\s+(?:tracking|monitoring)|camera|video\\s+(?:surveillance|monitoring)|recording)\\b.*(?:employee|workplace|vehicle|premises)",
+      "confidence": 0.85,
+      "provision_class": "management_rights",
+      "summary": "Electronic monitoring"
+    },
+    {
+      "name": "remote_work",
+      "pattern": "\\b(?:remote\\s+work|telework|telecommut|work\\s+from\\s+home|hybrid\\s+(?:work|schedule))\\b",
+      "confidence": 0.80,
+      "provision_class": "management_rights",
+      "summary": "Remote work provisions"
+    },
+    {
+      "name": "technology_change",
+      "pattern": "\\b(?:technological\\s+change|new\\s+technology|automation|computeriz|mechaniz)\\b.*(?:bargain|negotiate|notify|impact|training|displacement)",
+      "confidence": 0.85,
+      "provision_class": "management_rights",
+      "summary": "Technology change notification"
+    },
+    {
+      "name": "data_privacy",
+      "pattern": "\\b(?:employee\\s+(?:data|privacy|information)|personal\\s+(?:data|information))\\b.*(?:protect|confidential|consent|access|collect|store)",
+      "confidence": 0.80,
+      "provision_class": "management_rights",
+      "summary": "Employee data privacy"
+    },
+    {
+      "name": "ai_provisions",
+      "pattern": "\\b(?:artificial\\s+intelligence|AI|machine\\s+learning|algorithmic)\\b.*(?:decision|discipline|evaluation|hiring|monitor|assess)",
+      "confidence": 0.85,
+      "provision_class": "management_rights",
+      "summary": "AI/algorithmic provisions"
+    }
+  ],
+  "negative_patterns": []
+}

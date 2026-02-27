@@ -1,6 +1,6 @@
 {
   "source": "osha",
-  "total_records": 1007217,
+  "total_records": 909220,
   "total_batches": 4,
   "started_at": "2026-02-18T15:44:40.295078",
   "batches": {
@@ -80,28 +80,28 @@
       }
     },
     "4": {
-      "run_id": "det-osha-20260218-172746-b4of4",
-      "completed_at": "2026-02-18T19:44:07.434623",
-      "records_in_batch": 251805,
-      "matched": 101588,
-      "match_rate_pct": 40.34,
+      "run_id": "det-osha-20260223-152154-b4of4",
+      "completed_at": "2026-02-23T17:23:18.144555",
+      "records_in_batch": 227305,
+      "matched": 77670,
+      "match_rate_pct": 34.17,
       "by_band": {
-        "HIGH": 17610,
-        "MEDIUM": 6753,
-        "LOW": 77225
+        "HIGH": 245,
+        "MEDIUM": 649,
+        "LOW": 76776
       },
       "by_method": {
-        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 81,
-        "NAME_CITY_STATE_EXACT": 2483,
-        "NAME_AGGRESSIVE_STATE": 3233,
-        "AMBIGUOUS_NAME_STATE_EXACT": 1012,
-        "NAME_STATE_EXACT": 2759,
-        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 725,
-        "NAME_AGGRESSIVE_STATE_CITY_RESOLVED": 308,
+        "NAME_AGGRESSIVE_STATE": 118,
+        "AMBIGUOUS_NAME_AGGRESSIVE_STATE": 682,
+        "AMBIGUOUS_NAME_STATE_EXACT": 1010,
+        "NAME_CITY_STATE_EXACT": 29,
+        "NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED": 95,
         "AMBIGUOUS_NAME_CITY_STATE_EXACT": 75,
         "NAME_STATE_EXACT_SPLINK_RESOLVED": 29,
-        "FUZZY_SPLINK_ADAPTIVE": 12871,
-        "FUZZY_TRIGRAM": 78012
+        "NAME_STATE_EXACT": 20,
+        "NAME_AGGRESSIVE_STATE_CITY_RESOLVED": 3,
+        "FUZZY_SPLINK_ADAPTIVE": 664,
+        "FUZZY_TRIGRAM": 74945
       }
     }
   }

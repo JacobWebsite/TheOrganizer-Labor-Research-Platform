@@ -1,0 +1,60 @@
+{
+  "category": "seniority",
+  "provision_classes": ["seniority"],
+  "heading_signals": [
+    {"pattern": "\\bseniority\\b", "weight": 0.5},
+    {"pattern": "\\b(?:layoff|recall|bumping)\\s+(?:order|rights|procedure)\\b", "weight": 0.3}
+  ],
+  "text_patterns": [
+    {
+      "name": "seniority_definition",
+      "pattern": "\\bseniority\\b.*(?:shall\\s+(?:mean|be\\s+defined)|is\\s+defined|based\\s+(?:on|upon)\\s+(?:length|continuous|uninterrupted)\\s+(?:of\\s+)?(?:service|employment))",
+      "confidence": 0.90,
+      "provision_class": "seniority",
+      "summary": "Seniority definition"
+    },
+    {
+      "name": "seniority_list",
+      "pattern": "\\bseniority\\s+(?:list|roster|roll)\\s+(?:shall|will|must)\\s+be\\s+(?:posted|maintained|updated)",
+      "confidence": 0.85,
+      "provision_class": "seniority",
+      "summary": "Seniority list posting"
+    },
+    {
+      "name": "seniority_accrual",
+      "pattern": "\\bseniority\\s+(?:shall|will)\\s+(?:accrue|accumulate|continue|be\\s+(?:retained|broken|lost))",
+      "confidence": 0.85,
+      "provision_class": "seniority",
+      "summary": "Seniority accrual rules"
+    },
+    {
+      "name": "seniority_bidding",
+      "pattern": "\\b(?:bid|bidding|posting)\\s+(?:rights?|order|procedure).*seniority",
+      "confidence": 0.80,
+      "provision_class": "seniority",
+      "summary": "Seniority-based bidding"
+    },
+    {
+      "name": "seniority_promotion",
+      "pattern": "\\b(?:promotion|transfer|advancement).*(?:based\\s+(?:on|upon)|in\\s+order\\s+of|by)\\s+seniority",
+      "confidence": 0.85,
+      "provision_class": "seniority",
+      "summary": "Seniority in promotions"
+    },
+    {
+      "name": "super_seniority",
+      "pattern": "\\b(?:super[- ]?seniority|top\\s+of\\s+(?:the\\s+)?seniority|steward.*seniority.*top)",
+      "confidence": 0.85,
+      "provision_class": "seniority",
+      "summary": "Super seniority (steward rights)"
+    },
+    {
+      "name": "probationary_seniority",
+      "pattern": "\\bprobationary\\s+(?:period|employee).*seniority",
+      "confidence": 0.80,
+      "provision_class": "seniority",
+      "summary": "Probationary seniority"
+    }
+  ],
+  "negative_patterns": []
+}

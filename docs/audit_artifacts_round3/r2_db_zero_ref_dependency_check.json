@@ -1,0 +1,908 @@
+[
+  {
+    "name": "all_employers_unified",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "ar_assets_investments",
+    "type": "table",
+    "rowcount": 304816,
+    "dependent_views": []
+  },
+  {
+    "name": "ar_disbursements_emp_off",
+    "type": "table",
+    "rowcount": 2813248,
+    "dependent_views": []
+  },
+  {
+    "name": "bls_fips_lookup",
+    "type": "table",
+    "rowcount": 52,
+    "dependent_views": []
+  },
+  {
+    "name": "bls_industry_lookup",
+    "type": "table",
+    "rowcount": 39,
+    "dependent_views": []
+  },
+  {
+    "name": "bls_industry_union_density",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "bls_national_union_trends",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "bls_occupation_lookup",
+    "type": "table",
+    "rowcount": 30,
+    "dependent_views": []
+  },
+  {
+    "name": "bls_occupation_union_density",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "bls_state_union_rates",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "cba_categories",
+    "type": "table",
+    "rowcount": 14,
+    "dependent_views": []
+  },
+  {
+    "name": "cba_wage_schedules",
+    "type": "table",
+    "rowcount": 0,
+    "dependent_views": []
+  },
+  {
+    "name": "census_industry_naics_xwalk",
+    "type": "table",
+    "rowcount": 24373,
+    "dependent_views": []
+  },
+  {
+    "name": "census_occupation_soc_xwalk",
+    "type": "table",
+    "rowcount": 34540,
+    "dependent_views": []
+  },
+  {
+    "name": "contract_employer_matches",
+    "type": "table",
+    "rowcount": 8954,
+    "dependent_views": []
+  },
+  {
+    "name": "crosswalk_affiliation_sector_map",
+    "type": "table",
+    "rowcount": 111,
+    "dependent_views": []
+  },
+  {
+    "name": "crosswalk_f7_only_unions",
+    "type": "table",
+    "rowcount": 167,
+    "dependent_views": []
+  },
+  {
+    "name": "crosswalk_sector_lookup",
+    "type": "table",
+    "rowcount": 6,
+    "dependent_views": []
+  },
+  {
+    "name": "crosswalk_unions_master",
+    "type": "table",
+    "rowcount": 50039,
+    "dependent_views": []
+  },
+  {
+    "name": "deduplication_methodology",
+    "type": "table",
+    "rowcount": 11,
+    "dependent_views": []
+  },
+  {
+    "name": "discovered_employers",
+    "type": "table",
+    "rowcount": 32,
+    "dependent_views": []
+  },
+  {
+    "name": "employer_990_matches",
+    "type": "table",
+    "rowcount": 514,
+    "dependent_views": []
+  },
+  {
+    "name": "employers_990_deduped",
+    "type": "table",
+    "rowcount": 1046167,
+    "dependent_views": []
+  },
+  {
+    "name": "epi_union_membership",
+    "type": "table",
+    "rowcount": 1420064,
+    "dependent_views": []
+  },
+  {
+    "name": "f7_adjustment_factors",
+    "type": "table",
+    "rowcount": 76,
+    "dependent_views": []
+  },
+  {
+    "name": "f7_name_inference_rules",
+    "type": "table",
+    "rowcount": 23,
+    "dependent_views": []
+  },
+  {
+    "name": "federal_agencies",
+    "type": "table",
+    "rowcount": 192,
+    "dependent_views": []
+  },
+  {
+    "name": "federal_bargaining_units",
+    "type": "table",
+    "rowcount": 2183,
+    "dependent_views": []
+  },
+  {
+    "name": "flra_olms_crosswalk",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "flra_olms_enhanced_crosswalk",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "flra_olms_union_map",
+    "type": "table",
+    "rowcount": 40,
+    "dependent_views": []
+  },
+  {
+    "name": "form_990_estimates",
+    "type": "table",
+    "rowcount": 39,
+    "dependent_views": []
+  },
+  {
+    "name": "labor_990_olms_crosswalk",
+    "type": "table",
+    "rowcount": 5522,
+    "dependent_views": []
+  },
+  {
+    "name": "labor_orgs_990",
+    "type": "table",
+    "rowcount": 19367,
+    "dependent_views": []
+  },
+  {
+    "name": "labor_orgs_990_deduped",
+    "type": "table",
+    "rowcount": 15172,
+    "dependent_views": []
+  },
+  {
+    "name": "match_rate_baselines",
+    "type": "table",
+    "rowcount": 3,
+    "dependent_views": []
+  },
+  {
+    "name": "match_status_lookup",
+    "type": "table",
+    "rowcount": 6,
+    "dependent_views": []
+  },
+  {
+    "name": "naics_sic_crosswalk",
+    "type": "table",
+    "rowcount": 2163,
+    "dependent_views": []
+  },
+  {
+    "name": "naics_version_crosswalk",
+    "type": "table",
+    "rowcount": 4607,
+    "dependent_views": []
+  },
+  {
+    "name": "nhq_reconciled_membership",
+    "type": "table",
+    "rowcount": 132,
+    "dependent_views": []
+  },
+  {
+    "name": "nlrb_docket",
+    "type": "table",
+    "rowcount": 2046151,
+    "dependent_views": []
+  },
+  {
+    "name": "nlrb_election_results",
+    "type": "table",
+    "rowcount": 33096,
+    "dependent_views": []
+  },
+  {
+    "name": "nlrb_filings",
+    "type": "table",
+    "rowcount": 498749,
+    "dependent_views": []
+  },
+  {
+    "name": "nlrb_sought_units",
+    "type": "table",
+    "rowcount": 52078,
+    "dependent_views": []
+  },
+  {
+    "name": "nlrb_union_xref",
+    "type": "table",
+    "rowcount": 73326,
+    "dependent_views": []
+  },
+  {
+    "name": "nlrb_voting_units",
+    "type": "table",
+    "rowcount": 31643,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_debarment_list",
+    "type": "table",
+    "rowcount": 210,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_discrimination",
+    "type": "table",
+    "rowcount": 111,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_local_labor_laws",
+    "type": "table",
+    "rowcount": 568,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_osha_violations",
+    "type": "table",
+    "rowcount": 3454,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_prevailing_wage",
+    "type": "table",
+    "rowcount": 46,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_ulp_closed",
+    "type": "table",
+    "rowcount": 260,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_ulp_open",
+    "type": "table",
+    "rowcount": 660,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_wage_theft_litigation",
+    "type": "table",
+    "rowcount": 54,
+    "dependent_views": []
+  },
+  {
+    "name": "nyc_wage_theft_usdol",
+    "type": "table",
+    "rowcount": 431,
+    "dependent_views": []
+  },
+  {
+    "name": "public_sector_employers",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "sector_lookup",
+    "type": "table",
+    "rowcount": 6,
+    "dependent_views": []
+  },
+  {
+    "name": "sector_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "state_abbrev",
+    "type": "table",
+    "rowcount": 51,
+    "dependent_views": []
+  },
+  {
+    "name": "state_industry_shares",
+    "type": "table",
+    "rowcount": 51,
+    "dependent_views": []
+  },
+  {
+    "name": "state_lookup",
+    "type": "table",
+    "rowcount": 52,
+    "dependent_views": []
+  },
+  {
+    "name": "union_match_status",
+    "type": "table",
+    "rowcount": 6,
+    "dependent_views": []
+  },
+  {
+    "name": "union_naics_mapping",
+    "type": "table",
+    "rowcount": 7624,
+    "dependent_views": []
+  },
+  {
+    "name": "union_name_variants",
+    "type": "table",
+    "rowcount": 43,
+    "dependent_views": []
+  },
+  {
+    "name": "union_names_crosswalk",
+    "type": "table",
+    "rowcount": 171481,
+    "dependent_views": []
+  },
+  {
+    "name": "union_sector_coverage",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "unionstats_industry",
+    "type": "table",
+    "rowcount": 281,
+    "dependent_views": []
+  },
+  {
+    "name": "unionstats_state",
+    "type": "table",
+    "rowcount": 10710,
+    "dependent_views": []
+  },
+  {
+    "name": "v_990_by_org_type",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_990_by_state",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_990_olms_matched",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_affiliation_adjustment_factors",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_affiliation_industry_coverage",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_affiliation_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_afscme_targeting_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_afscme_targets_by_city",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_afscme_targets_by_industry",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_all_organizing_events",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_bls_coverage_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_bls_industry_density_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_bls_sector_coverage",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_cbsa_state_lookup",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_city_cbsa_lookup",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_county_density_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_dedup_summary_by_affiliation",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_dedup_summary_by_level",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_deduplication_comparison",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_employer_industry_outlook",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_employer_naics_enhanced",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_employer_search",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_employers_with_naics",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_epi_national_trend",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_epi_national_yoy",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_epi_platform_validation",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_epi_state_demographics",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_epi_state_latest",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_employer_safety_profile",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_employers_adjusted",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_employers_current",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_private_sector_cleaned",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_reconciled_private_sector",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_reconciliation_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_union_matched",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_f7_union_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_hierarchy_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_industry_naics_coverage",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_lm_with_f7_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_match_status_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_membership_by_affiliation",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_membership_by_sector",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_membership_by_state",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_naics_to_census_industry",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_nlrb_election_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_nyc_employer_violations_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_occupation_union_outlook",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_platform_master_metrics",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_platform_metrics",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_ps_state_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_public_sector_coverage_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_public_sector_gap_estimate",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_public_sector_members",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_public_sector_state_recon",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_sector_coverage_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_sector_statistics",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_sector_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_seiu_nj_employers",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_soc_occupation_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_state_county_comparison",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_state_density_by_govt_level",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_state_epi_comparison",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_state_overview",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_state_union_activity",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_top_afscme_targets",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_top_unions_by_membership",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_unified_by_affiliation",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_unified_membership",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_union_activity_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_union_f7_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_union_lm_detail",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_union_local_search",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_union_members_counted",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_union_naics_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_union_name_lookup",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_vr_by_affiliation",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_vr_by_state",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_vr_by_year",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_vr_cases_full",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_vr_data_quality",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "v_vr_summary",
+    "type": "view",
+    "rowcount": null,
+    "dependent_views": []
+  },
+  {
+    "name": "vr_affiliation_patterns",
+    "type": "table",
+    "rowcount": 29,
+    "dependent_views": []
+  },
+  {
+    "name": "vr_status_lookup",
+    "type": "table",
+    "rowcount": 4,
+    "dependent_views": []
+  }
+]

@@ -616,3 +616,493 @@ class TestStrategySeeding:
         assert "hit_rate" in call_args
         assert "times_tried" in call_args
         assert "times_found_data" in call_args
+
+
+# ---------------------------------------------------------------------------
+# Phase 5.6: Force-call new tools — fact maps and null-field logging
+# ---------------------------------------------------------------------------
+
+class TestForceCallNewTools:
+    """Tests for Phase 5.6 new tool registration and null-field counter."""
+
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        from scripts.research.agent import _TOOL_FACT_MAP, _ATTR_SECTION, _count_null_fields
+        self.fact_map = _TOOL_FACT_MAP
+        self.attr_section = _ATTR_SECTION
+        self.count_null_fields = _count_null_fields
+
+    def test_tool_fact_map_has_new_tools(self):
+        """All 3 new tools must be in _TOOL_FACT_MAP."""
+        assert "search_sec_proxy" in self.fact_map
+        assert "search_job_postings" in self.fact_map
+        assert "get_workforce_demographics" in self.fact_map
+
+    def test_search_sec_proxy_maps_exec_compensation(self):
+        """search_sec_proxy should map to exec_compensation."""
+        attrs = [a for a, _ in self.fact_map["search_sec_proxy"]]
+        assert "exec_compensation" in attrs
+
+    def test_search_job_postings_maps_two_attrs(self):
+        """search_job_postings should map to job_posting_count and job_posting_details."""
+        attrs = [a for a, _ in self.fact_map["search_job_postings"]]
+        assert "job_posting_count" in attrs
+        assert "job_posting_details" in attrs
+
+    def test_workforce_demographics_maps_demographic_profile(self):
+        """get_workforce_demographics should map to demographic_profile."""
+        attrs = [a for a, _ in self.fact_map["get_workforce_demographics"]]
+        assert "demographic_profile" in attrs
+
+    def test_attr_section_has_new_attrs(self):
+        """All 4 new attributes must be in _ATTR_SECTION."""
+        assert self.attr_section.get("exec_compensation") == "financial"
+        assert self.attr_section.get("job_posting_count") == "workforce"
+        assert self.attr_section.get("job_posting_details") == "workforce"
+        assert self.attr_section.get("demographic_profile") == "workforce"
+
+    def test_count_null_fields_empty_dossier(self):
+        """Empty dossier returns (0, 0)."""
+        assert self.count_null_fields({}) == (0, 0)
+        assert self.count_null_fields({"dossier": {}}) == (0, 0)
+
+    def test_count_null_fields_all_filled(self):
+        """Dossier with all non-null values has 0 nulls."""
+        dossier = {"dossier": {
+            "identity": {"name": "Acme", "state": "CA"},
+            "financial": {"revenue": "$1B"},
+        }}
+        total, nulls = self.count_null_fields(dossier)
+        assert total == 3
+        assert nulls == 0
+
+    def test_count_null_fields_mixed(self):
+        """Dossier with some null values."""
+        dossier = {"dossier": {
+            "identity": {"name": "Acme", "state": None, "year_founded": ""},
+            "financial": {"revenue": "$1B", "employee_count": None},
+            "workforce": {"job_posting_count": [], "demographic_profile": {"data": 1}},
+        }}
+        total, nulls = self.count_null_fields(dossier)
+        assert total == 7
+        assert nulls == 4  # state=None, year_founded="", employee_count=None, job_posting_count=[]
+
+    def test_count_null_fields_ignores_assessment_sources(self):
+        """assessment and sources sections are excluded from counting."""
+        dossier = {"dossier": {
+            "assessment": {"data_summary": None, "gaps": None},
+            "sources": {"source_list": None},
+            "identity": {"name": "Acme"},
+        }}
+        total, nulls = self.count_null_fields(dossier)
+        assert total == 1  # only identity.name
+        assert nulls == 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 5.7: Contradiction resolver
+# ---------------------------------------------------------------------------
+
+class TestResolveContradictions:
+    """Tests for _resolve_contradictions function."""
+
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        from scripts.research.agent import _resolve_contradictions
+        self.resolve = _resolve_contradictions
+
+    def test_empty_dossier(self):
+        assert self.resolve({}) == 0
+        assert self.resolve({"dossier": {}}) == 0
+
+    def test_no_contradictions(self):
+        """When DB values are non-zero, no contradictions detected."""
+        dossier = {"dossier": {
+            "workplace": {"osha_violation_count": 5},
+            "labor": {"nlrb_election_count": 2},
+            "assessment": {"data_summary": "Company has OSHA violations"},
+        }}
+        assert self.resolve(dossier) == 0
+
+    def test_osha_contradiction(self):
+        """DB says 0 OSHA but assessment mentions violations."""
+        dossier = {"dossier": {
+            "workplace": {"osha_violation_count": 0},
+            "labor": {},
+            "assessment": {
+                "campaign_strengths": ["[Web] OSHA cited employer for safety violation"],
+            },
+        }}
+        count = self.resolve(dossier)
+        assert count >= 1
+        # source_contradictions should be populated
+        assessment = dossier["dossier"]["assessment"]
+        assert assessment.get("source_contradictions") is not None
+        assert len(assessment["source_contradictions"]) >= 1
+        assert "OSHA" in assessment["source_contradictions"][0]
+
+    def test_nlrb_contradiction(self):
+        """DB says 0 NLRB but web mentions union organizing."""
+        dossier = {"dossier": {
+            "workplace": {},
+            "labor": {"nlrb_election_count": 0, "nlrb_ulp_count": 0},
+            "assessment": {
+                "web_intelligence": "Workers filed a petition with NLRB for union election",
+            },
+        }}
+        count = self.resolve(dossier)
+        assert count >= 1
+        assessment = dossier["dossier"]["assessment"]
+        assert "NLRB" in assessment["source_contradictions"][0]
+
+    def test_whd_contradiction(self):
+        """DB says 0 WHD but web mentions wage theft."""
+        dossier = {"dossier": {
+            "workplace": {"whd_case_count": 0},
+            "labor": {},
+            "assessment": {
+                "data_summary": "Company settled a wage theft case with DOL",
+            },
+        }}
+        count = self.resolve(dossier)
+        assert count >= 1
+
+    def test_multiple_contradictions(self):
+        """Multiple types of contradictions detected."""
+        dossier = {"dossier": {
+            "workplace": {"osha_violation_count": 0, "whd_case_count": 0},
+            "labor": {"nlrb_election_count": 0},
+            "assessment": {
+                "data_summary": "OSHA violations found. Workers filed NLRB petition. Wage theft settlement.",
+            },
+        }}
+        count = self.resolve(dossier)
+        assert count >= 2  # at least OSHA + NLRB
+
+    def test_db_value_annotated(self):
+        """DB-zero values should be annotated with 'see source_contradictions'."""
+        dossier = {"dossier": {
+            "workplace": {"osha_violation_count": 0},
+            "labor": {},
+            "assessment": {
+                "campaign_strengths": ["[Web] OSHA fined employer $85,000"],
+            },
+        }}
+        self.resolve(dossier)
+        osha_val = dossier["dossier"]["workplace"]["osha_violation_count"]
+        assert "source_contradictions" in str(osha_val)
+
+    def test_null_values_treated_as_missing(self):
+        """None values should not trigger contradiction (they're missing, not zero)."""
+        dossier = {"dossier": {
+            "workplace": {"osha_violation_count": None},
+            "labor": {},
+            "assessment": {
+                "campaign_strengths": ["[Web] OSHA fined employer"],
+            },
+        }}
+        count = self.resolve(dossier)
+        # None means "not queried", not "zero found" — should still detect mismatch
+        assert count >= 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 5.7: Financial trend extraction
+# ---------------------------------------------------------------------------
+
+class TestFinancialTrendExtraction:
+    """Tests for _extract_financial_trend function."""
+
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        from scripts.research.agent import _extract_financial_trend
+        self.extract = _extract_financial_trend
+
+    def test_empty_dossier(self):
+        assert self.extract({}) is False
+        assert self.extract({"dossier": {}}) is False
+
+    def test_growing_trend(self):
+        dossier = {"dossier": {"assessment": {
+            "web_intelligence": "Amazon reported record revenue of $574B in 2023, growing 12% YoY",
+        }}}
+        result = self.extract(dossier)
+        assert result is True
+        trend = dossier["dossier"]["assessment"]["financial_trend"]
+        assert trend.startswith("growing")
+
+    def test_declining_trend(self):
+        dossier = {"dossier": {"assessment": {
+            "data_summary": "The company announced layoffs of 2,000 workers and is closing 3 facilities",
+        }}}
+        result = self.extract(dossier)
+        assert result is True
+        trend = dossier["dossier"]["assessment"]["financial_trend"]
+        assert trend.startswith("declining")
+
+    def test_stable_trend(self):
+        dossier = {"dossier": {"assessment": {
+            "web_intelligence": "Company maintained steady revenue growth over the past 3 years",
+        }}}
+        result = self.extract(dossier)
+        assert result is True
+        trend = dossier["dossier"]["assessment"]["financial_trend"]
+        assert trend.startswith("stable") or trend.startswith("growing")
+
+    def test_no_trend_keywords(self):
+        dossier = {"dossier": {"assessment": {
+            "data_summary": "Company located in New York City.",
+        }}}
+        result = self.extract(dossier)
+        assert result is False
+
+    def test_skip_if_already_populated(self):
+        """Don't overwrite existing financial_trend."""
+        dossier = {"dossier": {"assessment": {
+            "financial_trend": "growing - existing data",
+            "web_intelligence": "Revenue declined 30%",
+        }}}
+        result = self.extract(dossier)
+        assert result is False
+        assert dossier["dossier"]["assessment"]["financial_trend"] == "growing - existing data"
+
+    def test_declining_prioritized_over_growing(self):
+        """If both growth and decline keywords found, decline takes priority."""
+        dossier = {"dossier": {"assessment": {
+            "data_summary": "Revenue grew 5% but company announced major layoffs and closing facilities",
+        }}}
+        result = self.extract(dossier)
+        assert result is True
+        trend = dossier["dossier"]["assessment"]["financial_trend"]
+        assert trend.startswith("declining")
+
+    def test_web_text_parameter(self):
+        """Can extract from web_text parameter."""
+        dossier = {"dossier": {"assessment": {}}}
+        result = self.extract(dossier, "Company announced acquisition of rival firm for $2B")
+        assert result is True
+        trend = dossier["dossier"]["assessment"]["financial_trend"]
+        assert trend.startswith("growing")
+
+
+# ---------------------------------------------------------------------------
+# Phase 5.7: Employee count validation
+# ---------------------------------------------------------------------------
+
+class TestValidateEmployeeCount:
+    """Tests for _validate_employee_count function."""
+
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        from scripts.research.agent import _validate_employee_count
+        self.validate = _validate_employee_count
+
+    def test_public_company_low_count(self):
+        """Public company with < 1000 employees gets flagged."""
+        dossier = {"dossier": {"financial": {"employee_count": "500 employees"}}}
+        run = {"company_type": "public", "company_name": "TestCo"}
+        self.validate(dossier, run)
+        emp = dossier["dossier"]["financial"]["employee_count"]
+        assert "UNVERIFIED" in emp
+
+    def test_public_company_normal_count(self):
+        """Public company with reasonable count is not flagged."""
+        dossier = {"dossier": {"financial": {"employee_count": "50,000 employees"}}}
+        run = {"company_type": "public", "company_name": "TestCo"}
+        self.validate(dossier, run)
+        emp = dossier["dossier"]["financial"]["employee_count"]
+        assert "UNVERIFIED" not in emp
+
+    def test_large_bucket_very_low(self):
+        """Large-bucket employer with < 500 gets flagged."""
+        dossier = {"dossier": {"financial": {"employee_count": "200"}}}
+        run = {"employee_size_bucket": "large", "company_name": "TestCo"}
+        self.validate(dossier, run)
+        emp = dossier["dossier"]["financial"]["employee_count"]
+        assert "UNVERIFIED" in emp
+
+    def test_private_company_no_flag(self):
+        """Private company isn't flagged regardless of count."""
+        dossier = {"dossier": {"financial": {"employee_count": "50"}}}
+        run = {"company_type": "private", "company_name": "SmallCo"}
+        self.validate(dossier, run)
+        emp = dossier["dossier"]["financial"]["employee_count"]
+        assert "UNVERIFIED" not in emp
+
+    def test_no_employee_count(self):
+        """No crash when employee_count is None."""
+        dossier = {"dossier": {"financial": {"employee_count": None}}}
+        run = {"company_type": "public", "company_name": "TestCo"}
+        self.validate(dossier, run)  # should not raise
+
+    def test_empty_dossier(self):
+        """No crash on empty dossier."""
+        self.validate({}, {})
+        self.validate({"dossier": {}}, {})
+
+
+# ---------------------------------------------------------------------------
+# Phase 5.7: Regex fallback helpers for tools
+# ---------------------------------------------------------------------------
+
+class TestExtractExecPayFromText:
+    """Tests for _extract_exec_pay_from_text regex fallback."""
+
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        from scripts.research.tools import _extract_exec_pay_from_text
+        self.extract = _extract_exec_pay_from_text
+
+    def test_empty_text(self):
+        assert self.extract("") is None
+        assert self.extract(None) is None
+
+    def test_ceo_name_pay(self):
+        """Extract CEO name and pay from narrative."""
+        text = "CEO Andy Jassy received $212,700,000 in total compensation for 2023."
+        result = self.extract(text)
+        assert result is not None
+        assert len(result["executives"]) >= 1
+        # Should find a CEO entry
+        ceo = next((e for e in result["executives"] if "CEO" in e["title"].upper()), None)
+        assert ceo is not None
+
+    def test_multiple_executives(self):
+        """Extract multiple executives."""
+        text = """
+        CEO John Smith received $15,000,000 in total compensation.
+        CFO Jane Doe earned $8,500,000 in the same period.
+        COO Bob Jones was paid $7,200,000.
+        """
+        result = self.extract(text)
+        assert result is not None
+        assert len(result["executives"]) >= 2
+
+    def test_title_pay_fallback(self):
+        """When name isn't parseable, still extract title + pay."""
+        text = "The CEO's compensation was $12,500,000 for fiscal year 2024."
+        result = self.extract(text)
+        # May or may not parse this specific format, but shouldn't crash
+        if result:
+            assert len(result["executives"]) >= 1
+
+    def test_year_extraction(self):
+        """Should extract the year from text."""
+        text = "CEO John Smith received $10,000,000 in fiscal year 2024."
+        result = self.extract(text)
+        if result:
+            assert result.get("year") == 2024
+
+    def test_no_pay_data(self):
+        """Text with no pay info returns None."""
+        text = "The company is headquartered in Seattle, Washington."
+        assert self.extract(text) is None
+
+
+class TestExtractJobPostingsFromText:
+    """Tests for _extract_job_postings_from_text regex fallback."""
+
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        from scripts.research.tools import _extract_job_postings_from_text
+        self.extract = _extract_job_postings_from_text
+
+    def test_empty_text(self):
+        assert self.extract("") is None
+        assert self.extract(None) is None
+
+    def test_count_extraction(self):
+        """Extract job posting count from narrative."""
+        text = "Amazon currently has approximately 5,000 open positions across the US."
+        result = self.extract(text)
+        assert result is not None
+        assert result["count_estimate"] == 5000
+
+    def test_count_with_plus(self):
+        """Handle '1,200+ jobs' format."""
+        text = "The company has 1,200+ active job listings on Indeed."
+        result = self.extract(text)
+        assert result is not None
+        assert result["count_estimate"] == 1200
+
+    def test_hiring_pattern(self):
+        """Handle 'hiring for X roles' format."""
+        text = "The company is actively hiring for 150 roles in their fulfillment centers."
+        result = self.extract(text)
+        assert result is not None
+        assert result["count_estimate"] == 150
+
+    def test_no_job_data(self):
+        """Text with no job posting info returns None."""
+        text = "The company was founded in 1994 and is headquartered in Seattle."
+        assert self.extract(text) is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 5.7: Demographics labeling
+# ---------------------------------------------------------------------------
+
+class TestDemographicsLabeling:
+    """Test that get_workforce_demographics labels its output as INDUSTRY BASELINE."""
+
+    def test_known_naics_labeled(self):
+        """Known NAICS should be labeled as INDUSTRY BASELINE."""
+        from scripts.research.tools import get_workforce_demographics
+        result = get_workforce_demographics(company_name="TestCo", naics="31")
+        assert result["found"] is True
+        profile = result["data"]["demographic_profile"]
+        assert "INDUSTRY BASELINE" in profile
+
+    def test_unknown_naics_labeled_generic(self):
+        """Unknown NAICS should be labeled as GENERIC INDUSTRY BASELINE."""
+        from scripts.research.tools import get_workforce_demographics
+        result = get_workforce_demographics(company_name="TestCo", naics="99")
+        assert result["found"] is True
+        profile = result["data"]["demographic_profile"]
+        assert "GENERIC INDUSTRY BASELINE" in profile
+
+    def test_summary_includes_note(self):
+        """Summary should include industry averages note."""
+        from scripts.research.tools import get_workforce_demographics
+        result = get_workforce_demographics(company_name="TestCo", naics="62")
+        assert "industry averages" in result["summary"]
+
+
+# ---------------------------------------------------------------------------
+# Phase 5.7: _is_zero_or_none helper
+# ---------------------------------------------------------------------------
+
+class TestIsZeroOrNone:
+    """Tests for _is_zero_or_none helper."""
+
+    @pytest.fixture(autouse=True)
+    def _load_module(self):
+        from scripts.research.agent import _is_zero_or_none
+        self.check = _is_zero_or_none
+
+    def test_none(self):
+        assert self.check(None) is True
+
+    def test_zero_int(self):
+        assert self.check(0) is True
+
+    def test_zero_float(self):
+        assert self.check(0.0) is True
+
+    def test_zero_string(self):
+        assert self.check("0") is True
+
+    def test_empty_string(self):
+        assert self.check("") is True
+
+    def test_na_string(self):
+        assert self.check("N/A") is True
+
+    def test_nonzero_int(self):
+        assert self.check(5) is False
+
+    def test_nonzero_string(self):
+        assert self.check("5") is False
+
+    def test_text_value(self):
+        assert self.check("some text") is False

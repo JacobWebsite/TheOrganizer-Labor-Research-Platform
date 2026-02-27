@@ -1,0 +1,66 @@
+id,source_system,band,match_method,confidence_score,source_name,target_name,state,token_jaccard,heuristic
+188669,nlrb,high,name_zip_exact,0.980,Allison Transmission Inc,Allison Transmission,IN,1.000,likely_correct
+201766,nlrb,high,name_zip_exact,0.980,Yeshiva University,Yeshiva University,NY,1.000,likely_correct
+190691,nlrb,high,name_zip_exact,0.980,"Coahoma Opportunities, Inc.",Coahoma Opportunities,MS,1.000,likely_correct
+191867,nlrb,high,name_state_exact,0.900,Emblem Health,Emblem Health,NY,1.000,likely_correct
+200989,nlrb,high,name_state_exact,0.900,Various Employers,Various Employers,CA,1.000,likely_correct
+200417,nlrb,mid,state_canonical_fallback,0.750,UNITED PARCEL SERVICE,ICA,IN,0.000,likely_wrong
+200341,nlrb,mid,state_canonical_fallback,0.750,United Parcel Service,ICA,IN,0.000,likely_wrong
+200337,nlrb,mid,state_canonical_fallback,0.750,United Parcel Service,United Parcel Service Louisville Air Supplement,KY,0.400,uncertain
+200373,nlrb,mid,state_canonical_fallback,0.750,United Parcel Service,ICA,IN,0.000,likely_wrong
+200342,nlrb,mid,state_canonical_fallback,0.750,United Parcel Service,UPS,MD,0.000,likely_wrong
+268503,osha,high,NAME_CITY_STATE_EXACT,0.950,ALSCO INC.,Alsco Inc. ,NV,1.000,likely_correct
+1299944,osha,high,NAME_CITY_STATE_EXACT,0.950,TOWN OF MIDDLEBURY,Town of Middlebury,CT,1.000,likely_correct
+1307131,osha,high,NAME_CITY_STATE_EXACT,0.950,RHS LEE INC,RHS LEE INC,HI,1.000,likely_correct
+1530567,osha,high,NAME_CITY_STATE_EXACT,0.950,"ASSOCIATED MILK PRODUCERS, INC.","Associated Milk Producers, Inc.",WI,1.000,likely_correct
+298901,osha,high,NAME_STATE_EXACT,0.900,"WYATT, INC.",Wyatt Inc,PA,1.000,likely_correct
+2896441,osha,low,FUZZY_TRIGRAM,0.565,CMR CONSTRUCTION,Dejean Construction,TX,0.333,uncertain
+2943982,osha,low,FUZZY_TRIGRAM,0.550,GLASS & METALS INC.,IAC Metals Inc.,VA,0.333,uncertain
+3005106,osha,low,FUZZY_TRIGRAM,0.548,"D&D CONSTRUCTION, INC",Roehl Construction Company Inc.,TN,0.333,uncertain
+2858532,osha,low,FUZZY_TRIGRAM,0.533,BEST WESTERN AHTANUM INN,Best Western Loyal Inn,WA,0.600,uncertain
+1519716,osha,low,FUZZY_TRIGRAM,0.415,2 BROTHERS CONSTRUCTION LIMITED LIABILITY COMPANY,Marous Brothers Construction,OH,0.333,uncertain
+1578752,osha,mid,FUZZY_TRIGRAM,0.793,64851 - THE STANDARD GROUP LLC,The Standard Group LLC,KY,0.667,plausible
+1567571,osha,mid,NAME_AGGRESSIVE_STATE,0.750,LOCKHEED MARTIN AERONAUTICS MARIETTA,Lockheed Martin Aeronautics Company - Marietta,GA,1.000,likely_correct
+289613,osha,mid,NAME_AGGRESSIVE_STATE,0.750,SHEEDY DRAYAGE CO.,Sheedy Drayage Company,CA,1.000,likely_correct
+2671082,osha,mid,NAME_AGGRESSIVE_STATE,0.750,US MFG CORP,US Manufacturing Corp,MI,0.333,uncertain
+294570,osha,mid,NAME_AGGRESSIVE_STATE,0.750,"HARLEY DAVIDSON MOTOR COMPANY, INC.",Harley-Davidson Motor Company,PA,1.000,likely_correct
+2841037,osha,splink_0.69_0.72,NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED,0.718,"EDSAL MANUFACTURING CO.,INC.",Edsal Manufacturing Company,IL,1.000,likely_correct
+2704889,osha,splink_0.69_0.72,NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED,0.718,"FOX THEATRE, INC.",Fox Theatre,GA,1.000,likely_correct
+2738878,osha,splink_0.69_0.72,NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED,0.718,KLAUER MANUFACTURING COMPANY,Klauer Manufacturing ,IA,1.000,likely_correct
+2638567,osha,splink_0.69_0.72,NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED,0.718,"EDSAL MANUFACTURING CO., INC.",Edsal Manufacturing Company,IL,1.000,likely_correct
+2702735,osha,splink_0.69_0.72,NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED,0.718,VARNER AND SON INCORPORATED,Varner & Son Incorporated,CA,1.000,likely_correct
+2751447,osha,splink_0.69_0.72,NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED,0.718,EDSAL MANUFACTURING,Edsal Manufacturing Company,IL,1.000,likely_correct
+2667098,osha,splink_0.69_0.72,NAME_AGGRESSIVE_STATE_SPLINK_RESOLVED,0.718,"HARD MANUFACTURING CO., INC.",Hard Manufacturing,NY,1.000,likely_correct
+1366384,osha,splink_0.69_0.72,FUZZY_SPLINK_ADAPTIVE,0.707,naval munitions command conus east division det earle,us department navy navy munitions command conus east div detachment earle colts neck nj,NJ,0.312,uncertain
+1325074,osha,splink_0.69_0.72,FUZZY_SPLINK_ADAPTIVE,0.699,miravista behavioral health center,providence behavioral health hospital mercy medical center,MA,0.375,uncertain
+338346,sam,high,NAME_CITY_STATE_EXACT,0.950,MIDWEST TERMINALS OF TOLEDO INC,"Midwest Terminals of Toledo, Inc.",OH,1.000,likely_correct
+333358,sam,high,NAME_CITY_STATE_EXACT,0.950,EAST LIVERPOOL CITY HOSPITAL,East Liverpool City Hospital,OH,1.000,likely_correct
+335037,sam,high,NAME_CITY_STATE_EXACT,0.950,KUAKINI MEDICAL CENTER,Kuakini Medical Center ,HI,1.000,likely_correct
+332381,sam,high,NAME_CITY_STATE_EXACT,0.950,"H & T ENTERPRISES, INC.",H & T Enterprises Inc.,TN,1.000,likely_correct
+1957159,sam,high,NAME_CITY_STATE_EXACT,0.950,M. C. GUTHERIE LUMBER CO.,M.C. GUTHERIE LUMBER CO. ,MI,1.000,likely_correct
+2581616,sam,low,FUZZY_TRIGRAM,0.457,NEW LONDON SCHOOL DISTRICT,Onlaska School District,WI,0.400,uncertain
+2422999,sam,low,FUZZY_TRIGRAM,0.440,WIDENER UNIVERSITY,Salus University,PA,0.333,uncertain
+2528984,sam,low,FUZZY_TRIGRAM,0.409,TOWN OF SOMERSET,TOWN OF SAVOY,MA,0.333,uncertain
+2539079,sam,low,FUZZY_TRIGRAM,0.400,RAWHIDE HOLDINGS LLC,"Las Vegas Resort Holdings, LLC dba Sahara LV",NV,0.125,likely_wrong
+2516051,sam,low,FUZZY_TRIGRAM,0.400,"COUNTY OF LOUDOUN, VIRGINIA",Transdev Loudoun County,VA,0.500,uncertain
+2552318,sam,mid,NAME_AGGRESSIVE_STATE,0.750,"HAMILTON PRECISION METALS, INC",Hamilton Precision Metals,PA,1.000,likely_correct
+330850,sam,mid,NAME_AGGRESSIVE_STATE,0.750,"NORTH STAR LIGHTING, LLC",North Star Lighting,IL,1.000,likely_correct
+2436572,sam,mid,FUZZY_TRIGRAM,0.682,NVL ENTERPRISE LLC,B3 Enterprise LLC,VA,0.333,uncertain
+2483509,sam,mid,FUZZY_TRIGRAM,0.654,TOWN OF PLYMOUTH TOWN HALL,Town of Plymouth - DPW,CT,0.500,uncertain
+2481434,sam,mid,FUZZY_TRIGRAM,0.636,SNI SOLUTIONS INC,"Auto Solutions, Inc.",IL,0.333,uncertain
+1966478,whd,high,FUZZY_SPLINK_ADAPTIVE,0.993,gann construction incorporated,4 general construction,MO,0.200,uncertain
+310207,whd,high,NAME_CITY_STATE_EXACT,0.950,Orange Regional Medical Center,Orange Regional Medical Center,NY,1.000,likely_correct
+309190,whd,high,NAME_STATE_EXACT,0.900,"U.S. Security Associates, Inc.",U S Security Associates Inc.,NY,1.000,likely_correct
+252071,whd,high,NAME_STATE_EXACT,0.900,American National Insurance Company,American National Insurance Company,TX,1.000,likely_correct
+229030,whd,high,NAME_STATE_EXACT,0.900,Aramark,Aramark,MO,1.000,likely_correct
+2300354,whd,low,FUZZY_TRIGRAM,0.522,Sentel Corporation,GHG Corporation,TX,0.000,likely_wrong
+2295322,whd,low,FUZZY_TRIGRAM,0.500,Global Associates,TTL Associates,OH,0.333,uncertain
+396390,whd,low,FUZZY_TRIGRAM,0.500,"Ally Auto Sales, Inc.",A & M Auto Sales,NY,0.400,uncertain
+2334619,whd,low,FUZZY_TRIGRAM,0.459,"Gables Construction, Inc.",DeJean Construction Company Inc,TX,0.333,uncertain
+2300204,whd,low,FUZZY_TRIGRAM,0.417,Ranger Construction Industries,"Pre-Con Construction, Inc",FL,0.200,likely_wrong
+2287780,whd,mid,FUZZY_SPLINK_ADAPTIVE,0.775,rocky mountain insulation,rocky mountain janitorial,CO,0.500,plausible
+250752,whd,mid,NAME_AGGRESSIVE_STATE,0.750,Rural/Metro of Greater Seattle,"Rural Metro of Greater Seattle, Inc. ",WA,1.000,likely_correct
+2281403,whd,mid,NAME_AGGRESSIVE_STATE,0.750,Burger King,Burger King Corporation,FL,1.000,likely_correct
+309089,whd,mid,NAME_AGGRESSIVE_STATE,0.750,Rochester Metal Products,Rochester Metal Products Corp.,IN,1.000,likely_correct
+2301415,whd,mid,FUZZY_TRIGRAM,0.655,Klean Corp International,Dyn-Corp International,TX,0.333,uncertain
+2283187,whd,splink_0.69_0.72,FUZZY_SPLINK_ADAPTIVE,0.707,shell durango,durango hills,NV,0.333,uncertain

@@ -1716,6 +1716,174 @@ def scrape_employer_website(
 
 
 # ---------------------------------------------------------------------------
+# Regex fallback helpers for Google Search grounding tools
+# ---------------------------------------------------------------------------
+
+def _extract_exec_pay_from_text(text: str) -> Optional[dict]:
+    """Regex-extract executive names and compensation from narrative text.
+
+    Google Search grounding returns narrative with compensation figures
+    rather than clean JSON. This extracts structured data from patterns like:
+    - "Andy Jassy | CEO | $1,596,889"  (pipe-delimited, preferred)
+    - "CEO John Smith received $12,500,000 in total compensation"
+    - "Mary Jones (CFO): $8.2 million"
+    """
+    if not text:
+        return None
+
+    executives = []
+
+    _TITLE_WORDS = r'(?:CEO|CFO|COO|CTO|President|Chair(?:man|woman|person)?|' \
+                   r'Chief\s+(?:Executive|Financial|Operating|Technology)\s+Officer|' \
+                   r'Executive\s+Vice\s+President|EVP|SVP|Vice\s+President)'
+    _PAY_PATTERN = r'\$[\d,]+(?:\.\d+)?(?:\s*(?:million|billion|M|B))?'
+
+    # Strategy 1: Pipe-delimited lines  "Name | Title | $Pay"
+    pipe_pattern = re.compile(
+        r'^([A-Z][A-Za-z.\' -]{2,30}?)\s*\|\s*(.{2,60}?)\s*\|\s*(' + _PAY_PATTERN + r')',
+        re.MULTILINE,
+    )
+    for m in pipe_pattern.finditer(text):
+        executives.append({
+            "name": m.group(1).strip(),
+            "title": m.group(2).strip(),
+            "total_pay": m.group(3).strip(),
+        })
+
+    # Strategy 2: "Name, Title ... $amount" or "Name (Title) ... $amount"
+    if not executives:
+        exec_pattern = re.compile(
+            r'(?:' +
+            # "CEO John Smith" style
+            rf'({_TITLE_WORDS})\s+([A-Z][a-z]+(?:\s+[A-Z]\.?\s*[a-z]*)*(?:\s+[A-Z][a-z]+))' +
+            r'|' +
+            # "John Smith, CEO" or "John Smith (CEO)" style
+            rf'([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?(?:[a-z]+\s+)?[A-Z][a-z]+)\s*[,(]\s*({_TITLE_WORDS})\s*\)?' +
+            r')' +
+            r'[^$]{0,100}?' +
+            rf'({_PAY_PATTERN})',
+            re.IGNORECASE,
+        )
+        for m in exec_pattern.finditer(text):
+            title = (m.group(1) or m.group(4) or "Executive").strip()
+            name = (m.group(2) or m.group(3) or "Unknown").strip()
+            pay = m.group(5).strip()
+            executives.append({"name": name, "title": title, "total_pay": pay})
+
+    # Deduplicate by name
+    seen_names = set()
+    unique_execs = []
+    for e in executives:
+        if e["name"].lower() not in seen_names:
+            seen_names.add(e["name"].lower())
+            unique_execs.append(e)
+
+    if not unique_execs:
+        # Fallback: just find any $X,XXX,XXX patterns near title words
+        simple_pattern = re.compile(
+            rf'({_TITLE_WORDS})[^$]{{0,80}}({_PAY_PATTERN})',
+            re.IGNORECASE,
+        )
+        for m in simple_pattern.finditer(text):
+            title = m.group(1).strip()
+            pay = m.group(2).strip()
+            if title.lower() not in seen_names:
+                seen_names.add(title.lower())
+                unique_execs.append({"name": "Not specified", "title": title, "total_pay": pay})
+
+    if not unique_execs:
+        return None
+
+    # Try to extract year (capture group for the 4-digit year)
+    year_match = re.search(r'(?:fiscal\s+(?:year\s+)?|FY\s*)?(20[12]\d)', text)
+    year = int(year_match.group(1)) if year_match else None
+
+    return {
+        "year": year,
+        "executives": unique_execs[:5],
+        "extraction_method": "regex_fallback",
+    }
+
+
+def _extract_job_postings_from_text(text: str) -> Optional[dict]:
+    """Regex-extract job posting count and sample titles from narrative text.
+
+    Google Search grounding returns narrative like:
+    - "approximately 5,000 open positions"
+    - "Currently hiring for 120 roles including..."
+    - "Warehouse Associate - $18/hr"
+    """
+    if not text:
+        return None
+
+    # Extract count estimate
+    count = None
+    count_patterns = [
+        # "approximately 5,000 open positions"
+        re.compile(
+            r'(?:approximately|about|around|over|nearly|more than|currently|has|listing|found)\s+'
+            r'([\d,]+)\s*(?:open|active|current|total|available)?\s*'
+            r'(?:positions?|jobs?|listings?|openings?|roles?|vacancies|opportunities)',
+            re.IGNORECASE,
+        ),
+        # "5,000+ jobs" or "5000 positions available"
+        re.compile(
+            r'([\d,]+)\+?\s*(?:open|active|current|total|available)?\s*'
+            r'(?:positions?|jobs?|listings?|openings?|roles?|vacancies|opportunities)',
+            re.IGNORECASE,
+        ),
+        # "hiring for 120 roles"
+        re.compile(
+            r'(?:hiring|recruiting)\s+(?:for\s+)?([\d,]+)\s*(?:roles?|positions?|people)',
+            re.IGNORECASE,
+        ),
+    ]
+
+    for pat in count_patterns:
+        m = pat.search(text)
+        if m:
+            try:
+                count = int(m.group(1).replace(",", ""))
+                break
+            except ValueError:
+                pass
+
+    # Extract sample job titles
+    # Look for patterns like "Warehouse Associate", "Registered Nurse", etc.
+    sample_postings = []
+    # Pattern: common job title structures near pay info or location
+    title_pattern = re.compile(
+        r'(?:^|\n|[;,])\s*([A-Z][a-z]+(?:\s+[A-Za-z]+){0,4})\s*'
+        r'(?:[-:]|in\s+)\s*'
+        r'([A-Z][a-z]+(?:,\s*[A-Z]{2})?)?'  # location
+        r'(?:\s*[-:]\s*(\$[\d,.]+(?:/(?:hr|hour|year|yr|annual))?))?',  # pay
+        re.MULTILINE,
+    )
+    for m in title_pattern.finditer(text):
+        title = m.group(1).strip()
+        location = (m.group(2) or "").strip()
+        pay = (m.group(3) or "").strip()
+        # Filter out non-job-title matches
+        if len(title) > 5 and not title.startswith(("The ", "This ", "That ", "These ", "There ")):
+            sample_postings.append({
+                "title": title,
+                "location": location or None,
+                "pay": pay or None,
+            })
+            if len(sample_postings) >= 5:
+                break
+
+    if count is None and not sample_postings:
+        return None
+
+    return {
+        "count_estimate": count or len(sample_postings),
+        "sample_postings": sample_postings,
+        "extraction_method": "regex_fallback",
+    }
+
+
+# ---------------------------------------------------------------------------
 # TOOL 13: search_sec_proxy (DEF 14A)
 # ---------------------------------------------------------------------------
 
@@ -1746,9 +1914,13 @@ def search_sec_proxy(
 
         prompt = (
             f"Find the latest Summary Compensation Table from the SEC Proxy Statement (DEF 14A) for {context}. "
-            "Extract the total compensation for the CEO and the next 2 highest-paid executives for the most recent year. "
-            "Return a JSON object with: {'year': 2024, 'executives': [{'name': '...', 'title': 'CEO', 'total_pay': '$...'}]}. "
-            "Include the source URL of the filing if found. If not found or not a public company, respond with NONE."
+            "List the top 3-5 highest-paid executives for the most recent fiscal year. "
+            "For each person, write ONE line in this exact format:\n"
+            "NAME | TITLE | $TOTAL_PAY\n"
+            "Example:\n"
+            "Andy Jassy | CEO | $1,596,889\n"
+            "Matt Garman | CEO, AWS | $34,284,148\n\n"
+            "Also state the fiscal year. If not found or not a public company, respond with NONE."
         )
         
         response = client.models.generate_content(
@@ -1785,9 +1957,15 @@ def search_sec_proxy(
             except: pass
 
         if not data or not isinstance(data, dict):
-            return {"found": False, "source": source, "summary": "Unparseable data.", "data": {"raw": text}}
+            # Regex fallback: extract executive names and pay from narrative text
+            data = _extract_exec_pay_from_text(text)
+            if not data:
+                return {"found": False, "source": source, "summary": "Unparseable data.", "data": {"raw": text}}
 
         execs = data.get("executives", [])
+        if not execs:
+            return {"found": False, "source": source, "summary": "No executive compensation found.", "data": {"raw": text}}
+
         parts = [f"Found {len(execs)} executive(s) in {data.get('year', '')} proxy statement"]
         for e in execs[:2]:
             parts.append(f"{e.get('name')} ({e.get('title')}): {e.get('total_pay')}")
@@ -1870,7 +2048,10 @@ def search_job_postings(
             except: pass
 
         if not data or not isinstance(data, dict):
-            return {"found": False, "source": source, "summary": "Unparseable job data.", "data": {"raw": text}}
+            # Regex fallback: extract count and titles from narrative text
+            data = _extract_job_postings_from_text(text)
+            if not data:
+                return {"found": False, "source": source, "summary": "Unparseable job data.", "data": {"raw": text}}
 
         count = data.get("count_estimate", 0)
         samples = data.get("sample_postings", [])
@@ -1919,20 +2100,32 @@ def get_workforce_demographics(
         
         naics_2 = naics[:2]
         baseline = _PROFILES.get(naics_2)
-        
+        is_generic_fallback = baseline is None
+
         if not baseline:
             # Generic private sector baseline
             baseline = {"race_white": 76, "race_black": 12, "gender_male": 53, "avg_age": 42}
 
+        # Prefix the demographic_profile with an honest source label
+        labeled_profile = f"INDUSTRY BASELINE (NAICS {naics_2}): " + ", ".join(
+            f"{k}={v}" for k, v in baseline.items()
+        )
+        if is_generic_fallback:
+            labeled_profile = f"GENERIC INDUSTRY BASELINE (no NAICS {naics_2} data): " + ", ".join(
+                f"{k}={v}" for k, v in baseline.items()
+            )
+
         data = {
             "naics_2": naics_2,
             "state": state,
-            "demographic_profile": baseline,
+            "demographic_profile": labeled_profile,
+            "demographic_raw": baseline,
             "is_estimate": True,
+            "is_generic_fallback": is_generic_fallback,
             "source_citation": "BLS Labor Force Statistics (Industry CPS 2024)"
         }
-        
-        summary = f"Industry typical demographics (NAICS {naics_2}): {baseline['race_white']}% White, {baseline['race_black']}% Black, {baseline['gender_male']}% Male. Avg age: {baseline['avg_age']}."
+
+        summary = f"INDUSTRY BASELINE demographics (NAICS {naics_2}): {baseline['race_white']}% White, {baseline['race_black']}% Black, {baseline['gender_male']}% Male. Avg age: {baseline['avg_age']}. NOTE: These are industry averages, not company-specific."
         
         return {
             "found": True,
@@ -1941,6 +2134,371 @@ def get_workforce_demographics(
             "data": data,
         }
 
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 16: search_gleif_ownership
+# ---------------------------------------------------------------------------
+
+def search_gleif_ownership(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search GLEIF database for corporate ownership and parent-child relationships."""
+    source = "database:gleif_us_entities"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        # Step 1: Find the entity in GLEIF
+        entity = None
+        if employer_id:
+            # Via unified_match_log
+            cur.execute("""
+                SELECT g.* FROM gleif_us_entities g
+                JOIN unified_match_log u ON u.source_id = g.lei
+                WHERE u.source_system = 'gleif'
+                  AND u.target_id = %s
+                  AND u.status = 'active'
+                LIMIT 1
+            """, (employer_id,))
+            entity = cur.fetchone()
+
+        if not entity:
+            name_clause, name_params = _name_like_clause("UPPER(entity_name)", company_name)
+            cur.execute(f"SELECT * FROM gleif_us_entities WHERE {name_clause} LIMIT 5", name_params)
+            candidates = cur.fetchall()
+            candidates = _filter_by_name_similarity(candidates, company_name, "entity_name")
+            entity = candidates[0] if candidates else None
+
+        if not entity:
+            conn.close()
+            return {"found": False, "source": source, "summary": "No GLEIF entity found.", "data": {}}
+
+        entity = _safe_dict(entity)
+        entity_id = entity["id"]
+
+        # Step 2: Find parents
+        cur.execute("""
+            SELECT p.entity_name AS parent_name, p.lei AS parent_lei, l.interest_level
+            FROM gleif_ownership_links l
+            JOIN gleif_us_entities p ON p.id = l.parent_entity_id
+            WHERE l.child_entity_id = %s
+        """, (entity_id,))
+        parents = _safe_list(cur.fetchall())
+
+        # Step 3: Find children
+        cur.execute("""
+            SELECT c.entity_name AS child_name, c.lei AS child_lei, l.interest_level
+            FROM gleif_ownership_links l
+            JOIN gleif_us_entities c ON c.id = l.child_entity_id
+            WHERE l.parent_entity_id = %s
+        """, (entity_id,))
+        children = _safe_list(cur.fetchall())
+
+        conn.close()
+
+        data = {
+            "entity": entity,
+            "parents": parents,
+            "children": children,
+            "lei": entity.get("lei"),
+        }
+
+        summary = f"GLEIF: {entity['entity_name']} (LEI {entity.get('lei', 'N/A')}). "
+        if parents:
+            summary += f"Owned by {', '.join(p['parent_name'] for p in parents)}. "
+        if children:
+            summary += f"Directly owns {len(children)} subsidiaries. "
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 17: search_political_donations
+# ---------------------------------------------------------------------------
+
+def search_political_donations(
+    company_name: str,
+    *,
+    ceo_name: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search for political donations from the company and its top executives using FEC API and Google grounding."""
+    source = "api:fec_and_google"
+    fec_api_key = "JFdTNkK4BgdicVMGniycY8ISrW4ESwgcjCDNpIu9"
+    google_api_key = os.environ.get("GOOGLE_API_KEY")
+    
+    try:
+        import requests
+        from google import genai
+        from google.genai import types
+
+        fec_data = {}
+        fec_summary = ""
+        
+        # Step 1: Query FEC API for employer-based contributions
+        # Schedule A: /schedules/schedule_a/by_employer/
+        try:
+            fec_url = "https://api.open.fec.gov/v1/schedules/schedule_a/by_employer/"
+            params = {
+                "api_key": fec_api_key,
+                "employer": company_name,
+                "sort": "-total",
+                "per_page": 20
+            }
+            resp = requests.get(fec_url, params=params, timeout=10)
+            if resp.status_code == 200:
+                results = resp.json().get("results", [])
+                if results:
+                    total_fec = sum(r.get("total", 0) for r in results)
+                    fec_data["employer_contributions"] = results
+                    fec_data["fec_total"] = total_fec
+                    fec_summary = f"FEC API found ${total_fec:,.2f} in contributions from employees of '{company_name}'. "
+        except Exception as fec_exc:
+            _log.warning("FEC API call failed: %s", fec_exc)
+
+        if not google_api_key:
+            if fec_data:
+                return {"found": True, "source": "api:fec", "summary": fec_summary, "data": fec_data}
+            return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+        # Step 2: Use Gemini with Google Search grounding for broader context (PACS, CEO personal, OpenSecrets)
+        client = genai.Client(api_key=google_api_key)
+        
+        target = f"\"{company_name}\""
+        if ceo_name:
+            target += f" and CEO \"{ceo_name}\""
+
+        fec_context = f"\nFEC direct data found: {fec_summary}" if fec_summary else ""
+        
+        prompt = (
+            f"Find comprehensive political donation data for {target}. {fec_context}\n"
+            "Search for contributions to federal and state candidates, PACs, and parties from the company itself and its top executives. "
+            "Cross-reference with OpenSecrets.org, FEC.gov, and news reports. "
+            "Summarize the total amount donated (if possible beyond the FEC employer-based figures), "
+            "the partisan lean (Democrats vs Republicans), and any notable high-dollar individual donors (especially the CEO). "
+            "Return a JSON object with: {'total_amount': '$X,XXX', 'partisan_lean': 'Dem/Rep/Neutral', 'top_donors': [{'name': '...', 'amount': '...', 'recipient': '...'}], 'summary': '...'}. "
+            "If no data found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        text = candidate.content.parts[0].text.strip()
+        
+        if not text or text.upper() == "NONE":
+            if fec_data:
+                return {"found": True, "source": "api:fec", "summary": fec_summary, "data": fec_data}
+            return {"found": False, "source": source, "summary": "No political donation data found.", "data": {}}
+
+        # Extract JSON from Gemini
+        data = None
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            # Combine FEC summary with Gemini narrative
+            combined_summary = (fec_summary + text)[:500]
+            return {"found": True, "source": source, "summary": combined_summary, "data": {"fec": fec_data, "narrative": text}}
+
+        # Merge FEC raw data into the Gemini structured response
+        data["fec_api_raw"] = fec_data
+        
+        final_summary = f"Political Donations: {data.get('total_amount', 'Unknown total')}. Lean: {data.get('partisan_lean', 'Unknown')}. " + data.get('summary', '')
+        if fec_summary and "FEC API" not in final_summary:
+            final_summary = fec_summary + final_summary
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": final_summary,
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 18: search_local_demographics
+# ---------------------------------------------------------------------------
+
+def search_local_demographics(
+    company_name: str,
+    city: str,
+    state: str,
+    **_kw,
+) -> dict:
+    """Search for local city/state demographic data using Google grounding."""
+    source = "api:local_demographics"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        prompt = (
+            f"Provide current demographic data for {city}, {state}. "
+            "Include population size, racial/ethnic breakdown (White, Black, Hispanic, Asian, etc.), median household income, and poverty rate. "
+            "Also mention the top 3 largest industries in this city. "
+            "Return a JSON object with: {'city': '...', 'population': '...', 'race_ethnicity': {'White': 'X%', ...}, 'median_income': '...', 'top_industries': ['...', '...', '...']}. "
+            "If no data found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": "No demographic data found.", "data": {}}
+
+        # Extract JSON
+        data = None
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            return {"found": True, "source": source, "summary": f"Demographics for {city}, {state}", "data": {"raw": text}}
+
+        summary = f"Demographics for {city}, {state}: Population {data.get('population')}, Median Income {data.get('median_income')}. "
+        race = data.get('race_ethnicity', {})
+        if race:
+            summary += "Race: " + ", ".join(f"{k}: {v}" for k, v in list(race.items())[:3])
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 19: search_warn_notices
+# ---------------------------------------------------------------------------
+
+def search_warn_notices(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search for mass layoff (WARN Act) notices filed by this employer."""
+    source = "api:warn_notices"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        query = f"WARN Act layoff notices \"{company_name}\""
+        if state:
+            query += f" in {state}"
+
+        prompt = (
+            f"Search for recent mass layoff (WARN Act) notices filed by {company_name}. "
+            "Look for notices in the last 24 months. Include date filed, number of workers affected, and the location/facility name. "
+            "Return a JSON list of notices: [{'date': 'YYYY-MM-DD', 'workers_affected': 150, 'location': '...', 'notes': '...'}]. "
+            "If no notices found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": "No WARN notices found.", "data": {}}
+
+        # Extract JSON
+        data = None
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data:
+            return {"found": True, "source": source, "summary": f"WARN notices found for {company_name}", "data": {"raw": text}}
+
+        notices = data if isinstance(data, list) else data.get('notices', [])
+        summary = f"Found {len(notices)} recent WARN layoff notice(s). "
+        if notices:
+            summary += f"Most recent: {notices[0].get('workers_affected')} workers in {notices[0].get('location')} on {notices[0].get('date')}."
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": notices,
+        }
     except Exception as exc:
         return _error_result(source, exc)
 
@@ -1967,6 +2525,10 @@ TOOL_REGISTRY: dict[str, callable] = {
     "get_workforce_demographics": get_workforce_demographics,
     # search_web removed — replaced by Gemini Google Search grounding in agent.py
     "scrape_employer_website": scrape_employer_website,
+    "search_gleif_ownership": search_gleif_ownership,
+    "search_political_donations": search_political_donations,
+    "search_local_demographics": search_local_demographics,
+    "search_warn_notices": search_warn_notices,
 }
 
 
@@ -2157,6 +2719,55 @@ TOOL_DEFINITIONS = [
                 "url": {"type": "string", "description": "Company website URL if known (e.g. from search_mergent)"},
                 "industry": {"type": "string", "description": "Industry name or NAICS code for better URL lookup"},
                 "state": {"type": "string", "description": "2-letter state code for better URL lookup"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_gleif_ownership",
+        "description": "Search GLEIF database for corporate ownership and parent-child relationships. Returns legal name, LEI, parents, and subsidiaries.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "employer_id": {"type": "string", "description": "F7 employer_id for precise lookup"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_political_donations",
+        "description": "Search for political donations from the company and its top executives. Returns total amounts, partisan lean, and top donor details.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "ceo_name": {"type": "string", "description": "Name of the CEO or top executive if known"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_local_demographics",
+        "description": "Search for local city/state demographic data (population, race, income, major industries). Replaces national industry baselines with local context.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "city": {"type": "string", "description": "City name"},
+                "state": {"type": "string", "description": "2-letter state code"},
+            },
+            "required": ["company_name", "city", "state"],
+        },
+    },
+    {
+        "name": "search_warn_notices",
+        "description": "Search for recent mass layoff (WARN Act) notices filed by this employer. Returns dates and worker counts.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "state": {"type": "string", "description": "2-letter state code to narrow search"},
             },
             "required": ["company_name"],
         },

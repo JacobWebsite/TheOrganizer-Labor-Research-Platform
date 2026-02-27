@@ -1,0 +1,63 @@
+{
+  "category": "union_security",
+  "provision_classes": ["union_security_and_dues"],
+  "heading_signals": [
+    {"pattern": "\\b(union\\s+security|dues|checkoff|agency\\s+(?:shop|fee)|maintenance\\s+of\\s+membership)\\b", "weight": 0.4},
+    {"pattern": "\\b(union\\s+recognition|recognition)\\b", "weight": 0.25},
+    {"pattern": "\\b(union\\s+rights|steward|shop\\s+steward)\\b", "weight": 0.3}
+  ],
+  "text_patterns": [
+    {
+      "name": "dues_deduction",
+      "pattern": "(?:employer|company)\\s+(?:shall|will|agrees?\\s+to)\\s+(?:deduct|withhold|check\\s*off).*(?:dues|initiation\\s+fee|assessment|PAC|COPE)",
+      "confidence": 0.90,
+      "provision_class": "union_security_and_dues",
+      "summary": "Dues deduction/checkoff"
+    },
+    {
+      "name": "agency_shop",
+      "pattern": "\\b(?:agency\\s+(?:shop|fee)|fair\\s+share|service\\s+fee|representation\\s+fee)\\b",
+      "confidence": 0.85,
+      "provision_class": "union_security_and_dues",
+      "summary": "Agency shop/fair share"
+    },
+    {
+      "name": "membership_requirement",
+      "pattern": "(?:shall\\s+be\\s+required\\s+to|must|condition\\s+of\\s+employment).*(?:become\\s+(?:and\\s+remain\\s+)?(?:a\\s+)?member|join\\s+the\\s+union|maintain\\s+membership)",
+      "confidence": 0.85,
+      "provision_class": "union_security_and_dues",
+      "summary": "Membership requirement"
+    },
+    {
+      "name": "steward_rights",
+      "pattern": "\\b(?:steward|shop\\s+steward|union\\s+representative|union\\s+delegate)\\s+(?:shall\\s+(?:be\\s+(?:permitted|allowed|authorized)|have)|rights?|may)",
+      "confidence": 0.80,
+      "provision_class": "union_security_and_dues",
+      "summary": "Steward rights"
+    },
+    {
+      "name": "bulletin_board",
+      "pattern": "\\b(?:bulletin\\s+board|posting|notice\\s+board).*(?:union|local|organization)",
+      "confidence": 0.75,
+      "provision_class": "union_security_and_dues",
+      "summary": "Union bulletin board"
+    },
+    {
+      "name": "union_access",
+      "pattern": "\\b(?:union|business\\s+agent|representative)\\s+(?:shall\\s+have|may\\s+have)?\\s*(?:access|entry|right\\s+to\\s+(?:enter|visit))\\s+(?:to\\s+)?(?:the\\s+)?(?:premises|workplace|facility)",
+      "confidence": 0.85,
+      "provision_class": "union_security_and_dues",
+      "summary": "Union access to workplace"
+    },
+    {
+      "name": "bargaining_unit_info",
+      "pattern": "(?:employer|company)\\s+(?:shall|will)\\s+(?:provide|furnish|supply).*(?:union|local).*(?:list|roster|names?|information|data)\\s+(?:of|regarding)\\s+(?:employees?|bargaining\\s+unit)",
+      "confidence": 0.80,
+      "provision_class": "union_security_and_dues",
+      "summary": "Employer provision of unit info"
+    }
+  ],
+  "negative_patterns": [
+    {"pattern": "\\b(?:national\\s+)?security\\s+(?:clearance|background|screening)\\b", "note": "Security screening, not union security"}
+  ]
+}

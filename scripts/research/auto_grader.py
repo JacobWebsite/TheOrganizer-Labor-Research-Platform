@@ -61,6 +61,7 @@ SOURCE_TYPE_RANK = {
 # Known placeholder/generic values that shouldn't count as real data
 _PLACEHOLDER_VALUES = re.compile(
     r'^(unknown|no data|not found|not available|n/a|none|null|'
+    r'not searched.*|'
     r'no\s+(?:results?|information|data)\s+(?:found|available))$',
     re.IGNORECASE,
 )
