@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import re
 from typing import Optional, Tuple
 
 # Ensure project root importable
@@ -35,6 +36,7 @@ def lookup_employer(
     cur,
     company_name: str,
     state: Optional[str] = None,
+    address: Optional[str] = None,
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """Look up the best F7 employer match for a company name.
 
@@ -43,6 +45,7 @@ def lookup_employer(
     cur : psycopg2 cursor (any cursor type)
     company_name : raw company name from research request
     state : optional 2-letter state code to prefer matches in that state
+    address : optional street address or zip code to narrow search
 
     Returns
     -------
@@ -56,6 +59,37 @@ def lookup_employer(
 
     if not std:
         return None, None, None
+
+    # ------------------------------------------------------------------
+    # 0. Address-Based Stricter Match (if address provided)
+    # ------------------------------------------------------------------
+    if address:
+        addr_clean = address.strip().lower()
+        # Try to extract zip if it looks like one (5 digits)
+        zip_match = re.search(r'\b(\d{5})\b', addr_clean)
+        zip_code = zip_match.group(1) if zip_match else None
+        
+        # Strategy: Name similarity + Street or Zip match
+        cur.execute(
+            """
+            SELECT employer_id, employer_name, latest_unit_size, state, street, zip
+            FROM f7_employers_deduped
+            WHERE (name_standard = %s OR employer_name_aggressive %% %s)
+              AND (
+                (%s IS NOT NULL AND zip = %s)
+                OR (%s IS NOT NULL AND street ILIKE %s)
+              )
+            ORDER BY similarity(employer_name_aggressive, %s) DESC, COALESCE(latest_unit_size, 0) DESC
+            LIMIT 5
+            """,
+            (std, agg, zip_code, zip_code, addr_clean, f"%{addr_clean}%", agg),
+        )
+        rows = _fetch_tuples(cur)
+        if rows:
+            pick = _best_row(rows, state)
+            _log.info("employer_lookup: address-verified match %r + %r -> %s (%s)", 
+                      company_name, address, pick[0], pick[1])
+            return pick[0], pick[1], "name_and_address"
 
     # ------------------------------------------------------------------
     # 1. Exact match on name_standard
@@ -161,7 +195,7 @@ def backfill_employer_ids(conn, dry_run: bool = True) -> int:
     """
     cur = conn.cursor()
     cur.execute("""
-        SELECT id, company_name, company_state
+        SELECT id, company_name, company_state, company_address
         FROM research_runs
         WHERE employer_id IS NULL
         ORDER BY id
@@ -170,8 +204,8 @@ def backfill_employer_ids(conn, dry_run: bool = True) -> int:
     _log.info("backfill: %d unlinked research runs", len(unlinked))
 
     updated = 0
-    for run_id, company_name, company_state in unlinked:
-        emp_id, emp_name, method = lookup_employer(cur, company_name, company_state)
+    for run_id, company_name, company_state, company_address in unlinked:
+        emp_id, emp_name, method = lookup_employer(cur, company_name, company_state, company_address)
         if emp_id:
             if not dry_run:
                 cur.execute(

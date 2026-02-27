@@ -17,6 +17,7 @@ export function NewResearchModal({ onSubmit, isPending, error, onClose }) {
   const [companyName, setCompanyName] = useState('')
   const [naicsCode, setNaicsCode] = useState('')
   const [state, setState] = useState('')
+  const [companyAddress, setCompanyAddress] = useState('')
   const [companyType, setCompanyType] = useState('')
   const statesQuery = useStates()
   const states = statesQuery.data?.states || []
@@ -28,6 +29,7 @@ export function NewResearchModal({ onSubmit, isPending, error, onClose }) {
       company_name: companyName.trim(),
       naics_code: naicsCode || undefined,
       state: state || undefined,
+      company_address: companyAddress.trim() || undefined,
       company_type: companyType || undefined,
     })
   }
@@ -80,6 +82,20 @@ export function NewResearchModal({ onSubmit, isPending, error, onClose }) {
                   <option key={s.state} value={s.state}>{s.state}</option>
                 ))}
               </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1 block">Company Address (optional)</label>
+              <input
+                type="text"
+                value={companyAddress}
+                onChange={(e) => setCompanyAddress(e.target.value)}
+                placeholder="e.g. 123 Main St, New York, NY 10001"
+                className="h-10 w-full border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Helpful for pinpointing specific facilities and reducing noise.
+              </p>
             </div>
 
             <div>

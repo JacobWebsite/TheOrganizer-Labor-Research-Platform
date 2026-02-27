@@ -31,7 +31,7 @@ export async function apiClient(url, options = {}) {
 
   const response = await fetch(url, { ...options, headers })
 
-  if (response.status === 401) {
+  if (response.status === 401 && import.meta.env.VITE_DISABLE_AUTH !== 'true') {
     // Auto-logout on unauthorized
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')

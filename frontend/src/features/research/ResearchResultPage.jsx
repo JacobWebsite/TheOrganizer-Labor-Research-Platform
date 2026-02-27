@@ -139,10 +139,11 @@ export function ResearchResultPage() {
               {result.quality_dimensions && (
                 <div className="space-y-2">
                   {[
-                    { key: 'coverage', label: 'Coverage', weight: '20%' },
                     { key: 'source_quality', label: 'Source Quality', weight: '35%' },
-                    { key: 'consistency', label: 'Consistency', weight: '25%' },
-                    { key: 'freshness', label: 'Freshness', weight: '15%' },
+                    { key: 'coverage', label: 'Coverage', weight: '20%' },
+                    { key: 'actionability', label: 'Actionability', weight: '15%' },
+                    { key: 'consistency', label: 'Consistency', weight: '15%' },
+                    { key: 'freshness', label: 'Freshness', weight: '10%' },
                     { key: 'efficiency', label: 'Efficiency', weight: '5%' },
                   ].map(({ key, label, weight }) => {
                     const val = result.quality_dimensions[key]

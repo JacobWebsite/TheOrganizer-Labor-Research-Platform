@@ -2504,6 +2504,412 @@ def search_warn_notices(
 
 
 # ---------------------------------------------------------------------------
+# TOOL 20: search_worker_sentiment
+# ---------------------------------------------------------------------------
+
+def search_worker_sentiment(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search for worker reviews and sentiment on Reddit, Glassdoor, and Indeed."""
+    source = "api:worker_sentiment"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        target = f"\"{company_name}\" worker reviews"
+        if state:
+            target += f" in {state}"
+
+        prompt = (
+            f"Analyze current worker sentiment for {target}. "
+            "Search specifically on Reddit (r/antiwork, r/work), Glassdoor, and Indeed reviews. "
+            "Extract specific complaints about: management, wages, safety, overtime, and work-life balance. "
+            "Summarize the general 'vibe' (positive/negative/toxic) and list 3-5 specific recent employee grievances. "
+            "Return a JSON object with: {'sentiment_score': 0-10, 'top_complaints': ['...', '...'], 'summary': '...', 'sources': ['Reddit', 'Glassdoor', ...]}. "
+            "If no reviews found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": "No worker sentiment found.", "data": {}}
+
+        # Extract JSON
+        data = None
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            return {"found": True, "source": source, "summary": text[:200], "data": {"raw": text}}
+
+        summary = f"Worker Sentiment ({data.get('sentiment_score', 'N/A')}/10): " + data.get('summary', '')
+        if data.get('top_complaints'):
+            summary += " Major complaints: " + "; ".join(data['top_complaints'][:3])
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 21: search_sos_filings
+# ---------------------------------------------------------------------------
+
+def search_sos_filings(
+    company_name: str,
+    state: str,
+    **_kw,
+) -> dict:
+    """Search for official State Secretary of State (SOS) corporate filings."""
+    source = "api:sos_filings"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        prompt = (
+            f"Find official corporate filing information for \"{company_name}\" in {state}. "
+            "Search for the Secretary of State (SOS) record. "
+            "Extract: Registered Agent name and address, list of current Officers/Directors, and any parent entities or LLC managers listed. "
+            "Also provide a direct deep-link to the official state filing page if possible. "
+            "Return a JSON object with: {'registered_agent': '...', 'officers': ['...', '...'], 'filing_url': '...', 'entity_status': '...', 'summary': '...'}. "
+            "If no filings found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": f"No SOS filings found in {state}.", "data": {}}
+
+        # Extract JSON
+        data = None
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            return {"found": True, "source": source, "summary": text[:200], "data": {"raw": text}}
+
+        summary = f"SOS Filing ({state}): Status {data.get('entity_status', 'Unknown')}. Registered Agent: {data.get('registered_agent')}. "
+        if data.get('officers'):
+            summary += f"Officers: {', '.join(data['officers'][:3])}."
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 22: compare_industry_wages
+# ---------------------------------------------------------------------------
+
+def compare_industry_wages(
+    company_name: str,
+    industry: str,
+    city: str,
+    state: str,
+    **_kw,
+) -> dict:
+    """Compare target company wages with local competitors in the same sector."""
+    source = "api:wage_comparison"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        prompt = (
+            f"Compare wages for \"{company_name}\" against 3-4 direct local competitors in the \"{industry}\" sector in {city}, {state}. "
+            "Search current job postings (Indeed, Glassdoor, ZipRecruiter) for typical starting wages. "
+            "Example: 'Amazon pays $18/hr vs UPS pays $21/hr for similar roles'. "
+            "Identify if this company is above or below the local market average. "
+            "Return a JSON object with: {'market_position': 'Below/At/Above Average', 'target_wages': '$X/hr', 'competitors': [{'name': '...', 'wage': '$Y/hr'}], 'summary': '...'}. "
+            "If no comparison data found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": "No local wage comparisons found.", "data": {}}
+
+        # Extract JSON
+        data = None
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            return {"found": True, "source": source, "summary": text[:200], "data": {"raw": text}}
+
+        summary = f"Wage Comparison: {data.get('market_position', 'Unknown')} position. Target: {data.get('target_wages')}. "
+        comps = data.get('competitors', [])
+        if comps:
+            summary += "Competitors: " + ", ".join(f"{c['name']} ({c['wage']})" for c in comps[:2])
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 23: search_solidarity_network
+# ---------------------------------------------------------------------------
+
+def search_solidarity_network(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Find unionized 'sister' companies within the same corporate family using GLEIF."""
+    source = "database:gleif_and_f7"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        # Step 1: Get the LEI for this entity
+        lei = None
+        if employer_id:
+            cur.execute("SELECT gleif_lei FROM mv_employer_data_sources WHERE employer_id = %s", (employer_id,))
+            row = cur.fetchone()
+            if row: lei = row["gleif_lei"]
+
+        if not lei:
+            # Search by name in GLEIF entities
+            name_clause, name_params = _name_like_clause("UPPER(entity_name)", company_name)
+            cur.execute(f"SELECT lei FROM gleif_us_entities WHERE {name_clause} LIMIT 1", name_params)
+            row = cur.fetchone()
+            if row: lei = row["lei"]
+
+        if not lei:
+            conn.close()
+            return {"found": False, "source": source, "summary": "No corporate LEI found to trace family.", "data": {}}
+
+        # Step 2: Find the parent LEI
+        cur.execute("SELECT parent_entity_id FROM gleif_ownership_links l JOIN gleif_us_entities e ON e.id = l.child_entity_id WHERE e.lei = %s LIMIT 1", (lei,))
+        parent_row = cur.fetchone()
+        if not parent_row:
+            conn.close()
+            return {"found": False, "source": source, "summary": "No corporate parent found in GLEIF.", "data": {"lei": lei}}
+
+        parent_id = parent_row["parent_entity_id"]
+        
+        # Get parent name for summary
+        cur.execute("SELECT entity_name, lei FROM gleif_us_entities WHERE id = %s", (parent_id,))
+        parent_info = cur.fetchone()
+        parent_name = parent_info["entity_name"] if parent_info else "Unknown Parent"
+
+        # Step 3: Find ALL children of that parent and check their union status
+        cur.execute("""
+            WITH family AS (
+                SELECT child_entity_id FROM gleif_ownership_links WHERE parent_entity_id = %s
+            )
+            SELECT DISTINCT 
+                eds.employer_id, 
+                eds.employer_name, 
+                eds.state, 
+                eds.latest_union_name,
+                eds.latest_unit_size
+            FROM family f
+            JOIN gleif_us_entities g ON g.id = f.child_entity_id
+            JOIN mv_employer_data_sources eds ON eds.gleif_lei = g.lei
+            WHERE eds.latest_union_name IS NOT NULL
+            ORDER BY eds.latest_unit_size DESC NULLS LAST
+            LIMIT 20
+        """, (parent_id,))
+        sister_unions = _safe_list(cur.fetchall())
+        conn.close()
+
+        if not sister_unions:
+            return {"found": True, "source": source, "summary": f"Corporate parent '{parent_name}' found, but no unionized sister companies identified in our database.", "data": {"parent_name": parent_name}}
+
+        total_workers = sum(s.get("latest_unit_size", 0) or 0 for s in sister_unions)
+        summary = f"Solidarity Network: Target is part of the '{parent_name}' family. We identified {len(sister_unions)} unionized sister facilities covering approx {total_workers:,} workers. Notable unions: "
+        unions = list(set(s["latest_union_name"] for s in sister_unions if s.get("latest_union_name")))
+        summary += ", ".join(unions[:5]) + "."
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": {
+                "parent_name": parent_name,
+                "sister_facilities": sister_unions,
+                "unions_involved": unions
+            }
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL 24: search_local_subsidies
+# ---------------------------------------------------------------------------
+
+def search_local_subsidies(
+    company_name: str,
+    city: str,
+    state: str,
+    **_kw,
+) -> dict:
+    """Search for local tax breaks, abatements, and public subsidies."""
+    source = "api:subsidies"
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=api_key)
+        
+        prompt = (
+            f"Search for public subsidies, tax abatements, or economic development grants received by \"{company_name}\" in {city}, {state}. "
+            "Check sources like Good Jobs First (Subsidy Tracker), local IDA (Industrial Development Agency) records, and news reports. "
+            "Look for: property tax breaks, sales tax exemptions, mortgage recording tax waivers, or direct grants. "
+            "Identify the dollar amount and the 'quid pro quo' (e.g., job creation promises). "
+            "Return a JSON object with: {'total_subsidy_value': '$X,XXX', 'subsidy_types': ['...', '...'], 'recent_awards': [{'year': '...', 'amount': '...', 'type': '...'}], 'summary': '...'}. "
+            "If no data found, respond with NONE."
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)],
+            )],
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        
+        candidate = response.candidates[0] if response.candidates else None
+        text = candidate.content.parts[0].text.strip()
+        if not text or text.upper() == "NONE":
+            return {"found": False, "source": source, "summary": "No local subsidy data found.", "data": {}}
+
+        # Extract JSON
+        data = None
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+        if m:
+            try:
+                data = json.loads(_fix_json_escapes(m.group(1).strip()))
+            except: pass
+        if not data:
+            try:
+                data = json.loads(_fix_json_escapes(text))
+            except: pass
+
+        if not data or not isinstance(data, dict):
+            return {"found": True, "source": source, "summary": text[:200], "data": {"raw": text}}
+
+        summary = f"Taxpayer Receipt: {data.get('total_subsidy_value', 'Unknown total')} in subsidies/abatements identified. " + data.get('summary', '')
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
 # Maps tool names (used in Claude API tool definitions) to callables.
@@ -2529,6 +2935,11 @@ TOOL_REGISTRY: dict[str, callable] = {
     "search_political_donations": search_political_donations,
     "search_local_demographics": search_local_demographics,
     "search_warn_notices": search_warn_notices,
+    "search_worker_sentiment": search_worker_sentiment,
+    "search_sos_filings": search_sos_filings,
+    "compare_industry_wages": compare_industry_wages,
+    "search_solidarity_network": search_solidarity_network,
+    "search_local_subsidies": search_local_subsidies,
 }
 
 
@@ -2770,6 +3181,69 @@ TOOL_DEFINITIONS = [
                 "state": {"type": "string", "description": "2-letter state code to narrow search"},
             },
             "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_worker_sentiment",
+        "description": "Search for worker reviews and sentiment on Reddit, Glassdoor, and Indeed. Returns specific grievances and sentiment scores.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "state": {"type": "string", "description": "2-letter state code"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_sos_filings",
+        "description": "Search for official state Secretary of State corporate filings. Returns registered agent, officers, and filing links.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "state": {"type": "string", "description": "2-letter state code (Required)"},
+            },
+            "required": ["company_name", "state"],
+        },
+    },
+    {
+        "name": "compare_industry_wages",
+        "description": "Compare target company wages with local competitors in the same sector. Returns market position and specific competitor pay rates.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "industry": {"type": "string", "description": "Industry/Sector name (e.g. 'Warehouse', 'Nursing')"},
+                "city": {"type": "string", "description": "City name"},
+                "state": {"type": "string", "description": "2-letter state code"},
+            },
+            "required": ["company_name", "industry", "city", "state"],
+        },
+    },
+    {
+        "name": "search_solidarity_network",
+        "description": "Find unionized 'sister' companies within the same corporate family using GLEIF and our union database. Returns a list of unionized facilities coverage totals.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "employer_id": {"type": "string", "description": "F7 employer_id for precise tracing"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_local_subsidies",
+        "description": "Search for local tax breaks, abatements, and public subsidies received by this employer. Returns dollar amounts and summary of awards.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "city": {"type": "string", "description": "City name"},
+                "state": {"type": "string", "description": "2-letter state code"},
+            },
+            "required": ["company_name", "city", "state"],
         },
     },
 ]

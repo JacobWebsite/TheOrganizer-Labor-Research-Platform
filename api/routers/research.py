@@ -34,7 +34,7 @@ class ResearchRequest(BaseModel):
     naics_code: Optional[str] = None           # Optional: industry hint
     company_type: Optional[str] = None         # Optional: public/private/nonprofit/government
     state: Optional[str] = None                # Optional: state hint
-
+    company_address: Optional[str] = None      # Optional: address hint for stricter matching
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ async def start_research_run(request: ResearchRequest, background_tasks: Backgro
             if not employer_id:
                 from scripts.research.employer_lookup import lookup_employer
                 emp_id, emp_name, method = lookup_employer(
-                    cur, request.company_name, request.state,
+                    cur, request.company_name, request.state, request.company_address
                 )
                 if emp_id:
                     employer_id = emp_id
@@ -88,12 +88,13 @@ async def start_research_run(request: ResearchRequest, background_tasks: Backgro
             # Create the run record
             cur.execute("""
                 INSERT INTO research_runs
-                    (company_name, employer_id, industry_naics, company_type,
+                    (company_name, company_address, employer_id, industry_naics, company_type,
                      company_state, employee_size_bucket, status, current_step, progress_pct)
-                VALUES (%s, %s, %s, %s, %s, %s, 'pending', 'Queued for research...', 0)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending', 'Queued for research...', 0)
                 RETURNING id
             """, (
                 request.company_name,
+                request.company_address,
                 employer_id,
                 request.naics_code or known_info.get('naics'),
                 request.company_type,
@@ -147,7 +148,7 @@ def get_research_status(run_id: int):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT id, company_name, status, current_step, progress_pct,
+                SELECT id, company_name, company_address, status, current_step, progress_pct,
                        started_at, completed_at, duration_seconds,
                        total_tools_called, total_facts_found, sections_filled,
                        total_cost_cents, overall_quality_score, quality_dimensions
@@ -270,7 +271,7 @@ def list_research_runs(
             where = "WHERE " + " AND ".join(conditions) if conditions else ""
 
             cur.execute(f"""
-                SELECT id, company_name, employer_id, industry_naics, company_type,
+                SELECT id, company_name, company_address, employer_id, industry_naics, company_type,
                        status, started_at, completed_at, duration_seconds,
                        sections_filled, total_facts_found, overall_quality_score,
                        progress_pct, current_step

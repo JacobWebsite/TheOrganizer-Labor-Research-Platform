@@ -63,7 +63,14 @@ export function ResearchRunsTable({ runs, total, page, pageSize, onPageChange })
                 <td className="px-3 py-2">
                   <StatusBadge status={run.status} progress={run.progress_pct} />
                 </td>
-                <td className="px-3 py-2 font-medium">{run.company_name}</td>
+                <td className="px-3 py-2 font-medium">
+                  <div>{run.company_name}</div>
+                  {run.company_address && (
+                    <div className="text-[10px] text-muted-foreground font-normal truncate max-w-[200px]" title={run.company_address}>
+                      {run.company_address}
+                    </div>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-muted-foreground">{run.industry_naics || '-'}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">{formatDuration(run.duration_seconds)}</td>
                 <td className="px-3 py-2 text-right">{run.total_facts_found ?? '-'}</td>

@@ -38,6 +38,9 @@ export function DossierHeader({ status, onRunAgain }) {
         <div className="flex items-start justify-between mb-3">
           <div>
             <h1 className="text-2xl font-bold">{status?.company_name || 'Research Run'}</h1>
+            {status?.company_address && (
+              <p className="text-sm text-muted-foreground">{status.company_address}</p>
+            )}
             <div className="flex items-center gap-2 mt-1">
               <span className={cn(
                 'inline-block h-2 w-2 rounded-full',

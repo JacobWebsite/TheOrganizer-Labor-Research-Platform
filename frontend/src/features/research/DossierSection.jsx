@@ -30,6 +30,10 @@ const KEY_LABELS = {
   source_list: 'Sources Used', data_gaps: 'Data Gaps', section_confidence: 'Confidence by Section',
   data_summary: 'Data Summary', web_intelligence: 'Web Intelligence',
   source_contradictions: 'Source Contradictions',
+  registered_agent: 'Registered Agent', company_officers: 'Company Officers',
+  competitor_wages: 'Competitor Wage Comparison', solidarity_network: 'Solidarity Network',
+  local_subsidies: 'Taxpayer Subsidies', political_donations: 'Political Donations',
+  warn_notices: 'WARN Act Notices',
 }
 
 function labelFor(key) {
