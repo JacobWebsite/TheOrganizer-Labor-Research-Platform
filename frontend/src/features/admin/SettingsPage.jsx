@@ -19,7 +19,7 @@ export function SettingsPage() {
     return (
       <div className='flex flex-col items-center justify-center py-20'>
         <ShieldAlert className='h-12 w-12 text-muted-foreground mb-4' />
-        <h2 className='text-xl font-semibold mb-2'>Access Denied</h2>
+        <h2 className='font-editorial text-xl font-semibold mb-2'>Access Denied</h2>
         <p className='text-muted-foreground'>You need admin privileges to view this page.</p>
       </div>
     )
@@ -27,10 +27,7 @@ export function SettingsPage() {
 
   return (
     <div className='space-y-6'>
-      <div className='flex items-center gap-2'>
-        <Settings className='h-6 w-6 text-primary' />
-        <h1 className='text-2xl font-bold'>Administration</h1>
-      </div>
+      <h1 className='font-editorial text-3xl font-bold'>Administration</h1>
       <HelpSection>
         <p><strong>This page is only visible to administrators.</strong></p>
         <p><strong>Data freshness:</strong> Shows when each data source was last updated. Government databases are updated on different schedules -- some monthly, some quarterly, some annually. Stale data (more than 6 months old) is highlighted. Refresh buttons trigger a new data pull from the source.</p>

@@ -6,6 +6,7 @@ import { useResearchStatus, useResearchResult, useStartResearch } from '@/shared
 import { DossierHeader } from './DossierHeader'
 import { DossierSection } from './DossierSection'
 import { ActionLog } from './ActionLog'
+import { cn } from '@/lib/utils'
 
 const SECTION_ORDER = [
   'identity',
@@ -16,6 +17,19 @@ const SECTION_ORDER = [
   'financial',
   'sources',
 ]
+
+function qualityColor(score) {
+  if (score == null) return ''
+  if (score >= 7) return 'text-[#3a7d44]'
+  if (score >= 5) return 'text-[#c78c4e]'
+  return 'text-[#c23a22]'
+}
+
+function qualityBarColor(val) {
+  if (val >= 7) return 'bg-[#3a7d44]'
+  if (val >= 5) return 'bg-[#c78c4e]'
+  return 'bg-[#c23a22]'
+}
 
 export function ResearchResultPage() {
   const { runId } = useParams()
@@ -73,7 +87,7 @@ export function ResearchResultPage() {
         </Button>
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-1">Research run not found</h2>
+          <h2 className="font-editorial text-xl font-semibold mb-1">Research run not found</h2>
           <p className="text-sm text-muted-foreground">
             No research run with ID "{runId}" exists.
           </p>
@@ -92,7 +106,7 @@ export function ResearchResultPage() {
         </Button>
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-          <h2 className="text-xl font-semibold mb-1">Something went wrong</h2>
+          <h2 className="font-editorial text-xl font-semibold mb-1">Something went wrong</h2>
           <p className="text-sm text-muted-foreground mb-4">
             {statusQuery.error?.message || 'Failed to load research run.'}
           </p>
@@ -118,7 +132,7 @@ export function ResearchResultPage() {
 
       {/* Failed state */}
       {isFailed && (
-        <div className="border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="border border-destructive/50 bg-destructive/5 rounded-lg p-4 text-sm text-destructive">
           Research failed: {status?.current_step || 'Unknown error'}
         </div>
       )}
@@ -129,10 +143,8 @@ export function ResearchResultPage() {
           {result.quality_score != null && (
             <div className="border rounded-lg p-4 bg-card">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold">Research Quality</h3>
-                <span className={`text-2xl font-bold ${
-                  result.quality_score >= 7 ? 'text-green-600' : result.quality_score >= 5 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
+                <h3 className="font-editorial text-sm font-semibold">Research Quality</h3>
+                <span className={cn('text-2xl font-bold', qualityColor(result.quality_score))}>
                   {result.quality_score.toFixed(1)}<span className="text-sm font-normal text-muted-foreground">/10</span>
                 </span>
               </div>
@@ -153,7 +165,7 @@ export function ResearchResultPage() {
                         <span className="w-28 text-muted-foreground shrink-0">{label} <span className="text-xs">({weight})</span></span>
                         <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${val >= 7 ? 'bg-green-500' : val >= 5 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                            className={cn('h-full rounded-full', qualityBarColor(val))}
                             style={{ width: `${(val / 10) * 100}%` }}
                           />
                         </div>

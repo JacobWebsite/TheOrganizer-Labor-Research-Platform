@@ -25,7 +25,7 @@ export function DataFreshnessCard() {
   return (
     <Card>
       <CardHeader className='flex flex-row items-center justify-between'>
-        <CardTitle className='text-lg'>Data Freshness</CardTitle>
+        <CardTitle>Data Freshness</CardTitle>
         <Button
           variant='outline'
           size='sm'
@@ -51,24 +51,24 @@ export function DataFreshnessCard() {
           <div className='overflow-x-auto'>
             <table className='w-full text-sm'>
               <thead>
-                <tr className='border-b text-left'>
-                  <th className='pb-2 font-medium'>Source</th>
-                  <th className='pb-2 font-medium'>Rows</th>
-                  <th className='pb-2 font-medium'>Latest Date</th>
-                  <th className='pb-2 font-medium'>Status</th>
+                <tr className='border-b bg-[#ede7db]'>
+                  <th className='pb-2 pt-2 px-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground'>Source</th>
+                  <th className='pb-2 pt-2 px-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground'>Rows</th>
+                  <th className='pb-2 pt-2 px-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground'>Latest Date</th>
+                  <th className='pb-2 pt-2 px-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground'>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {(data?.sources || []).map((row) => (
-                  <tr key={row.source_name} className='border-b last:border-0'>
-                    <td className='py-2 font-medium uppercase'>{row.source_name}</td>
-                    <td className='py-2'>{formatNumber(row.row_count)}</td>
-                    <td className='py-2'>{row.latest_record_date || row.last_refreshed?.split('T')[0] || '\u2014'}</td>
-                    <td className='py-2'>
+                {(data?.sources || []).map((row, i) => (
+                  <tr key={row.source_name} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-[#f5f0e8]/50' : ''}`}>
+                    <td className='py-2 px-2 font-medium uppercase'>{row.source_name}</td>
+                    <td className='py-2 px-2'>{formatNumber(row.row_count)}</td>
+                    <td className='py-2 px-2'>{row.latest_record_date || row.last_refreshed?.split('T')[0] || '\u2014'}</td>
+                    <td className='py-2 px-2'>
                       {row.stale ? (
-                        <Badge variant='destructive'>Stale</Badge>
+                        <Badge className='bg-[#c23a22] text-white'>Stale</Badge>
                       ) : (
-                        <Badge className='bg-green-600 text-white'>Fresh</Badge>
+                        <Badge className='bg-[#3a7d44] text-white'>Fresh</Badge>
                       )}
                     </td>
                   </tr>

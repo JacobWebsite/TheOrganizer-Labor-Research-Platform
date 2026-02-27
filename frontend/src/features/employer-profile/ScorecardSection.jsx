@@ -16,9 +16,9 @@ const FACTORS = [
 const ACTIVE_FACTOR_COUNT = FACTORS.filter(f => !f.disabled).length
 
 function getBarColor(value) {
-  if (value >= 7) return 'bg-red-600'
-  if (value >= 4) return 'bg-red-400'
-  return 'bg-red-200'
+  if (value >= 7) return 'bg-[#c23a22]'
+  if (value >= 4) return 'bg-[#c78c4e]'
+  return 'bg-[#d9cebb]'
 }
 
 function ScoreBar({ label, weight, value, explanation, disabled, filter }) {
@@ -29,7 +29,7 @@ function ScoreBar({ label, weight, value, explanation, disabled, filter }) {
           <span className="font-medium">{label}</span>
           <span className="text-xs text-muted-foreground italic">Under Development</span>
         </div>
-        <div className="h-2 w-full bg-muted overflow-hidden" />
+        <div className="h-2 w-full bg-muted rounded-full overflow-hidden" />
       </div>
     )
   }
@@ -50,10 +50,10 @@ function ScoreBar({ label, weight, value, explanation, disabled, filter }) {
           {hasValue ? displayValue : '\u2014'}
         </span>
       </div>
-      <div className="h-2 w-full bg-muted overflow-hidden">
+      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
         {hasValue && (
           <div
-            className={cn('h-full transition-all', getBarColor(value))}
+            className={cn('h-full rounded-full transition-all', getBarColor(value))}
             style={{ width: `${widthPct}%` }}
           />
         )}

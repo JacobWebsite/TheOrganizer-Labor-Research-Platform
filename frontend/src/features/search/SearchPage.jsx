@@ -49,16 +49,16 @@ export function SearchPage() {
   if (!hasActiveSearch) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
-        <div className="flex items-center gap-3 mb-4">
-          <Search className="h-10 w-10 text-primary" />
-          <h1 className="text-4xl font-bold tracking-tight">Employer Search</h1>
-        </div>
+        <h1 className="font-editorial text-4xl font-bold tracking-tight mb-2">Employer Search</h1>
         <p className="text-muted-foreground mb-8 text-center max-w-md">
           Search across 100,000+ employers from NLRB elections, LM filings, and more.
         </p>
         <div className="w-full max-w-xl">
           <SearchBar variant="hero" initialValue="" onSearch={handleSearch} />
         </div>
+        <p className="font-editorial italic text-muted-foreground text-sm mt-6">
+          Powered by 8 federal databases
+        </p>
       </div>
     )
   }
@@ -94,7 +94,7 @@ export function SearchPage() {
       {isLoading && !data && <PageSkeleton variant="search" />}
 
       {isError && (
-        <div className="border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive flex items-center justify-between">
+        <div className="border border-destructive/50 bg-destructive/5 rounded-lg p-4 text-sm text-destructive flex items-center justify-between">
           <span>Failed to load results: {error?.message || 'Unknown error'}</span>
           <Button variant="outline" size="sm" onClick={() => handleSearch(filters.q)}>
             Retry
@@ -109,10 +109,10 @@ export function SearchPage() {
       {data && data.total > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground" aria-live="polite">
+            <p className="font-editorial text-lg" aria-live="polite">
               {data.total.toLocaleString()} employer{data.total !== 1 ? 's' : ''} found
             </p>
-            <div className="flex items-center border">
+            <div className="flex items-center rounded-md border overflow-hidden">
               <button
                 type="button"
                 onClick={() => handleViewModeChange('table')}

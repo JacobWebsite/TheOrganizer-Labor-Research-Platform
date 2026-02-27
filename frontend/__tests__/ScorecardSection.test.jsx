@@ -115,19 +115,16 @@ describe('ScorecardSection', () => {
 
   it('renders colored bars for non-null values', () => {
     const scorecard = {
-      score_nlrb: 8.0,  // red (>=7)
-      score_osha: 5.0,  // orange (>=4)
-      score_whd: 2.0,   // gray (<4)
+      score_nlrb: 8.0,  // brick red (>=7)
+      score_osha: 5.0,  // copper (>=4)
+      score_whd: 2.0,   // stone (<4)
     }
 
     const { container } = render(<ScorecardSection scorecard={scorecard} />)
-    // Check that colored bar divs exist
-    const redBars = container.querySelectorAll('.bg-red-600')
-    const midBars = container.querySelectorAll('.bg-red-400')
-    const lowBars = container.querySelectorAll('.bg-red-200')
-
-    expect(redBars.length).toBeGreaterThanOrEqual(1)
-    expect(midBars.length).toBeGreaterThanOrEqual(1)
-    expect(lowBars.length).toBeGreaterThanOrEqual(1)
+    const html = container.innerHTML
+    // Check that colored bar classes exist (aged broadsheet palette)
+    expect(html).toContain('bg-[#c23a22]')  // high signal (brick red)
+    expect(html).toContain('bg-[#c78c4e]')  // mid signal (copper)
+    expect(html).toContain('bg-[#d9cebb]')  // low signal (warm stone)
   })
 })

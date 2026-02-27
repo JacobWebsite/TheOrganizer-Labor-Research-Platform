@@ -40,10 +40,7 @@ export function UnionsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Users className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-bold">Union Explorer</h1>
-      </div>
+      <h1 className="font-editorial text-3xl font-bold">Union Explorer</h1>
 
       <HelpSection>
         <p><strong>What this page is for:</strong> Browse and research unions, their organizational structure, and the employers they represent. Use the search bar to find a specific union, or browse the hierarchy tree to explore how unions are organized.</p>
@@ -64,7 +61,7 @@ export function UnionsPage() {
       />
 
       <div className="flex items-center gap-2">
-        <div className="flex items-center border">
+        <div className="flex items-center rounded-md border overflow-hidden">
           <button
             type="button"
             onClick={() => setViewMode('list')}
@@ -105,7 +102,7 @@ export function UnionsPage() {
           {isLoading && !data && <PageSkeleton variant="unions" />}
 
           {isError && (
-            <div className="border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+            <div className="border border-destructive/50 bg-destructive/5 rounded-lg p-4 text-sm text-destructive">
               Failed to load unions: {error?.message || 'Unknown error'}
             </div>
           )}
@@ -113,7 +110,7 @@ export function UnionsPage() {
           {data && data.total === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-1">No unions found</h3>
+              <h3 className="font-editorial text-lg font-semibold mb-1">No unions found</h3>
               {hasActiveFilters && (
                 <p className="text-muted-foreground mb-4">
                   Try adjusting your filters or search term.
@@ -124,7 +121,7 @@ export function UnionsPage() {
 
           {data && data.total > 0 && (
             <>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-editorial text-lg">
                 {data.total.toLocaleString()} union{data.total !== 1 ? 's' : ''} found
               </p>
               <UnionResultsTable

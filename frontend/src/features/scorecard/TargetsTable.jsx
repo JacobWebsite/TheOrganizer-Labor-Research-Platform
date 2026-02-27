@@ -12,16 +12,20 @@ import { QualityIndicator } from './QualityIndicator'
 const PAGE_SIZE = 50
 
 const SOURCE_STYLES = {
-  sam:     'bg-amber-600 text-white',
-  bmf:     'bg-teal-600 text-white',
-  mergent: 'bg-indigo-600 text-white',
-  f7:      'bg-stone-800 text-white',
+  sam:     'bg-[#1a6b5a] text-white',
+  bmf:     'bg-[#c78c4e] text-white',
+  mergent: 'bg-[#6b5b8a] text-white',
+  f7:      'bg-[#2c2418] text-[#faf6ef]',
+  osha:    'bg-[#c23a22] text-white',
+  whd:     'bg-[#8b5e3c] text-white',
+  nlrb:    'bg-[#3a6b8c] text-white',
+  corpwatch: 'bg-[#6b5b8a] text-white',
 }
 
 function SourceBadge({ source }) {
   const style = SOURCE_STYLES[source] || 'bg-muted text-muted-foreground'
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold uppercase ${style}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold uppercase ${style}`}>
       {source}
     </span>
   )
@@ -48,13 +52,9 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
       ),
     },
     {
-      accessorKey: 'city',
-      header: 'City',
-      cell: ({ getValue }) => getValue() || '\u2014',
-    },
-    {
-      accessorKey: 'state',
-      header: 'State',
+      id: 'location',
+      header: 'Location',
+      accessorFn: (row) => [row.city, row.state].filter(Boolean).join(', '),
       cell: ({ getValue }) => getValue() || '\u2014',
     },
     {
@@ -79,8 +79,8 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
         if (s == null) return <div className="text-center text-xs text-muted-foreground">--</div>
         return (
           <div className="text-center">
-            <span className={`inline-flex items-center px-1.5 py-0.5 text-xs font-semibold ${
-              s >= 4 ? 'bg-green-100 text-green-700' : s >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
+            <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+              s >= 4 ? 'bg-[#c23a22]/10 text-[#c23a22]' : s >= 2 ? 'bg-[#c78c4e]/15 text-[#c78c4e]' : 'bg-[#d9cebb]/50 text-[#8a7e6b]'
             }`}>
               {s}/8
             </span>
@@ -101,30 +101,10 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
         return (
           <div className="flex gap-0.5 justify-center">
             {icons.map(i => (
-              <span key={i} className="inline-flex items-center px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-700">
+              <span key={i} className="inline-flex items-center rounded px-1 py-0.5 text-[9px] font-bold bg-[#c23a22]/10 text-[#c23a22]">
                 {i}
               </span>
             ))}
-          </div>
-        )
-      },
-    },
-    {
-      id: 'coverage',
-      header: 'Coverage',
-      accessorKey: 'source_count',
-      cell: ({ getValue }) => {
-        const c = getValue() || 0
-        const pct = Math.min((c / 8) * 100, 100)
-        return (
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs tabular-nums w-7 text-right">{c}/8</span>
-            <div className="h-1.5 w-12 bg-muted overflow-hidden">
-              <div
-                className={`h-full ${c >= 4 ? 'bg-green-500' : c >= 2 ? 'bg-amber-500' : 'bg-red-400'}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
           </div>
         )
       },
@@ -146,7 +126,7 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
         return (
           <div className="flex gap-1">
             {badges.map((b) => (
-              <span key={b} className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium border bg-muted">
+              <span key={b} className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border bg-muted">
                 {b}
               </span>
             ))}
@@ -170,13 +150,13 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto border">
+      <div className="overflow-x-auto border rounded-lg">
         <table className="w-full text-sm">
           <thead>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="border-b bg-muted/50">
+              <tr key={hg.id} className="border-b bg-[#ede7db]">
                 {hg.headers.map((header) => (
-                  <th key={header.id} className="px-3 py-2 text-left font-medium text-muted-foreground">
+                  <th key={header.id} className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -186,10 +166,10 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
+            {table.getRowModel().rows.map((row, i) => (
               <tr
                 key={row.id}
-                className="border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                className={`border-b hover:bg-accent/50 cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${i % 2 === 1 ? 'bg-[#f5f0e8]/50' : ''}`}
                 tabIndex={0}
                 onClick={() => navigate(`/employers/MASTER-${row.original.id}`)}
                 onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/employers/MASTER-${row.original.id}`) }}

@@ -6,6 +6,7 @@ import {
   flexRender,
 } from '@tanstack/react-table'
 import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { SourceBadge } from './SourceBadge'
 
@@ -30,7 +31,7 @@ function formatNumber(n) {
 }
 
 /**
- * Results table with TanStack Table — sortable columns, pagination, row click navigation.
+ * Results table with TanStack Table -- sortable columns, pagination, row click navigation.
  */
 export function ResultsTable({ data, total, page, onPageChange }) {
   const navigate = useNavigate()
@@ -122,13 +123,13 @@ export function ResultsTable({ data, total, page, onPageChange }) {
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto border">
+      <div className="overflow-x-auto border rounded-lg">
         <table className="w-full text-sm">
           <thead>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="border-b bg-muted/50">
+              <tr key={hg.id} className="border-b bg-[#ede7db]">
                 {hg.headers.map((header) => (
-                  <th key={header.id} className="px-3 py-2 text-left font-medium text-muted-foreground">
+                  <th key={header.id} className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -138,10 +139,13 @@ export function ResultsTable({ data, total, page, onPageChange }) {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
+            {table.getRowModel().rows.map((row, i) => (
               <tr
                 key={row.id}
-                className="border-b hover:bg-accent/50 cursor-pointer transition-colors"
+                className={cn(
+                  'border-b hover:bg-accent/50 cursor-pointer transition-colors',
+                  i % 2 === 1 && 'bg-[#f5f0e8]/50'
+                )}
                 onClick={() => navigate(`/employers/${row.original.canonical_id}`)}
               >
                 {row.getVisibleCells().map((cell) => (

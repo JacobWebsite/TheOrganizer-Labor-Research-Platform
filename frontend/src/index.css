@@ -2,28 +2,29 @@
 
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --radius: 0rem;
+  --font-serif: "Source Serif 4", "Georgia", serif;
+  --radius: 0.375rem;
 
-  /* Stone warm grays + red accent */
-  --color-background: #fafaf9;
-  --color-foreground: #1c1917;
-  --color-card: #ffffff;
-  --color-card-foreground: #1c1917;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #1c1917;
-  --color-primary: #dc2626;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #f5f5f4;
-  --color-secondary-foreground: #1c1917;
-  --color-muted: #f5f5f4;
-  --color-muted-foreground: #78716c;
-  --color-accent: #f5f5f4;
-  --color-accent-foreground: #1c1917;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-border: #e7e5e4;
-  --color-input: #e7e5e4;
-  --color-ring: #dc2626;
+  /* Aged Broadsheet palette */
+  --color-background: #f5f0e8;
+  --color-foreground: #2c2418;
+  --color-card: #faf6ef;
+  --color-card-foreground: #2c2418;
+  --color-popover: #faf6ef;
+  --color-popover-foreground: #2c2418;
+  --color-primary: #1a6b5a;
+  --color-primary-foreground: #faf6ef;
+  --color-secondary: #ede7db;
+  --color-secondary-foreground: #2c2418;
+  --color-muted: #ede7db;
+  --color-muted-foreground: #8a7e6b;
+  --color-accent: #e8dfd2;
+  --color-accent-foreground: #2c2418;
+  --color-destructive: #c23a22;
+  --color-destructive-foreground: #faf6ef;
+  --color-border: #d9cebb;
+  --color-input: #d9cebb;
+  --color-ring: #1a6b5a;
 }
 
 @layer base {
@@ -36,5 +37,8 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+  }
+  .font-editorial {
+    font-family: var(--font-serif);
   }
 }

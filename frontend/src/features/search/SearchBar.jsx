@@ -94,7 +94,7 @@ export function SearchBar({ variant = 'compact', initialValue = '', onSearch }) 
             onFocus={() => { if (suggestions.length > 0) setIsOpen(true) }}
             onKeyDown={handleKeyDown}
             className={cn(
-              isHero ? 'h-14 pl-11 text-lg' : 'h-10 pl-9 text-sm'
+              isHero ? 'h-14 pl-11 text-lg shadow-md shadow-[#d9cebb]/50' : 'h-10 pl-9 text-sm'
             )}
           />
         </div>
@@ -102,7 +102,7 @@ export function SearchBar({ variant = 'compact', initialValue = '', onSearch }) 
 
       {/* Autocomplete dropdown */}
       {isOpen && suggestions.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full border bg-popover shadow-lg">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border bg-popover shadow-lg">
           <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-b bg-muted/30">
             Employers
           </div>

@@ -7,9 +7,9 @@ const SIGNAL_GROUPS = [
     category: 'enforcement',
     label: 'Enforcement Signals',
     icon: ShieldAlert,
-    color: 'text-red-600',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
+    color: 'text-[#c23a22]',
+    bgColor: 'bg-[#c23a22]/10',
+    borderColor: 'border-[#c23a22]/20',
     signals: [
       { key: 'signal_osha', label: 'OSHA Safety' },
       { key: 'signal_whd', label: 'Wage & Hour' },
@@ -20,9 +20,9 @@ const SIGNAL_GROUPS = [
     category: 'leverage',
     label: 'Leverage Signals',
     icon: HandCoins,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
+    color: 'text-[#c78c4e]',
+    bgColor: 'bg-[#c78c4e]/10',
+    borderColor: 'border-[#c78c4e]/20',
     signals: [
       { key: 'signal_contracts', label: 'Federal Contracts' },
       { key: 'signal_financial', label: 'Financial Profile' },
@@ -33,9 +33,9 @@ const SIGNAL_GROUPS = [
     category: 'context',
     label: 'Context Signals',
     icon: TrendingUp,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
+    color: 'text-[#3a6b8c]',
+    bgColor: 'bg-[#3a6b8c]/10',
+    borderColor: 'border-[#3a6b8c]/20',
     signals: [
       { key: 'signal_industry_growth', label: 'Industry Growth' },
       { key: 'signal_size', label: 'Employer Size' },
@@ -52,9 +52,9 @@ function strengthLabel(val) {
 
 function strengthColor(val) {
   if (val == null) return ''
-  if (val >= 7) return 'text-red-700 bg-red-100'
-  if (val >= 4) return 'text-amber-700 bg-amber-100'
-  return 'text-stone-600 bg-stone-100'
+  if (val >= 7) return 'text-[#c23a22] bg-[#c23a22]/10'
+  if (val >= 4) return 'text-[#c78c4e] bg-[#c78c4e]/15'
+  return 'text-[#8a7e6b] bg-[#d9cebb]/50'
 }
 
 function SignalRow({ label, value, explanation }) {
@@ -62,11 +62,11 @@ function SignalRow({ label, value, explanation }) {
   const strength = strengthLabel(value)
 
   return (
-    <div className="flex items-center justify-between py-1.5 px-2 hover:bg-muted/50">
+    <div className="flex items-center justify-between py-1.5 px-2 hover:bg-accent/50">
       <div className="flex items-center gap-2 min-w-0">
         <span className={cn(
           'h-2 w-2 shrink-0 rounded-full',
-          present ? 'bg-green-500' : 'bg-stone-300'
+          present ? 'bg-[#3a7d44]' : 'bg-[#d9cebb]'
         )} />
         <span className="text-sm truncate">{label}</span>
       </div>
@@ -77,7 +77,7 @@ function SignalRow({ label, value, explanation }) {
               {Number(value).toFixed(1)}
             </span>
             <span className={cn(
-              'inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold',
+              'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold',
               strengthColor(value)
             )}>
               {strength}
@@ -97,13 +97,13 @@ function SignalGroup({ group, scorecard, signalExplanations }) {
   const totalCount = group.signals.length
 
   return (
-    <div className={cn('border rounded-md overflow-hidden', group.borderColor)}>
+    <div className={cn('border rounded-lg overflow-hidden', group.borderColor)}>
       <div className={cn('flex items-center gap-2 px-3 py-2', group.bgColor)}>
         <Icon className={cn('h-4 w-4', group.color)} />
         <span className={cn('text-sm font-semibold', group.color)}>{group.label}</span>
         <span className="ml-auto text-xs text-muted-foreground">{presentCount}/{totalCount}</span>
       </div>
-      <div className="divide-y">
+      <div className="divide-y divide-border">
         {group.signals.map(({ key, label }) => (
           <SignalRow
             key={key}
@@ -136,10 +136,10 @@ export function SignalInventory({ scorecard, signals }) {
 
   // Header color based on enforcement
   const headerColor = hasEnforcement
-    ? 'text-red-700'
+    ? 'text-[#c23a22]'
     : signalsPresent > 0
-      ? 'text-amber-700'
-      : 'text-stone-500'
+      ? 'text-[#c78c4e]'
+      : 'text-[#8a7e6b]'
 
   return (
     <Card>
@@ -151,7 +151,7 @@ export function SignalInventory({ scorecard, signals }) {
               {signalsPresent} of {totalSignals} signals detected
             </span>
             {hasEnforcement && (
-              <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold bg-red-600 text-white">
+              <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-[#c23a22] text-white">
                 {enforcementCount} ENFORCEMENT
               </span>
             )}
@@ -176,21 +176,21 @@ export function SignalInventory({ scorecard, signals }) {
             <div className="flex gap-4 text-sm">
               {scorecard.pillar_anger != null && (
                 <div className="flex items-center gap-1.5">
-                  <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
+                  <ShieldAlert className="h-3.5 w-3.5 text-[#c23a22]" />
                   <span className="text-muted-foreground">Anger:</span>
                   <span className="font-semibold">{Number(scorecard.pillar_anger).toFixed(1)}</span>
                 </div>
               )}
               {scorecard.pillar_leverage != null && (
                 <div className="flex items-center gap-1.5">
-                  <HandCoins className="h-3.5 w-3.5 text-amber-500" />
+                  <HandCoins className="h-3.5 w-3.5 text-[#c78c4e]" />
                   <span className="text-muted-foreground">Leverage:</span>
                   <span className="font-semibold">{Number(scorecard.pillar_leverage).toFixed(1)}</span>
                 </div>
               )}
               {scorecard.pillar_stability != null && (
                 <div className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-blue-500" />
+                  <Users className="h-3.5 w-3.5 text-[#3a6b8c]" />
                   <span className="text-muted-foreground">Stability:</span>
                   <span className="font-semibold">{Number(scorecard.pillar_stability).toFixed(1)}</span>
                 </div>
@@ -203,7 +203,7 @@ export function SignalInventory({ scorecard, signals }) {
         <p className="text-xs text-muted-foreground">
           Signals indicate data presence and strength, not a composite score. Use filters to discover targets.
           {scorecard.has_recent_violations && (
-            <span className="ml-1 text-red-600 font-medium">Recent violations detected (within 2 years).</span>
+            <span className="ml-1 text-[#c23a22] font-medium">Recent violations detected (within 2 years).</span>
           )}
         </p>
       </CardFooter>

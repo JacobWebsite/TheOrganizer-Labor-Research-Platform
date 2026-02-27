@@ -4,7 +4,7 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-27 (Claude Code: Research→Target Scorecard integration + test fixes + seed/dedup/rebuild)
+**Last manually updated:** 2026-02-27 (Claude Code: "Aged Broadsheet" visual redesign + Research→Target Scorecard integration + test fixes + seed/dedup/rebuild)
 
 ---
 
@@ -52,7 +52,31 @@ Most critical: enforcement gate for Priority, Union Proximity weight, NLRB 25-mi
 
 ---
 
-## Latest Update (2026-02-27 — Research→Target Scorecard + Test Fixes + Seed/Rebuild)
+## Latest Update (2026-02-27 — "Aged Broadsheet" Visual Redesign)
+
+### Frontend Visual Redesign Complete
+26 files modified across 7 implementation phases. All 158 frontend tests pass.
+
+**Theme:** Warm editorial aesthetic — parchment backgrounds, Source Serif 4 serif headlines, dark espresso nav masthead, copper/teal/brick-red accent palette. Replaces cold gray/white with aggressive red accents.
+
+**Key changes:**
+- `index.css`: Complete `@theme inline` rewrite (parchment `#f5f0e8`, cream cards `#faf6ef`, teal primary `#1a6b5a`, brick-red destructive `#c23a22`, warm borders `#d9cebb`, 0.375rem radius)
+- `index.html`: Source Serif 4 Google Font added, title changed to "The Organizer"
+- `NavBar.jsx`: Dark espresso masthead (`#2c2418`), serif wordmark, copper active links (`#c78c4e`)
+- UI primitives (card/badge/button/input/select): `rounded-lg`/`rounded-md`, warm backgrounds
+- `ProfileHeader.jsx`: 5-tier color system (ink/teal/copper/linen/parchment) replacing all-red
+- `ScorecardSection.jsx`: Brick/copper/stone signal bars replacing red-600/400/200
+- `SourceBadge.jsx`: 8 distinct warm colors per data source
+- All pages: Serif titles (`font-editorial text-3xl`), uppercase tracking-wider table headers, zebra row striping
+- `TargetStats.jsx`: Restructured from 1 card to 5 individual KPI stat cards
+- `ResearchRunsTable.jsx`: Warm status badges (forest green/lake blue/copper/brick red)
+- `HealthStatusCard.jsx`/`DataFreshnessCard.jsx`: Forest green/brick red status indicators
+
+**Test fixes (6 files):** Changed color assertions from CSS selector queries to `innerHTML` string matching for arbitrary Tailwind hex values. Updated text assertions for changed UI copy.
+
+---
+
+## Previous Update (2026-02-27 — Research→Target Scorecard + Test Fixes + Seed/Rebuild)
 
 ### Research Integrated into Target Scorecard
 - `mv_target_scorecard` now includes research columns via LEFT JOIN through `master_employer_source_ids` (source_system='f7') bridge to `research_score_enhancements`

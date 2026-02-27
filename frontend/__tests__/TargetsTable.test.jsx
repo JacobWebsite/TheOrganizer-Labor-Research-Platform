@@ -65,25 +65,22 @@ describe('TargetsTable', () => {
     expect(screen.getByText('55')).toBeInTheDocument()
   })
 
-  it('shows green bar for high quality (80+)', () => {
-    renderTable()
-    // Score 85 should have green bar
-    const bars = document.querySelectorAll('.bg-green-500')
-    expect(bars.length).toBeGreaterThan(0)
+  it('shows forest green bar for high quality (80+)', () => {
+    const { container } = renderTable()
+    // Score 85 should have forest green bar
+    expect(container.innerHTML).toContain('bg-[#3a7d44]')
   })
 
-  it('shows yellow bar for medium quality (50-79)', () => {
-    renderTable()
-    // Score 55 should have yellow bar
-    const bars = document.querySelectorAll('.bg-yellow-500')
-    expect(bars.length).toBeGreaterThan(0)
+  it('shows copper bar for medium quality (50-79)', () => {
+    const { container } = renderTable()
+    // Score 55 should have copper bar
+    expect(container.innerHTML).toContain('bg-[#c78c4e]')
   })
 
-  it('shows gray bar for low quality (<50)', () => {
-    renderTable()
-    // Score 30 should have gray bar
-    const bars = document.querySelectorAll('.bg-gray-400')
-    expect(bars.length).toBeGreaterThan(0)
+  it('shows stone bar for low quality (<50)', () => {
+    const { container } = renderTable()
+    // Score 30 should have warm stone bar
+    expect(container.innerHTML).toContain('bg-[#d9cebb]')
   })
 
   it('formats employee count with commas', () => {
@@ -109,11 +106,11 @@ describe('TargetsTable', () => {
     expect(screen.getByText('Nonprofit')).toBeInTheDocument()
   })
 
-  it('shows coverage column with X/8 format', () => {
+  it('shows signals column with -- for missing data', () => {
     renderTable()
-    expect(screen.getByText('4/8')).toBeInTheDocument()
-    expect(screen.getByText('1/8')).toBeInTheDocument()
-    expect(screen.getByText('2/8')).toBeInTheDocument()
+    // Mock data has no signals_present, so all should show --
+    const dashes = screen.getAllByText('--')
+    expect(dashes.length).toBeGreaterThan(0)
   })
 
   it('shows pagination when total exceeds page size', () => {

@@ -94,8 +94,9 @@ describe('SettingsPage', () => {
     expect(screen.getByText('System Health')).toBeInTheDocument()
     const healthyLabels = screen.getAllByText('Healthy')
     expect(healthyLabels.length).toBe(2) // API + Database
-    const greenDots = document.querySelectorAll('.bg-green-500')
-    expect(greenDots.length).toBe(2)
+    const html = document.body.innerHTML
+    const matches = html.match(/bg-\[#3a7d44\]/g) || []
+    expect(matches.length).toBe(2)
   })
 
   it('shows platform stats', () => {

@@ -124,7 +124,7 @@ describe('ResearchPage', () => {
       isError: false,
     })
     renderPage()
-    expect(screen.getByText('No research runs found')).toBeInTheDocument()
+    expect(screen.getByText('No research yet')).toBeInTheDocument()
   })
 
   it('renders table with run data', () => {

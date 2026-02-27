@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * Displays a data quality score with a small colored bar.
- * 80+ = green, 50-79 = yellow, <50 = gray.
+ * 80+ = forest green, 50-79 = copper, <50 = warm stone.
  */
 export function QualityIndicator({ score, className }) {
   if (score == null) {
@@ -11,9 +11,9 @@ export function QualityIndicator({ score, className }) {
 
   const pct = Math.min(100, Math.max(0, score))
   const color =
-    score >= 80 ? 'bg-green-500' :
-    score >= 50 ? 'bg-yellow-500' :
-    'bg-gray-400'
+    score >= 80 ? 'bg-[#3a7d44]' :
+    score >= 50 ? 'bg-[#c78c4e]' :
+    'bg-[#d9cebb]'
 
   return (
     <div className={cn('flex items-center gap-2', className)}>

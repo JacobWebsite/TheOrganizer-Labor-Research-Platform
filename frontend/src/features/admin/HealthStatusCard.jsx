@@ -5,7 +5,7 @@ import { useSystemHealth } from '@/shared/api/admin'
 function StatusDot({ ok }) {
   return (
     <span
-      className={`inline-block h-3 w-3 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}`}
+      className={`inline-block h-3 w-3 rounded-full ${ok ? 'bg-[#3a7d44]' : 'bg-[#c23a22]'}`}
     />
   )
 }
@@ -30,7 +30,7 @@ export function HealthStatusCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className='text-lg'>System Health</CardTitle>
+        <CardTitle>System Health</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (

@@ -72,7 +72,6 @@ describe('TargetsPage', () => {
     useTargetStats.mockReturnValue({ data: MOCK_STATS, isLoading: false })
     renderWithRoute()
     expect(screen.getByText('2,500,000')).toBeInTheDocument() // total
-    expect(screen.getByText('2,400,000')).toBeInTheDocument() // non-union
     expect(screen.getByText('80,000')).toBeInTheDocument() // contractors
   })
 

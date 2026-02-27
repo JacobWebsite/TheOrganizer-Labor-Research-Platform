@@ -7,11 +7,11 @@ import { ProfileActionButtons } from './ProfileActionButtons'
 import { cn } from '@/lib/utils'
 
 const TIER_COLORS = {
-  Priority: 'bg-red-600 text-white',
-  Strong: 'bg-red-500 text-white',
-  Promising: 'bg-red-400 text-stone-900',
-  Moderate: 'bg-red-200 text-red-900',
-  Low: 'bg-red-50 text-red-900',
+  Priority: 'bg-[#2c2418] text-[#faf6ef] border-l-4 border-l-[#c78c4e]',
+  Strong: 'bg-[#1a6b5a] text-[#faf6ef]',
+  Promising: 'bg-[#c78c4e]/20 text-[#2c2418]',
+  Moderate: 'bg-[#ede7db] text-[#2c2418]',
+  Low: 'bg-[#f5f0e8] text-[#8a7e6b]',
 }
 
 function formatNumber(n) {
@@ -41,13 +41,13 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
+              <h1 className="font-editorial text-2xl font-bold tracking-tight">{name}</h1>
               <SourceBadge source={sourceType || 'F7'} />
               {employer.match_confidence != null && (
                 <ConfidenceDots confidence={employer.match_confidence} />
               )}
               {tier && (
-                <span className={cn('inline-flex items-center px-2 py-0.5 text-xs font-semibold', TIER_COLORS[tier] || 'bg-stone-200 text-stone-700')}>
+                <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold', TIER_COLORS[tier] || 'bg-[#ede7db] text-[#2c2418]')}>
                   {tier}
                 </span>
               )}
@@ -69,7 +69,7 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
               {naicsCode && (
                 <span className="inline-flex items-center gap-1">
                   <Building2 className="h-3.5 w-3.5" />
-                  NAICS {naicsCode}{naicsDesc ? ` — ${naicsDesc}` : ''}
+                  NAICS {naicsCode}{naicsDesc ? ` -- ${naicsDesc}` : ''}
                 </span>
               )}
               {unionName && (
@@ -83,12 +83,12 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
             {/* Union status label */}
             <div className="mt-1">
               {unionName ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-[#3a7d44]/10 text-[#3a7d44] border border-[#3a7d44]/20">
                   <Landmark className="h-3.5 w-3.5" />
                   Represented by {unionName}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-stone-50 text-stone-500 border border-stone-200">
+                <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-[#ede7db] text-[#8a7e6b] border border-[#d9cebb]">
                   No Known Union
                 </span>
               )}
@@ -98,7 +98,7 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
           {/* Non-union: signal count indicator */}
           {signalsPresent != null && !isUnionReference && (
             <div className="text-right shrink-0">
-              <div className={cn('text-3xl font-bold', hasEnforcement ? 'text-red-600' : 'text-stone-600')}>
+              <div className={cn('text-3xl font-bold', hasEnforcement ? 'text-[#c23a22]' : 'text-[#8a7e6b]')}>
                 {signalsPresent}/8
               </div>
               <div className="text-xs text-muted-foreground">Signals Detected</div>
@@ -108,7 +108,7 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
           {/* Union reference: label instead of score */}
           {isUnionReference && (
             <div className="text-right shrink-0">
-              <span className="inline-flex items-center px-3 py-1.5 text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+              <span className="inline-flex items-center rounded-md px-3 py-1.5 text-xs font-semibold bg-[#3a7d44]/10 text-[#3a7d44] border border-[#3a7d44]/20">
                 Reference Data
               </span>
             </div>

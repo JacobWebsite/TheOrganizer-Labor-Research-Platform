@@ -4,10 +4,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 const STATUS_COLORS = {
-  pending: 'bg-yellow-500',
-  running: 'bg-blue-500',
-  completed: 'bg-green-500',
-  failed: 'bg-red-500',
+  pending: 'bg-[#c78c4e]',
+  running: 'bg-[#3a6b8c]',
+  completed: 'bg-[#3a7d44]',
+  failed: 'bg-[#c23a22]',
 }
 
 function formatDuration(seconds) {
@@ -29,6 +29,13 @@ function ProgressBar({ progress, status }) {
   )
 }
 
+function qualityColor(score) {
+  if (score == null) return ''
+  if (score >= 7) return 'text-[#3a7d44]'
+  if (score >= 5) return 'text-[#c78c4e]'
+  return 'text-[#c23a22]'
+}
+
 export function DossierHeader({ status, onRunAgain }) {
   const isInProgress = status?.status === 'pending' || status?.status === 'running'
 
@@ -37,14 +44,14 @@ export function DossierHeader({ status, onRunAgain }) {
       <CardContent className="pt-6">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <h1 className="text-2xl font-bold">{status?.company_name || 'Research Run'}</h1>
+            <h1 className="font-editorial text-2xl font-bold">{status?.company_name || 'Research Run'}</h1>
             {status?.company_address && (
               <p className="text-sm text-muted-foreground">{status.company_address}</p>
             )}
             <div className="flex items-center gap-2 mt-1">
               <span className={cn(
                 'inline-block h-2 w-2 rounded-full',
-                STATUS_COLORS[status?.status] || 'bg-gray-400'
+                STATUS_COLORS[status?.status] || 'bg-[#d9cebb]'
               )} />
               <span className="text-sm text-muted-foreground capitalize">{status?.status || 'unknown'}</span>
             </div>
@@ -85,10 +92,7 @@ export function DossierHeader({ status, onRunAgain }) {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Quality</p>
-              <p className={cn('text-sm font-medium', status?.overall_quality_score != null
-                ? status.overall_quality_score >= 7 ? 'text-green-600' : status.overall_quality_score >= 5 ? 'text-yellow-600' : 'text-red-600'
-                : ''
-              )}>
+              <p className={cn('text-sm font-medium', qualityColor(status?.overall_quality_score))}>
                 {status?.overall_quality_score != null ? `${Number(status.overall_quality_score).toFixed(1)}/10` : '-'}
               </p>
             </div>

@@ -37,10 +37,7 @@ export function ResearchPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Microscope className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Research Deep Dives</h1>
-        </div>
+        <h1 className="font-editorial text-3xl font-bold">Research Deep Dives</h1>
         <Button size="sm" className="gap-1.5" onClick={() => setModalOpen(true)}>
           <Plus className="h-4 w-4" />
           New Research
@@ -64,15 +61,17 @@ export function ResearchPage() {
       {isLoading && !data && <PageSkeleton variant="research" />}
 
       {isError && (
-        <div className="border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
+        <div className="border border-destructive/50 bg-destructive/5 rounded-lg p-4 text-sm text-destructive">
           Failed to load research runs: {error?.message || 'Unknown error'}
         </div>
       )}
 
       {data && data.total === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-1">No research runs found</h3>
+          <Microscope className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="font-editorial text-lg font-semibold mb-1">
+            {hasActiveFilters ? 'No research runs found' : 'No research yet'}
+          </h3>
           {hasActiveFilters ? (
             <p className="text-muted-foreground mb-4">
               Try adjusting your filters or search term.
@@ -93,7 +92,7 @@ export function ResearchPage() {
 
       {data && data.total > 0 && (
         <>
-          <p className="text-sm text-muted-foreground">
+          <p className="font-editorial text-lg">
             {data.total.toLocaleString()} run{data.total !== 1 ? 's' : ''} found
           </p>
           <ResearchRunsTable
