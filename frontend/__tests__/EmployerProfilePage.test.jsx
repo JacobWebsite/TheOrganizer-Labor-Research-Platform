@@ -12,10 +12,11 @@ vi.mock('@/shared/api/profile', async () => {
     useEmployerProfile: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
     useEmployerUnifiedDetail: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
     useScorecardDetail: vi.fn(() => ({ data: null, isLoading: false })),
+    useEmployerMatches: vi.fn(() => ({ data: null, isLoading: false })),
   }
 })
 
-import { useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail } from '@/shared/api/profile'
+import { useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerMatches } from '@/shared/api/profile'
 
 function renderWithRoute(path) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -35,6 +36,7 @@ describe('EmployerProfilePage', () => {
     useEmployerProfile.mockReturnValue({ data: null, isLoading: false, isError: false })
     useEmployerUnifiedDetail.mockReturnValue({ data: null, isLoading: false, isError: false })
     useScorecardDetail.mockReturnValue({ data: null, isLoading: false })
+    useEmployerMatches.mockReturnValue({ data: null, isLoading: false })
   })
 
   it('shows loading skeleton while fetching', () => {
