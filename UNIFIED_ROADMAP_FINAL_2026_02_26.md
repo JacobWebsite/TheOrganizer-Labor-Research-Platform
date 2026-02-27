@@ -311,11 +311,7 @@ The current presentation implies the score predicts organizing success. While th
 Gemini's research found that organizers use a **checklist approach** — they look for combinations of factors (anger signals + stability + leverage points), not a single number. A "Readiness Index" showing "High NLRB Activity, Low OSHA, Strong Industry Growth" would be more actionable than "Score: 7.4."
 *Source: Gemini R2 Research 1 & 2*
 
-🔴 **Decision: Kill or relabel the propensity model?**
-The "Propensity Score" presented to users is not a machine learning model — it's a hardcoded formula: `0.3 + 0.35 × violations + 0.35 × density`. Model accuracy for non-union employers is 0.53, which is barely better than a coin flip. Calling this "ML" or "propensity" is misleading. Options:
-- **Kill it:** Remove entirely. The unified scorecard provides more useful information.
-- **Relabel it:** Call it a "heuristic risk indicator" and explain the formula transparently.
-- **Replace it:** Train an actual model on NLRB election data. This is a significant effort but could be genuinely useful.
+✅ **KILLED (2026-02-26).** Propensity model removed entirely. Code archived to `archive/propensity_model/`, database tables dropped. The unified scorecard provides more useful information.
 *Source: Gemini R1 §3.1*
 
 ---
@@ -334,29 +330,29 @@ Each section of an employer profile should cite its source. "OSHA data from OSHA
 
 ### 2.3 — Docker/Deployment
 
-🔧 **Action: Update Docker to serve React frontend**
-Current Docker configuration serves the old HTML interface, not the new React app. The React build output (`frontend/dist/`) needs to be served by nginx instead of the legacy files directory. Codex R2 produced a complete 12-step production checklist.
-*Source: Codex R2 Inv 5 | Effort: 4-6 hours*
+✅ **DONE (2026-02-27).** Docker updated to serve React frontend:
+- `frontend/Dockerfile`: Multi-stage build (Node 22 build → nginx serve)
+- `frontend/nginx.conf`: SPA routing + API proxy (replaces legacy `organizer_v5.html`)
+- `frontend/.dockerignore` + root `.dockerignore`: Added
+- `docker-compose.yml`: Frontend builds from `frontend/Dockerfile`, API healthcheck added, `DISABLE_AUTH` defaults to `false`
+- `Dockerfile` (API): HEALTHCHECK added
+- Root `nginx.conf`: Legacy `organizer_v5.html` removed from index
 
-🔧 **Action: Add .dockerignore**
-Currently missing. Without it, Docker builds include unnecessary files (node_modules, test fixtures, etc.) making images larger and builds slower.
-*Source: Codex R2 Inv 5 | Effort: 30 minutes*
+*Source: Codex R2 Inv 5 | Implemented 2026-02-27*
 
 ---
 
 ### 2.4 — Database Cleanup
 
-🔧 **Action: Drop safe-to-delete objects (7 items)**
-Codex R2 identified 7 database objects with zero code references, zero API references, and no dependent views. These are dead weight:
-- 1 empty table (`cba_wage_schedules`)
-- 5 unused views (`all_employers_unified`, `bls_industry_union_density`, `flra_olms_crosswalk`, `union_sector_coverage`, `v_990_by_state`, `v_all_organizing_events`)
-- 1 unused frontend file (`separator.jsx`)
-*Source: Codex R2 Inv 6 | Effort: 1 hour*
+✅ **DONE (2026-02-27).** 7 confirmed-unused objects dropped via `scripts/maintenance/drop_unused_db_objects.py` (idempotent, safe to re-run):
+- Tables: `cba_wage_schedules`, `flra_olms_crosswalk`
+- Views: `all_employers_unified`, `bls_industry_union_density`, `union_sector_coverage`, `v_990_by_state`, `v_all_organizing_events`
+- `separator.jsx` confirmed nonexistent (skipped)
+- `scripts/ml/` directory deleted (only contained stale propensity `__init__.py` + `__pycache__`)
 
-🔧 **Action: Review and archive 6 "probably safe" tables**
-These tables have data but no active code references. They may be used by external analysis workflows or notebooks. Before deleting, verify nobody uses them:
-- `nlrb_docket` (2M rows), `epi_union_membership` (1.4M rows), `employers_990_deduped` (1M rows), `ar_disbursements_emp_off` (2.8M rows), `union_naics_mapping` (7.6K rows), `employer_990_matches` (514 rows)
-*Source: Codex R2 Inv 6 | Effort: 2-4 hours to verify*
+6 "probably safe" tables **kept** (strategic reference data): `epi_union_membership`, `employers_990_deduped`, `ar_disbursements_emp_off`, `nlrb_docket`, `union_naics_mapping`, `employer_990_matches`.
+
+*Source: Codex R2 Inv 6 | Implemented 2026-02-27*
 
 🔍 **Data Question: Are the 151 zero-reference database objects actually unused?**
 Codex found 151 database objects (tables and views) with zero code references. 91 are views, 60 are tables. Some may be used by ad-hoc analysis scripts, Jupyter notebooks, or external tools that aren't part of the main codebase. A systematic check (search for table names across ALL files, not just the main application code) would confirm which are truly safe to remove.
@@ -366,9 +362,8 @@ Codex found 151 database objects (tables and views) with zero code references. 9
 
 ### 2.5 — Fix Membership Overcounting
 
-🔧 **Action: Fix the membership view that overcounts 5x**
-The current membership view reports 72 million members (roughly 5x the real number). The platform's deduplication work already established the correct figure at ~14.5 million (within 1.5% of BLS benchmarks). The membership view needs to apply the same deduplication logic.
-*Source: Claude Code R1*
+✅ **Already resolved (Jan 2025).** `v_union_members_counted` view and API endpoints already use deduplication logic. Current figure: ~14.5M (within 1.5% of BLS 14.3M benchmark). No action needed.
+*Source: Claude Code R1 | Verified 2026-02-27*
 
 ---
 
