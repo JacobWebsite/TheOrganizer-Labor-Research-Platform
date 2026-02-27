@@ -86,6 +86,15 @@ export function useEmployerDataSources(id, { enabled = true } = {}) {
   })
 }
 
+export function useEmployerMatches(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-matches', id],
+    queryFn: () => apiClient.get(`/api/employers/${id}/matches`),
+    enabled: enabled && !!id,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEmployerFlags(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-flags', id],

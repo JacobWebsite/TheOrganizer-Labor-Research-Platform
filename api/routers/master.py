@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from ..database import get_db
 from ..helpers import safe_order_dir, safe_sort_col, TTLCache
+from ..match_labels import build_master_citation, SOURCE_LABELS
 
 router = APIRouter()
 
@@ -419,7 +420,30 @@ def master_detail(master_id: int):
                 )
                 enrichment["bmf_records"] = cur.fetchall()
 
-            return {"master": master, "source_ids": source_ids, "enrichment": enrichment}
+            # Build match summary from source_ids grouped by source_system
+            src_summary: Dict[str, Dict[str, Any]] = {}
+            for r in source_ids:
+                sys = r["source_system"]
+                conf = float(r["match_confidence"]) if r.get("match_confidence") is not None else None
+                if sys not in src_summary:
+                    src_summary[sys] = {
+                        "source_system": sys,
+                        "source_label": SOURCE_LABELS.get(sys, sys),
+                        "match_count": 0,
+                        "best_confidence": conf,
+                    }
+                src_summary[sys]["match_count"] += 1
+                if conf is not None:
+                    prev = src_summary[sys]["best_confidence"]
+                    if prev is None or conf > prev:
+                        src_summary[sys]["best_confidence"] = conf
+
+            match_summary = []
+            for s in sorted(src_summary.values(), key=lambda x: x["best_confidence"] or 0, reverse=True):
+                s["citation"] = build_master_citation(s["source_system"], s["best_confidence"])
+                match_summary.append(s)
+
+            return {"master": master, "source_ids": source_ids, "enrichment": enrichment, "match_summary": match_summary}
 
 
 @router.get("/api/master/stats")

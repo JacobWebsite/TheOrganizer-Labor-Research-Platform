@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
 from ..database import get_db
+from ..match_labels import build_citation, SOURCE_LABELS
 
 router = APIRouter()
 
@@ -130,9 +131,38 @@ def get_employer_match_provenance(employer_id: str):
             """, [employer_id])
             rows = cur.fetchall()
 
+            # Build per-source summary with best match info
+            cur.execute("""
+                SELECT source_system,
+                       COUNT(*) AS match_count,
+                       MAX(confidence_score) AS best_confidence_score,
+                       (ARRAY_AGG(match_method ORDER BY confidence_score DESC NULLS LAST))[1] AS best_method,
+                       (ARRAY_AGG(confidence_band ORDER BY confidence_score DESC NULLS LAST))[1] AS best_confidence_band,
+                       (ARRAY_AGG(match_tier ORDER BY confidence_score DESC NULLS LAST))[1] AS best_match_tier
+                FROM unified_match_log
+                WHERE target_id = %s AND target_system = 'f7' AND status = 'active'
+                GROUP BY source_system
+                ORDER BY MAX(confidence_score) DESC NULLS LAST
+            """, [employer_id])
+            summary_rows = cur.fetchall()
+
+            match_summary = []
+            for s in summary_rows:
+                match_summary.append({
+                    "source_system": s["source_system"],
+                    "source_label": SOURCE_LABELS.get(s["source_system"], s["source_system"]),
+                    "match_count": s["match_count"],
+                    "best_confidence_score": s["best_confidence_score"],
+                    "best_method": s["best_method"],
+                    "best_confidence_band": s["best_confidence_band"],
+                    "best_match_tier": s["best_match_tier"],
+                    "citation": build_citation(s["source_system"], s["best_method"], s["best_confidence_score"]),
+                })
+
             return {
                 "employer_id": employer_id,
                 "matches": rows,
+                "match_summary": match_summary,
             }
 
 

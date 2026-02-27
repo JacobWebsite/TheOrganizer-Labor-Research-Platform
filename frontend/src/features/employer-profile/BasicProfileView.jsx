@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ProfileHeader } from './ProfileHeader'
 import { CrossReferencesSection } from './CrossReferencesSection'
 import { QualityIndicator } from '@/features/scorecard/QualityIndicator'
+import { DataProvenanceCard } from './DataProvenanceCard'
 
 function EnrichmentSection({ title, children }) {
   return (
@@ -82,22 +83,8 @@ function MasterProfileView({ data }) {
         </CardContent>
       </Card>
 
-      {/* Source IDs */}
-      {sourceIds.length > 0 && (
-        <EnrichmentSection title="Linked Source Records">
-          <div className="space-y-1 text-sm">
-            {sourceIds.map((s, i) => (
-              <div key={i} className="flex gap-3 text-muted-foreground">
-                <span className="font-medium uppercase w-16">{s.source_system}</span>
-                <span className="font-mono text-xs">{s.source_id}</span>
-                {s.match_confidence && (
-                  <span className="text-xs">({s.match_confidence}% conf)</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </EnrichmentSection>
-      )}
+      {/* Data Provenance */}
+      <DataProvenanceCard matchSummary={data.match_summary} />
 
       {/* OSHA enrichment */}
       {enrichment.osha_summary && (

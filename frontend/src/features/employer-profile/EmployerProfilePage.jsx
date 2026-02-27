@@ -4,7 +4,7 @@ import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { HelpSection } from '@/shared/components/HelpSection'
-import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources } from '@/shared/api/profile'
+import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources, useEmployerMatches } from '@/shared/api/profile'
 import { useTargetDetail, useTargetScorecardDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
 import { ScorecardSection } from './ScorecardSection'
@@ -20,6 +20,7 @@ import { ComparablesCard } from './ComparablesCard'
 import { GovernmentContractsCard } from './GovernmentContractsCard'
 import { WhdCard } from './WhdCard'
 import { ResearchNotesCard } from './ResearchNotesCard'
+import { DataProvenanceCard } from './DataProvenanceCard'
 
 export function EmployerProfilePage() {
   const { id } = useParams()
@@ -38,6 +39,7 @@ export function EmployerProfilePage() {
   // Scorecard detail (explanations) — only for F7, after profile loads
   const scorecardQuery = useScorecardDetail(id, { enabled: isF7 && !!data })
   const dataSourcesQuery = useEmployerDataSources(id, { enabled: isF7 && !!data })
+  const matchesQuery = useEmployerMatches(id, { enabled: isF7 && !!data })
 
   // Update page title with employer name when data loads
   const employerName = data?.employer?.employer_name || data?.display_name || data?.employer_name
@@ -206,6 +208,7 @@ export function EmployerProfilePage() {
         <p><strong>Employee count range:</strong> Different databases collect employee counts at different times using different definitions. The platform shows the range across all sources so you can see the spread. The scoring system uses the average.</p>
       </HelpSection>
       <ScorecardSection scorecard={scorecard} explanations={explanations} />
+      <DataProvenanceCard matchSummary={matchesQuery.data?.match_summary} />
       <UnionRelationshipsCard employer={employer} />
       <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} />
       <CorporateHierarchyCard employerId={id} />
