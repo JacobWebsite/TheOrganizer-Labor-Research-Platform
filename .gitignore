@@ -50,7 +50,6 @@ screenshot.ps1
 
 # Claude artifacts
 .claude/
-PROJECT_STATE.md
 .vite/
 
 # Archive
