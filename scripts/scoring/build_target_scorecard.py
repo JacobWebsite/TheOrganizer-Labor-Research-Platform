@@ -122,6 +122,37 @@ nlrb_agg AS (
     FROM nlrb_elections_agg ea
     FULL OUTER JOIN nlrb_ulp_agg ua ON ea.master_id = ua.master_id
 ),
+-- NLRB industry momentum: wins by 2-digit NAICS, last 3 years
+nlrb_industry_momentum AS (
+    SELECT
+        SUBSTRING(f.naics FROM 1 FOR 2) AS naics_2,
+        COUNT(DISTINCT e.case_number) AS industry_wins_3yr,
+        COUNT(DISTINCT p.matched_employer_id) AS industry_employers_won
+    FROM nlrb_elections e
+    JOIN nlrb_participants p ON p.case_number = e.case_number
+    JOIN f7_employers_deduped f ON f.employer_id = p.matched_employer_id
+    WHERE e.union_won = TRUE
+      AND e.election_date >= CURRENT_DATE - INTERVAL '3 years'
+      AND p.participant_type = 'Employer'
+      AND p.matched_employer_id IS NOT NULL
+      AND f.naics IS NOT NULL
+    GROUP BY SUBSTRING(f.naics FROM 1 FOR 2)
+),
+-- NLRB state momentum: wins by state, last 3 years
+nlrb_state_momentum AS (
+    SELECT
+        f.state,
+        COUNT(DISTINCT e.case_number) AS state_wins_3yr,
+        COUNT(DISTINCT p.matched_employer_id) AS state_employers_won
+    FROM nlrb_elections e
+    JOIN nlrb_participants p ON p.case_number = e.case_number
+    JOIN f7_employers_deduped f ON f.employer_id = p.matched_employer_id
+    WHERE e.union_won = TRUE
+      AND e.election_date >= CURRENT_DATE - INTERVAL '3 years'
+      AND p.participant_type = 'Employer'
+      AND p.matched_employer_id IS NOT NULL
+    GROUP BY f.state
+),
 -- Financial: 990 filers matched by EIN
 financial_990 AS (
     SELECT
@@ -152,6 +183,36 @@ industry_density AS (
     SELECT industry_code, union_density_pct
     FROM bls_national_industry_density
     WHERE year = (SELECT MAX(year) FROM bls_national_industry_density)
+),
+-- Research enhancement bridge: link research_score_enhancements to master_ids via F7 source IDs
+research_bridge AS (
+    SELECT DISTINCT ON (mesi.master_id)
+        mesi.master_id,
+        rse.run_id AS research_run_id,
+        rse.run_quality AS research_quality,
+        rse.score_osha AS rse_score_osha,
+        rse.score_nlrb AS rse_score_nlrb,
+        rse.score_whd AS rse_score_whd,
+        rse.score_contracts AS rse_score_contracts,
+        rse.score_financial AS rse_score_financial,
+        rse.score_size AS rse_score_size,
+        rse.score_anger AS rse_score_anger,
+        rse.score_stability AS rse_score_stability,
+        rse.recommended_approach,
+        rse.financial_trend,
+        rse.source_contradictions,
+        rse.campaign_strengths,
+        rse.campaign_challenges,
+        rse.employee_count_found,
+        rse.revenue_found,
+        rse.turnover_rate_found,
+        rse.sentiment_score_found,
+        rse.revenue_per_employee_found,
+        rse.confidence_avg AS research_confidence
+    FROM master_employer_source_ids mesi
+    JOIN research_score_enhancements rse ON rse.employer_id = mesi.source_id
+    WHERE mesi.source_system = 'f7'
+    ORDER BY mesi.master_id, rse.run_quality DESC NULLS LAST
 ),
 -- Raw signal computation
 raw_signals AS (
@@ -215,8 +276,10 @@ raw_signals AS (
                 )
         END AS signal_whd,
 
-        -- SIGNAL: NLRB (0-10) -- election + ULP activity with decay
+        -- SIGNAL: NLRB (0-10) -- election + ULP activity with decay + industry/state momentum
         -- Reframed: elections = organizing attempts at this employer; ULP = anti-union behavior
+        -- Industry momentum: 0-2 bonus based on NAICS-2 wins in last 3yr
+        -- State momentum: 0-2 bonus based on state wins in last 3yr
         CASE
             WHEN na.master_id IS NOT NULL THEN
                 LEAST(
@@ -225,6 +288,7 @@ raw_signals AS (
                         0,
                         ROUND(
                             (
+                                -- Own history
                                 (COALESCE(na.election_count, 0) * 2 + COALESCE(na.win_count, 0))
                                 * na.latest_decay_factor
                                 + CASE
@@ -234,6 +298,22 @@ raw_signals AS (
                                     WHEN na.ulp_count BETWEEN 4 AND 9 THEN 6
                                     ELSE 8
                                   END * na.ulp_decay_factor
+                                -- Industry momentum (0-2 pts)
+                                + CASE
+                                    WHEN COALESCE(nim.industry_wins_3yr, 0) >= 50 THEN 2.0
+                                    WHEN nim.industry_wins_3yr >= 20 THEN 1.5
+                                    WHEN nim.industry_wins_3yr >= 5  THEN 1.0
+                                    WHEN nim.industry_wins_3yr >= 1  THEN 0.5
+                                    ELSE 0
+                                  END
+                                -- State momentum (0-2 pts)
+                                + CASE
+                                    WHEN COALESCE(nsm.state_wins_3yr, 0) >= 100 THEN 2.0
+                                    WHEN nsm.state_wins_3yr >= 40  THEN 1.5
+                                    WHEN nsm.state_wins_3yr >= 10  THEN 1.0
+                                    WHEN nsm.state_wins_3yr >= 1   THEN 0.5
+                                    ELSE 0
+                                  END
                             )::numeric,
                             2
                         )
@@ -323,6 +403,8 @@ raw_signals AS (
         ROUND(COALESCE(na.latest_decay_factor, 1.0)::numeric, 4) AS nlrb_decay_factor,
         na.ulp_count AS nlrb_ulp_count,
         na.latest_ulp AS nlrb_latest_ulp,
+        COALESCE(nim.industry_wins_3yr, 0) AS nlrb_industry_wins_3yr,
+        COALESCE(nsm.state_wins_3yr, 0) AS nlrb_state_wins_3yr,
 
         wa.case_count AS whd_case_count,
         wa.total_backwages AS whd_total_backwages,
@@ -336,13 +418,38 @@ raw_signals AS (
 
         f990.latest_revenue AS n990_revenue,
         f990.latest_assets AS n990_assets,
-        f990.latest_expenses AS n990_expenses
+        f990.latest_expenses AS n990_expenses,
+
+        -- Research enhancement columns (from research_bridge via F7 link)
+        rb.research_run_id,
+        rb.research_quality,
+        rb.rse_score_osha,
+        rb.rse_score_nlrb,
+        rb.rse_score_whd,
+        rb.rse_score_contracts,
+        rb.rse_score_financial,
+        rb.rse_score_size,
+        rb.rse_score_anger,
+        rb.rse_score_stability,
+        rb.recommended_approach AS research_approach,
+        rb.financial_trend AS research_trend,
+        rb.source_contradictions AS research_contradictions,
+        rb.campaign_strengths AS research_strengths,
+        rb.campaign_challenges AS research_challenges,
+        rb.employee_count_found AS research_employee_count,
+        rb.revenue_found AS research_revenue,
+        rb.turnover_rate_found,
+        rb.sentiment_score_found,
+        rb.revenue_per_employee_found,
+        rb.research_confidence
 
     FROM mv_target_data_sources tds
     LEFT JOIN osha_agg oa ON oa.master_id = tds.master_id
     LEFT JOIN osha_avgs oa4 ON oa4.naics_prefix = LEFT(COALESCE(oa.osha_naics, tds.naics), 4)
     LEFT JOIN osha_avgs oa2 ON oa2.naics_prefix = LEFT(COALESCE(oa.osha_naics, tds.naics), 2) AND oa4.naics_prefix IS NULL
     LEFT JOIN nlrb_agg na ON na.master_id = tds.master_id
+    LEFT JOIN nlrb_industry_momentum nim ON nim.naics_2 = SUBSTRING(tds.naics FROM 1 FOR 2)
+    LEFT JOIN nlrb_state_momentum nsm ON nsm.state = tds.state
     LEFT JOIN whd_agg wa ON wa.master_id = tds.master_id
     LEFT JOIN bls_proj bp ON bp.matrix_code = LEFT(tds.naics, 2) || '0000'
     LEFT JOIN bls_proj bp2 ON bp2.matrix_code = CASE LEFT(tds.naics, 2)
@@ -370,64 +477,107 @@ raw_signals AS (
         ELSE NULL
     END
     LEFT JOIN financial_990 f990 ON f990.master_id = tds.master_id
+    LEFT JOIN research_bridge rb ON rb.master_id = tds.master_id
     WHERE tds.source_count >= 1
+),
+-- Enhanced signals: merge research scores with DB signals
+enhanced AS (
+    SELECT
+        rs.*,
+        -- Research boolean
+        (rs.research_run_id IS NOT NULL) AS has_research,
+
+        -- Enhanced signals: GREATEST of base signal and research score
+        -- Research can only upgrade a signal, never downgrade
+        GREATEST(rs.signal_osha, rs.rse_score_osha) AS enh_signal_osha,
+        GREATEST(rs.signal_whd, rs.rse_score_whd) AS enh_signal_whd,
+        GREATEST(rs.signal_nlrb, rs.rse_score_nlrb) AS enh_signal_nlrb,
+        GREATEST(rs.signal_contracts, rs.rse_score_contracts) AS enh_signal_contracts,
+        GREATEST(rs.signal_financial, rs.rse_score_financial) AS enh_signal_financial,
+        COALESCE(rs.signal_size, rs.rse_score_size) AS enh_signal_size,
+
+        -- Signal inventory columns (base signals only -- research is additive, not counted)
+        (CASE WHEN rs.signal_osha IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_whd IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_contracts IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_financial IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_industry_growth IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_union_density IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_size IS NOT NULL THEN 1 ELSE 0 END
+        ) AS signals_present,
+
+        -- Enforcement flags
+        (rs.signal_osha IS NOT NULL OR rs.signal_whd IS NOT NULL OR rs.signal_nlrb IS NOT NULL) AS has_enforcement,
+        (CASE WHEN rs.signal_osha IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_whd IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
+        ) AS enforcement_count,
+
+        -- Recent violation flag (2-year window)
+        CASE WHEN COALESCE(rs.osha_latest_inspection, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
+             OR COALESCE(rs.whd_latest_finding, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
+             OR COALESCE(rs.nlrb_latest_ulp, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
+            THEN TRUE ELSE FALSE
+        END AS has_recent_violations
+    FROM raw_signals rs
 )
 SELECT
-    rs.*,
-    -- Signal inventory columns
-    (CASE WHEN rs.signal_osha IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_whd IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_contracts IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_financial IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_industry_growth IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_union_density IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_size IS NOT NULL THEN 1 ELSE 0 END
-    ) AS signals_present,
+    e.*,
 
-    -- Enforcement flags
-    (rs.signal_osha IS NOT NULL OR rs.signal_whd IS NOT NULL OR rs.signal_nlrb IS NOT NULL) AS has_enforcement,
-    (CASE WHEN rs.signal_osha IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_whd IS NOT NULL THEN 1 ELSE 0 END
-     + CASE WHEN rs.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
-    ) AS enforcement_count,
-
-    -- Recent violation flag (2-year window)
-    CASE WHEN COALESCE(rs.osha_latest_inspection, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
-         OR COALESCE(rs.whd_latest_finding, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
-         OR COALESCE(rs.nlrb_latest_ulp, '1900-01-01'::date) >= (CURRENT_DATE - INTERVAL '2 years')
-        THEN TRUE ELSE FALSE
-    END AS has_recent_violations,
-
-    -- Future-ready pillar columns
-    CASE WHEN rs.signal_osha IS NOT NULL OR rs.signal_whd IS NOT NULL OR rs.signal_nlrb IS NOT NULL THEN
-        ROUND(
-            (COALESCE(rs.signal_osha, 0) + COALESCE(rs.signal_whd, 0) + COALESCE(rs.signal_nlrb, 0))::numeric
-            / GREATEST(1,
-                CASE WHEN rs.signal_osha IS NOT NULL THEN 1 ELSE 0 END
-                + CASE WHEN rs.signal_whd IS NOT NULL THEN 1 ELSE 0 END
-                + CASE WHEN rs.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
-            ),
-            2
-        )
+    -- Pillar: anger -- use research-provided anger, or compute from enhanced enforcement signals
+    CASE
+        WHEN e.rse_score_anger IS NOT NULL THEN
+            ROUND(e.rse_score_anger::numeric, 2)
+        WHEN e.enh_signal_osha IS NOT NULL OR e.enh_signal_whd IS NOT NULL OR e.enh_signal_nlrb IS NOT NULL THEN
+            ROUND(
+                (COALESCE(e.enh_signal_osha, 0) + COALESCE(e.enh_signal_whd, 0) + COALESCE(e.enh_signal_nlrb, 0))::numeric
+                / GREATEST(1,
+                    CASE WHEN e.enh_signal_osha IS NOT NULL THEN 1 ELSE 0 END
+                    + CASE WHEN e.enh_signal_whd IS NOT NULL THEN 1 ELSE 0 END
+                    + CASE WHEN e.enh_signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
+                ),
+                2
+            )
     END AS pillar_anger,
 
-    CASE WHEN rs.signal_contracts IS NOT NULL OR rs.signal_financial IS NOT NULL OR rs.signal_union_density IS NOT NULL THEN
+    -- Pillar: leverage -- use enhanced leverage signals
+    CASE WHEN e.enh_signal_contracts IS NOT NULL OR e.enh_signal_financial IS NOT NULL OR e.signal_union_density IS NOT NULL THEN
         ROUND(
-            (COALESCE(rs.signal_contracts, 0) + COALESCE(rs.signal_financial, 0) + COALESCE(rs.signal_union_density, 0))::numeric
+            (COALESCE(e.enh_signal_contracts, 0) + COALESCE(e.enh_signal_financial, 0) + COALESCE(e.signal_union_density, 0))::numeric
             / GREATEST(1,
-                CASE WHEN rs.signal_contracts IS NOT NULL THEN 1 ELSE 0 END
-                + CASE WHEN rs.signal_financial IS NOT NULL THEN 1 ELSE 0 END
-                + CASE WHEN rs.signal_union_density IS NOT NULL THEN 1 ELSE 0 END
+                CASE WHEN e.enh_signal_contracts IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN e.enh_signal_financial IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN e.signal_union_density IS NOT NULL THEN 1 ELSE 0 END
             ),
             2
         )
     END AS pillar_leverage,
 
-    -- pillar_stability: NULL until turnover/sentiment data arrives
-    NULL::numeric(5,2) AS pillar_stability
+    -- Pillar: stability -- research-provided, or derived from turnover/sentiment findings
+    CASE
+        WHEN e.rse_score_stability IS NOT NULL THEN ROUND(e.rse_score_stability::numeric, 2)
+        WHEN e.turnover_rate_found IS NOT NULL THEN ROUND(LEAST(10, GREATEST(0, 10 - e.turnover_rate_found))::numeric, 2)
+        WHEN e.sentiment_score_found IS NOT NULL THEN ROUND(LEAST(10, GREATEST(0, e.sentiment_score_found * 10))::numeric, 2)
+        ELSE NULL
+    END AS pillar_stability,
 
-FROM raw_signals rs
+    -- Gold standard tier: how complete is this employer's profile?
+    CASE
+        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 8.5 THEN 'platinum'
+        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 7.0 THEN 'gold'
+        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 5.0 THEN 'silver'
+        WHEN e.research_run_id IS NOT NULL THEN 'bronze'
+        WHEN (CASE WHEN e.signal_osha IS NOT NULL THEN 1 ELSE 0 END
+             + CASE WHEN e.signal_whd IS NOT NULL THEN 1 ELSE 0 END
+             + CASE WHEN e.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
+             + CASE WHEN e.signal_contracts IS NOT NULL THEN 1 ELSE 0 END
+             + CASE WHEN e.signal_financial IS NOT NULL THEN 1 ELSE 0 END
+        ) >= 3 THEN 'bronze'
+        ELSE 'stub'
+    END AS gold_standard_tier
+
+FROM enhanced e
 """
 
 
@@ -442,6 +592,9 @@ INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_mv_ts_federal ON mv_target_scorecard (master_id) WHERE is_federal_contractor",
     "CREATE INDEX IF NOT EXISTS idx_mv_ts_source_count ON mv_target_scorecard (source_count DESC)",
     "CREATE INDEX IF NOT EXISTS idx_mv_ts_display_name ON mv_target_scorecard (display_name)",
+    "CREATE INDEX IF NOT EXISTS idx_mv_ts_has_research ON mv_target_scorecard (master_id) WHERE has_research",
+    "CREATE INDEX IF NOT EXISTS idx_mv_ts_gold_tier ON mv_target_scorecard (gold_standard_tier)",
+    "CREATE INDEX IF NOT EXISTS idx_mv_ts_research_quality ON mv_target_scorecard (research_quality DESC NULLS LAST) WHERE has_research",
 ]
 
 
@@ -483,11 +636,55 @@ def _print_stats(cur):
 
     # Pillar coverage
     print("\n  Pillar coverage:")
-    for col in ['pillar_anger', 'pillar_leverage']:
+    for col in ['pillar_anger', 'pillar_leverage', 'pillar_stability']:
         cur.execute(f"SELECT COUNT(*), ROUND(AVG({col})::numeric, 2) FROM mv_target_scorecard WHERE {col} IS NOT NULL")
         cnt, avg = cur.fetchone()
         pct = 100.0 * cnt / total if total > 0 else 0
         print(f"    {col:20s}: {cnt:>10,} ({pct:5.1f}%) avg={avg}")
+
+    # Research integration
+    cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE has_research")
+    research_cnt = cur.fetchone()[0]
+    print(f"\n  Research integration:")
+    print(f"    Has research:  {research_cnt:>10,} ({100.0*research_cnt/total:.2f}%)")
+    if research_cnt > 0:
+        cur.execute("""
+            SELECT ROUND(AVG(research_quality)::numeric, 2),
+                   ROUND(MIN(research_quality)::numeric, 2),
+                   ROUND(MAX(research_quality)::numeric, 2)
+            FROM mv_target_scorecard WHERE has_research
+        """)
+        avg_q, min_q, max_q = cur.fetchone()
+        print(f"    Quality avg/min/max: {avg_q} / {min_q} / {max_q}")
+
+    # Gold standard tier distribution
+    cur.execute("""
+        SELECT gold_standard_tier, COUNT(*) AS cnt
+        FROM mv_target_scorecard
+        GROUP BY gold_standard_tier
+        ORDER BY CASE gold_standard_tier
+            WHEN 'platinum' THEN 1 WHEN 'gold' THEN 2
+            WHEN 'silver' THEN 3 WHEN 'bronze' THEN 4
+            ELSE 5 END
+    """)
+    print("\n  Gold standard tier distribution:")
+    for row in cur.fetchall():
+        pct = 100.0 * row[1] / total if total > 0 else 0
+        print(f"    {str(row[0]):10s}: {row[1]:>10,} ({pct:5.1f}%)")
+
+    # Enhanced signal coverage (where research upgraded a signal)
+    if research_cnt > 0:
+        print("\n  Research signal upgrades (among researched employers):")
+        for base, enh in [('signal_osha', 'enh_signal_osha'), ('signal_whd', 'enh_signal_whd'),
+                          ('signal_nlrb', 'enh_signal_nlrb'), ('signal_contracts', 'enh_signal_contracts'),
+                          ('signal_financial', 'enh_signal_financial'), ('signal_size', 'enh_signal_size')]:
+            cur.execute(f"""
+                SELECT COUNT(*) FROM mv_target_scorecard
+                WHERE has_research AND {enh} IS NOT NULL
+                  AND ({base} IS NULL OR {enh} > {base})
+            """)
+            upgrades = cur.fetchone()[0]
+            print(f"    {enh:25s}: {upgrades:>5,} employers upgraded")
 
     return total
 

@@ -93,6 +93,35 @@ nlrb_agg AS (
     FROM nlrb_elections_agg ea
     FULL OUTER JOIN nlrb_ulp_agg ua ON ea.f7_employer_id = ua.f7_employer_id
 ),
+nlrb_industry_momentum AS (
+    SELECT
+        SUBSTRING(f.naics FROM 1 FOR 2) AS naics_2,
+        COUNT(DISTINCT e.case_number) AS industry_wins_3yr,
+        COUNT(DISTINCT p.matched_employer_id) AS industry_employers_won
+    FROM nlrb_elections e
+    JOIN nlrb_participants p ON p.case_number = e.case_number
+    JOIN f7_employers_deduped f ON f.employer_id = p.matched_employer_id
+    WHERE e.union_won = TRUE
+      AND e.election_date >= CURRENT_DATE - INTERVAL '3 years'
+      AND p.participant_type = 'Employer'
+      AND p.matched_employer_id IS NOT NULL
+      AND f.naics IS NOT NULL
+    GROUP BY SUBSTRING(f.naics FROM 1 FOR 2)
+),
+nlrb_state_momentum AS (
+    SELECT
+        f.state,
+        COUNT(DISTINCT e.case_number) AS state_wins_3yr,
+        COUNT(DISTINCT p.matched_employer_id) AS state_employers_won
+    FROM nlrb_elections e
+    JOIN nlrb_participants p ON p.case_number = e.case_number
+    JOIN f7_employers_deduped f ON f.employer_id = p.matched_employer_id
+    WHERE e.union_won = TRUE
+      AND e.election_date >= CURRENT_DATE - INTERVAL '3 years'
+      AND p.participant_type = 'Employer'
+      AND p.matched_employer_id IS NOT NULL
+    GROUP BY f.state
+),
 whd_agg AS (
     SELECT
         wm.f7_employer_id,
@@ -204,9 +233,10 @@ raw_scores AS (
             )
         END AS score_osha,
 
-        -- TODO: nearby 25-mile momentum requires geocoded employer locations. Keep current own-history model.
         -- Election component: wins*2 + elections - losses, with 7yr decay
         -- ULP component: 1 charge=2, 2-3=4, 4-9=6, 10+=8, with 7yr decay
+        -- Industry momentum: 0-2 bonus based on NAICS-2 wins in last 3yr
+        -- State momentum: 0-2 bonus based on state wins in last 3yr
         CASE
             WHEN eds.has_nlrb AND na.f7_employer_id IS NOT NULL THEN
                 LEAST(
@@ -215,10 +245,10 @@ raw_scores AS (
                         0,
                         ROUND(
                             (
-                                -- Election score
+                                -- Election score (own history)
                                 (COALESCE(na.win_count, 0) * 2 + COALESCE(na.election_count, 0) - COALESCE(na.loss_count, 0))
                                 * na.latest_decay_factor
-                                -- ULP boost
+                                -- ULP boost (own history)
                                 + CASE
                                     WHEN na.ulp_count = 0 THEN 0
                                     WHEN na.ulp_count = 1 THEN 2
@@ -226,6 +256,22 @@ raw_scores AS (
                                     WHEN na.ulp_count BETWEEN 4 AND 9 THEN 6
                                     ELSE 8
                                   END * na.ulp_decay_factor
+                                -- Industry momentum (0-2 pts)
+                                + CASE
+                                    WHEN COALESCE(nim.industry_wins_3yr, 0) >= 50 THEN 2.0
+                                    WHEN nim.industry_wins_3yr >= 20 THEN 1.5
+                                    WHEN nim.industry_wins_3yr >= 5  THEN 1.0
+                                    WHEN nim.industry_wins_3yr >= 1  THEN 0.5
+                                    ELSE 0
+                                  END
+                                -- State momentum (0-2 pts)
+                                + CASE
+                                    WHEN COALESCE(nsm.state_wins_3yr, 0) >= 100 THEN 2.0
+                                    WHEN nsm.state_wins_3yr >= 40  THEN 1.5
+                                    WHEN nsm.state_wins_3yr >= 10  THEN 1.0
+                                    WHEN nsm.state_wins_3yr >= 1   THEN 0.5
+                                    ELSE 0
+                                  END
                             )::numeric,
                             2
                         )
@@ -305,6 +351,8 @@ raw_scores AS (
         ROUND(COALESCE(na.latest_decay_factor, 1.0)::numeric, 4) AS nlrb_decay_factor,
         na.ulp_count AS nlrb_ulp_count,
         na.latest_ulp AS nlrb_latest_ulp,
+        COALESCE(nim.industry_wins_3yr, 0) AS nlrb_industry_wins_3yr,
+        COALESCE(nsm.state_wins_3yr, 0) AS nlrb_state_wins_3yr,
 
         wa.case_count AS whd_case_count,
         wa.total_backwages AS whd_total_backwages,
@@ -321,6 +369,8 @@ raw_scores AS (
     LEFT JOIN osha_avgs oa4 ON oa4.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 4)
     LEFT JOIN osha_avgs oa2 ON oa2.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 2) AND oa4.naics_prefix IS NULL
     LEFT JOIN nlrb_agg na ON na.f7_employer_id = eds.employer_id
+    LEFT JOIN nlrb_industry_momentum nim ON nim.naics_2 = SUBSTRING(eds.naics FROM 1 FOR 2)
+    LEFT JOIN nlrb_state_momentum nsm ON nsm.state = eds.state
     LEFT JOIN whd_agg wa ON wa.f7_employer_id = eds.employer_id
     LEFT JOIN union_prox up ON up.employer_id = eds.employer_id
     LEFT JOIN bls_proj bp ON bp.matrix_code = LEFT(eds.naics, 2) || '0000'

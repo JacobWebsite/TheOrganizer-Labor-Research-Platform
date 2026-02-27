@@ -313,9 +313,18 @@ def get_unified_scorecard_detail(employer_id: str):
             if data.get('score_nlrb') is not None:
                 wins = data.get('nlrb_win_count', 0) or 0
                 total = data.get('nlrb_election_count', 0) or 0
+                ind_wins = data.get('nlrb_industry_wins_3yr', 0) or 0
+                st_wins = data.get('nlrb_state_wins_3yr', 0) or 0
+                momentum_parts = []
+                if ind_wins > 0:
+                    momentum_parts.append(f"{ind_wins} industry wins (3yr)")
+                if st_wins > 0:
+                    momentum_parts.append(f"{st_wins} state wins (3yr)")
+                momentum_str = "; momentum: " + ", ".join(momentum_parts) if momentum_parts else ""
                 explanations['nlrb'] = (
                     f"NLRB activity: {total} elections ({wins} union wins), "
                     f"latest {data.get('nlrb_latest_election', 'N/A')}"
+                    f"{momentum_str}"
                 )
             if data.get('score_whd') is not None:
                 explanations['whd'] = (
