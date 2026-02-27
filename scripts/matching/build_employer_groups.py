@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db_config import get_connection
+from scripts.scoring._pipeline_lock import pipeline_lock
 from src.python.matching.name_normalization import (
     normalize_name_aggressive,
     normalize_name_standard,
@@ -455,6 +456,28 @@ def write_groups(conn, groups, dry_run=False):
     conn.commit()
     print(f"[write] Wrote {len(groups)} groups to employer_canonical_groups")
 
+    # Propagate group_max_workers to ALL employers
+    with conn.cursor() as cur2:
+        # Grouped employers: use canonical group's consolidated_workers
+        cur2.execute("""
+            UPDATE f7_employers_deduped e
+            SET group_max_workers = ecg.consolidated_workers
+            FROM employer_canonical_groups ecg
+            WHERE e.canonical_group_id = ecg.group_id
+        """)
+        grouped_updated = cur2.rowcount
+
+        # Ungrouped employers: use their own latest_unit_size as company size
+        cur2.execute("""
+            UPDATE f7_employers_deduped
+            SET group_max_workers = latest_unit_size
+            WHERE canonical_group_id IS NULL
+              AND latest_unit_size IS NOT NULL
+        """)
+        ungrouped_updated = cur2.rowcount
+    conn.commit()
+    print(f"[write] group_max_workers: {grouped_updated:,} grouped + {ungrouped_updated:,} ungrouped")
+
 
 def print_stats(groups):
     """Print summary statistics."""
@@ -507,37 +530,41 @@ def main():
 
     conn = get_connection()
     try:
-        # Ensure schema
-        ensure_schema(conn)
+        with pipeline_lock(conn, 'employer_groups'):
+            # Ensure schema
+            ensure_schema(conn)
 
-        # Load employers
-        print("[load] Loading f7_employers_deduped...")
-        rows = load_employers(conn)
-        print(f"[load] Loaded {len(rows):,} employers")
+            # Load employers
+            print("[load] Loading f7_employers_deduped...")
+            rows = load_employers(conn)
+            print(f"[load] Loaded {len(rows):,} employers")
 
-        # Build groups
-        print("[group] Building canonical groups...")
-        groups = build_groups(rows,
-                             skip_cross_state=args.skip_cross_state,
-                             min_states=args.min_states)
-        print(f"[group] Built {len(groups):,} groups")
+            # Build groups
+            print("[group] Building canonical groups...")
+            groups = build_groups(rows,
+                                 skip_cross_state=args.skip_cross_state,
+                                 min_states=args.min_states)
+            print(f"[group] Built {len(groups):,} groups")
 
-        # Print stats
-        print_stats(groups)
+            # Print stats
+            print_stats(groups)
 
-        # Write
-        write_groups(conn, groups, dry_run=args.dry_run)
+            # Write
+            write_groups(conn, groups, dry_run=args.dry_run)
 
-        if not args.dry_run:
-            # Verify
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM employer_canonical_groups")
-                gc = cur.fetchone()[0]
-                cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE canonical_group_id IS NOT NULL")
-                ec = cur.fetchone()[0]
-                cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE is_canonical_rep = TRUE")
-                rc = cur.fetchone()[0]
-                print(f"\n[verify] Groups: {gc:,}, Grouped employers: {ec:,}, Canonical reps: {rc:,}")
+            if not args.dry_run:
+                # Verify
+                with conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) FROM employer_canonical_groups")
+                    gc = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE canonical_group_id IS NOT NULL")
+                    ec = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE is_canonical_rep = TRUE")
+                    rc = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM f7_employers_deduped WHERE group_max_workers IS NOT NULL")
+                    wc = cur.fetchone()[0]
+                    print(f"\n[verify] Groups: {gc:,}, Grouped employers: {ec:,}, Canonical reps: {rc:,}")
+                    print(f"[verify] Employers with group_max_workers: {wc:,}")
 
     finally:
         conn.close()

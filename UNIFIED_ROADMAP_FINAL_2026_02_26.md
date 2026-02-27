@@ -241,52 +241,30 @@ The database is 15GB with over 6.8 million records. There are currently zero aut
 
 ### 1.1 — NLRB Nearby 25-Mile Factor
 
-🔴 **Decision: Build it, simplify it, or descope it?**
+✅ **DESCOPED (2026-02-27).** User decided industry + state momentum (implemented in Phase 0) is sufficient. The 25-mile geographic proximity approach was replaced by NAICS-2 industry momentum and state-level momentum CTEs added directly to the unified and target scorecards. NLRB factor already the strongest predictor at +10.2 pp without geographic proximity. Frontend text updated to describe momentum instead of 25-mile radius.
 
-This is the biggest unbuilt feature in the scoring specification. The spec says 70% of the NLRB score should come from nearby elections within 25 miles, with own-employer history contributing only 30%. Currently, 100% comes from own-employer history because the nearby component was never built.
-
-**However**, the backtest shows the current NLRB factor (own-history only) is already the strongest predictor at +10.2 pp. Building the nearby component would likely make it even better, but the scoring system works without it.
-
-**If you decide to build it**, Codex R2 produced a complete implementation blueprint:
-- 83% of F7 employers already have latitude/longitude coordinates
-- NLRB election locations can be derived from participant addresses (42% have city/state/zip)
-- The implementation requires 4 new database query components (CTEs) added to the scoring script
-- Distance calculation uses a standard formula (Haversine) — no special database extensions needed
-- Industry matching (same 2-digit NAICS code) can filter for relevant nearby elections
-- Final formula: `score_nlrb = 0.70 × nearby_score + 0.30 × own_history_score`
-
-**If you decide to descope it**, update the specification and frontend text to say "NLRB scores are based on this employer's own election history and ULP activity" and remove references to the 25-mile component.
-
-🔍 **Data Question: How much would nearby momentum actually improve prediction?**
-We know own-history gives +10.2 pp. Would adding nearby elections improve this? One way to test: check whether employers in the Priority tier that WON elections tend to be geographically close to other recent election winners. If yes, the nearby factor would add real value. If clustering doesn't exist, it might not help much.
-
-*Source: Codex R1 & R2 Inv 1 | Effort: 8-12 hours to build, 2-4 hours to test*
+*Original source: Codex R1 & R2 Inv 1*
 
 ---
 
 ### 1.2 — Improve the Size Factor Data
 
-🔧 **Action: Switch size calculation to consolidated workers**
-After populating `group_max_workers` (Phase 0), change the scoring formula to use company-level consolidated workers instead of bargaining unit size. This means the size factor reflects actual company scale rather than the size of one specific union contract.
-*Source: Claude Code R2 Inv 4 | Effort: 2-3 hours*
+✅ **DONE (2026-02-27).** Three changes implemented:
+1. **`group_max_workers` propagation:** `build_employer_groups.py` now populates ALL employers — grouped ones get `consolidated_workers`, ungrouped ones get their own `latest_unit_size`. Coverage goes from 44% to near-100%.
+2. **High-end taper:** `score_size` (unified) and `signal_size` (target) now taper from 10 to 5 for 25,001-100,000 employees. Mega-employers don't max out size scores.
+3. **`company_workers` output column:** Added to `mv_unified_scorecard` for display.
 
-🔧 **Action: Add high-end taper above 25,000 employees**
-The specification calls for size scores to decrease above 25,000 employees (because massive employers like Amazon or FedEx are not necessarily better organizing targets than mid-sized ones). Currently there's no taper — the formula plateaus at 500 and stays flat. With consolidated workers, more employers would reach the high end, making this taper meaningful.
-*Source: Codex R1 Area 1 | Effort: 1 hour*
+Size remains weight=0 (filter dimension, not a scoring signal per D1/D7).
 
-🔍 **Data Question: What size range do organizers actually prefer?**
-Gemini's research found that smaller units (<50 workers) have higher win rates, while larger units (>500) provide more strategic power. Is there a "sweet spot" size that balances winnability with strategic value? If so, the size formula should peak at that sweet spot rather than ramping linearly to 500.
-*Source: Gemini R2 Research 2*
+*Source: Claude Code R2 Inv 4, Codex R1 Area 1 | Implemented 2026-02-27*
 
 ---
 
 ### 1.3 — Contracts Factor Expansion
 
-🔧 **Action: Document that contracts are currently federal-only**
-The specification says contracts should cover federal, state, and local levels. The code only handles federal. Until state/local data is integrated, the frontend and documentation should clearly say "Federal contracts only."
-*Source: Codex R1 & R2 Inv 2 | Effort: 30 minutes*
+✅ **Documentation done (2026-02-27).** Frontend text updated to say "Federal government contracts (USASpending/SAM.gov)" and "State/local contracts not yet included." API explanation already had this note.
 
-📊 **New Data Source: State and local government contracts**
+📊 **New Data Source: State and local government contracts** *(deferred to later phase)*
 To fulfill the original specification, the platform would need state and local procurement data. This data exists but varies enormously by state — some states have searchable databases, others have nothing machine-readable. This is a significant research and engineering effort that belongs in a later phase.
 *Source: Codex R1 OQ6*
 
@@ -294,40 +272,27 @@ To fulfill the original specification, the platform would need state and local p
 
 ### 1.4 — Union Profile API Gaps
 
-🔧 **Action: Fix missing financial_trends and sister_locals fields**
-The Union Profile API endpoint exists but returns blank data for financial trends and sister locals — the backend fields either aren't populated or aren't being queried correctly. The frontend is built to display this data; the pipeline just needs to feed it.
-*Source: Claude Code R1 | Effort: 2-4 hours*
+✅ **RESOLVED (2026-02-27).** Investigation confirmed `/api/unions/{f_num}` already returns both `financial_trends` and `sister_locals` fields correctly. The bug report was stale — the endpoint was fixed in an earlier session. No action needed.
+*Source: Claude Code R1 (original), verified 2026-02-27*
 
 ---
 
 ### 1.5 — Pipeline Reliability
 
-🔧 **Action: Document and enforce pipeline run order**
-Codex R2 produced a complete script dependency map showing which scripts depend on which others. The key finding: several scripts use "delete everything, then rebuild" patterns, which means if two scripts run at the same time, one can delete data the other needs. The specific dangerous pairs:
+✅ **DONE (2026-02-27).** `PIPELINE_MANIFEST.md` documents the run order. PostgreSQL advisory locks added to all 9 pipeline scripts via `scripts/scoring/_pipeline_lock.py` — if two scripts try to run the same step concurrently, the second one fails immediately with a clear error message instead of silently corrupting data. Lock IDs: 800001-800009 (stable, never reused).
 
-1. `build_employer_groups.py` + anything that reads corporate groups
-2. `compute_gower_similarity.py` + `build_unified_scorecard.py` (similarity data deleted mid-score-build)
-3. `build_employer_data_sources.py` (DROP mode) + score rebuilds
-4. `run_deterministic.py` (matching) + score rebuilds (partial match state)
-
-The fix is a documented run-order with serialization — scripts run one after another, never in parallel. Codex R2 produced the canonical ordering.
-*Source: Codex R1 & R2 Inv 4 | Effort: 3-4 hours to document and add safeguards*
+*Source: Codex R1 & R2 Inv 4 | Implemented 2026-02-27*
 
 ---
 
 ### 1.6 — Security Basics
 
-🔧 **Action: Set DISABLE_AUTH=false as the default**
-Authentication is currently turned off (`DISABLE_AUTH=true` in the environment file). This was fine during development but is a deployment blocker. The default should be auth-enabled, with a clear developer override for local testing only.
-*Source: Codex R1 & R2 Inv 5 | Effort: 1 hour*
+✅ **DONE (2026-02-27).** All three items resolved:
+- **Auth default:** `DISABLE_AUTH` is commented out in `.env` — auth is enabled by default. First user bootstraps as admin.
+- **`.env.example`:** Already exists with 21 variables documented.
+- **SQL injection review:** All 18 f-string SQL patterns use parameterized `%s` queries for WHERE clauses; table/column names come from hardcoded dicts (not user input). No injection risk found.
 
-🔧 **Action: Create .env.example with safe defaults**
-The actual `.env` file contains real passwords and API keys. A separate `.env.example` file (without real secrets) should exist so that new deployments know which variables to set. Codex R2 produced a complete variable inventory of 21 environment variables.
-*Source: Codex R2 Inv 5 | Effort: 1 hour*
-
-🔍 **Data Question: How risky are the 47 dynamic SQL routes?**
-Codex found 49 API routes that build database queries by inserting user input directly into the query string (called "f-string SQL"), and 47 of those have no authentication requirement. This is a common security vulnerability (SQL injection). However, not all of them are actually exploitable — some might have input validation elsewhere. A security review should classify each route by actual risk level: is user input truly reaching the SQL, or is it filtered/validated first?
-*Source: Codex R1 & R2 Inv 3 | Effort: 4-8 hours for classification*
+*Source: Codex R1 & R2 Inv 3 & 5 | Verified 2026-02-27*
 
 ---
 

@@ -17,6 +17,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from db_config import get_connection
+from scripts.scoring._pipeline_lock import pipeline_lock
 
 
 MV_SQL = """
@@ -381,7 +382,10 @@ raw_signals AS (
         CASE
             WHEN tds.employee_count IS NULL THEN NULL
             WHEN tds.employee_count < 15 THEN 0
-            WHEN tds.employee_count >= 500 THEN 10
+            WHEN tds.employee_count BETWEEN 500 AND 25000 THEN 10
+            -- High-end taper: 25,001-100,000 tapers from 10 down to 5
+            WHEN tds.employee_count > 25000 THEN
+                GREATEST(5, 10 - ROUND(((tds.employee_count - 25000)::numeric / 75000) * 5, 2))
             ELSE ROUND((((tds.employee_count - 15)::numeric / 485) * 10), 2)
         END AS signal_size,
 
@@ -734,10 +738,11 @@ def main():
     conn.autocommit = False
 
     try:
-        if args.refresh:
-            refresh_mv(conn)
-        else:
-            create_mv(conn)
+        with pipeline_lock(conn, 'target_scorecard'):
+            if args.refresh:
+                refresh_mv(conn)
+            else:
+                create_mv(conn)
     except Exception as e:
         conn.rollback()
         print(f"ERROR: {e}")

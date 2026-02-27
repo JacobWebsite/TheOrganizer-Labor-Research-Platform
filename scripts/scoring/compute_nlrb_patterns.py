@@ -18,6 +18,7 @@ Usage:
 import sys, os, argparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from db_config import get_connection
+from scripts.scoring._pipeline_lock import pipeline_lock
 
 def create_reference_tables(cur):
     """Create NLRB pattern reference tables."""
@@ -291,10 +292,11 @@ def main():
     cur = conn.cursor()
 
     try:
-        create_reference_tables(cur)
-        compute_employer_scores(cur, dry_run=args.dry_run)
-        conn.commit()
-        print("\n=== COMMITTED ===")
+        with pipeline_lock(conn, 'nlrb_patterns'):
+            create_reference_tables(cur)
+            compute_employer_scores(cur, dry_run=args.dry_run)
+            conn.commit()
+            print("\n=== COMMITTED ===")
     except Exception as e:
         conn.rollback()
         print(f"\nERROR: {e}")

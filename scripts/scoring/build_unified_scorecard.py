@@ -11,6 +11,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from db_config import get_connection
+from scripts.scoring._pipeline_lock import pipeline_lock
 
 
 MV_SQL = """
@@ -328,9 +329,15 @@ raw_scores AS (
         CASE
             WHEN COALESCE(eds.company_size, eds.latest_unit_size) IS NULL THEN NULL
             WHEN COALESCE(eds.company_size, eds.latest_unit_size) < 15 THEN 0
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size) >= 500 THEN 10
+            -- Sweet spot: 50-500 scales linearly 1-10
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size) BETWEEN 500 AND 25000 THEN 10
+            -- High-end taper: 25,001-100,000 tapers from 10 down to 5
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size) > 25000 THEN
+                GREATEST(5, 10 - ROUND(((COALESCE(eds.company_size, eds.latest_unit_size) - 25000)::numeric / 75000) * 5, 2))
             ELSE ROUND((((COALESCE(eds.company_size, eds.latest_unit_size) - 15)::numeric / 485) * 10), 2)
         END AS score_size,
+
+        COALESCE(eds.company_size, eds.latest_unit_size) AS company_workers,
 
         sa.unionized_comparable_count,
         sa.best_distance,
@@ -691,10 +698,11 @@ def main():
     conn = get_connection()
     conn.autocommit = False
     try:
-        if args.refresh:
-            refresh_mv(conn)
-        else:
-            create_mv(conn)
+        with pipeline_lock(conn, 'unified_scorecard'):
+            if args.refresh:
+                refresh_mv(conn)
+            else:
+                create_mv(conn)
     except Exception as exc:
         conn.rollback()
         print(f"ERROR: {exc}")

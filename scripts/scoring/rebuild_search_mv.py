@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db_config import get_connection
+from scripts.scoring._pipeline_lock import pipeline_lock
 
 
 def main():
@@ -21,6 +22,13 @@ def main():
     conn.autocommit = True
     cur = conn.cursor()
 
+    with pipeline_lock(conn, 'search_mv'):
+        _run(conn, cur)
+
+    conn.close()
+
+
+def _run(conn, cur):
     # ── Before counts ───────────────────────────────────────────────────
     print("Getting before counts...")
     before_total = 0
@@ -254,7 +262,6 @@ def main():
     print(f"    With group info:          {stats[2]:,}")
 
     cur.close()
-    conn.close()
     print("\nDone! mv_employer_search rebuilt with dedup.")
 
 

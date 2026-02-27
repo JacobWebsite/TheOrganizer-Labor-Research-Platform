@@ -28,6 +28,7 @@ import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from db_config import get_connection
+from scripts.scoring._pipeline_lock import pipeline_lock
 import psycopg2.extras
 
 
@@ -459,6 +460,16 @@ def main():
     conn = get_connection()
     cur = conn.cursor()
 
+    with pipeline_lock(conn, 'gower_similarity'):
+        _run(conn, cur, args)
+
+    conn.close()
+    print(f"\n{'=' * 70}")
+    print("DONE")
+    print(f"{'=' * 70}")
+
+
+def _run(conn, cur, args):
     print("=" * 70)
     print("PHASE 3: EMPLOYER SIMILARITY ENGINE (GOWER DISTANCE)")
     print("=" * 70)
@@ -719,10 +730,6 @@ def main():
     for row in cur.fetchall():
         print(f"    {row[0]:8s} {row[1]:>8,} {float(row[2]):.4f} {float(row[3]):.4f} {float(row[4]):.4f}")
 
-    conn.close()
-    print(f"\n{'=' * 70}")
-    print("DONE")
-    print(f"{'=' * 70}")
 
 
 if __name__ == '__main__':

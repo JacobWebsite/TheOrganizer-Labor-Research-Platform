@@ -186,8 +186,8 @@ export function EmployerProfilePage() {
         <ul className="list-disc pl-5 space-y-1 text-sm">
           <li><strong>Union Proximity (3x):</strong> Whether companies in the same corporate family already have unions. Strongest predictor -- the corporate parent has already dealt with unions elsewhere.</li>
           <li><strong>Employer Size (filter):</strong> Shown for context but not weighted in the score. Use it to filter searches by workforce size rather than as a ranking signal.</li>
-          <li><strong>NLRB Activity (3x):</strong> This employer's own NLRB election history and unfair labor practice (ULP) complaints filed against them. More elections and ULPs score higher, with recent activity weighted more heavily.</li>
-          <li><strong>Gov Contracts (2x):</strong> Federal government contracts create public accountability and regulatory leverage. Higher contract obligations score higher.</li>
+          <li><strong>NLRB Activity (3x):</strong> This employer's own NLRB election history and ULP complaints, plus organizing momentum in their industry and state. Recent activity counts more.</li>
+          <li><strong>Gov Contracts (2x):</strong> Federal government contracts (USASpending/SAM.gov) create public accountability and regulatory leverage. Higher contract obligations score higher. State/local contracts not yet included.</li>
           <li><strong>Industry Growth (2x):</strong> BLS-projected 10-year industry growth rate. Faster-growing industries mean more workers entering the field.</li>
           <li><strong>OSHA Safety (1x):</strong> Workplace safety violations. More violations and more serious violations (willful, repeat) score higher. Recent ones count more.</li>
           <li><strong>WHD Wage Theft (1x):</strong> Wage and hour violations including back wages, overtime, and minimum wage violations.</li>

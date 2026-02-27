@@ -18,6 +18,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from db_config import get_connection
+from scripts.scoring._pipeline_lock import pipeline_lock
 
 
 MV_SQL = """
@@ -202,10 +203,11 @@ def main():
     conn.autocommit = False
 
     try:
-        if args.refresh:
-            refresh_mv(conn)
-        else:
-            create_mv(conn)
+        with pipeline_lock(conn, 'target_data_sources'):
+            if args.refresh:
+                refresh_mv(conn)
+            else:
+                create_mv(conn)
     except Exception as e:
         conn.rollback()
         print(f"ERROR: {e}")
