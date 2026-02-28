@@ -382,7 +382,13 @@ raw_scores AS (
         ff5.f5500_participants,
         ff5.f5500_plan_count,
         ff5.f5500_has_pension,
-        ff5.f5500_has_welfare
+        ff5.f5500_has_welfare,
+
+        ewo.wage_outlier_score,
+        ewo.is_low_wage_outlier,
+        ewo.wage_ratio,
+        ewo.employer_annual_pay,
+        ewo.qcew_avg_annual_pay
     FROM mv_employer_data_sources eds
     LEFT JOIN osha_agg oa ON oa.f7_employer_id = eds.employer_id
     LEFT JOIN osha_avgs oa4 ON oa4.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 4)
@@ -400,6 +406,15 @@ raw_scores AS (
         ELSE NULL
     END AND bp.matrix_code IS NULL
     LEFT JOIN similarity_agg sa ON sa.employer_id = eds.employer_id
+    LEFT JOIN (
+        -- Bridge F7 employer_id -> master_id -> wage outliers
+        SELECT mesi.source_id AS f7_employer_id,
+               ewo.wage_outlier_score, ewo.is_low_wage_outlier,
+               ewo.wage_ratio, ewo.employer_annual_pay, ewo.qcew_avg_annual_pay
+        FROM master_employer_source_ids mesi
+        JOIN employer_wage_outliers ewo ON ewo.master_id = mesi.master_id
+        WHERE mesi.source_system = 'f7'
+    ) ewo ON ewo.f7_employer_id = eds.employer_id
     LEFT JOIN financial_990 f990 ON f990.f7_employer_id = eds.employer_id
     LEFT JOIN financial_form5500 ff5 ON ff5.f7_employer_id = eds.employer_id
 ),
@@ -525,11 +540,12 @@ strategic_pillars AS (
 
         -- PILLAR 2: STABILITY (Winnability)
         -- High score = Low turnover / High stability. "Stability is required for a committee."
+        -- Blends research stability, turnover, wage outlier (inverted: low wages -> less stable)
         COALESCE(
             s.rse_score_stability,
-            CASE 
+            CASE
                 WHEN s.turnover_rate_found IS NOT NULL THEN (10 - s.turnover_rate_found)
-                -- If we have recent NLRB wins nearby, stability/momentum is higher (placeholder for momentum)
+                WHEN s.wage_outlier_score IS NOT NULL THEN (10 - s.wage_outlier_score)
                 ELSE 5.0 -- Baseline stability
             END
         ) AS score_stability,

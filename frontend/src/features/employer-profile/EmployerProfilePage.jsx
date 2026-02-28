@@ -22,6 +22,7 @@ import { WhdCard } from './WhdCard'
 import { ResearchNotesCard } from './ResearchNotesCard'
 import { DataProvenanceCard } from './DataProvenanceCard'
 import { ResearchInsightsCard } from './ResearchInsightsCard'
+import { WorkforceDemographicsCard } from './WorkforceDemographicsCard'
 
 export function EmployerProfilePage() {
   const { id } = useParams()
@@ -243,6 +244,7 @@ export function EmployerProfilePage() {
       <ResearchInsightsCard scorecard={scorecardQuery.data} />
       <UnionRelationshipsCard employer={employer} />
       <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} sourceAttribution={getFinancialAttribution()} />
+      <WorkforceDemographicsCard state={employer?.state} naics={scorecard?.naics || employer?.naics} />
       <CorporateHierarchyCard employerId={id} sourceAttribution={getCorporateAttribution()} />
       <ComparablesCard employerId={id} />
       <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} />

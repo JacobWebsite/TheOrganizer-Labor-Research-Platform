@@ -456,6 +456,13 @@ raw_signals AS (
         sa.unionized_comparable_count,
         sa.best_distance AS similarity_best_distance,
 
+        -- Wage outlier columns
+        ewo.wage_outlier_score,
+        ewo.is_low_wage_outlier,
+        ewo.wage_ratio,
+        ewo.employer_annual_pay,
+        ewo.qcew_avg_annual_pay,
+
         -- Raw detail columns for drilldown
         oa.estab_count AS osha_estab_count,
         oa.total_violations AS osha_total_violations,
@@ -548,6 +555,7 @@ raw_signals AS (
         ELSE NULL
     END
     LEFT JOIN similarity_agg sa ON sa.master_id = tds.master_id
+    LEFT JOIN employer_wage_outliers ewo ON ewo.master_id = tds.master_id
     LEFT JOIN financial_990 f990 ON f990.master_id = tds.master_id
     LEFT JOIN financial_form5500 ff5 ON ff5.master_id = tds.master_id
     LEFT JOIN research_bridge rb ON rb.master_id = tds.master_id
@@ -631,11 +639,22 @@ SELECT
         )
     END AS pillar_leverage,
 
-    -- Pillar: stability -- research-provided, or derived from turnover/sentiment findings
+    -- Pillar: stability -- blends research stability, turnover, sentiment, and wage outlier score
+    -- Higher = more stable workforce (better for organizing). Wage outlier inverted: low wages = less stable.
     CASE
-        WHEN e.rse_score_stability IS NOT NULL THEN ROUND(e.rse_score_stability::numeric, 2)
-        WHEN e.turnover_rate_found IS NOT NULL THEN ROUND(LEAST(10, GREATEST(0, 10 - e.turnover_rate_found))::numeric, 2)
-        WHEN e.sentiment_score_found IS NOT NULL THEN ROUND(LEAST(10, GREATEST(0, e.sentiment_score_found * 10))::numeric, 2)
+        WHEN e.rse_score_stability IS NOT NULL THEN
+            -- If research provided stability AND we have wage data, average them
+            ROUND(CASE WHEN e.wage_outlier_score IS NOT NULL
+                THEN (e.rse_score_stability + (10 - e.wage_outlier_score)) / 2.0
+                ELSE e.rse_score_stability
+            END::numeric, 2)
+        WHEN e.turnover_rate_found IS NOT NULL THEN
+            ROUND(LEAST(10, GREATEST(0, 10 - e.turnover_rate_found))::numeric, 2)
+        WHEN e.wage_outlier_score IS NOT NULL THEN
+            -- Low wages -> high turnover risk -> low stability
+            ROUND((10 - e.wage_outlier_score)::numeric, 2)
+        WHEN e.sentiment_score_found IS NOT NULL THEN
+            ROUND(LEAST(10, GREATEST(0, e.sentiment_score_found * 10))::numeric, 2)
         ELSE NULL
     END AS pillar_stability,
 
