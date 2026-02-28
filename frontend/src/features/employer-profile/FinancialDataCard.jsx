@@ -1,7 +1,8 @@
 import { TrendingUp } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { SourceAttribution } from '@/shared/components/SourceAttribution'
 
-export function FinancialDataCard({ scorecard, dataSources }) {
+export function FinancialDataCard({ scorecard, dataSources, sourceAttribution }) {
   const growthPct = scorecard?.bls_growth_pct
   const isPublic = dataSources?.is_public
   const ticker = dataSources?.ticker
@@ -16,7 +17,9 @@ export function FinancialDataCard({ scorecard, dataSources }) {
 
   return (
     <CollapsibleCard icon={TrendingUp} title="Financial Data" summary={summary}>
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="space-y-4">
+        <SourceAttribution attribution={sourceAttribution} />
+        <div className="grid grid-cols-2 gap-4 text-sm">
         {growthPct != null && (
           <div>
             <span className="text-muted-foreground">BLS Industry Growth</span>
@@ -52,6 +55,7 @@ export function FinancialDataCard({ scorecard, dataSources }) {
             </div>
           </div>
         )}
+        </div>
       </div>
     </CollapsibleCard>
   )

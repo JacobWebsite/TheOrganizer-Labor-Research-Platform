@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +31,7 @@ function SeverityBadge({ label, count }) {
   )
 }
 
-export function OshaSection({ osha }) {
+export function OshaSection({ osha, sourceAttribution }) {
   const [expanded, setExpanded] = useState(false)
 
   if (!osha) return null
@@ -48,6 +49,7 @@ export function OshaSection({ osha }) {
   return (
     <CollapsibleCard icon={ShieldAlert} title="OSHA Safety Record" summary={summaryText}>
       <div className="space-y-4">
+        <SourceAttribution attribution={sourceAttribution} />
         {/* Summary stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>

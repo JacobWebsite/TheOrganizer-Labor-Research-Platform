@@ -1,12 +1,13 @@
 import { FileText } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { SourceAttribution } from '@/shared/components/SourceAttribution'
 
 function formatCurrency(n) {
   if (n == null) return '$0'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
 
-export function GovernmentContractsCard({ dataSources }) {
+export function GovernmentContractsCard({ dataSources, sourceAttribution }) {
   if (!dataSources?.is_federal_contractor) return null
 
   const obligations = dataSources.federal_obligations
@@ -18,7 +19,9 @@ export function GovernmentContractsCard({ dataSources }) {
 
   return (
     <CollapsibleCard icon={FileText} title="Government Contracts" summary={summary}>
-      <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="space-y-4">
+        <SourceAttribution attribution={sourceAttribution} />
+        <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <span className="text-muted-foreground">Total Obligations</span>
           <div className="font-medium">{formatCurrency(obligations)}</div>
@@ -34,6 +37,7 @@ export function GovernmentContractsCard({ dataSources }) {
             Federal Contractor
           </span>
         </div>
+      </div>
       </div>
     </CollapsibleCard>
   )

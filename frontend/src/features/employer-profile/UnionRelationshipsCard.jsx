@@ -1,6 +1,7 @@
 import { Landmark } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { FileText } from 'lucide-react'
 
 export function UnionRelationshipsCard({ employer }) {
   const unionName = employer?.latest_union_name || employer?.union_name
@@ -18,6 +19,10 @@ export function UnionRelationshipsCard({ employer }) {
       summary={`Represented by ${unionName}`}
     >
       <div className="space-y-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1 pb-2 border-b border-border/50">
+          <FileText className="h-3 w-3 shrink-0" />
+          <span>Source: DOL Form LM-10/F-7 (direct filing)</span>
+        </div>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Union</span>

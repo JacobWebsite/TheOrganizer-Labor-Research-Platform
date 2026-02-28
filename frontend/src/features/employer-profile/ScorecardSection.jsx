@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
+import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 import { cn } from '@/lib/utils'
 
 const FACTORS = [
@@ -21,7 +22,36 @@ function getBarColor(value) {
   return 'bg-[#d9cebb]'
 }
 
-function ScoreBar({ label, weight, value, explanation, disabled, filter, enhanced }) {
+const FACTOR_SOURCE_MAP = {
+  score_osha: 'osha',
+  score_nlrb: 'nlrb',
+  score_whd: 'whd',
+  score_contracts: 'sam',
+  score_financial: ['990', 'sec'],
+  score_union_proximity: null,
+  score_size: null,
+  score_industry_growth: null,
+  score_similarity: null,
+}
+
+function getFactorAttribution(matchSummary, factorKey) {
+  if (!matchSummary) return null
+  const source = FACTOR_SOURCE_MAP[factorKey]
+  if (!source) return null
+  if (Array.isArray(source)) {
+    // Return whichever has higher confidence
+    const entries = source.map(s => matchSummary.find(e => e.source_system === s)).filter(Boolean)
+    if (entries.length === 0) return null
+    return entries.reduce((best, e) => {
+      const bestScore = best.best_confidence_score ?? best.best_confidence ?? 0
+      const eScore = e.best_confidence_score ?? e.best_confidence ?? 0
+      return eScore > bestScore ? e : best
+    })
+  }
+  return matchSummary.find(e => e.source_system === source) || null
+}
+
+function ScoreBar({ label, weight, value, explanation, disabled, filter, enhanced, attribution }) {
   if (disabled) {
     return (
       <div className="space-y-1 opacity-50">
@@ -48,6 +78,13 @@ function ScoreBar({ label, weight, value, explanation, disabled, filter, enhance
         </span>
         <span className="flex items-center gap-1">
           {enhanced && <span className="text-[10px] text-[#3a7d44] font-semibold" title="Enhanced by web research">R</span>}
+          {attribution && hasValue && (
+            <ConfidenceDots
+              confidence={attribution.best_confidence_score != null ? attribution.best_confidence_score : attribution.best_confidence}
+              matchTier={attribution.best_match_tier}
+              className="mr-1"
+            />
+          )}
           <span className={cn('text-xs', hasValue ? 'text-foreground' : 'text-muted-foreground')}>
             {hasValue ? displayValue : '\u2014'}
           </span>
@@ -77,7 +114,7 @@ const FACTOR_ENH_MAP = {
   score_size: 'enh_score_size',
 }
 
-export function ScorecardSection({ scorecard, explanations, scorecardDetail }) {
+export function ScorecardSection({ scorecard, explanations, scorecardDetail, matchSummary }) {
   if (!scorecard) return null
 
   const activeFactors = FACTORS.filter(f => !f.disabled)
@@ -111,6 +148,7 @@ export function ScorecardSection({ scorecard, explanations, scorecardDetail }) {
               disabled={disabled}
               filter={filter}
               enhanced={isEnhanced(key)}
+              attribution={getFactorAttribution(matchSummary, key)}
             />
           ))}
         </div>

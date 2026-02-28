@@ -161,6 +161,36 @@ export function EmployerProfilePage() {
   const nlrb = data.nlrb
   const crossRefs = data.cross_references
   const explanations = scorecardQuery.data?.explanations
+  const matchSummary = matchesQuery.data?.match_summary
+
+  function getAttribution(sourceSystem) {
+    if (!matchSummary) return null
+    return matchSummary.find(e => e.source_system === sourceSystem) || null
+  }
+
+  function getFinancialAttribution() {
+    if (!matchSummary) return null
+    const s990 = matchSummary.find(e => e.source_system === '990')
+    const sec = matchSummary.find(e => e.source_system === 'sec')
+    if (!s990 && !sec) return null
+    if (!s990) return sec
+    if (!sec) return s990
+    const s990Score = s990.best_confidence_score ?? s990.best_confidence ?? 0
+    const secScore = sec.best_confidence_score ?? sec.best_confidence ?? 0
+    return secScore > s990Score ? sec : s990
+  }
+
+  function getCorporateAttribution() {
+    if (!matchSummary) return null
+    const candidates = ['sec', 'corpwatch', 'mergent']
+    const entries = candidates.map(s => matchSummary.find(e => e.source_system === s)).filter(Boolean)
+    if (entries.length === 0) return null
+    return entries.reduce((best, e) => {
+      const bestScore = best.best_confidence_score ?? best.best_confidence ?? 0
+      const eScore = e.best_confidence_score ?? e.best_confidence ?? 0
+      return eScore > bestScore ? e : best
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -208,17 +238,17 @@ export function EmployerProfilePage() {
         <p><strong>Confidence dots:</strong> How confident the system is that records from a data source were correctly matched to this employer. 4 dots = matched on unique ID (EIN or exact name + address). 3 dots = name + state or city. 2 dots = fuzzy name similarity + location. 1 dot = name similarity alone -- treat with caution.</p>
         <p><strong>Employee count range:</strong> Different databases collect employee counts at different times using different definitions. The platform shows the range across all sources so you can see the spread. The scoring system uses the average.</p>
       </HelpSection>
-      <ScorecardSection scorecard={scorecard} explanations={explanations} scorecardDetail={scorecardQuery.data} />
+      <ScorecardSection scorecard={scorecard} explanations={explanations} scorecardDetail={scorecardQuery.data} matchSummary={matchSummary} />
       <DataProvenanceCard matchSummary={matchesQuery.data?.match_summary} />
       <ResearchInsightsCard scorecard={scorecardQuery.data} />
       <UnionRelationshipsCard employer={employer} />
-      <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} />
-      <CorporateHierarchyCard employerId={id} />
+      <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} sourceAttribution={getFinancialAttribution()} />
+      <CorporateHierarchyCard employerId={id} sourceAttribution={getCorporateAttribution()} />
       <ComparablesCard employerId={id} />
-      <NlrbSection nlrb={nlrb} />
-      <GovernmentContractsCard dataSources={dataSourcesQuery.data} />
-      <OshaSection osha={osha} />
-      <WhdCard employerId={id} />
+      <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} />
+      <GovernmentContractsCard dataSources={dataSourcesQuery.data} sourceAttribution={getAttribution('sam')} />
+      <OshaSection osha={osha} sourceAttribution={getAttribution('osha')} />
+      <WhdCard employerId={id} sourceAttribution={getAttribution('whd')} />
       <CrossReferencesSection crossReferences={crossRefs} />
       <ResearchNotesCard employerId={id} sourceType="F7" sourceId={employer.employer_id} />
     </div>

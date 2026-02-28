@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Scale } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -40,7 +41,7 @@ function ResultBadge({ result }) {
   )
 }
 
-export function NlrbSection({ nlrb }) {
+export function NlrbSection({ nlrb, sourceAttribution }) {
   const [electionsExpanded, setElectionsExpanded] = useState(false)
   const [ulpExpanded, setUlpExpanded] = useState(false)
 
@@ -64,6 +65,7 @@ export function NlrbSection({ nlrb }) {
   return (
     <CollapsibleCard icon={Scale} title="NLRB Activity" summary={summaryText}>
       <div className="space-y-4">
+        <SourceAttribution attribution={sourceAttribution} />
         {/* Summary stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>

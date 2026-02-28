@@ -1,10 +1,11 @@
 import { Building2 } from 'lucide-react'
 import { useState } from 'react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { useEmployerCorporate } from '@/shared/api/profile'
 import { Button } from '@/components/ui/button'
 
-export function CorporateHierarchyCard({ employerId }) {
+export function CorporateHierarchyCard({ employerId, sourceAttribution }) {
   const { data, isLoading } = useEmployerCorporate(employerId)
   const [showAllSubs, setShowAllSubs] = useState(false)
 
@@ -31,6 +32,7 @@ export function CorporateHierarchyCard({ employerId }) {
       summary={summaryParts.join(' · ')}
     >
       <div className="space-y-4">
+        <SourceAttribution attribution={sourceAttribution} />
         {parent && (
           <div className="text-sm">
             <span className="text-muted-foreground">Ultimate Parent</span>

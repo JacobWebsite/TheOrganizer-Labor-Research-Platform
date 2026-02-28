@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Scale } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { useEmployerWhd } from '@/shared/api/profile'
 import { Button } from '@/components/ui/button'
 
@@ -9,7 +10,7 @@ function formatCurrency(n) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
 
-export function WhdCard({ employerId }) {
+export function WhdCard({ employerId, sourceAttribution }) {
   const { data, isLoading } = useEmployerWhd(employerId)
   const [showAll, setShowAll] = useState(false)
 
@@ -29,6 +30,7 @@ export function WhdCard({ employerId }) {
       summary={`${caseCount} cases · ${formatCurrency(backwages)} backwages`}
     >
       <div className="space-y-4">
+        <SourceAttribution attribution={sourceAttribution} />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <div>
             <span className="text-muted-foreground">Cases</span>
