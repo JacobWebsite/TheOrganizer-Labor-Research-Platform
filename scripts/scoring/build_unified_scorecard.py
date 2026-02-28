@@ -181,28 +181,17 @@ financial_form5500 AS (
         ON f7sid.master_id = f5sid.master_id AND f7sid.source_system = 'f7'
     GROUP BY f7sid.source_id
 ),
-feature_bridge AS (
-    SELECT DISTINCT ON (LOWER(TRIM(employer_name)), state)
-        LOWER(TRIM(employer_name)) AS employer_name_norm,
-        state,
-        employer_id AS feature_employer_id
-    FROM mv_employer_features
-    WHERE employer_name IS NOT NULL
-      AND state IS NOT NULL
-    ORDER BY LOWER(TRIM(employer_name)), state, employer_id
-),
+-- Similarity: bridge F7 employer_id -> master_id -> employer_comparables
 similarity_agg AS (
     SELECT
-        eds.employer_id,
-        COUNT(*) FILTER (WHERE COALESCE(cf.is_union, 0) > 0) AS unionized_comparable_count,
+        mesi.source_id AS employer_id,
+        COUNT(*) FILTER (WHERE me.is_union) AS unionized_comparable_count,
         MIN(ec.gower_distance)::numeric AS best_distance
-    FROM mv_employer_data_sources eds
-    JOIN feature_bridge fb
-      ON fb.employer_name_norm = LOWER(TRIM(eds.employer_name))
-     AND fb.state = eds.state
-    JOIN employer_comparables ec ON ec.employer_id = fb.feature_employer_id
-    JOIN mv_employer_features cf ON cf.employer_id = ec.comparable_employer_id
-    GROUP BY eds.employer_id
+    FROM master_employer_source_ids mesi
+    JOIN employer_comparables ec ON ec.employer_id = mesi.master_id
+    JOIN master_employers me ON me.id = ec.comparable_employer_id
+    WHERE mesi.source_system = 'f7'
+    GROUP BY mesi.source_id
 ),
 raw_scores AS (
     SELECT
@@ -418,7 +407,6 @@ scored AS (
     SELECT
         rs.*,
         CASE
-            WHEN rs.score_union_proximity >= 5 THEN NULL
             WHEN rs.unionized_comparable_count IS NULL THEN NULL
             ELSE LEAST(
                 10,
@@ -547,12 +535,13 @@ strategic_pillars AS (
         ) AS score_stability,
 
         -- PILLAR 3: LEVERAGE (Power)
-        -- Blends proximity, contracts, financials (RPE), and growth
+        -- Blends proximity, similarity, contracts, financials (RPE), and growth
         LEAST(10,
-            (COALESCE(s.score_union_proximity, 0) * 0.3)
-            + (COALESCE(s.enh_score_contracts, 0) * 0.2)
-            + (COALESCE(s.enh_score_financial, 0) * 0.2)
-            + (COALESCE(s.score_industry_growth, 0) * 0.15)
+            (COALESCE(s.score_union_proximity, 0) * 0.25)
+            + (COALESCE(s.score_similarity, 0) * 0.10)
+            + (COALESCE(s.enh_score_contracts, 0) * 0.20)
+            + (COALESCE(s.enh_score_financial, 0) * 0.20)
+            + (COALESCE(s.score_industry_growth, 0) * 0.10)
             + (COALESCE(s.enh_score_size, 0) * 0.15)
             + CASE WHEN s.revenue_per_employee_found > 500000 THEN 1 ELSE 0 END -- RPE Bonus
         ) AS score_leverage
@@ -580,9 +569,10 @@ weighted AS (
             + CASE WHEN s.score_industry_growth IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_financial IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_size IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_similarity IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.has_research THEN 1 ELSE 0 END
         ) AS factors_available,
-        9 AS factors_total,
+        10 AS factors_total,
         ROUND(
             (
                 (COALESCE(s.score_anger, 0) * 3)
@@ -601,6 +591,7 @@ weighted AS (
                 + COALESCE(s.enh_score_financial, s.score_financial, 0) * 2
                 + COALESCE(s.enh_score_osha, s.score_osha, 0)
                 + COALESCE(s.enh_score_whd, s.score_whd, 0)
+                + COALESCE(s.score_similarity, 0) * 1
             )::numeric
             / NULLIF(
                 (
@@ -611,6 +602,7 @@ weighted AS (
                     + CASE WHEN COALESCE(s.enh_score_financial, s.score_financial) IS NOT NULL THEN 2 ELSE 0 END
                     + CASE WHEN COALESCE(s.enh_score_osha, s.score_osha) IS NOT NULL THEN 1 ELSE 0 END
                     + CASE WHEN COALESCE(s.enh_score_whd, s.score_whd) IS NOT NULL THEN 1 ELSE 0 END
+                    + CASE WHEN s.score_similarity IS NOT NULL THEN 1 ELSE 0 END
                 ),
                 0
             ),
@@ -622,7 +614,7 @@ ranked AS (
     SELECT
         w.*,
         w.weighted_score AS unified_score,
-        ROUND(100.0 * w.factors_available::numeric / 9, 1) AS coverage_pct,
+        ROUND(100.0 * w.factors_available::numeric / 10, 1) AS coverage_pct,
         PERCENT_RANK() OVER (ORDER BY w.weighted_score ASC NULLS FIRST) AS score_percentile
     FROM weighted w
 )

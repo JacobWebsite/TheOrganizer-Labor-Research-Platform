@@ -200,6 +200,16 @@ industry_density AS (
     FROM bls_national_industry_density
     WHERE year = (SELECT MAX(year) FROM bls_national_industry_density)
 ),
+-- Similarity: employer_comparables links master_id -> comparable union employers
+similarity_agg AS (
+    SELECT
+        ec.employer_id AS master_id,
+        COUNT(*) FILTER (WHERE me.is_union) AS unionized_comparable_count,
+        MIN(ec.gower_distance)::numeric AS best_distance
+    FROM employer_comparables ec
+    JOIN master_employers me ON me.id = ec.comparable_employer_id
+    GROUP BY ec.employer_id
+),
 -- Research enhancement bridge: link research_score_enhancements to master_ids via F7 source IDs
 research_bridge AS (
     SELECT DISTINCT ON (mesi.master_id)
@@ -426,6 +436,26 @@ raw_signals AS (
             ELSE ROUND((((tds.employee_count - 15)::numeric / 485) * 10), 2)
         END AS signal_size,
 
+        -- SIGNAL: Similarity (0-10) -- peer comparison via Gower distance to unionized employers
+        CASE
+            WHEN sa.unionized_comparable_count IS NULL THEN NULL
+            ELSE LEAST(
+                10,
+                CASE sa.unionized_comparable_count
+                    WHEN 5 THEN 10
+                    WHEN 4 THEN 8
+                    WHEN 3 THEN 6
+                    WHEN 2 THEN 4
+                    WHEN 1 THEN 2
+                    ELSE 0
+                END
+                + CASE WHEN sa.best_distance IS NOT NULL AND sa.best_distance < 0.15 THEN 1 ELSE 0 END
+            )
+        END AS signal_similarity,
+
+        sa.unionized_comparable_count,
+        sa.best_distance AS similarity_best_distance,
+
         -- Raw detail columns for drilldown
         oa.estab_count AS osha_estab_count,
         oa.total_violations AS osha_total_violations,
@@ -517,6 +547,7 @@ raw_signals AS (
         WHEN '92' THEN 'PUBLIC_ADMIN'
         ELSE NULL
     END
+    LEFT JOIN similarity_agg sa ON sa.master_id = tds.master_id
     LEFT JOIN financial_990 f990 ON f990.master_id = tds.master_id
     LEFT JOIN financial_form5500 ff5 ON ff5.master_id = tds.master_id
     LEFT JOIN research_bridge rb ON rb.master_id = tds.master_id
@@ -547,6 +578,7 @@ enhanced AS (
          + CASE WHEN rs.signal_industry_growth IS NOT NULL THEN 1 ELSE 0 END
          + CASE WHEN rs.signal_union_density IS NOT NULL THEN 1 ELSE 0 END
          + CASE WHEN rs.signal_size IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_similarity IS NOT NULL THEN 1 ELSE 0 END
         ) AS signals_present,
 
         -- Enforcement flags
@@ -583,14 +615,17 @@ SELECT
             )
     END AS pillar_anger,
 
-    -- Pillar: leverage -- use enhanced leverage signals
-    CASE WHEN e.enh_signal_contracts IS NOT NULL OR e.enh_signal_financial IS NOT NULL OR e.signal_union_density IS NOT NULL THEN
+    -- Pillar: leverage -- use enhanced leverage signals + similarity
+    CASE WHEN e.enh_signal_contracts IS NOT NULL OR e.enh_signal_financial IS NOT NULL
+         OR e.signal_union_density IS NOT NULL OR e.signal_similarity IS NOT NULL THEN
         ROUND(
-            (COALESCE(e.enh_signal_contracts, 0) + COALESCE(e.enh_signal_financial, 0) + COALESCE(e.signal_union_density, 0))::numeric
+            (COALESCE(e.enh_signal_contracts, 0) + COALESCE(e.enh_signal_financial, 0)
+             + COALESCE(e.signal_union_density, 0) + COALESCE(e.signal_similarity, 0))::numeric
             / GREATEST(1,
                 CASE WHEN e.enh_signal_contracts IS NOT NULL THEN 1 ELSE 0 END
                 + CASE WHEN e.enh_signal_financial IS NOT NULL THEN 1 ELSE 0 END
                 + CASE WHEN e.signal_union_density IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN e.signal_similarity IS NOT NULL THEN 1 ELSE 0 END
             ),
             2
         )
@@ -648,7 +683,8 @@ def _print_stats(cur):
     # Signal coverage
     print("\n  Signal coverage:")
     for col in ['signal_osha', 'signal_whd', 'signal_nlrb', 'signal_contracts',
-                'signal_financial', 'signal_industry_growth', 'signal_union_density', 'signal_size']:
+                'signal_financial', 'signal_industry_growth', 'signal_union_density', 'signal_size',
+                'signal_similarity']:
         cur.execute(f"SELECT COUNT(*) FROM mv_target_scorecard WHERE {col} IS NOT NULL")
         cnt = cur.fetchone()[0]
         pct = 100.0 * cnt / total if total > 0 else 0

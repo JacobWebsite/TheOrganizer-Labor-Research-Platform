@@ -40,7 +40,7 @@ FEATURE_WEIGHTS = {
     'employees_here_log':   2.0,   # Workforce size matters for organizing
     'employees_total_log':  1.0,   # Total company scale
     'state':                1.0,   # State labor law environment
-    'county':               0.5,   # Local geography (bonus)
+    'city':                 0.5,   # Local geography (bonus)
     'company_type':         0.5,   # Minor structural factor
     'is_subsidiary':        1.0,   # Independent vs subsidiary
     'revenue_log':          1.0,   # Financial scale
@@ -52,7 +52,7 @@ FEATURE_WEIGHTS = {
     'occupation_overlap':   1.5,   # BLS occupation overlap between industries (Phase 5.4c)
 }
 
-CATEGORICAL_FEATURES = ['state', 'county', 'company_type']
+CATEGORICAL_FEATURES = ['state', 'city', 'company_type']
 NUMERIC_FEATURES = ['employees_here_log', 'employees_total_log', 'revenue_log',
                      'company_age', 'osha_violation_rate', 'whd_violation_rate',
                      'bls_growth_pct']
@@ -129,48 +129,82 @@ MV_SQL = """
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_employer_features AS
 WITH base AS (
     SELECT
-        m.id AS employer_id,
-        m.company_name AS employer_name,
-        CASE WHEN m.has_union = TRUE THEN 1 ELSE 0 END AS is_union,
-        LEFT(m.naics_primary, 2) AS naics_2,
-        LEFT(m.naics_primary, 4) AS naics_4,
-        m.state,
-        m.county,
-        m.company_type,
-        CASE WHEN m.subsidiary_status IS NOT NULL
-             AND m.subsidiary_status != 'Standalone' THEN 1 ELSE 0 END AS is_subsidiary,
-        CASE WHEN COALESCE(m.employees_site, 0) > 0
-             THEN LN(1 + m.employees_site) END AS employees_here_raw,
-        CASE WHEN COALESCE(m.employees_all_sites, 0) > 0
-             THEN LN(1 + m.employees_all_sites) END AS employees_total_raw,
-        CASE WHEN COALESCE(m.sales_amount, 0) > 0
-             THEN LN(1 + m.sales_amount) END AS revenue_raw,
-        CASE WHEN m.year_founded IS NOT NULL AND m.year_founded > 1800
-             THEN (2026 - m.year_founded)::NUMERIC END AS company_age_raw,
-        CASE WHEN COALESCE(m.employees_site, 1) > 0
-             THEN COALESCE(m.osha_violation_count, 0)::NUMERIC / GREATEST(m.employees_site, 1)
+        me.master_id AS employer_id,
+        me.canonical_name AS employer_name,
+        CASE WHEN me.is_union = TRUE THEN 1 ELSE 0 END AS is_union,
+        LEFT(me.naics, 2) AS naics_2,
+        LEFT(me.naics, 4) AS naics_4,
+        me.state,
+        me.city,
+        -- company_type derived from flags
+        CASE
+            WHEN me.is_public = TRUE THEN 'public'
+            WHEN me.is_nonprofit = TRUE THEN 'nonprofit'
+            ELSE 'private'
+        END AS company_type,
+        -- subsidiary status from Mergent (if linked)
+        CASE WHEN mg.subsidiary_status IS NOT NULL
+             AND mg.subsidiary_status != 'Standalone' THEN 1 ELSE 0 END AS is_subsidiary,
+        -- Employee counts: COALESCE master_employers > Mergent site > PPP estimate
+        CASE WHEN COALESCE(mg.employees_site, 0) > 0
+             THEN LN(1 + mg.employees_site) END AS employees_here_raw,
+        CASE WHEN COALESCE(me.employee_count, mg.employees_all_sites, 0) > 0
+             THEN LN(1 + COALESCE(me.employee_count, mg.employees_all_sites)) END AS employees_total_raw,
+        -- Revenue from Mergent sales or 990 (via research)
+        CASE WHEN COALESCE(mg.sales_amount, 0) > 0
+             THEN LN(1 + mg.sales_amount) END AS revenue_raw,
+        -- Company age from Mergent year_founded
+        CASE WHEN mg.year_founded IS NOT NULL AND mg.year_founded > 1800
+             THEN (2026 - mg.year_founded)::NUMERIC END AS company_age_raw,
+        -- OSHA violation rate: count from linked OSHA matches
+        CASE WHEN COALESCE(me.employee_count, mg.employees_site, 1) > 0
+             THEN COALESCE(osha_agg.viol_count, 0)::NUMERIC
+                  / GREATEST(COALESCE(me.employee_count, mg.employees_site, 1), 1)
              ELSE 0 END AS osha_viol_rate_raw,
-        CASE WHEN COALESCE(m.employees_site, 1) > 0
-             THEN COALESCE(m.whd_violation_count, 0)::NUMERIC / GREATEST(m.employees_site, 1)
+        -- WHD violation rate: count from linked WHD matches
+        CASE WHEN COALESCE(me.employee_count, mg.employees_site, 1) > 0
+             THEN COALESCE(whd_agg.viol_count, 0)::NUMERIC
+                  / GREATEST(COALESCE(me.employee_count, mg.employees_site, 1), 1)
              ELSE 0 END AS whd_viol_rate_raw,
-        COALESCE(cic.is_federal_contractor, FALSE)::INT AS is_federal_contractor,
+        COALESCE(me.is_federal_contractor, FALSE)::INT AS is_federal_contractor,
         COALESCE(
             bip1.employment_change_pct,
             bip2.employment_change_pct
         ) AS bls_growth_raw
-    FROM mergent_employers m
-    LEFT JOIN corporate_identifier_crosswalk cic ON cic.mergent_duns = m.duns
+    FROM master_employers me
+    -- Mergent data (if linked via master_employer_source_ids)
+    LEFT JOIN master_employer_source_ids mesi_mg
+        ON mesi_mg.master_id = me.master_id AND mesi_mg.source_system = 'mergent'
+    LEFT JOIN mergent_employers mg
+        ON mg.id::TEXT = mesi_mg.source_id
+    -- OSHA violation counts via source linkage
+    LEFT JOIN (
+        SELECT mesi.master_id, COUNT(*) AS viol_count
+        FROM master_employer_source_ids mesi
+        JOIN osha_violations_detail ovd ON ovd.activity_nr::TEXT = mesi.source_id
+        WHERE mesi.source_system = 'osha'
+        GROUP BY mesi.master_id
+    ) osha_agg ON osha_agg.master_id = me.master_id
+    -- WHD violation counts via source linkage
+    LEFT JOIN (
+        SELECT mesi.master_id, COUNT(*) AS viol_count
+        FROM master_employer_source_ids mesi
+        JOIN whd_case_details wcd ON wcd.case_id::TEXT = mesi.source_id
+        WHERE mesi.source_system = 'whd'
+        GROUP BY mesi.master_id
+    ) whd_agg ON whd_agg.master_id = me.master_id
+    -- BLS industry growth projections
     LEFT JOIN bls_industry_projections bip1
-        ON bip1.matrix_code = LEFT(m.naics_primary, 2) || '0000'
+        ON bip1.matrix_code = LEFT(me.naics, 2) || '0000'
     LEFT JOIN bls_industry_projections bip2
-        ON bip2.matrix_code = CASE LEFT(m.naics_primary, 2)
+        ON bip2.matrix_code = CASE LEFT(me.naics, 2)
                WHEN '31' THEN '31-330' WHEN '32' THEN '31-330' WHEN '33' THEN '31-330'
                WHEN '44' THEN '44-450' WHEN '45' THEN '44-450'
                WHEN '48' THEN '48-490' WHEN '49' THEN '48-490'
                ELSE NULL
            END
-    WHERE m.naics_primary IS NOT NULL
-      AND m.state IS NOT NULL
+    WHERE me.naics IS NOT NULL
+      AND me.state IS NOT NULL
 )
 SELECT
     employer_id,
@@ -179,7 +213,7 @@ SELECT
     naics_2,
     naics_4,
     state,
-    county,
+    city,
     company_type,
     is_subsidiary,
     -- Min-max normalized numeric features
@@ -209,8 +243,12 @@ FROM base
 """
 
 
-def create_or_refresh_view(conn):
-    """Create or refresh the mv_employer_features materialized view."""
+def create_or_refresh_view(conn, force_recreate=False):
+    """Create or refresh the mv_employer_features materialized view.
+
+    If force_recreate is True or the view doesn't exist, does DROP + CREATE.
+    Otherwise refreshes the existing MV.
+    """
     cur = conn.cursor()
     # Check if view exists
     cur.execute("""
@@ -219,16 +257,19 @@ def create_or_refresh_view(conn):
     """)
     exists = cur.fetchone()[0] > 0
 
-    if exists:
+    if exists and not force_recreate:
         print("Refreshing mv_employer_features...")
-        # TODO: Add CONCURRENTLY once mv_employer_features has a UNIQUE INDEX
-        # (currently 79 duplicate employer_ids prevent this)
         cur.execute("REFRESH MATERIALIZED VIEW mv_employer_features")
     else:
-        print("Creating mv_employer_features...")
+        if exists:
+            print("Dropping old mv_employer_features (schema changed)...")
+            cur.execute("DROP MATERIALIZED VIEW IF EXISTS mv_employer_features CASCADE")
+            conn.commit()
+        print("Creating mv_employer_features from master_employers...")
         cur.execute(MV_SQL)
+        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_mvef_eid ON mv_employer_features(employer_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_mvef_union ON mv_employer_features(is_union)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_mvef_eid ON mv_employer_features(employer_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_mvef_naics2_state ON mv_employer_features(naics_2, state)")
 
     conn.commit()
     cur.execute("SELECT COUNT(*) FROM mv_employer_features")
@@ -242,11 +283,13 @@ def create_or_refresh_view(conn):
 def create_table(conn):
     """Create employer_comparables table and add similarity_score column."""
     cur = conn.cursor()
+    # Drop old table with FK to mergent_employers (if exists)
+    cur.execute("DROP TABLE IF EXISTS employer_comparables CASCADE")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS employer_comparables (
             id SERIAL PRIMARY KEY,
-            employer_id INTEGER NOT NULL REFERENCES mergent_employers(id),
-            comparable_employer_id INTEGER NOT NULL REFERENCES mergent_employers(id),
+            employer_id BIGINT NOT NULL,
+            comparable_employer_id BIGINT NOT NULL,
             rank INTEGER NOT NULL CHECK (rank BETWEEN 1 AND 5),
             gower_distance NUMERIC(6,4) NOT NULL,
             feature_breakdown JSONB,
@@ -255,12 +298,9 @@ def create_table(conn):
         )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_comparables_employer ON employer_comparables(employer_id)")
-    cur.execute("""
-        ALTER TABLE mergent_employers
-        ADD COLUMN IF NOT EXISTS similarity_score NUMERIC(6,4)
-    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_comparables_comparable ON employer_comparables(comparable_employer_id)")
     conn.commit()
-    print("Table employer_comparables ready, similarity_score column ensured.")
+    print("Table employer_comparables ready (master_id based).")
 
 
 # ============================================================
@@ -450,6 +490,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='Process first chunk only')
     parser.add_argument('--chunk-size', type=int, default=2500, help='Rows per chunk (default 2500)')
     parser.add_argument('--refresh-view', action='store_true', help='Only refresh materialized view')
+    parser.add_argument('--recreate-view', action='store_true', help='Force DROP + CREATE view (needed after schema change)')
     parser.add_argument('--skip-view', action='store_true', help='Skip view creation/refresh')
     parser.add_argument('--occ-weight', type=float, default=1.5, help='Occupation overlap feature weight (default 1.5)')
     args = parser.parse_args()
@@ -479,7 +520,7 @@ def _run(conn, cur, args):
     # ============================================================
     if not args.skip_view:
         print("\n=== Step 1: Materialized view ===")
-        create_or_refresh_view(conn)
+        create_or_refresh_view(conn, force_recreate=getattr(args, 'recreate_view', False))
         if args.refresh_view:
             print("View refreshed. Exiting (--refresh-view mode).")
             conn.close()
@@ -541,105 +582,136 @@ def _run(conn, cur, args):
         print("  WARNING: No occupation overlap data. Skipping occupation_overlap feature.")
 
     # ============================================================
-    # Step 5: Compute Gower distances in chunks
+    # Step 5: Compute Gower distances with NAICS-2 blocking
     # ============================================================
-    print(f"\n=== Step 5: Computing Gower distances (chunk_size={args.chunk_size}) ===")
-    total_pairs = len(target_df) * len(union_df)
-    print(f"  Total pairs: {len(target_df):,} x {len(union_df):,} = {total_pairs:,}")
+    # With 4.5M master_employers, pairwise is infeasible. We use NAICS-2
+    # blocking: each target is compared only to union refs in the same
+    # NAICS-2 sector. This reduces comparisons from ~600B to ~50M.
+    print(f"\n=== Step 5: Computing Gower distances (NAICS-2 blocked, chunk_size={args.chunk_size}) ===")
 
     # Truncate existing data
     cur.execute("TRUNCATE employer_comparables")
     conn.commit()
     print("  Truncated employer_comparables")
 
+    # Group union refs by NAICS-2 for blocking
+    naics2_groups = union_df.groupby('naics_2')
+    naics2_union_counts = {k: len(v) for k, v in naics2_groups}
+    print(f"  NAICS-2 blocks with union refs: {len(naics2_union_counts)}")
+    print(f"  Union refs per block: min={min(naics2_union_counts.values()):,}, "
+          f"max={max(naics2_union_counts.values()):,}, "
+          f"median={sorted(naics2_union_counts.values())[len(naics2_union_counts)//2]:,}")
+
     chunk_size = args.chunk_size
-    n_chunks = (len(target_df) + chunk_size - 1) // chunk_size
     total_inserted = 0
+    total_targets_processed = 0
     start_time = time.time()
 
-    for chunk_idx in range(n_chunks):
-        chunk_start = chunk_idx * chunk_size
-        chunk_end = min(chunk_start + chunk_size, len(target_df))
-        chunk = target_df.iloc[chunk_start:chunk_end]
+    # Process targets by NAICS-2 block
+    target_naics2_groups = target_df.groupby('naics_2')
+    block_names = sorted(set(target_df['naics_2'].dropna().unique()))
 
-        t0 = time.time()
-        top5_idx, top5_dist, top5_bd = compute_gower_chunk(chunk, union_df, overlap_map, naics_bls_map)
-        elapsed = time.time() - t0
+    for block_idx, naics_2 in enumerate(block_names):
+        block_targets = target_naics2_groups.get_group(naics_2).reset_index(drop=True)
 
-        # Prepare insert rows (dedup within each target's top-5)
-        insert_rows = []
-        for i in range(len(chunk)):
-            target_eid = int(chunk.iloc[i]['employer_id'])
-            seen_comparables = set()
-            rank_num = 0
-            for rank in range(5):
-                union_row_idx = top5_idx[i, rank]
-                comparable_eid = int(union_df.iloc[union_row_idx]['employer_id'])
-                if comparable_eid in seen_comparables:
-                    continue
-                seen_comparables.add(comparable_eid)
-                rank_num += 1
-                distance = round(float(top5_dist[i, rank]), 4)
-                breakdown = json.dumps(top5_bd[i][rank])
-                insert_rows.append((target_eid, comparable_eid, rank_num, distance, breakdown))
+        # Get union refs in same NAICS-2
+        if naics_2 in naics2_union_counts:
+            block_union = naics2_groups.get_group(naics_2).reset_index(drop=True)
+        else:
+            # No union refs in this NAICS-2 — skip (these targets won't get comparables)
+            total_targets_processed += len(block_targets)
+            continue
 
-        # Deduplicate insert rows (same employer_id+comparable_employer_id)
-        seen_pairs = set()
-        deduped_rows = []
-        for row in insert_rows:
-            pair = (row[0], row[1])
-            if pair not in seen_pairs:
-                seen_pairs.add(pair)
-                deduped_rows.append(row)
-        insert_rows = deduped_rows
+        if len(block_union) < 3:
+            # Too few union refs for meaningful comparison — skip
+            total_targets_processed += len(block_targets)
+            continue
 
-        # Batch insert
-        psycopg2.extras.execute_values(
-            cur,
-            """INSERT INTO employer_comparables
-               (employer_id, comparable_employer_id, rank, gower_distance, feature_breakdown)
-               VALUES %s
-               ON CONFLICT (employer_id, comparable_employer_id) DO UPDATE
-               SET rank = EXCLUDED.rank,
-                   gower_distance = EXCLUDED.gower_distance,
-                   feature_breakdown = EXCLUDED.feature_breakdown,
-                   computed_at = NOW()""",
-            insert_rows,
-            page_size=1000
-        )
-        conn.commit()
-        total_inserted += len(insert_rows)
+        # Process this block's targets in chunks
+        n_chunks = (len(block_targets) + chunk_size - 1) // chunk_size
+        for chunk_idx in range(n_chunks):
+            chunk_start = chunk_idx * chunk_size
+            chunk_end = min(chunk_start + chunk_size, len(block_targets))
+            chunk = block_targets.iloc[chunk_start:chunk_end]
 
-        pct = 100 * chunk_end / len(target_df)
-        eta = (time.time() - start_time) / chunk_end * (len(target_df) - chunk_end) if chunk_end > 0 else 0
-        print(f"  Chunk {chunk_idx + 1}/{n_chunks}: rows {chunk_start:,}-{chunk_end:,} "
-              f"({pct:.1f}%) {elapsed:.1f}s  inserted={total_inserted:,}  ETA={eta / 60:.1f}min")
+            t0 = time.time()
+            # Limit top-k to min(5, union refs in block)
+            effective_k = min(5, len(block_union))
+            top5_idx, top5_dist, top5_bd = compute_gower_chunk(chunk, block_union, overlap_map, naics_bls_map)
+            elapsed = time.time() - t0
+
+            # Prepare insert rows (dedup within each target's top-5)
+            insert_rows = []
+            for i in range(len(chunk)):
+                target_eid = int(chunk.iloc[i]['employer_id'])
+                seen_comparables = set()
+                rank_num = 0
+                for rank in range(effective_k):
+                    union_row_idx = top5_idx[i, rank]
+                    comparable_eid = int(block_union.iloc[union_row_idx]['employer_id'])
+                    if comparable_eid in seen_comparables:
+                        continue
+                    seen_comparables.add(comparable_eid)
+                    rank_num += 1
+                    distance = round(float(top5_dist[i, rank]), 4)
+                    breakdown = json.dumps(top5_bd[i][rank])
+                    insert_rows.append((target_eid, comparable_eid, rank_num, distance, breakdown))
+
+            # Deduplicate insert rows (same employer_id+comparable_employer_id)
+            seen_pairs = set()
+            deduped_rows = []
+            for row in insert_rows:
+                pair = (row[0], row[1])
+                if pair not in seen_pairs:
+                    seen_pairs.add(pair)
+                    deduped_rows.append(row)
+            insert_rows = deduped_rows
+
+            # Batch insert
+            if insert_rows:
+                psycopg2.extras.execute_values(
+                    cur,
+                    """INSERT INTO employer_comparables
+                       (employer_id, comparable_employer_id, rank, gower_distance, feature_breakdown)
+                       VALUES %s
+                       ON CONFLICT (employer_id, comparable_employer_id) DO UPDATE
+                       SET rank = EXCLUDED.rank,
+                           gower_distance = EXCLUDED.gower_distance,
+                           feature_breakdown = EXCLUDED.feature_breakdown,
+                           computed_at = NOW()""",
+                    insert_rows,
+                    page_size=1000
+                )
+                conn.commit()
+                total_inserted += len(insert_rows)
+
+            total_targets_processed += len(chunk)
+
+        pct = 100 * total_targets_processed / len(target_df)
+        elapsed_total = time.time() - start_time
+        eta = elapsed_total / max(total_targets_processed, 1) * (len(target_df) - total_targets_processed)
+        print(f"  Block NAICS-{naics_2}: {len(block_targets):,} targets x {len(block_union):,} union "
+              f"({pct:.1f}%) inserted={total_inserted:,}  ETA={eta / 60:.1f}min")
 
         if args.dry_run:
-            print("  --dry-run: stopping after first chunk")
+            print("  --dry-run: stopping after first block")
             break
 
     total_elapsed = time.time() - start_time
     print(f"\n  Total computation time: {total_elapsed / 60:.1f} minutes")
     print(f"  Total rows inserted: {total_inserted:,}")
+    print(f"  Total targets processed: {total_targets_processed:,}")
 
     # ============================================================
-    # Step 6: Update similarity_score on mergent_employers
+    # Step 6: Similarity scores now consumed directly from employer_comparables
+    # by build_unified_scorecard.py and build_target_scorecard.py via master_id
     # ============================================================
-    print("\n=== Step 6: Updating similarity_score ===")
+    print("\n=== Step 6: Similarity data in employer_comparables (master_id based) ===")
     cur.execute("""
-        UPDATE mergent_employers me
-        SET similarity_score = sub.sim_score
-        FROM (
-            SELECT employer_id, 1.0 - AVG(gower_distance) AS sim_score
-            FROM employer_comparables
-            GROUP BY employer_id
-        ) sub
-        WHERE me.id = sub.employer_id
+        SELECT COUNT(DISTINCT employer_id) FROM employer_comparables
     """)
-    conn.commit()
-    updated = cur.rowcount
-    print(f"  Updated {updated:,} employers with similarity_score")
+    distinct_employers = cur.fetchone()[0]
+    print(f"  {distinct_employers:,} employers have comparables")
 
     # ============================================================
     # Step 7: AFTER snapshot + verification

@@ -120,8 +120,8 @@ def run_single(run_id: int) -> dict:
 
 
 def grade_and_enhance(run_id: int):
-    """Grade a completed run and compute enhancements."""
-    from scripts.research.auto_grader import grade_and_save, compute_research_enhancements
+    """Grade a completed run, compute enhancements, and update strategy tables."""
+    from scripts.research.auto_grader import grade_and_save, compute_research_enhancements, update_strategy_quality
     try:
         result = grade_and_save(run_id)
         _log.info("  Graded: overall=%.2f", result["overall"])
@@ -131,6 +131,11 @@ def grade_and_enhance(run_id: int):
                 _log.info("  Enhancement saved (id=%d)", enh_id)
             else:
                 _log.info("  Enhancement skipped (no employer_id or lower quality)")
+        # Always update strategy tables (learning loop)
+        try:
+            update_strategy_quality()
+        except Exception as se:
+            _log.debug("Strategy update after run %d: %s", run_id, se)
     except Exception as e:
         _log.warning("  Grade/enhance failed for run %d: %s", run_id, e)
 

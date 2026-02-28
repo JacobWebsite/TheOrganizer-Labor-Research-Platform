@@ -17,6 +17,7 @@ standalone for testing.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import sys
@@ -155,6 +156,119 @@ def _filter_by_name_similarity(rows, company_name, name_column, threshold=0.50):
         r for r in rows
         if fuzz.token_sort_ratio(upper, (r.get(name_column) or r[name_column] or "").upper()) >= threshold * 100
     ]
+
+
+def _fix_json_escapes(text: str) -> str:
+    """Fix common JSON escape issues from Gemini responses.
+
+    Gemini sometimes returns JSON with unescaped newlines inside strings,
+    or trailing commas. This cleans up the most common issues.
+    """
+    # Remove trailing commas before } or ]
+    text = re.sub(r',\s*([}\]])', r'\1', text)
+    # Replace unescaped newlines inside strings (naive but usually works)
+    # This is a best-effort fix — structured output is the real solution
+    return text
+
+
+def _gemini_search_extract(prompt: str, extract_prompt: str,
+                           expected_keys: list[str],
+                           source: str) -> tuple[Optional[dict], str]:
+    """Two-step Gemini search: (1) Google Search grounding, (2) structured extraction fallback.
+
+    Args:
+        prompt: The search prompt for Gemini with Google Search grounding
+        extract_prompt: Simplified prompt for second-pass extraction (no grounding)
+        expected_keys: Keys that must be present in valid output
+        source: Source label for logging
+
+    Returns:
+        (parsed_data_or_None, raw_text)
+    """
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        return None, ""
+
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=api_key)
+
+    # Step 1: Google Search grounding call
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=prompt)],
+        )],
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())],
+            max_output_tokens=1024,
+            temperature=0.0,
+        ),
+    )
+
+    candidate = response.candidates[0] if response.candidates else None
+    if not candidate or not candidate.content or not candidate.content.parts:
+        return None, ""
+
+    text = candidate.content.parts[0].text.strip()
+    if not text or text.upper() == "NONE":
+        return None, text or ""
+
+    # Step 2: Try to parse JSON from the response
+    data = None
+    m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(_fix_json_escapes(m.group(1).strip()))
+        except Exception:
+            pass
+    if not data:
+        try:
+            data = json.loads(_fix_json_escapes(text))
+        except Exception:
+            pass
+
+    # Validate: check expected keys are present
+    if data and isinstance(data, dict):
+        if all(k in data for k in expected_keys):
+            return data, text
+
+    # Step 3: Structured extraction fallback — second call without grounding
+    # Ask Gemini to extract structured data from the raw text
+    try:
+        extract_full = (
+            f"Extract structured data from the following text. {extract_prompt}\n\n"
+            f"TEXT:\n{text[:3000]}\n\n"
+            "Return ONLY valid JSON, no markdown, no explanation."
+        )
+        response2 = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=extract_full)],
+            )],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                max_output_tokens=1024,
+                temperature=0.0,
+            ),
+        )
+        candidate2 = response2.candidates[0] if response2.candidates else None
+        if candidate2 and candidate2.content and candidate2.content.parts:
+            text2 = candidate2.content.parts[0].text.strip()
+            try:
+                data = json.loads(text2)
+                if isinstance(data, dict):
+                    return data, text
+            except Exception:
+                pass
+    except Exception as exc:
+        _log.debug("Structured extraction fallback failed for %s: %s", source, exc)
+
+    # Return whatever we got (may be partial dict or None)
+    return data if isinstance(data, dict) else None, text
 
 
 # ---------------------------------------------------------------------------
@@ -1347,23 +1461,8 @@ def search_mergent(
 
 
 # ---------------------------------------------------------------------------
-# TOOL 11: search_web  (replaced by Gemini Google Search grounding)
-# ---------------------------------------------------------------------------
-# Web search is now handled by Gemini's native Google Search grounding tool,
-# which is passed alongside function declarations in agent.py._build_gemini_tools().
-# Gemini automatically searches the web when it needs current information.
-# This stub is kept for backward compatibility with the TOOL_REGISTRY.
-
-def search_web(company_name: str, query: Optional[str] = None, **_kw) -> dict:
-    """Stub — web search is handled by Gemini Google Search grounding.
-    This function is not called directly; Gemini uses its built-in search."""
-    return {
-        "found": False,
-        "source": "web_search",
-        "summary": "Web search is handled by Gemini Google Search grounding (not a function call).",
-        "data": {},
-        "error": "Not callable locally — handled by Gemini grounding.",
-    }
+# TOOL 11: search_web — REMOVED (2026-02-28)
+# Stub had 0% hit rate across all calls. Web search handled by Gemini grounding.
 
 
 # ---------------------------------------------------------------------------
@@ -1743,92 +1842,6 @@ def scrape_employer_website(
 # Regex fallback helpers for Google Search grounding tools
 # ---------------------------------------------------------------------------
 
-def _extract_exec_pay_from_text(text: str) -> Optional[dict]:
-    """Regex-extract executive names and compensation from narrative text.
-
-    Google Search grounding returns narrative with compensation figures
-    rather than clean JSON. This extracts structured data from patterns like:
-    - "Andy Jassy | CEO | $1,596,889"  (pipe-delimited, preferred)
-    - "CEO John Smith received $12,500,000 in total compensation"
-    - "Mary Jones (CFO): $8.2 million"
-    """
-    if not text:
-        return None
-
-    executives = []
-
-    _TITLE_WORDS = r'(?:CEO|CFO|COO|CTO|President|Chair(?:man|woman|person)?|' \
-                   r'Chief\s+(?:Executive|Financial|Operating|Technology)\s+Officer|' \
-                   r'Executive\s+Vice\s+President|EVP|SVP|Vice\s+President)'
-    _PAY_PATTERN = r'\$[\d,]+(?:\.\d+)?(?:\s*(?:million|billion|M|B))?'
-
-    # Strategy 1: Pipe-delimited lines  "Name | Title | $Pay"
-    pipe_pattern = re.compile(
-        r'^([A-Z][A-Za-z.\' -]{2,30}?)\s*\|\s*(.{2,60}?)\s*\|\s*(' + _PAY_PATTERN + r')',
-        re.MULTILINE,
-    )
-    for m in pipe_pattern.finditer(text):
-        executives.append({
-            "name": m.group(1).strip(),
-            "title": m.group(2).strip(),
-            "total_pay": m.group(3).strip(),
-        })
-
-    # Strategy 2: "Name, Title ... $amount" or "Name (Title) ... $amount"
-    if not executives:
-        exec_pattern = re.compile(
-            r'(?:' +
-            # "CEO John Smith" style
-            rf'({_TITLE_WORDS})\s+([A-Z][a-z]+(?:\s+[A-Z]\.?\s*[a-z]*)*(?:\s+[A-Z][a-z]+))' +
-            r'|' +
-            # "John Smith, CEO" or "John Smith (CEO)" style
-            rf'([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?(?:[a-z]+\s+)?[A-Z][a-z]+)\s*[,(]\s*({_TITLE_WORDS})\s*\)?' +
-            r')' +
-            r'[^$]{0,100}?' +
-            rf'({_PAY_PATTERN})',
-            re.IGNORECASE,
-        )
-        for m in exec_pattern.finditer(text):
-            title = (m.group(1) or m.group(4) or "Executive").strip()
-            name = (m.group(2) or m.group(3) or "Unknown").strip()
-            pay = m.group(5).strip()
-            executives.append({"name": name, "title": title, "total_pay": pay})
-
-    # Deduplicate by name
-    seen_names = set()
-    unique_execs = []
-    for e in executives:
-        if e["name"].lower() not in seen_names:
-            seen_names.add(e["name"].lower())
-            unique_execs.append(e)
-
-    if not unique_execs:
-        # Fallback: just find any $X,XXX,XXX patterns near title words
-        simple_pattern = re.compile(
-            rf'({_TITLE_WORDS})[^$]{{0,80}}({_PAY_PATTERN})',
-            re.IGNORECASE,
-        )
-        for m in simple_pattern.finditer(text):
-            title = m.group(1).strip()
-            pay = m.group(2).strip()
-            if title.lower() not in seen_names:
-                seen_names.add(title.lower())
-                unique_execs.append({"name": "Not specified", "title": title, "total_pay": pay})
-
-    if not unique_execs:
-        return None
-
-    # Try to extract year (capture group for the 4-digit year)
-    year_match = re.search(r'(?:fiscal\s+(?:year\s+)?|FY\s*)?(20[12]\d)', text)
-    year = int(year_match.group(1)) if year_match else None
-
-    return {
-        "year": year,
-        "executives": unique_execs[:5],
-        "extraction_method": "regex_fallback",
-    }
-
-
 def _extract_job_postings_from_text(text: str) -> Optional[dict]:
     """Regex-extract job posting count and sample titles from narrative text.
 
@@ -1907,101 +1920,8 @@ def _extract_job_postings_from_text(text: str) -> Optional[dict]:
     }
 
 
-# ---------------------------------------------------------------------------
-# TOOL 13: search_sec_proxy (DEF 14A)
-# ---------------------------------------------------------------------------
-
-def search_sec_proxy(
-    company_name: str,
-    *,
-    cik: Optional[str] = None,
-    ticker: Optional[str] = None,
-    **_kw,
-) -> dict:
-    """Fetch and parse the latest SEC Proxy Statement (DEF 14A) for executive pay."""
-    source = "api:sec_edgar_proxy"
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
-
-    try:
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=api_key)
-        
-        context = f"Company: \"{company_name}\""
-        if cik:
-            context += f", CIK: {cik}"
-        if ticker:
-            context += f", Ticker: {ticker}"
-
-        prompt = (
-            f"Find the latest Summary Compensation Table from the SEC Proxy Statement (DEF 14A) for {context}. "
-            "List the top 3-5 highest-paid executives for the most recent fiscal year. "
-            "For each person, write ONE line in this exact format:\n"
-            "NAME | TITLE | $TOTAL_PAY\n"
-            "Example:\n"
-            "Andy Jassy | CEO | $1,596,889\n"
-            "Matt Garman | CEO, AWS | $34,284,148\n\n"
-            "Also state the fiscal year. If not found or not a public company, respond with NONE."
-        )
-        
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=prompt)],
-            )],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                max_output_tokens=1024,
-                temperature=0.0,
-            ),
-        )
-        
-        candidate = response.candidates[0] if response.candidates else None
-        if not candidate or not candidate.content or not candidate.content.parts:
-            return {"found": False, "source": source, "summary": "No data returned.", "data": {}}
-            
-        text = candidate.content.parts[0].text.strip()
-        if not text or text.upper() == "NONE":
-            return {"found": False, "source": source, "summary": "Proxy statement not found.", "data": {}}
-
-        # Extract JSON
-        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
-        data = None
-        if m:
-            try:
-                data = json.loads(_fix_json_escapes(m.group(1).strip()))
-            except: pass
-        if not data:
-            try:
-                data = json.loads(_fix_json_escapes(text))
-            except: pass
-
-        if not data or not isinstance(data, dict):
-            # Regex fallback: extract executive names and pay from narrative text
-            data = _extract_exec_pay_from_text(text)
-            if not data:
-                return {"found": False, "source": source, "summary": "Unparseable data.", "data": {"raw": text}}
-
-        execs = data.get("executives", [])
-        if not execs:
-            return {"found": False, "source": source, "summary": "No executive compensation found.", "data": {"raw": text}}
-
-        parts = [f"Found {len(execs)} executive(s) in {data.get('year', '')} proxy statement"]
-        for e in execs[:2]:
-            parts.append(f"{e.get('name')} ({e.get('title')}): {e.get('total_pay')}")
-
-        return {
-            "found": True,
-            "source": source,
-            "summary": ". ".join(parts) + ".",
-            "data": data,
-        }
-    except Exception as exc:
-        return _error_result(source, exc)
+# TOOL 13: search_sec_proxy — REMOVED (2026-02-28)
+# 0% hit rate (2 uses). SEC data already comes reliably from search_sec DB tool.
 
 
 # ---------------------------------------------------------------------------
@@ -2016,16 +1936,8 @@ def search_job_postings(
 ) -> dict:
     """Estimate active job posting counts and titles using Google Search grounding."""
     source = "api:google_search_jobs"
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
 
     try:
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=api_key)
-        
         query = f"active job postings for \"{company_name}\""
         if state:
             query += f" in {state}"
@@ -2034,55 +1946,35 @@ def search_job_postings(
             f"Search for active job listings for: {query}. "
             "Estimate the total number of open positions found across major job boards (Indeed, LinkedIn, Glassdoor, etc.). "
             "List 3-5 sample job titles, their locations, and any mentioned pay/benefits. "
-            "Return a JSON object with: {'count_estimate': 120, 'sample_postings': [{'title': '...', 'location': '...', 'pay': '...'}]}. "
+            "Return a JSON object with: {\"count_estimate\": 120, \"sample_postings\": [{\"title\": \"...\", \"location\": \"...\", \"pay\": \"...\"}]}. "
             "If no postings found, respond with NONE."
         )
-        
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=prompt)],
-            )],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                max_output_tokens=1024,
-                temperature=0.0,
-            ),
+
+        extract_prompt = (
+            "Return a JSON object with keys: \"count_estimate\" (integer), "
+            "\"sample_postings\" (array of objects with \"title\", \"location\", \"pay\")."
         )
-        
-        candidate = response.candidates[0] if response.candidates else None
-        if not candidate or not candidate.content or not candidate.content.parts:
-            return {"found": False, "source": source, "summary": "No data returned.", "data": {}}
-            
-        text = candidate.content.parts[0].text.strip()
-        if not text or text.upper() == "NONE":
-            return {"found": False, "source": source, "summary": "No active job postings found.", "data": {}}
 
-        # Extract JSON
-        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
-        data = None
-        if m:
-            try:
-                data = json.loads(_fix_json_escapes(m.group(1).strip()))
-            except: pass
+        data, text = _gemini_search_extract(
+            prompt, extract_prompt,
+            expected_keys=["count_estimate"],
+            source=source,
+        )
+
         if not data:
-            try:
-                data = json.loads(_fix_json_escapes(text))
-            except: pass
-
-        if not data or not isinstance(data, dict):
-            # Regex fallback: extract count and titles from narrative text
+            if not text:
+                return {"found": False, "source": source, "summary": "No API key or no data.", "data": {}}
+            # Last resort: regex fallback
             data = _extract_job_postings_from_text(text)
             if not data:
                 return {"found": False, "source": source, "summary": "Unparseable job data.", "data": {"raw": text}}
 
         count = data.get("count_estimate", 0)
         samples = data.get("sample_postings", [])
-        
+
         summary = f"Estimated {count} active job postings found. "
         if samples:
-            summary += f"Sample roles: {', '.join(s.get('title') for s in samples[:3])}."
+            summary += f"Sample roles: {', '.join(s.get('title', '?') for s in samples[:3])}."
 
         return {
             "found": True,
@@ -2258,18 +2150,14 @@ def search_political_donations(
     """Search for political donations from the company and its top executives using FEC API and Google grounding."""
     source = "api:fec_and_google"
     fec_api_key = "JFdTNkK4BgdicVMGniycY8ISrW4ESwgcjCDNpIu9"
-    google_api_key = os.environ.get("GOOGLE_API_KEY")
-    
+
     try:
         import requests
-        from google import genai
-        from google.genai import types
 
         fec_data = {}
         fec_summary = ""
-        
+
         # Step 1: Query FEC API for employer-based contributions
-        # Schedule A: /schedules/schedule_a/by_employer/
         try:
             fec_url = "https://api.open.fec.gov/v1/schedules/schedule_a/by_employer/"
             params = {
@@ -2289,71 +2177,47 @@ def search_political_donations(
         except Exception as fec_exc:
             _log.warning("FEC API call failed: %s", fec_exc)
 
-        if not google_api_key:
-            if fec_data:
-                return {"found": True, "source": "api:fec", "summary": fec_summary, "data": fec_data}
-            return {"found": False, "source": source, "summary": "No API key.", "data": {}}
-
-        # Step 2: Use Gemini with Google Search grounding for broader context (PACS, CEO personal, OpenSecrets)
-        client = genai.Client(api_key=google_api_key)
-        
+        # Step 2: Use Gemini with Google Search grounding for broader context
         target = f"\"{company_name}\""
         if ceo_name:
             target += f" and CEO \"{ceo_name}\""
 
         fec_context = f"\nFEC direct data found: {fec_summary}" if fec_summary else ""
-        
+
         prompt = (
             f"Find comprehensive political donation data for {target}. {fec_context}\n"
             "Search for contributions to federal and state candidates, PACs, and parties from the company itself and its top executives. "
             "Cross-reference with OpenSecrets.org, FEC.gov, and news reports. "
-            "Summarize the total amount donated (if possible beyond the FEC employer-based figures), "
-            "the partisan lean (Democrats vs Republicans), and any notable high-dollar individual donors (especially the CEO). "
-            "Return a JSON object with: {'total_amount': '$X,XXX', 'partisan_lean': 'Dem/Rep/Neutral', 'top_donors': [{'name': '...', 'amount': '...', 'recipient': '...'}], 'summary': '...'}. "
+            "Summarize the total amount donated, the partisan lean (Democrats vs Republicans), and any notable donors. "
+            "Return a JSON object with: {\"total_amount\": \"$X,XXX\", \"partisan_lean\": \"Dem/Rep/Neutral\", \"top_donors\": [{\"name\": \"...\", \"amount\": \"...\", \"recipient\": \"...\"}], \"summary\": \"...\"}. "
             "If no data found, respond with NONE."
         )
-        
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=prompt)],
-            )],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                max_output_tokens=1024,
-                temperature=0.0,
-            ),
+
+        extract_prompt = (
+            "Return a JSON object with keys: \"total_amount\" (string like \"$X,XXX\"), "
+            "\"partisan_lean\" (one of \"Dem\", \"Rep\", \"Neutral\"), "
+            "\"top_donors\" (array of objects with \"name\", \"amount\", \"recipient\"), "
+            "\"summary\" (string)."
         )
-        
-        candidate = response.candidates[0] if response.candidates else None
-        text = candidate.content.parts[0].text.strip()
-        
-        if not text or text.upper() == "NONE":
-            if fec_data:
-                return {"found": True, "source": "api:fec", "summary": fec_summary, "data": fec_data}
-            return {"found": False, "source": source, "summary": "No political donation data found.", "data": {}}
 
-        # Extract JSON from Gemini
-        data = None
-        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
-        if m:
-            try:
-                data = json.loads(_fix_json_escapes(m.group(1).strip()))
-            except: pass
+        data, text = _gemini_search_extract(
+            prompt, extract_prompt,
+            expected_keys=["partisan_lean", "summary"],
+            source=source,
+        )
+
         if not data:
-            try:
-                data = json.loads(_fix_json_escapes(text))
-            except: pass
-
-        if not data or not isinstance(data, dict):
+            if not text:
+                if fec_data:
+                    return {"found": True, "source": "api:fec", "summary": fec_summary, "data": fec_data}
+                return {"found": False, "source": source, "summary": "No API key or no data.", "data": {}}
             # Combine FEC summary with Gemini narrative
             combined_summary = (fec_summary + text)[:500]
             return {"found": True, "source": source, "summary": combined_summary, "data": {"fec": fec_data, "narrative": text}}
 
         # Merge FEC raw data into the Gemini structured response
         data["fec_api_raw"] = fec_data
-        
+
         final_summary = f"Political Donations: {data.get('total_amount', 'Unknown total')}. Lean: {data.get('partisan_lean', 'Unknown')}. " + data.get('summary', '')
         if fec_summary and "FEC API" not in final_summary:
             final_summary = fec_summary + final_summary
@@ -2458,16 +2322,8 @@ def search_warn_notices(
 ) -> dict:
     """Search for mass layoff (WARN Act) notices filed by this employer."""
     source = "api:warn_notices"
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
 
     try:
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=api_key)
-        
         query = f"WARN Act layoff notices \"{company_name}\""
         if state:
             query += f" in {state}"
@@ -2475,44 +2331,38 @@ def search_warn_notices(
         prompt = (
             f"Search for recent mass layoff (WARN Act) notices filed by {company_name}. "
             "Look for notices in the last 24 months. Include date filed, number of workers affected, and the location/facility name. "
-            "Return a JSON list of notices: [{'date': 'YYYY-MM-DD', 'workers_affected': 150, 'location': '...', 'notes': '...'}]. "
+            "Return a JSON object with: {\"notices\": [{\"date\": \"YYYY-MM-DD\", \"workers_affected\": 150, \"location\": \"...\", \"notes\": \"...\"}]}. "
             "If no notices found, respond with NONE."
         )
-        
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=prompt)],
-            )],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                max_output_tokens=1024,
-                temperature=0.0,
-            ),
+
+        extract_prompt = (
+            "Return a JSON object with key \"notices\" containing an array of objects, "
+            "each with \"date\" (string), \"workers_affected\" (integer), \"location\" (string), \"notes\" (string)."
         )
-        
-        candidate = response.candidates[0] if response.candidates else None
-        text = candidate.content.parts[0].text.strip()
-        if not text or text.upper() == "NONE":
+
+        data, text = _gemini_search_extract(
+            prompt, extract_prompt,
+            expected_keys=["notices"],
+            source=source,
+        )
+
+        if not data:
+            if not text:
+                return {"found": False, "source": source, "summary": "No API key or no data.", "data": {}}
+            # Try parsing as raw list
+            try:
+                parsed = json.loads(_fix_json_escapes(text))
+                if isinstance(parsed, list):
+                    data = {"notices": parsed}
+            except Exception:
+                pass
+            if not data:
+                return {"found": True, "source": source, "summary": f"WARN notices found for {company_name}", "data": {"raw": text}}
+
+        notices = data.get("notices", []) if isinstance(data, dict) else data if isinstance(data, list) else []
+        if not notices:
             return {"found": False, "source": source, "summary": "No WARN notices found.", "data": {}}
 
-        # Extract JSON
-        data = None
-        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
-        if m:
-            try:
-                data = json.loads(_fix_json_escapes(m.group(1).strip()))
-            except: pass
-        if not data:
-            try:
-                data = json.loads(_fix_json_escapes(text))
-            except: pass
-
-        if not data:
-            return {"found": True, "source": source, "summary": f"WARN notices found for {company_name}", "data": {"raw": text}}
-
-        notices = data if isinstance(data, list) else data.get('notices', [])
         summary = f"Found {len(notices)} recent WARN layoff notice(s). "
         if notices:
             summary += f"Most recent: {notices[0].get('workers_affected')} workers in {notices[0].get('location')} on {notices[0].get('date')}."
@@ -2539,16 +2389,8 @@ def search_worker_sentiment(
 ) -> dict:
     """Search for worker reviews and sentiment on Reddit, Glassdoor, and Indeed."""
     source = "api:worker_sentiment"
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        return {"found": False, "source": source, "summary": "No API key.", "data": {}}
 
     try:
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=api_key)
-        
         target = f"\"{company_name}\" worker reviews"
         if state:
             target += f" in {state}"
@@ -2558,46 +2400,30 @@ def search_worker_sentiment(
             "Search specifically on Reddit (r/antiwork, r/work), Glassdoor, and Indeed reviews. "
             "Extract specific complaints about: management, wages, safety, overtime, and work-life balance. "
             "Summarize the general 'vibe' (positive/negative/toxic) and list 3-5 specific recent employee grievances. "
-            "Return a JSON object with: {'sentiment_score': 0-10, 'top_complaints': ['...', '...'], 'summary': '...', 'sources': ['Reddit', 'Glassdoor', ...]}. "
+            "Return a JSON object with: {\"sentiment_score\": 0-10, \"top_complaints\": [\"...\", \"...\"], \"summary\": \"...\", \"sources\": [\"Reddit\", \"Glassdoor\", ...]}. "
             "If no reviews found, respond with NONE."
         )
-        
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=prompt)],
-            )],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                max_output_tokens=1024,
-                temperature=0.0,
-            ),
+
+        extract_prompt = (
+            "Return a JSON object with keys: \"sentiment_score\" (integer 0-10), "
+            "\"top_complaints\" (array of strings), \"summary\" (string), "
+            "\"sources\" (array of platform names)."
         )
-        
-        candidate = response.candidates[0] if response.candidates else None
-        text = candidate.content.parts[0].text.strip()
-        if not text or text.upper() == "NONE":
-            return {"found": False, "source": source, "summary": "No worker sentiment found.", "data": {}}
 
-        # Extract JSON
-        data = None
-        m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
-        if m:
-            try:
-                data = json.loads(_fix_json_escapes(m.group(1).strip()))
-            except: pass
+        data, text = _gemini_search_extract(
+            prompt, extract_prompt,
+            expected_keys=["sentiment_score", "summary"],
+            source=source,
+        )
+
         if not data:
-            try:
-                data = json.loads(_fix_json_escapes(text))
-            except: pass
-
-        if not data or not isinstance(data, dict):
+            if not text:
+                return {"found": False, "source": source, "summary": "No API key or no data.", "data": {}}
             return {"found": True, "source": source, "summary": text[:200], "data": {"raw": text}}
 
         summary = f"Worker Sentiment ({data.get('sentiment_score', 'N/A')}/10): " + data.get('summary', '')
         if data.get('top_complaints'):
-            summary += " Major complaints: " + "; ".join(data['top_complaints'][:3])
+            summary += " Major complaints: " + "; ".join(str(c) for c in data['top_complaints'][:3])
 
         return {
             "found": True,
@@ -3497,6 +3323,125 @@ def search_acs_workforce(
 
 
 # ---------------------------------------------------------------------------
+# TOOL 31: compare_employer_wages (QCEW-based)
+# ---------------------------------------------------------------------------
+
+def compare_employer_wages(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    naics: Optional[str] = None,
+    known_wage: Optional[float] = None,
+    **_kw,
+) -> dict:
+    """Compare employer wages against QCEW local industry averages.
+
+    Uses BLS Quarterly Census of Employment and Wages (QCEW) data to find
+    the average annual pay for the employer's industry in their state,
+    then computes a ratio and low-wage flag.
+    """
+    source = "database:qcew_wage_comparison"
+    try:
+        if not state or not naics:
+            return {"found": False, "source": source, "summary": "State and NAICS required.", "data": {}}
+
+        conn = _conn()
+        cur = conn.cursor()
+
+        # Get state FIPS code
+        cur.execute(
+            "SELECT state_fips AS fips FROM state_fips_map WHERE state_abbr = %s LIMIT 1",
+            (state.upper(),),
+        )
+        fips_row = cur.fetchone()
+        if not fips_row:
+            conn.close()
+            return {"found": False, "source": source, "summary": f"Unknown state: {state}", "data": {}}
+        state_fips = fips_row["fips"]
+
+        # area_fips for statewide = state_fips + '000'
+        area_fips = f"{state_fips}000"
+        naics_2 = naics[:2] if naics else None
+
+        # Get latest year
+        cur.execute("SELECT MAX(year) AS y FROM qcew_annual WHERE own_code = '5'")
+        latest_year = cur.fetchone()["y"]
+
+        # Try NAICS 2-digit at state level (own_code=5 = private sector)
+        cur.execute("""
+            SELECT avg_annual_pay, annual_avg_emplvl, industry_code, year
+            FROM qcew_annual
+            WHERE own_code = '5'
+              AND area_fips = %s
+              AND industry_code = %s
+              AND year = %s
+            LIMIT 1
+        """, (area_fips, naics_2, latest_year))
+        row = cur.fetchone()
+
+        if not row:
+            # Fallback: try national level (area_fips = 'US000' or 'US')
+            cur.execute("""
+                SELECT avg_annual_pay, annual_avg_emplvl, industry_code, year
+                FROM qcew_annual
+                WHERE own_code = '5'
+                  AND area_fips IN ('US000', 'US')
+                  AND industry_code = %s
+                  AND year = %s
+                LIMIT 1
+            """, (naics_2, latest_year))
+            row = cur.fetchone()
+
+        conn.close()
+
+        if not row:
+            return {"found": False, "source": source, "summary": f"No QCEW data for NAICS {naics_2} in {state}.", "data": {}}
+
+        local_avg_pay = float(row["avg_annual_pay"])
+        local_employment = int(row["annual_avg_emplvl"])
+
+        result = {
+            "local_avg_annual_pay": local_avg_pay,
+            "local_employment": local_employment,
+            "industry_code": row["industry_code"],
+            "data_year": row["year"],
+            "state": state.upper(),
+        }
+
+        if known_wage and known_wage > 0:
+            ratio = known_wage / local_avg_pay if local_avg_pay > 0 else None
+            result["employer_wage"] = known_wage
+            result["wage_ratio"] = round(ratio, 3) if ratio else None
+            result["is_low_wage"] = ratio < 0.80 if ratio else False
+            result["wage_percentile_est"] = (
+                "well below average" if ratio and ratio < 0.70
+                else "below average" if ratio and ratio < 0.85
+                else "near average" if ratio and ratio < 1.15
+                else "above average" if ratio and ratio < 1.40
+                else "well above average" if ratio else "unknown"
+            )
+            summary = (
+                f"QCEW {state.upper()} NAICS {naics_2}: avg annual pay ${local_avg_pay:,.0f} "
+                f"({local_employment:,} workers). Employer wage ${known_wage:,.0f} = "
+                f"{ratio:.0%} of local avg ({result['wage_percentile_est']})."
+            )
+        else:
+            summary = (
+                f"QCEW {state.upper()} NAICS {naics_2}: avg annual pay ${local_avg_pay:,.0f} "
+                f"({local_employment:,} workers, {row['year']} data)."
+            )
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": result,
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
 # Maps tool names (used in Claude API tool definitions) to callables.
@@ -3513,10 +3458,8 @@ TOOL_REGISTRY: dict[str, callable] = {
     "get_industry_profile": get_industry_profile,
     "get_similar_employers": get_similar_employers,
     "search_mergent": search_mergent,
-    "search_sec_proxy": search_sec_proxy,
     "search_job_postings": search_job_postings,
     "get_workforce_demographics": get_workforce_demographics,
-    # search_web removed — replaced by Gemini Google Search grounding in agent.py
     "scrape_employer_website": scrape_employer_website,
     "search_gleif_ownership": search_gleif_ownership,
     "search_political_donations": search_political_donations,
@@ -3533,6 +3476,7 @@ TOOL_REGISTRY: dict[str, callable] = {
     "search_lodes_workforce": search_lodes_workforce,
     "search_abs_demographics": search_abs_demographics,
     "search_acs_workforce": search_acs_workforce,
+    "compare_employer_wages": compare_employer_wages,
 }
 
 
@@ -3591,19 +3535,6 @@ TOOL_DEFINITIONS = [
                 "company_name": {"type": "string", "description": "Company name to search for"},
                 "employer_id": {"type": "string", "description": "F7 employer_id if known"},
                 "company_type": {"type": "string", "description": "public/private/nonprofit — if private or nonprofit, this tool will be skipped"},
-            },
-            "required": ["company_name"],
-        },
-    },
-    {
-        "name": "search_sec_proxy",
-        "description": "Fetch and parse the latest SEC Proxy Statement (DEF 14A) for executive compensation (top executive pay). Use only for public companies found in search_sec. Tip: if search_sec returned a CIK or Ticker, pass them here.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "company_name": {"type": "string", "description": "Company name"},
-                "cik": {"type": "string", "description": "SEC Central Index Key (CIK) if known"},
-                "ticker": {"type": "string", "description": "Exchange ticker symbol if known"},
             },
             "required": ["company_name"],
         },
@@ -3711,7 +3642,6 @@ TOOL_DEFINITIONS = [
             "required": ["company_name"],
         },
     },
-    # search_web removed — replaced by Gemini Google Search grounding in agent.py
     {
         "name": "scrape_employer_website",
         "description": "Scrape the employer's website for company info, leadership, careers/job postings, news, locations, and investor relations. If you don't have a URL, the tool will look it up. Tip: if search_mergent returned a 'website' field, pass that URL here.",
@@ -3917,6 +3847,20 @@ TOOL_DEFINITIONS = [
                 "metro_cbsa": {"type": "string", "description": "Metro area CBSA code for metro filtering"},
             },
             "required": ["company_name", "state"],
+        },
+    },
+    {
+        "name": "compare_employer_wages",
+        "description": "Compare employer wages against QCEW (BLS) local industry averages. Returns avg annual pay for the industry in the state, and if a known_wage is provided, computes a ratio and low-wage flag. Useful for assessing whether the employer pays below local industry norms.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name (for context)"},
+                "state": {"type": "string", "description": "2-letter state code. Required."},
+                "naics": {"type": "string", "description": "NAICS code (first 2 digits used). Required."},
+                "known_wage": {"type": "number", "description": "Known annual wage for this employer (from WHD, 990, or research). If provided, a ratio against local avg is computed."},
+            },
+            "required": ["company_name", "state", "naics"],
         },
     },
 ]

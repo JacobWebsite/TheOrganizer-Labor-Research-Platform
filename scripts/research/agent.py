@@ -168,12 +168,16 @@ _TOOL_GAP_MAP = {
 }
 
 def _get_best_queries(gap_type: str, company_type: Optional[str] = None) -> list[str]:
-    """Return top templates from research_query_effectiveness."""
+    """Return top templates from research_query_effectiveness.
+
+    Skips templates that have been tried >=5 times with zero results.
+    """
     conn = _conn()
     cur = conn.cursor()
     cur.execute("""
         SELECT query_template FROM research_query_effectiveness
         WHERE gap_type = %s AND (company_type = %s OR company_type IS NULL)
+          AND NOT (times_used >= 5 AND times_produced_result = 0)
         ORDER BY avg_facts_produced DESC, times_produced_result DESC
         LIMIT 2
     """, (gap_type, company_type))
@@ -244,6 +248,64 @@ def _build_web_search_queries(company_name: str, company_type: Optional[str],
     return filled[:15], gap_types_used[:15]
 
 # ---------------------------------------------------------------------------
+# Strategy Loader (Learning Loop)
+# ---------------------------------------------------------------------------
+
+def _load_strategy(naics_2: str, company_type: str, size_bucket: str) -> list[dict]:
+    """Load tool effectiveness data for this industry/type/size combo.
+
+    Returns ordered list of dicts with tool_name, hit_rate, avg_quality, times_tried.
+    Sorted by hit_rate * avg_quality descending (most effective tools first).
+    """
+    if not naics_2:
+        return []
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT tool_name, hit_rate, avg_quality, times_tried
+            FROM research_strategies
+            WHERE industry_naics_2digit = %s
+              AND company_type = %s
+              AND company_size_bucket = %s
+              AND times_tried >= 3
+            ORDER BY COALESCE(hit_rate, 0) * COALESCE(avg_quality, 0) DESC
+        """, (naics_2, company_type or "", size_bucket or ""))
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return rows
+    except Exception as exc:
+        _log.debug("Strategy load failed: %s", exc)
+        return []
+
+
+def _build_strategy_prompt_section(strategy: list[dict]) -> str:
+    """Build a system prompt section from strategy data."""
+    if not strategy:
+        return ""
+
+    high = [r for r in strategy if (r.get("hit_rate") or 0) > 0.6]
+    moderate = [r for r in strategy if 0.3 <= (r.get("hit_rate") or 0) <= 0.6]
+    low = [r for r in strategy if (r.get("hit_rate") or 0) < 0.1 and (r.get("times_tried") or 0) >= 5]
+
+    if not high and not moderate and not low:
+        return ""
+
+    lines = [f"\n## Tool Effectiveness (based on {sum(r.get('times_tried', 0) for r in strategy)} prior runs)"]
+    if high:
+        tools = ", ".join(f"{r['tool_name']} ({r['hit_rate']:.0%})" for r in high[:5])
+        lines.append(f"- HIGH VALUE: {tools} -- call these first")
+    if moderate:
+        tools = ", ".join(f"{r['tool_name']} ({r['hit_rate']:.0%})" for r in moderate[:5])
+        lines.append(f"- MODERATE: {tools} -- call if relevant")
+    if low:
+        tools = ", ".join(r["tool_name"] for r in low[:5])
+        lines.append(f"- LOW VALUE: {tools} -- skip unless specifically needed")
+
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
 # System Prompt
 # ---------------------------------------------------------------------------
 
@@ -279,30 +341,30 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - IRS 990 nonprofit data (search_990) -- skip if public company
    - Existing union contracts (search_contracts)
    - Mergent business data (search_mergent)
-   - GLEIF corporate ownership (search_gleif_ownership) -- ALWAYS call this. Returns parent companies and subsidiaries.
-   - Solidarity Network (search_solidarity_network) -- ALWAYS call this. Finds unionized sister facilities in the corporate family.
+   - GLEIF corporate ownership (search_gleif_ownership) -- Call for large (>500 employees) or public companies. Returns parent companies and subsidiaries.
+   - Solidarity Network (search_solidarity_network) -- Call if corporate family context is available. Finds unionized sister facilities in the corporate family.
    - Form 5500 benefit plans (search_form5500) -- ALWAYS call this. Returns pension/welfare plan data, participant counts, and collective bargaining indicators.
    - PPP loans (search_ppp_loans) -- Call this. Returns pandemic-era loan amounts, forgiveness status, and jobs retained.
 
 2. **Get industry and local context:**
    - BLS industry profile (get_industry_profile) -- needs a NAICS code. Now includes CBP local establishment counts if state is provided.
    - Similar organized employers (get_similar_employers)
-   - Local demographics (search_local_demographics) -- ALWAYS call this. Pass the city and state. Returns population, race, and income context.
-   - Taxpayer Subsidies (search_local_subsidies) -- ALWAYS call this. Returns local tax breaks and grants.
+   - Local demographics (search_local_demographics) -- Call if city and state are known. Returns population, race, and income context. (Note: ACS tool below is preferred.)
+   - Taxpayer Subsidies (search_local_subsidies) -- Call if relevant to the employer. Returns local tax breaks and grants.
    - CBP industry context (search_cbp_context) -- ALWAYS call this if NAICS is known. Returns local establishment counts, employment, and avg wages.
    - LODES workforce data (search_lodes_workforce) -- Call if state/county is known. Returns job counts, earnings tiers, and industry mix.
    - ABS firm demographics (search_abs_demographics) -- Call if NAICS is known. Returns firm owner demographics by industry.
    - ACS workforce demographics (search_acs_workforce) -- ALWAYS call this if state is known. Returns gender, race, age, education, and worker class breakdowns for the workforce in this state/industry.
 
 3. **Get additional enrichment** (these tools fill critical gaps):
-   - SEC proxy executive pay (search_sec_proxy) -- ONLY for public companies. Pass any CIK or ticker you found from search_sec results. Returns top executive compensation.
    - Job postings estimate (search_job_postings) -- ALWAYS call this. Returns active job count and sample titles/pay. High turnover signal if count > 100.
    - Workforce demographics (get_workforce_demographics) -- Call if NAICS is known. Returns industry demographic baselines (race, gender, age).
-   - Political donations (search_political_donations) -- ALWAYS call this. Returns contributions by the company and executives.
+   - Political donations (search_political_donations) -- Call for larger companies (>500 employees). Returns contributions by the company and executives.
    - WARN layoff notices (search_warn_notices) -- ALWAYS call this. Returns recent mass layoff notices.
    - Worker sentiment (search_worker_sentiment) -- ALWAYS call this. Searches Reddit, Glassdoor, and Indeed for employee complaints and 'vibe'.
    - SOS corporate filings (search_sos_filings) -- ALWAYS call this. Finds registered agents, officers, and filing links.
    - Competitor wage comparison (compare_industry_wages) -- ALWAYS call this. Compares target wages against local industry peers.
+   - QCEW wage comparison (compare_employer_wages) -- Call if state and NAICS are known. Compares employer wages against BLS local industry averages. Pass known_wage if available from WHD or 990 data.
 
 4. **Scrape employer website** (scrape_employer_website) -- if search_mergent returned a website URL, pass it here. Otherwise the tool will look it up. Returns homepage, about, careers, and news text.
 
@@ -335,6 +397,15 @@ Return your final report as a JSON object inside a code block. Your response mus
   ]
 }}
 """
+    # Inject strategy section if available
+    naics_2 = (run.get("industry_naics") or "")[:2]
+    company_type = run.get("company_type") or ""
+    size_bucket = run.get("employee_size_bucket") or ""
+    strategy = _load_strategy(naics_2, company_type, size_bucket)
+    strategy_section = _build_strategy_prompt_section(strategy)
+    if strategy_section:
+        prompt += strategy_section
+
     return prompt
 
 def _build_gemini_tools():
@@ -586,65 +657,75 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         contents.append(types.Content(role="user", parts=f_resps))
 
     # Phase 1.5 & 1.6: Forced Enrichment (Parallel)
+    # Load strategy to skip low-value tools for this industry/type/size
+    _naics_2 = (run.get("industry_naics") or "")[:2]
+    _company_type = run.get("company_type") or ""
+    _size_bucket = run.get("employee_size_bucket") or ""
+    _strategy = _load_strategy(_naics_2, _company_type, _size_bucket)
+    _skip_tools = {r["tool_name"] for r in _strategy if (r.get("hit_rate") or 0) < 0.10 and (r.get("times_tried") or 0) >= 5}
+    if _skip_tools:
+        _log.info("Run %d: skipping low-value tools based on strategy: %s", run_id, _skip_tools)
+
     forced_tasks = []
-    
+
     async def _f_scrape():
         if "scrape_employer_website" in tools_called_set: return None
+        if "scrape_employer_website" in _skip_tools: return None
         res = await asyncio.to_thread(TOOL_REGISTRY["scrape_employer_website"], company_name=run["company_name"], employer_id=run.get("employer_id"), state=run.get("company_state"))
         return ("scrape", res)
     forced_tasks.append(_f_scrape())
 
     async def _f_gleif():
         if "search_gleif_ownership" in tools_called_set: return None
+        if "search_gleif_ownership" in _skip_tools: return None
+        # Only force GLEIF for large or public companies (>500 employees or public)
+        emp_count = run.get("employee_count") or 0
+        is_public = (run.get("company_type") or "").lower() == "public"
+        if emp_count < 500 and not is_public: return None
         res = await asyncio.to_thread(TOOL_REGISTRY["search_gleif_ownership"], company_name=run["company_name"], employer_id=run.get("employer_id"))
         return ("gleif", res)
     forced_tasks.append(_f_gleif())
 
     async def _f_donations():
         if "search_political_donations" in tools_called_set: return None
+        if "search_political_donations" in _skip_tools: return None
+        # Only force donations search for larger companies (>500 employees)
+        emp_count = run.get("employee_count") or 0
+        if emp_count < 500: return None
         res = await asyncio.to_thread(TOOL_REGISTRY["search_political_donations"], company_name=run["company_name"])
         return ("donations", res)
     forced_tasks.append(_f_donations())
 
     async def _f_sentiment():
         if "search_worker_sentiment" in tools_called_set: return None
+        if "search_worker_sentiment" in _skip_tools: return None
         res = await asyncio.to_thread(TOOL_REGISTRY["search_worker_sentiment"], company_name=run["company_name"], state=run.get("company_state"))
         return ("sentiment", res)
     forced_tasks.append(_f_sentiment())
 
     async def _f_sos():
         if "search_sos_filings" in tools_called_set or not run.get("company_state"): return None
+        if "search_sos_filings" in _skip_tools: return None
         res = await asyncio.to_thread(TOOL_REGISTRY["search_sos_filings"], company_name=run["company_name"], state=run.get("company_state"))
         return ("sos", res)
     forced_tasks.append(_f_sos())
 
-    async def _f_solidarity():
-        if "search_solidarity_network" in tools_called_set: return None
-        res = await asyncio.to_thread(TOOL_REGISTRY["search_solidarity_network"], company_name=run["company_name"], employer_id=run.get("employer_id"))
-        return ("solidarity", res)
-    forced_tasks.append(_f_solidarity())
+    # search_solidarity_network removed from forced list (22% hit rate).
+    # Gemini can still call it voluntarily via the tool registry.
 
-    async def _f_subsidies():
-        if "search_local_subsidies" in tools_called_set: return None
-        city = "Unknown"
-        d = _extract_dossier_json(final_text)
-        if d:
-            try: city = d.get("dossier", {}).get("identity", {}).get("hq_address", {}).get("city") or "Unknown"
-            except: pass
-        if run.get("company_state"):
-            res = await asyncio.to_thread(TOOL_REGISTRY["search_local_subsidies"], company_name=run["company_name"], city=city, state=run.get("company_state"))
-            return ("subsidies", res)
-        return None
-    forced_tasks.append(_f_subsidies())
+    # search_local_subsidies removed from forced list (44% hit rate).
+    # Gemini can still call it voluntarily via the tool registry.
 
     async def _f_form5500():
         if "search_form5500" in tools_called_set: return None
+        if "search_form5500" in _skip_tools: return None
         res = await asyncio.to_thread(TOOL_REGISTRY["search_form5500"], company_name=run["company_name"], employer_id=run.get("employer_id"), state=run.get("company_state"))
         return ("form5500", res)
     forced_tasks.append(_f_form5500())
 
     async def _f_cbp():
         if "search_cbp_context" in tools_called_set: return None
+        if "search_cbp_context" in _skip_tools: return None
         naics = run.get("naics")
         if not naics:
             d = _extract_dossier_json(final_text)
@@ -659,6 +740,7 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
     async def _f_acs():
         if "search_acs_workforce" in tools_called_set: return None
+        if "search_acs_workforce" in _skip_tools: return None
         if run.get("company_state"):
             naics = run.get("naics")
             if not naics:
@@ -688,10 +770,6 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             body.setdefault("workplace", {})["worker_complaints"] = rdata.get("summary")
         elif rtype == "sos":
             body.setdefault("identity", {})["registered_agent"] = rdata.get("data", {}).get("registered_agent")
-        elif rtype == "solidarity":
-            body.setdefault("labor", {})["solidarity_network"] = rdata.get("data")
-        elif rtype == "subsidies":
-            body.setdefault("financial", {})["local_subsidies"] = rdata.get("data")
         elif rtype == "acs_workforce":
             body.setdefault("workforce", {})["acs_demographics"] = rdata.get("data")
 
@@ -702,6 +780,16 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     _ensure_exhaustive_coverage(run_id, dossier_data, vocabulary)
     facts_saved = _save_facts(run_id, run.get("employer_id"), dossier_data.get("facts", []), vocabulary, tool_action_map)
     _update_run(run_id, status="completed", completed_at=datetime.now(), duration_seconds=int(time.time()-start_time), dossier_json=json.dumps(dossier_data, default=str), total_facts_found=facts_saved)
+
+    # Auto-grade and update strategy tables (learning loop)
+    try:
+        from scripts.research.auto_grader import grade_and_save, update_strategy_quality
+        grade_and_save(run_id)
+        update_strategy_quality()
+        _log.info("Run %d: auto-graded and strategy tables updated.", run_id)
+    except Exception as exc:
+        _log.debug("Auto-grade/strategy update for run %d failed: %s", run_id, exc)
+
     return {"status": "completed", "run_id": run_id, "facts_saved": facts_saved}
 
 if __name__ == "__main__":
