@@ -4,7 +4,7 @@
 
 **Purpose:** Shared context document for all AI tools (Claude Code, Codex, Gemini) and human developers. Read this first before any work session.
 
-**Last manually updated:** 2026-02-27 (Claude Code: "Aged Broadsheet" visual redesign + Research→Target Scorecard integration + test fixes + seed/dedup/rebuild)
+**Last manually updated:** 2026-02-28 (Claude Code: ACS data loaded + ACS research tool + raw staging tables dropped, 191 GB → 24 GB)
 
 ---
 
@@ -52,7 +52,46 @@ Most critical: enforcement gate for Priority, Union Proximity weight, NLRB 25-mi
 
 ---
 
-## Latest Update (2026-02-27 — "Aged Broadsheet" Visual Redesign)
+## Latest Update (2026-02-28 — ACS Data + Raw Table Cleanup)
+
+### ACS Data Loaded
+- **Input:** 29 GB IPUMS ACS fixed-width file (`New Data sources 2_27/usa_00001.dat`) — 77.2M rows processed, 64.8M kept (labor force participants with valid occupations)
+- **Raw table:** `newsrc_acs_occ_demo_profiles` — 34,144,767 groups (sample x year x state x metro x NAICS x SOC x demographics)
+- **Curated table:** `cur_acs_workforce_demographics` — 11,478,933 rows (collapsed sample/year dimensions). Indexes on state, state+naics, state+metro.
+- **Loader fixes:** Removed unused `EMPSTAT` from NEEDED_VARS (extract uses LABFORCE instead). Auto-detect nested directory (`usa_00001.dat/usa_00001.dat`).
+
+### ACS Research Tool Added (30th tool)
+- `search_acs_workforce()` in `scripts/research/tools.py` — queries `cur_acs_workforce_demographics` by state (required), NAICS, SOC code, metro CBSA
+- Returns: total weighted workers, gender split, race/ethnicity breakdown, Hispanic origin, age distribution, education profile, worker class split (all as percentages)
+- Registered in `TOOL_REGISTRY`, `TOOL_DEFINITIONS`, agent.py `_INTERNAL_TOOLS`
+- Added forced enrichment in agent.py — runs automatically when state is known, patches `workforce.acs_demographics` in dossier
+- Note: ACS NAICS codes are IPUMS-style (e.g. `3113`, `113M`, `22S`), not standard Census codes
+
+### Raw Staging Tables Dropped — 167 GB Reclaimed
+- **Script:** `scripts/etl/newsrc_drop_raw_tables.py` (new) — safety checks verify each `cur_*` table exists with rows > 0, requires `--confirm` flag
+- **11 tables dropped:** `newsrc_usaspending_contracts_raw` (89 GB), `newsrc_lodes_od_2022` (26 GB), `newsrc_lodes_rac_2022` (11 GB), `newsrc_ppp_public_raw` (11 GB), `newsrc_cb2300cbp_raw` (7 GB), `newsrc_cbp2023_raw` (7 GB), `newsrc_lodes_xwalk_2022` (7 GB), `newsrc_lodes_wac_2022` (4.4 GB), `newsrc_form5500_all` (2.4 GB), `newsrc_abs_raw` (36 MB), `newsrc_acs_occ_demo_profiles` (3 GB)
+- **DB size:** 191 GB → 24 GB (PostgreSQL catalog). VACUUM FULL not completed (cancelled after 45+ min). Disk files still occupy ~191 GB but dead space is reusable.
+- **Source files preserved:** All raw data files remain in `New Data sources 2_27/` for reloads. To rebuild: re-run raw loader, then `py scripts/etl/newsrc_curate_all.py --only <name>`.
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `scripts/etl/newsrc_build_acs_profiles.py` | Fix EMPSTAT removal, nested directory detection |
+| `scripts/etl/newsrc_curate_all.py` | Add `build_acs()` — 7th curated table |
+| `scripts/etl/newsrc_drop_raw_tables.py` | **NEW** — safe raw table dropper with --confirm gate |
+| `scripts/research/tools.py` | Add `search_acs_workforce()` tool + registry + definition |
+| `scripts/research/agent.py` | Add ACS to _INTERNAL_TOOLS, forced enrichment, dossier patch |
+| `tests/test_newsrc_curated.py` | 4 new ACS schema tests |
+| `tests/test_newsrc_loaders.py` | Update builder registry to include "acs" |
+| `tests/test_research_new_sources.py` | 7 new ACS tool tests, minimum tool count → 28 |
+
+### Tests: 919 backend (919 pass / 3 skip), 172 frontend (all pass)
+
+Commit: `d3dc725`
+
+---
+
+## Previous Update (2026-02-27 — "Aged Broadsheet" Visual Redesign)
 
 ### Frontend Visual Redesign Complete
 26 files modified across 7 implementation phases. All 158 frontend tests pass.
