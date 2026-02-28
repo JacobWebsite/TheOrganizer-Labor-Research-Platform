@@ -11,11 +11,12 @@ Tables created:
   4. cur_cbp_geo_naics             -- county/state x NAICS establishment counts
   5. cur_lodes_geo_metrics         -- county-level workforce profile
   6. cur_abs_geo_naics             -- state/county x NAICS firm demographics
+  7. cur_acs_workforce_demographics -- geo x industry x occupation x demographic workforce profile
 
 Usage:
   python scripts/etl/newsrc_curate_all.py
   python scripts/etl/newsrc_curate_all.py --only form5500
-  python scripts/etl/newsrc_curate_all.py --only cbp,lodes
+  python scripts/etl/newsrc_curate_all.py --only cbp,lodes,acs
 """
 from __future__ import annotations
 
@@ -429,6 +430,43 @@ def build_abs(conn):
 
 
 # ---------------------------------------------------------------------------
+# 7. ACS workforce demographics
+# ---------------------------------------------------------------------------
+def build_acs(conn):
+    print("\n=== cur_acs_workforce_demographics ===")
+    if not _table_exists(conn, "newsrc_acs_occ_demo_profiles"):
+        print("  [skip] newsrc_acs_occ_demo_profiles does not exist")
+        return
+
+    _execute(conn, "DROP TABLE IF EXISTS cur_acs_workforce_demographics CASCADE", "drop old")
+    _execute(conn, """
+        CREATE TABLE cur_acs_workforce_demographics AS
+        SELECT
+            statefip                        AS state_fips,
+            met2013                         AS metro_cbsa,
+            SUBSTR(indnaics, 1, 4)          AS naics4,
+            occsoc                          AS soc_code,
+            sex,
+            race,
+            hispan                          AS hispanic,
+            age_bucket,
+            educ                            AS education,
+            classwkr                        AS worker_class,
+            SUM(weighted_count)             AS weighted_workers,
+            COUNT(*)                        AS raw_cell_count
+        FROM newsrc_acs_occ_demo_profiles
+        GROUP BY 1,2,3,4,5,6,7,8,9,10
+    """, "create table")
+
+    _execute(conn, "CREATE INDEX idx_cur_acs_state ON cur_acs_workforce_demographics (state_fips)", "index state")
+    _execute(conn, "CREATE INDEX idx_cur_acs_state_naics ON cur_acs_workforce_demographics (state_fips, naics4)", "index state+naics")
+    _execute(conn, "CREATE INDEX idx_cur_acs_state_metro ON cur_acs_workforce_demographics (state_fips, metro_cbsa)", "index state+metro")
+
+    cnt = _row_count(conn, "cur_acs_workforce_demographics")
+    print(f"  => {cnt:,} rows")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 BUILDERS = {
@@ -438,6 +476,7 @@ BUILDERS = {
     "cbp": build_cbp,
     "lodes": build_lodes,
     "abs": build_abs,
+    "acs": build_acs,
 }
 
 

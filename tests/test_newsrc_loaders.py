@@ -119,7 +119,7 @@ class TestCurateOrchestrator:
     def test_builder_registry(self):
         from newsrc_curate_all import BUILDERS
 
-        expected = {"form5500", "ppp", "usaspending", "cbp", "lodes", "abs"}
+        expected = {"form5500", "ppp", "usaspending", "cbp", "lodes", "abs", "acs"}
         assert set(BUILDERS.keys()) == expected
 
     def test_all_builders_callable(self):

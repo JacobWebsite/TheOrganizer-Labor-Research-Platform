@@ -49,6 +49,7 @@ _INTERNAL_TOOLS = [
     "scrape_employer_website", "google_search",
     "search_worker_sentiment", "search_sos_filings", "compare_industry_wages",
     "search_solidarity_network", "search_local_subsidies",
+    "search_acs_workforce",
 ]
 
 # ---------------------------------------------------------------------------
@@ -291,6 +292,7 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - CBP industry context (search_cbp_context) -- ALWAYS call this if NAICS is known. Returns local establishment counts, employment, and avg wages.
    - LODES workforce data (search_lodes_workforce) -- Call if state/county is known. Returns job counts, earnings tiers, and industry mix.
    - ABS firm demographics (search_abs_demographics) -- Call if NAICS is known. Returns firm owner demographics by industry.
+   - ACS workforce demographics (search_acs_workforce) -- ALWAYS call this if state is known. Returns gender, race, age, education, and worker class breakdowns for the workforce in this state/industry.
 
 3. **Get additional enrichment** (these tools fill critical gaps):
    - SEC proxy executive pay (search_sec_proxy) -- ONLY for public companies. Pass any CIK or ticker you found from search_sec results. Returns top executive compensation.
@@ -655,6 +657,20 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         return None
     forced_tasks.append(_f_cbp())
 
+    async def _f_acs():
+        if "search_acs_workforce" in tools_called_set: return None
+        if run.get("company_state"):
+            naics = run.get("naics")
+            if not naics:
+                d = _extract_dossier_json(final_text)
+                if d:
+                    try: naics = d.get("dossier", {}).get("identity", {}).get("naics_code")
+                    except: pass
+            res = await asyncio.to_thread(TOOL_REGISTRY["search_acs_workforce"], company_name=run["company_name"], state=run.get("company_state"), naics=naics)
+            return ("acs_workforce", res)
+        return None
+    forced_tasks.append(_f_acs())
+
     enrich_res = await asyncio.gather(*(t for t in forced_tasks if t is not None))
     
     # Patch Dossier with Enrichment Results
@@ -676,7 +692,9 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             body.setdefault("labor", {})["solidarity_network"] = rdata.get("data")
         elif rtype == "subsidies":
             body.setdefault("financial", {})["local_subsidies"] = rdata.get("data")
-        
+        elif rtype == "acs_workforce":
+            body.setdefault("workforce", {})["acs_demographics"] = rdata.get("data")
+
         execution_order += 1; tools_called += 1
         aid = await asyncio.to_thread(_log_action, run_id, f"search_{rtype} (forced)", {"company_name": run["company_name"]}, execution_order, rdata, 0)
         tool_action_map[f"search_{rtype}"] = aid

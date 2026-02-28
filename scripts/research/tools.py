@@ -3335,6 +3335,168 @@ def search_abs_demographics(
 
 
 # ---------------------------------------------------------------------------
+# TOOL: search_acs_workforce
+# ---------------------------------------------------------------------------
+
+def search_acs_workforce(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    naics: Optional[str] = None,
+    soc_code: Optional[str] = None,
+    metro_cbsa: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search ACS workforce demographics for a given geography/industry."""
+    source = "database:cur_acs_workforce_demographics"
+    try:
+        if not state:
+            return {"found": False, "source": source,
+                    "summary": "Cannot look up ACS workforce data without a state.",
+                    "data": {}}
+
+        conn = _conn()
+        cur = conn.cursor()
+
+        # Resolve state abbreviation to FIPS code
+        cur.execute(
+            "SELECT state_fips AS fips FROM state_fips_map WHERE state_abbr = %s LIMIT 1",
+            (state.upper(),),
+        )
+        fips_row = cur.fetchone()
+        if not fips_row:
+            conn.close()
+            return {"found": False, "source": source,
+                    "summary": f"Unknown state: {state}",
+                    "data": {}}
+        state_fips = fips_row["fips"]
+
+        # Build WHERE clause
+        where = ["state_fips = %s"]
+        params: list = [state_fips]
+        if naics:
+            naics4 = naics[:4]
+            where.append("naics4 = %s")
+            params.append(naics4)
+        if soc_code:
+            where.append("soc_code = %s")
+            params.append(soc_code)
+        if metro_cbsa:
+            where.append("metro_cbsa = %s")
+            params.append(metro_cbsa)
+
+        where_sql = " AND ".join(where)
+
+        # Total weighted workers
+        cur.execute(f"""
+            SELECT COALESCE(SUM(weighted_workers), 0) AS total_workers
+            FROM cur_acs_workforce_demographics
+            WHERE {where_sql}
+        """, params)
+        total_row = cur.fetchone()
+        total_workers = float(total_row["total_workers"]) if total_row else 0
+
+        if total_workers == 0:
+            conn.close()
+            return {"found": False, "source": source,
+                    "summary": f"No ACS workforce data for state={state}" +
+                               (f", NAICS={naics}" if naics else "") + ".",
+                    "data": {}}
+
+        # Gender split
+        cur.execute(f"""
+            SELECT sex, SUM(weighted_workers) AS w
+            FROM cur_acs_workforce_demographics
+            WHERE {where_sql}
+            GROUP BY sex ORDER BY w DESC
+        """, params)
+        gender_rows = cur.fetchall()
+        gender = {r["sex"]: round(float(r["w"]) / total_workers * 100, 1) for r in gender_rows}
+
+        # Race breakdown
+        cur.execute(f"""
+            SELECT race, SUM(weighted_workers) AS w
+            FROM cur_acs_workforce_demographics
+            WHERE {where_sql}
+            GROUP BY race ORDER BY w DESC
+        """, params)
+        race_rows = cur.fetchall()
+        race = {r["race"]: round(float(r["w"]) / total_workers * 100, 1) for r in race_rows}
+
+        # Hispanic origin
+        cur.execute(f"""
+            SELECT hispanic, SUM(weighted_workers) AS w
+            FROM cur_acs_workforce_demographics
+            WHERE {where_sql}
+            GROUP BY hispanic ORDER BY w DESC
+        """, params)
+        hispan_rows = cur.fetchall()
+        hispanic = {r["hispanic"]: round(float(r["w"]) / total_workers * 100, 1) for r in hispan_rows}
+
+        # Age distribution
+        cur.execute(f"""
+            SELECT age_bucket, SUM(weighted_workers) AS w
+            FROM cur_acs_workforce_demographics
+            WHERE {where_sql}
+            GROUP BY age_bucket ORDER BY age_bucket
+        """, params)
+        age_rows = cur.fetchall()
+        age_dist = {r["age_bucket"]: round(float(r["w"]) / total_workers * 100, 1) for r in age_rows}
+
+        # Education profile
+        cur.execute(f"""
+            SELECT education, SUM(weighted_workers) AS w
+            FROM cur_acs_workforce_demographics
+            WHERE {where_sql}
+            GROUP BY education ORDER BY w DESC
+        """, params)
+        educ_rows = cur.fetchall()
+        education = {r["education"]: round(float(r["w"]) / total_workers * 100, 1) for r in educ_rows}
+
+        # Worker class split
+        cur.execute(f"""
+            SELECT worker_class, SUM(weighted_workers) AS w
+            FROM cur_acs_workforce_demographics
+            WHERE {where_sql}
+            GROUP BY worker_class ORDER BY w DESC
+        """, params)
+        class_rows = cur.fetchall()
+        worker_class = {r["worker_class"]: round(float(r["w"]) / total_workers * 100, 1) for r in class_rows}
+
+        conn.close()
+
+        data = {
+            "state": state.upper(),
+            "naics4": naics[:4] if naics else None,
+            "soc_code": soc_code,
+            "metro_cbsa": metro_cbsa,
+            "total_weighted_workers": round(total_workers),
+            "gender_pct": gender,
+            "race_pct": race,
+            "hispanic_pct": hispanic,
+            "age_distribution_pct": age_dist,
+            "education_pct": education,
+            "worker_class_pct": worker_class,
+        }
+
+        summary = f"ACS workforce profile for {state.upper()}"
+        if naics:
+            summary += f" NAICS {naics[:4]}"
+        summary += f": {round(total_workers):,} workers."
+        if gender:
+            top_gender = max(gender, key=gender.get)
+            summary += f" {gender[top_gender]:.0f}% sex code {top_gender}."
+        if age_dist:
+            top_age = max(age_dist, key=age_dist.get)
+            summary += f" Largest age group: {top_age} ({age_dist[top_age]:.0f}%)."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
 # Maps tool names (used in Claude API tool definitions) to callables.
@@ -3370,6 +3532,7 @@ TOOL_REGISTRY: dict[str, callable] = {
     "search_cbp_context": search_cbp_context,
     "search_lodes_workforce": search_lodes_workforce,
     "search_abs_demographics": search_abs_demographics,
+    "search_acs_workforce": search_acs_workforce,
 }
 
 
@@ -3739,6 +3902,21 @@ TOOL_DEFINITIONS = [
                 "state": {"type": "string", "description": "2-letter state code for state-level data"},
             },
             "required": ["company_name", "naics"],
+        },
+    },
+    {
+        "name": "search_acs_workforce",
+        "description": "Search ACS (American Community Survey) workforce demographics for a state and optional industry/occupation. Returns gender split, race/ethnicity breakdown, age distribution, education profile, and worker class (private/govt/self-employed). Answers 'who works in this industry here?'",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name (for context)"},
+                "state": {"type": "string", "description": "2-letter state code. Required."},
+                "naics": {"type": "string", "description": "NAICS code (first 4 digits used) for industry filtering"},
+                "soc_code": {"type": "string", "description": "SOC occupation code for occupation filtering"},
+                "metro_cbsa": {"type": "string", "description": "Metro area CBSA code for metro filtering"},
+            },
+            "required": ["company_name", "state"],
         },
     },
 ]

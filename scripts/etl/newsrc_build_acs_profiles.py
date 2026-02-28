@@ -41,7 +41,6 @@ NEEDED_VARS = [
     "RACE",
     "HISPAN",
     "EDUC",
-    "EMPSTAT",
     "LABFORCE",
     "CLASSWKR",
     "OCCSOC",
@@ -108,7 +107,10 @@ def main():
     root = Path(args.source_root)
     data_path = root / args.data_file
     layout_path = root / args.layout_file
-    if not data_path.exists():
+    # Handle nested directory case: usa_00001.dat/usa_00001.dat
+    if data_path.is_dir() and (data_path / data_path.name).is_file():
+        data_path = data_path / data_path.name
+    if not data_path.exists() or not data_path.is_file():
         raise SystemExit(f"Missing data file: {data_path}")
     if not layout_path.exists():
         raise SystemExit(f"Missing layout file: {layout_path}")

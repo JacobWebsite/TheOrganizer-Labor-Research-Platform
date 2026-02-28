@@ -156,8 +156,8 @@ class TestRegistryCounts:
 
     def test_minimum_tool_count(self):
         from scripts.research.tools import TOOL_REGISTRY
-        # Was 22 tools, now should be 27 (22 + 5 new)
-        assert len(TOOL_REGISTRY) >= 27, f"Expected >= 27 tools, got {len(TOOL_REGISTRY)}"
+        # Was 22 tools, now should be 28 (22 + 5 new + 1 ACS)
+        assert len(TOOL_REGISTRY) >= 28, f"Expected >= 28 tools, got {len(TOOL_REGISTRY)}"
 
 
 class TestAgentSystemPrompt:
@@ -187,3 +187,65 @@ class TestAgentSystemPrompt:
         agent_path = ROOT / "scripts" / "research" / "agent.py"
         content = agent_path.read_text(encoding="utf-8")
         assert "search_abs_demographics" in content
+
+    def test_acs_in_agent_prompt(self):
+        agent_path = ROOT / "scripts" / "research" / "agent.py"
+        content = agent_path.read_text(encoding="utf-8")
+        assert "search_acs_workforce" in content
+
+
+class TestACSWorkforceTool:
+    """Tests for the search_acs_workforce tool."""
+
+    def test_acs_in_registry(self):
+        from scripts.research.tools import TOOL_REGISTRY
+        assert "search_acs_workforce" in TOOL_REGISTRY
+        assert callable(TOOL_REGISTRY["search_acs_workforce"])
+
+    def test_acs_definition(self):
+        from scripts.research.tools import TOOL_DEFINITIONS
+        td = None
+        for d in TOOL_DEFINITIONS:
+            if d["name"] == "search_acs_workforce":
+                td = d
+                break
+        assert td is not None
+        assert "state" in td["input_schema"]["properties"]
+        assert "state" in td["input_schema"]["required"]
+        assert "naics" in td["input_schema"]["properties"]
+        assert "soc_code" in td["input_schema"]["properties"]
+        assert "metro_cbsa" in td["input_schema"]["properties"]
+
+    def test_acs_missing_state(self):
+        from scripts.research.tools import search_acs_workforce
+        result = search_acs_workforce("TEST_COMPANY")
+        assert isinstance(result, dict)
+        assert result["found"] is False
+        assert "state" in result["summary"].lower()
+
+    def test_acs_invalid_state(self):
+        from scripts.research.tools import search_acs_workforce
+        result = search_acs_workforce("TEST_COMPANY", state="ZZ")
+        assert isinstance(result, dict)
+        assert result["found"] is False
+
+    def test_acs_result_format(self):
+        from scripts.research.tools import search_acs_workforce
+        result = search_acs_workforce("TEST_COMPANY", state="NY")
+        assert isinstance(result, dict)
+        assert "found" in result
+        assert "source" in result
+        assert "summary" in result
+        assert "data" in result
+
+    def test_acs_data_keys_when_found(self):
+        from scripts.research.tools import search_acs_workforce
+        result = search_acs_workforce("TEST_COMPANY", state="NY")
+        if result["found"]:
+            data = result["data"]
+            assert "total_weighted_workers" in data
+            assert "gender_pct" in data
+            assert "race_pct" in data
+            assert "age_distribution_pct" in data
+            assert "education_pct" in data
+            assert "worker_class_pct" in data

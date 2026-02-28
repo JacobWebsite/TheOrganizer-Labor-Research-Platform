@@ -106,6 +106,42 @@ class TestUnifiedScorecardFormula:
         assert "Form 5500-based financial score" in MV_SQL
 
 
+class TestACSCuratedTable:
+    """Tests for the ACS curated table builder."""
+
+    def test_acs_builder_exists(self):
+        sys.path.insert(0, str(ROOT / "scripts" / "etl"))
+        from newsrc_curate_all import BUILDERS
+        assert "acs" in BUILDERS
+
+    def test_acs_builder_callable(self):
+        sys.path.insert(0, str(ROOT / "scripts" / "etl"))
+        from newsrc_curate_all import build_acs
+        assert callable(build_acs)
+
+    def test_acs_sql_has_correct_columns(self):
+        """Verify the build_acs function creates the expected schema."""
+        import inspect
+        sys.path.insert(0, str(ROOT / "scripts" / "etl"))
+        from newsrc_curate_all import build_acs
+        source = inspect.getsource(build_acs)
+        assert "state_fips" in source
+        assert "metro_cbsa" in source
+        assert "naics4" in source
+        assert "soc_code" in source
+        assert "weighted_workers" in source
+        assert "raw_cell_count" in source
+
+    def test_acs_sql_has_indexes(self):
+        import inspect
+        sys.path.insert(0, str(ROOT / "scripts" / "etl"))
+        from newsrc_curate_all import build_acs
+        source = inspect.getsource(build_acs)
+        assert "idx_cur_acs_state" in source
+        assert "idx_cur_acs_state_naics" in source
+        assert "idx_cur_acs_state_metro" in source
+
+
 class TestTargetScorecardFormula:
     """Test that the target scorecard SQL includes Form 5500."""
 
