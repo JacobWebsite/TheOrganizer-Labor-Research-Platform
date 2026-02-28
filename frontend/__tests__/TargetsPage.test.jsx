@@ -8,6 +8,7 @@ import { TargetsPage } from '@/features/scorecard/TargetsPage'
 vi.mock('@/shared/api/targets', () => ({
   useNonUnionTargets: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useTargetStats: vi.fn(() => ({ data: null, isLoading: false })),
+  useTargetScorecardStats: vi.fn(() => ({ data: null, isLoading: false })),
 }))
 
 vi.mock('@/shared/api/lookups', () => ({

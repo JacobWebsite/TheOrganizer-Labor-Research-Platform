@@ -77,7 +77,7 @@ export function UnionProfilePage() {
 
   return (
     <div className="space-y-4">
-      <UnionProfileHeader union={union} />
+      <UnionProfileHeader union={union} employers={employers} />
       <MembershipSection data={membershipQuery.data} />
       <OrganizingCapacitySection data={capacityQuery.data} />
       <UnionEmployersTable employers={employers} />

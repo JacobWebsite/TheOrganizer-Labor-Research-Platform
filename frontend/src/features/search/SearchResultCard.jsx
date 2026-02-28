@@ -8,14 +8,21 @@ function formatNumber(n) {
   return Number(n).toLocaleString()
 }
 
+const TIER_BORDER = {
+  Priority: 'border-l-[#c23a22]',
+  Strong: 'border-l-[#1a6b5a]',
+  Promising: 'border-l-[#c78c4e]',
+}
+
 export function SearchResultCard({ employer }) {
   const navigate = useNavigate()
   const workers = employer.consolidated_workers || employer.unit_size
   const location = [employer.city, employer.state].filter(Boolean).join(', ')
+  const tierBorder = TIER_BORDER[employer.score_tier] || 'border-l-transparent'
 
   return (
     <Card
-      className="cursor-pointer hover:bg-accent/50 transition-colors"
+      className={`cursor-pointer hover:bg-accent/50 transition-colors border-l-4 ${tierBorder}`}
       onClick={() => navigate(`/employers/${employer.canonical_id}`)}
     >
       <CardContent className="p-4 space-y-2">

@@ -56,9 +56,19 @@ export function SearchPage() {
         <div className="w-full max-w-xl">
           <SearchBar variant="hero" initialValue="" onSearch={handleSearch} />
         </div>
-        <p className="font-editorial italic text-muted-foreground text-sm mt-6">
-          Powered by 8 federal databases
-        </p>
+        <div className="mt-10 flex gap-5 justify-center">
+          {[
+            { num: '107K+', label: 'Employers' },
+            { num: '26K+', label: 'Unions' },
+            { num: '6.8M+', label: 'Records' },
+            { num: '18', label: 'Data Sources' },
+          ].map(({ num, label }) => (
+            <div key={label} className="text-center">
+              <p className="font-editorial text-xl font-bold text-[#1a6b5a]">{num}</p>
+              <p className="text-[11px] uppercase text-[#8a7e6d]">{label}</p>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -109,8 +119,8 @@ export function SearchPage() {
       {data && data.total > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <p className="font-editorial text-lg" aria-live="polite">
-              {data.total.toLocaleString()} employer{data.total !== 1 ? 's' : ''} found
+            <p className="text-sm" aria-live="polite">
+              <strong>{data.total.toLocaleString()}</strong> result{data.total !== 1 ? 's' : ''} for &ldquo;{filters.q}&rdquo;
             </p>
             <div className="flex items-center rounded-md border overflow-hidden">
               <button

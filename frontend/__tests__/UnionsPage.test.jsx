@@ -57,9 +57,10 @@ describe('UnionsPage', () => {
   it('shows summary card with national data', () => {
     useNationalUnions.mockReturnValue({ data: { national_unions: MOCK_NATIONAL }, isLoading: false })
     renderWithRoute()
-    expect(screen.getByText('National Unions Overview')).toBeInTheDocument()
-    expect(screen.getByText('270')).toBeInTheDocument() // 150 + 120 total locals
-    expect(screen.getByText('2,800,000')).toBeInTheDocument() // 1.5M + 1.3M total members
+    // Summary now shows affiliation group cards (AFL-CIO, Change to Win, Independent)
+    // Subtitle shows aggregate counts
+    expect(screen.getByText(/270 organizations/)).toBeInTheDocument()
+    expect(screen.getByText(/2,800,000 members/)).toBeInTheDocument()
   })
 
   it('shows loading skeleton when data is loading', () => {

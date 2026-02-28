@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Microscope, SearchX, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { HelpSection } from '@/shared/components/HelpSection'
+import { MiniStat } from '@/shared/components/MiniStat'
 import { useResearchRuns, useStartResearch } from '@/shared/api/research'
 import { useResearchState } from './useResearchState'
 import { ResearchFilters } from './ResearchFilters'
@@ -43,6 +44,20 @@ export function ResearchPage() {
           New Research
         </Button>
       </div>
+
+      {/* Stats row */}
+      {data && data.total > 0 && (() => {
+        const runs = data.runs || []
+        const completed = runs.filter(r => r.status === 'completed').length
+        const avgQuality = runs.filter(r => r.overall_quality_score != null).reduce((s, r, _, a) => s + r.overall_quality_score / a.length, 0)
+        return (
+          <div className="flex gap-3">
+            <MiniStat label="Total Runs" value={data.total} accent="#1a6b5a" />
+            <MiniStat label="Completed" value={completed} accent="#3a7d44" />
+            <MiniStat label="Avg Quality" value={avgQuality > 0 ? avgQuality.toFixed(1) : '--'} accent="#c78c4e" />
+          </div>
+        )
+      })()}
 
       <HelpSection>
         <p><strong>What this does:</strong> An AI research agent queries 10+ internal databases to build a comprehensive dossier on any company in 30-120 seconds.</p>

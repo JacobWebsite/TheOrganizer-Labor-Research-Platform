@@ -63,10 +63,18 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
 
   const columns = useMemo(() => [
     {
+      id: 'rank',
+      header: '#',
+      cell: ({ row }) => (
+        <div className="text-xs text-muted-foreground tabular-nums">{(page - 1) * PAGE_SIZE + row.index + 1}</div>
+      ),
+      size: 40,
+    },
+    {
       accessorKey: 'display_name',
       header: 'Employer',
       cell: ({ getValue }) => (
-        <div className="font-medium truncate max-w-[280px]">{getValue() || '\u2014'}</div>
+        <div className="font-medium truncate max-w-[280px] text-[#1a6b5a] cursor-pointer">{getValue() || '\u2014'}</div>
       ),
     },
     {

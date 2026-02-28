@@ -40,7 +40,40 @@ export function UnionsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-editorial text-3xl font-bold">Union Explorer</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-editorial text-3xl font-bold">Union Explorer</h1>
+          {nationalQuery.data?.national_unions && (
+            <p className="text-sm text-[#8a7e6d] mt-1">
+              {nationalQuery.data.national_unions.reduce((s, u) => s + (u.local_count || 0), 0).toLocaleString()} organizations
+              {' '}&middot;{' '}
+              {nationalQuery.data.national_unions.reduce((s, u) => s + (u.total_members || 0), 0).toLocaleString()} members
+            </p>
+          )}
+        </div>
+        <div className="flex items-center rounded-md border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={cn('px-3 py-1.5 text-sm', viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+          >
+            <span className="flex items-center gap-1.5">
+              <LayoutList className="h-3.5 w-3.5" />
+              List
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('tree')}
+            className={cn('px-3 py-1.5 text-sm', showTree ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+          >
+            <span className="flex items-center gap-1.5">
+              <GitBranch className="h-3.5 w-3.5" />
+              Tree
+            </span>
+          </button>
+        </div>
+      </div>
 
       <HelpSection>
         <p><strong>What this page is for:</strong> Browse and research unions, their organizational structure, and the employers they represent. Use the search bar to find a specific union, or browse the hierarchy tree to explore how unions are organized.</p>
@@ -60,33 +93,9 @@ export function UnionsPage() {
         onAffiliationClick={handleAffiliationClick}
       />
 
-      <div className="flex items-center gap-2">
-        <div className="flex items-center rounded-md border overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={cn('px-3 py-1.5 text-sm', viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
-          >
-            <span className="flex items-center gap-1.5">
-              <LayoutList className="h-3.5 w-3.5" />
-              List View
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('tree')}
-            className={cn('px-3 py-1.5 text-sm', showTree ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
-          >
-            <span className="flex items-center gap-1.5">
-              <GitBranch className="h-3.5 w-3.5" />
-              Tree View
-            </span>
-          </button>
-        </div>
-        {showTree && (
-          <span className="text-xs text-muted-foreground">Expand affiliations to browse by state and local</span>
-        )}
-      </div>
+      {showTree && (
+        <span className="text-xs text-muted-foreground">Expand affiliations to browse by state and local</span>
+      )}
 
       {showTree ? (
         <AffiliationTree affiliations={nationalQuery.data?.national_unions} />

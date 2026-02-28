@@ -151,7 +151,7 @@ export function DossierSection({ sectionKey, facts, dossierData }) {
   return (
     <CollapsibleCard
       icon={meta.icon}
-      title={meta.label}
+      title={`${meta.label}${itemCount > 0 ? ` (${itemCount})` : ''}`}
       summary={summary}
       defaultOpen={meta.defaultOpen}
     >

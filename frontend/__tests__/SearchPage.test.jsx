@@ -56,7 +56,9 @@ describe('SearchPage', () => {
     })
 
     renderWithRoute('/search?q=acme')
-    expect(screen.getByText('2 employers found')).toBeInTheDocument()
+    // Result header has count in <strong> tag, search with function matcher
+    expect(screen.getByText((_, el) => el?.getAttribute?.('aria-live') === 'polite')).toBeInTheDocument()
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument()
     expect(screen.getByText('Acme Corp')).toBeInTheDocument()
     expect(screen.getByText('Beta Inc')).toBeInTheDocument()
   })

@@ -26,12 +26,12 @@ describe('LoginPage', () => {
 
   it('renders the app title', () => {
     renderLogin()
-    expect(screen.getByText('The Organizer')).toBeInTheDocument()
+    expect(screen.getByText('THE ORGANIZER')).toBeInTheDocument()
   })
 
-  it('renders invite-only messaging', () => {
+  it('renders sign-in messaging', () => {
     renderLogin()
-    expect(screen.getByText(/invite-only/i)).toBeInTheDocument()
+    expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument()
   })
 
   it('shows error on failed login', async () => {

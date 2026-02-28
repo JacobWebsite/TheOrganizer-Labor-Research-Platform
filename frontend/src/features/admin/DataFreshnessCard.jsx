@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDataFreshness, useRefreshFreshness } from '@/shared/api/admin'
 
@@ -63,7 +63,10 @@ export function DataFreshnessCard() {
                   <tr key={row.source_name} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-[#f5f0e8]/50' : ''}`}>
                     <td className='py-2 px-2 font-medium uppercase'>{row.source_name}</td>
                     <td className='py-2 px-2'>{formatNumber(row.row_count)}</td>
-                    <td className='py-2 px-2'>{row.latest_record_date || row.last_refreshed?.split('T')[0] || '\u2014'}</td>
+                    <td className={`py-2 px-2 ${row.stale ? 'text-[#c23a22]' : ''}`}>
+                      {row.stale && <AlertTriangle className="h-3 w-3 inline mr-1" />}
+                      {row.latest_record_date || row.last_refreshed?.split('T')[0] || '\u2014'}
+                    </td>
                     <td className='py-2 px-2'>
                       {row.stale ? (
                         <Badge className='bg-[#c23a22] text-white'>Stale</Badge>

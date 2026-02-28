@@ -17,14 +17,14 @@ function LocalNode({ local }) {
 
   return (
     <div
-      className="flex items-center justify-between py-1.5 px-3 hover:bg-accent/50 cursor-pointer text-sm"
+      className="flex items-center justify-between py-1.5 px-3 hover:bg-[#ede7db] cursor-pointer text-sm"
       style={{ paddingLeft: '64px' }}
       onClick={() => navigate(`/unions/${local.f_num}`)}
     >
       <span className="truncate">{local.union_name || `Local ${local.f_num}`}</span>
       <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
         {local.city && <span>{local.city}</span>}
-        <span className="w-16 text-right">{formatNumber(local.members)}</span>
+        <span className="w-16 text-right text-[#1a6b5a]">{formatNumber(local.members)}</span>
       </div>
     </div>
   )
@@ -63,9 +63,9 @@ function StateNode({ affAbbr, stateName, stateData }) {
       </div>
 
       {expanded && (
-        <div>
+        <div className="border-l-2 border-l-[#d9cebb] ml-8 pl-0">
           {isLoading && (
-            <div className="py-2 text-xs text-muted-foreground" style={{ paddingLeft: '64px' }}>
+            <div className="py-2 text-xs text-muted-foreground pl-8">
               Loading locals...
             </div>
           )}
@@ -73,7 +73,7 @@ function StateNode({ affAbbr, stateName, stateData }) {
             <LocalNode key={local.f_num} local={local} />
           ))}
           {!isLoading && locals.length === 0 && (
-            <div className="py-2 text-xs text-muted-foreground" style={{ paddingLeft: '64px' }}>
+            <div className="py-2 text-xs text-muted-foreground pl-8">
               No locals found
             </div>
           )}
@@ -101,7 +101,7 @@ function AffiliationNode({ affiliation }) {
       >
         <div className="flex items-center gap-2">
           <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', expanded && 'rotate-90')} />
-          <span className="font-semibold text-sm">{affiliation.aff_abbr}</span>
+          <span className="font-editorial text-base font-semibold">{affiliation.aff_abbr}</span>
           <span className="text-sm text-muted-foreground truncate max-w-[300px]">{affiliation.name}</span>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">

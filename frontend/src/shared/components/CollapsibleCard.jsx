@@ -1,16 +1,40 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
-export function CollapsibleCard({ icon: Icon, title, summary, defaultOpen = false, children }) {
-  const [open, setOpen] = useState(defaultOpen)
+function usePersistedState(storageKey, defaultOpen) {
+  const [isOpen, setIsOpen] = useState(() => {
+    if (!storageKey) return defaultOpen
+    try {
+      const saved = localStorage.getItem(storageKey)
+      return saved !== null ? saved === 'true' : defaultOpen
+    } catch {
+      return defaultOpen
+    }
+  })
+
+  const toggle = useCallback(() => {
+    setIsOpen((prev) => {
+      const next = !prev
+      if (storageKey) {
+        try { localStorage.setItem(storageKey, String(next)) } catch {}
+      }
+      return next
+    })
+  }, [storageKey])
+
+  return [isOpen, toggle]
+}
+
+export function CollapsibleCard({ icon: Icon, title, summary, defaultOpen = false, storageKey, children }) {
+  const [open, toggle] = usePersistedState(storageKey, defaultOpen)
 
   return (
     <Card>
       <CardHeader
         className="cursor-pointer select-none"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

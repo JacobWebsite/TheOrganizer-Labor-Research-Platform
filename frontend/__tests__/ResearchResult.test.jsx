@@ -162,9 +162,10 @@ describe('ResearchResultPage', () => {
     useResearchStatus.mockReturnValue({ data: MOCK_STATUS_COMPLETED, isLoading: false, isError: false })
     useResearchResult.mockReturnValue({ data: MOCK_RESULT, isLoading: false, isError: false })
     renderResultPage()
-    expect(screen.getByText('Company Identity')).toBeInTheDocument()
-    expect(screen.getByText('Labor Relations')).toBeInTheDocument()
-    expect(screen.getByText('Overall Assessment')).toBeInTheDocument()
+    // Section titles now include item counts (e.g. "Company Identity (4)")
+    expect(screen.getByText(/Company Identity/)).toBeInTheDocument()
+    expect(screen.getByText(/Labor Relations/)).toBeInTheDocument()
+    expect(screen.getByText(/Overall Assessment/)).toBeInTheDocument()
   })
 
   it('renders quality score for completed run', () => {

@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Target, SearchX } from 'lucide-react'
 import { useTargetsState } from './useTargetsState'
-import { useNonUnionTargets } from '@/shared/api/targets'
+import { useNonUnionTargets, useTargetStats, useTargetScorecardStats } from '@/shared/api/targets'
 import { TargetStats } from './TargetStats'
 import { TargetsFilters } from './TargetsFilters'
 import { TargetsTable } from './TargetsTable'
@@ -10,10 +11,22 @@ import { HelpSection } from '@/shared/components/HelpSection'
 
 const PAGE_SIZE = 50
 
+const TIER_COLORS = {
+  Priority: '#c23a22',
+  Strong: '#1a6b5a',
+  Promising: '#c78c4e',
+  Moderate: '#8a7e6d',
+  Low: '#d9cebb',
+}
+
 export function TargetsPage() {
+  const navigate = useNavigate()
   const { filters, sort, order, page, hasActiveFilters, setFilter, clearFilter, clearAll, setSort, setPage } = useTargetsState()
 
   useEffect(() => { document.title = 'Organizing Targets - The Organizer' }, [])
+
+  const statsQuery = useTargetStats()
+  const scorecardStatsQuery = useTargetScorecardStats()
 
   const { data, isLoading, isError, error } = useNonUnionTargets({
     q: filters.q || undefined,
@@ -34,7 +47,79 @@ export function TargetsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-editorial text-3xl font-bold">Organizing Targets</h1>
+      <h1 className="font-editorial text-[32px] font-bold">Organizing Targets</h1>
+      <p className="text-base text-[#2c2418]">
+        <strong className="text-[#c23a22] text-xl">{statsQuery.data?.flags?.enforcement_true?.toLocaleString() || '---'}</strong>
+        {' '}enforcement targets identified across{' '}
+        {statsQuery.data?.total?.toLocaleString() || '---'} non-union employers
+      </p>
+
+      {/* Gold standard tier distribution bar */}
+      {scorecardStatsQuery.data?.gold_standard_tiers && (() => {
+        const tiers = scorecardStatsQuery.data.gold_standard_tiers
+        const tierMap = {}
+        tiers.forEach(t => { tierMap[t.tier] = t.count })
+        const totalScored = scorecardStatsQuery.data.total_scored || 1
+        const ordered = ['bronze', 'silver', 'gold', 'platinum']
+        const tierColors = { bronze: '#8b5e3c', silver: '#6b6b6b', gold: '#c78c4e', platinum: '#6b5b8a', stub: '#d9cebb' }
+        const nonStub = ordered.filter(t => tierMap[t])
+        if (nonStub.length === 0) return null
+        return (
+          <div className="w-full h-8 rounded-md border border-[#d9cebb] flex overflow-hidden">
+            {ordered.map((tier) => {
+              const count = tierMap[tier] || 0
+              const pct = (count / totalScored) * 100
+              if (pct === 0) return null
+              return (
+                <div
+                  key={tier}
+                  className="flex items-center justify-center text-xs font-medium text-white overflow-hidden"
+                  style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: tierColors[tier] }}
+                  title={`${tier}: ${count.toLocaleString()}`}
+                >
+                  {pct > 8 && <span className="capitalize">{tier} {count.toLocaleString()}</span>}
+                </div>
+              )
+            })}
+            {tierMap['stub'] > 0 && (
+              <div
+                className="flex items-center justify-center text-xs font-medium text-[#2c2418] overflow-hidden flex-1"
+                style={{ backgroundColor: '#d9cebb' }}
+                title={`Unrated: ${tierMap['stub'].toLocaleString()}`}
+              >
+                <span>Unrated {tierMap['stub'].toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Top Priority targets */}
+      {data && (() => {
+        const priorityTargets = (data.results || []).filter(r => r.gold_standard_tier === 'bronze' || r.signals_present >= 4).slice(0, 5)
+        if (priorityTargets.length === 0) return null
+        return (
+          <div>
+            <h2 className="font-editorial text-lg mb-3">Top Priority Targets</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+              {priorityTargets.map((t) => (
+                <div
+                  key={t.id}
+                  className="bg-[#faf6ef] border-l-4 border-l-[#c23a22] border border-[#d9cebb] rounded p-4 cursor-pointer hover:bg-[#f5f0e8] transition-colors"
+                  onClick={() => navigate(`/employers/MASTER-${t.id}`)}
+                >
+                  <p className="font-medium text-sm truncate">{t.display_name}</p>
+                  <p className="font-editorial text-lg font-bold text-[#c23a22] mt-1">{t.signals_present || 0}/8</p>
+                  <p className="text-[11px] text-[#8a7e6d] mt-1 truncate">{t.industry || t.naics_description || '--'}</p>
+                  {t.employee_count != null && (
+                    <p className="text-[11px] text-[#8a7e6d]">{Number(t.employee_count).toLocaleString()} workers</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       <HelpSection>
         <p><strong>What this page is for:</strong> This page shows organizing targets -- employers ranked by their potential for a successful organizing campaign. These are employers where the available data suggests favorable conditions for workers to organize.</p>

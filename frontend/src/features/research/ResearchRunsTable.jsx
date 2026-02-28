@@ -1,18 +1,20 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const STATUS_STYLES = {
-  pending: 'bg-[#c78c4e]/15 text-[#c78c4e]',
-  running: 'bg-[#3a6b8c]/15 text-[#3a6b8c]',
-  completed: 'bg-[#3a7d44]/15 text-[#3a7d44]',
-  failed: 'bg-[#c23a22]/15 text-[#c23a22]',
+  pending: { bg: 'bg-[#8a7e6d]/10', text: 'text-[#8a7e6d]', dot: 'bg-[#8a7e6d]' },
+  running: { bg: 'bg-[#c78c4e]/10', text: 'text-[#c78c4e]', dot: 'bg-[#c78c4e]' },
+  completed: { bg: 'bg-[#3a7d44]/10', text: 'text-[#3a7d44]', dot: 'bg-[#3a7d44]' },
+  failed: { bg: 'bg-[#c23a22]/10', text: 'text-[#c23a22]', dot: 'bg-[#c23a22]' },
 }
 
 function StatusBadge({ status, progress }) {
+  const style = STATUS_STYLES[status] || { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' }
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium', STATUS_STYLES[status] || 'bg-muted text-muted-foreground')}>
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium', style.bg, style.text)}>
+      <span className={cn('inline-block h-2 w-2 rounded-full', style.dot, status === 'running' && 'animate-pulse')} />
       {status}
       {status === 'running' && progress != null && (
         <span className="text-[10px]">{progress}%</span>
@@ -74,7 +76,17 @@ export function ResearchRunsTable({ runs, total, page, pageSize, onPageChange })
                   <StatusBadge status={run.status} progress={run.progress_pct} />
                 </td>
                 <td className="px-3 py-2 font-medium">
-                  <div>{run.company_name}</div>
+                  <div>
+                    {run.employer_id ? (
+                      <Link
+                        to={`/employers/${run.employer_id}`}
+                        className="text-[#1a6b5a] hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {run.company_name}
+                      </Link>
+                    ) : run.company_name}
+                  </div>
                   {run.company_address && (
                     <div className="text-[10px] text-muted-foreground font-normal truncate max-w-[200px]" title={run.company_address}>
                       {run.company_address}

@@ -86,8 +86,8 @@ describe('UnionProfilePage', () => {
     useUnionDetail.mockReturnValue({ data: MOCK_DETAIL, isLoading: false, isError: false })
     renderPage()
     expect(screen.getByText('SEIU Local 1199')).toBeInTheDocument()
-    expect(screen.getByText('New York, NY')).toBeInTheDocument()
-    expect(screen.getByText('SEIU')).toBeInTheDocument()
+    // Affiliation path shown in hero banner (e.g. "SEIU > Private")
+    expect(screen.getByText('SEIU > Private')).toBeInTheDocument()
   })
 
   it('renders membership bars', () => {
