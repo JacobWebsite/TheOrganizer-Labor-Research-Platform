@@ -27,6 +27,7 @@ const SIGNAL_GROUPS = [
       { key: 'signal_contracts', label: 'Federal Contracts' },
       { key: 'signal_financial', label: 'Financial Profile' },
       { key: 'signal_union_density', label: 'Union Density' },
+      { key: 'signal_similarity', label: 'Peer Similarity' },
     ],
   },
   {
@@ -57,36 +58,58 @@ function strengthColor(val) {
   return 'text-[#8a7e6b] bg-[#d9cebb]/50'
 }
 
+function SignalBar({ value }) {
+  if (value == null) return null
+  const pct = Math.min(Number(value) / 10 * 100, 100)
+  return (
+    <div className="w-full bg-[#E8DCC8] rounded h-1.5 mt-1">
+      <div
+        className={cn(
+          'h-full rounded transition-all',
+          value >= 7 ? 'bg-[#c23a22]' : value >= 4 ? 'bg-[#c78c4e]' : 'bg-[#8a7e6b]'
+        )}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  )
+}
+
 function SignalRow({ label, value, explanation }) {
   const present = value != null
   const strength = strengthLabel(value)
 
   return (
-    <div className="flex items-center justify-between py-1.5 px-2 hover:bg-accent/50">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className={cn(
-          'h-2 w-2 shrink-0 rounded-full',
-          present ? 'bg-[#3a7d44]' : 'bg-[#d9cebb]'
-        )} />
-        <span className="text-sm truncate">{label}</span>
+    <div className="py-2 px-2 hover:bg-accent/50">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={cn(
+            'h-2 w-2 shrink-0 rounded-full',
+            present ? 'bg-[#3a7d44]' : 'bg-[#d9cebb]'
+          )} />
+          <span className="text-sm truncate">{label}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {present ? (
+            <>
+              <span className="text-xs tabular-nums font-medium">
+                {Number(value).toFixed(1)}
+              </span>
+              <span className={cn(
+                'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold',
+                strengthColor(value)
+              )}>
+                {strength}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">--</span>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {present ? (
-          <>
-            <span className="text-xs tabular-nums font-medium">
-              {Number(value).toFixed(1)}
-            </span>
-            <span className={cn(
-              'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold',
-              strengthColor(value)
-            )}>
-              {strength}
-            </span>
-          </>
-        ) : (
-          <span className="text-xs text-muted-foreground">--</span>
-        )}
-      </div>
+      {present && <SignalBar value={value} />}
+      {explanation && (
+        <p className="text-[11px] text-[#3D2B1F]/60 mt-1 ml-4 leading-tight">{explanation}</p>
+      )}
     </div>
   )
 }
@@ -121,7 +144,8 @@ export function SignalInventory({ scorecard, signals }) {
   if (!scorecard) return null
 
   const signalsPresent = scorecard.signals_present ?? 0
-  const totalSignals = 8
+  // Count total signal keys across all groups
+  const totalSignals = SIGNAL_GROUPS.reduce((n, g) => n + g.signals.length, 0)
   const hasEnforcement = scorecard.has_enforcement ?? false
   const enforcementCount = scorecard.enforcement_count ?? 0
 
@@ -129,8 +153,21 @@ export function SignalInventory({ scorecard, signals }) {
   const signalExplanations = {}
   if (signals) {
     for (const s of signals) {
-      const key = `signal_${s.signal?.toLowerCase()?.replace(/[^a-z_]/g, '_')}` || s.key
-      signalExplanations[key] = s.explanation
+      // Map from API signal names to scorecard keys
+      const nameMap = {
+        'osha safety': 'signal_osha',
+        'wage & hour': 'signal_whd',
+        'nlrb activity': 'signal_nlrb',
+        'federal contracts': 'signal_contracts',
+        'financial profile': 'signal_financial',
+        'union density': 'signal_union_density',
+        'industry growth': 'signal_industry_growth',
+        'employer size': 'signal_size',
+        'peer similarity': 'signal_similarity',
+        'wage context': 'wage_context',
+      }
+      const key = nameMap[s.signal?.toLowerCase()] || s.key
+      if (key) signalExplanations[key] = s.explanation
     }
   }
 
@@ -199,6 +236,38 @@ export function SignalInventory({ scorecard, signals }) {
           </div>
         )}
       </CardContent>
+      {/* Wage context */}
+      {scorecard.wage_ratio != null && (
+        <CardContent className="pt-0">
+          <div className="border rounded-lg overflow-hidden border-[#3a6b8c]/20">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#3a6b8c]/10">
+              <Users className="h-4 w-4 text-[#3a6b8c]" />
+              <span className="text-sm font-semibold text-[#3a6b8c]">Wage Context</span>
+            </div>
+            <div className="px-3 py-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Employer annual pay</span>
+                <span className="font-medium">${Number(scorecard.employer_annual_pay || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-muted-foreground">Local industry avg (QCEW)</span>
+                <span className="font-medium">${Number(scorecard.qcew_avg_annual_pay || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-muted-foreground">Ratio</span>
+                <span className={cn('font-medium', scorecard.is_low_wage_outlier ? 'text-[#c23a22]' : '')}>
+                  {(Number(scorecard.wage_ratio) * 100).toFixed(0)}%
+                  {scorecard.is_low_wage_outlier && ' (below avg)'}
+                </span>
+              </div>
+              {signalExplanations.wage_context && (
+                <p className="text-[11px] text-[#3D2B1F]/60 mt-1.5 leading-tight">{signalExplanations.wage_context}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      )}
+
       <CardFooter>
         <p className="text-xs text-muted-foreground">
           Signals indicate data presence and strength, not a composite score. Use filters to discover targets.

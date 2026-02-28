@@ -6,12 +6,12 @@ import { apiClient } from './client'
  */
 export function useNonUnionTargets({
   q, state, naics, min_employees, max_employees,
-  is_federal_contractor, is_nonprofit, min_quality,
+  is_federal_contractor, is_nonprofit, has_enforcement, min_signals, min_quality,
   sort = 'quality', order = 'desc', page = 1, limit = 50,
   enabled = true,
 } = {}) {
   return useQuery({
-    queryKey: ['non-union-targets', { q, state, naics, min_employees, max_employees, is_federal_contractor, is_nonprofit, min_quality, sort, order, page, limit }],
+    queryKey: ['non-union-targets', { q, state, naics, min_employees, max_employees, is_federal_contractor, is_nonprofit, has_enforcement, min_signals, min_quality, sort, order, page, limit }],
     queryFn: () => {
       const params = new URLSearchParams()
       if (q) params.set('q', q)
@@ -21,6 +21,8 @@ export function useNonUnionTargets({
       if (max_employees != null) params.set('max_employees', String(max_employees))
       if (is_federal_contractor != null) params.set('is_federal_contractor', String(is_federal_contractor))
       if (is_nonprofit != null) params.set('is_nonprofit', String(is_nonprofit))
+      if (has_enforcement != null) params.set('has_enforcement', String(has_enforcement))
+      if (min_signals != null) params.set('min_signals', String(min_signals))
       if (min_quality != null) params.set('min_quality', String(min_quality))
       params.set('sort', sort)
       params.set('order', order)

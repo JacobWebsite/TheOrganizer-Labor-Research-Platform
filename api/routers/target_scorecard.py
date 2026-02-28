@@ -29,17 +29,45 @@ _SORT_MAP = {
 }
 
 _MV_EXISTS: Optional[bool] = None
+_MV_COLUMNS: Optional[set] = None
 
 
 def _check_mv(cur) -> bool:
-    global _MV_EXISTS
+    global _MV_EXISTS, _MV_COLUMNS
     if _MV_EXISTS is not None:
         return _MV_EXISTS
     cur.execute(
         "SELECT EXISTS (SELECT 1 FROM pg_matviews WHERE matviewname = 'mv_target_scorecard') AS e"
     )
     _MV_EXISTS = bool(cur.fetchone()["e"])
+    if _MV_EXISTS:
+        cur.execute("""
+            SELECT attname FROM pg_attribute
+            WHERE attrelid = 'mv_target_scorecard'::regclass
+              AND attnum > 0 AND NOT attisdropped
+        """)
+        _MV_COLUMNS = {r["attname"] for r in cur.fetchall()}
     return _MV_EXISTS
+
+
+def _has_col(name: str) -> bool:
+    """Check if a column exists in the MV (safe for schema evolution)."""
+    return _MV_COLUMNS is not None and name in _MV_COLUMNS
+
+
+# Columns added after initial MV creation — only selected if present
+_OPTIONAL_COLS = [
+    "signal_similarity", "qcew_avg_annual_pay", "employer_annual_pay",
+    "wage_ratio", "is_low_wage_outlier", "wage_outlier_score",
+]
+
+
+def _extra_cols_sql() -> str:
+    """Build SQL fragment for optional columns that may not exist yet."""
+    present = [c for c in _OPTIONAL_COLS if _has_col(c)]
+    if not present:
+        return ""
+    return ", " + ", ".join(f"ts.{c}" for c in present)
 
 
 @router.get("/api/targets/scorecard")
@@ -156,6 +184,7 @@ def target_scorecard_list(
                     ts.enh_signal_contracts,
                     ts.enh_signal_financial,
                     ts.enh_signal_size
+                    {_extra_cols_sql()}
                 FROM mv_target_scorecard ts
                 WHERE {where}
                 ORDER BY {sort_col} {order_dir} NULLS LAST, ts.display_name ASC
@@ -192,8 +221,10 @@ def target_scorecard_stats():
             # Signal coverage
             signal_cols = [
                 'signal_osha', 'signal_whd', 'signal_nlrb', 'signal_contracts',
-                'signal_financial', 'signal_industry_growth', 'signal_union_density', 'signal_size'
+                'signal_financial', 'signal_industry_growth', 'signal_union_density', 'signal_size',
             ]
+            if _has_col('signal_similarity'):
+                signal_cols.append('signal_similarity')
             signal_coverage = {}
             for col in signal_cols:
                 cur.execute(
@@ -224,6 +255,16 @@ def target_scorecard_stats():
             enforcement_count = int(cur.fetchone()["cnt"])
             cur.execute("SELECT COUNT(*) AS cnt FROM mv_target_scorecard WHERE has_recent_violations")
             recent_count = int(cur.fetchone()["cnt"])
+
+            # Wage context (if columns exist)
+            wage_compared = 0
+            low_wage_count = 0
+            if _has_col("wage_ratio"):
+                cur.execute("SELECT COUNT(*) AS cnt FROM mv_target_scorecard WHERE wage_ratio IS NOT NULL")
+                wage_compared = int(cur.fetchone()["cnt"])
+            if _has_col("is_low_wage_outlier"):
+                cur.execute("SELECT COUNT(*) AS cnt FROM mv_target_scorecard WHERE is_low_wage_outlier")
+                low_wage_count = int(cur.fetchone()["cnt"])
 
             # Top states
             cur.execute("""
@@ -280,6 +321,10 @@ def target_scorecard_stats():
                 },
                 "research_coverage": research_coverage,
                 "gold_standard_tiers": gold_tiers,
+                "wage_context": {
+                    "wage_compared": wage_compared,
+                    "low_wage_outliers": low_wage_count,
+                },
                 "top_states": top_states,
                 "top_industries": top_industries,
             }
@@ -360,6 +405,27 @@ def target_scorecard_detail(master_id: int):
                 emp = scorecard.get("employee_count", 0) or 0
                 _add_signal("Employer Size", "filter", float(size_val),
                             f"{emp:,} employees (filter dimension, not a scoring signal)")
+
+            sim_val = scorecard.get("signal_similarity")
+            if sim_val is not None:
+                _add_signal("Peer Similarity", "leverage", float(sim_val),
+                            "Structural similarity to unionized employers based on industry, size, and location")
+
+            # Wage context (not a signal, but useful context)
+            wage_ratio = scorecard.get("wage_ratio")
+            if wage_ratio is not None:
+                emp_pay = scorecard.get("employer_annual_pay", 0) or 0
+                qcew_pay = scorecard.get("qcew_avg_annual_pay", 0) or 0
+                is_low = scorecard.get("is_low_wage_outlier", False)
+                wage_pct = round((1 - float(wage_ratio)) * 100, 1) if wage_ratio else 0
+                label = f"{'Below' if is_low else 'Near'} local industry average"
+                signals.append({
+                    "signal": "Wage Context",
+                    "category": "stability",
+                    "value": float(scorecard.get("wage_outlier_score") or 0),
+                    "strength": _strength(float(scorecard.get("wage_outlier_score") or 0)),
+                    "explanation": f"Employer ~${float(emp_pay):,.0f}/yr vs local avg ${float(qcew_pay):,.0f}/yr ({wage_pct:+.1f}%). {label}.",
+                })
 
             # Research section
             research = None

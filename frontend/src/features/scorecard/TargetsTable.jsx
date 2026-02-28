@@ -22,6 +22,24 @@ const SOURCE_STYLES = {
   corpwatch: 'bg-[#6b5b8a] text-white',
 }
 
+const TIER_STYLES = {
+  platinum: 'bg-gradient-to-r from-[#6b5b8a] to-[#8b7baa] text-white',
+  gold:     'bg-gradient-to-r from-[#8B6914] to-[#c78c4e] text-white',
+  silver:   'bg-gradient-to-r from-[#6b6b6b] to-[#8a8a8a] text-white',
+  bronze:   'bg-[#8b5e3c] text-white',
+  stub:     'bg-[#d9cebb] text-[#8a7e6b]',
+}
+
+function TierBadge({ tier }) {
+  if (!tier || tier === 'stub') return null
+  const style = TIER_STYLES[tier] || TIER_STYLES.stub
+  return (
+    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase ${style}`}>
+      {tier}
+    </span>
+  )
+}
+
 function SourceBadge({ source }) {
   const style = SOURCE_STYLES[source] || 'bg-muted text-muted-foreground'
   return (
@@ -116,17 +134,26 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
       cell: ({ getValue }) => <QualityIndicator score={getValue()} />,
     },
     {
+      id: 'tier',
+      header: 'Tier',
+      accessorKey: 'gold_standard_tier',
+      cell: ({ getValue }) => <TierBadge tier={getValue()} />,
+    },
+    {
       id: 'flags',
       header: 'Flags',
       cell: ({ row }) => {
         const badges = []
         if (row.original.is_federal_contractor) badges.push('Fed Contractor')
         if (row.original.is_nonprofit) badges.push('Nonprofit')
+        if (row.original.is_low_wage_outlier) badges.push('Low Wage')
         if (badges.length === 0) return null
         return (
           <div className="flex gap-1">
             {badges.map((b) => (
-              <span key={b} className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border bg-muted">
+              <span key={b} className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border ${
+                b === 'Low Wage' ? 'bg-[#c23a22]/10 text-[#c23a22] border-[#c23a22]/20' : 'bg-muted'
+              }`}>
                 {b}
               </span>
             ))}

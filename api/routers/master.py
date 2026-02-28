@@ -93,6 +93,8 @@ def _search_impl(
     is_federal_contractor: Optional[bool],
     is_nonprofit: Optional[bool],
     min_quality: Optional[int],
+    has_enforcement: Optional[bool] = None,
+    min_signals: Optional[int] = None,
     sort: str,
     order: str,
     page: int,
@@ -143,6 +145,12 @@ def _search_impl(
         if has_labor_col:
             conditions.append("COALESCE(m.is_labor_org, FALSE) = FALSE")
         conditions.append("m.data_quality_score >= 40")
+        if has_enforcement is not None:
+            conditions.append("ts.has_enforcement = %s")
+            params.append(has_enforcement)
+        if min_signals is not None:
+            conditions.append("ts.signals_present >= %s")
+            params.append(min_signals)
 
     where = " AND ".join(conditions)
 
@@ -157,14 +165,10 @@ def _search_impl(
         sort_col = "m.data_quality_score"
         order_dir = "DESC"
 
-    cur.execute(f"SELECT COUNT(*) AS cnt FROM master_employers m WHERE {where}", params)
-    total = int(cur.fetchone()["cnt"])
-
-    offset = (page - 1) * limit
-    q_params = params + [limit, offset]
     # LEFT JOIN target scorecard signals for non-union discovery
     ts_select = ""
     ts_join = ""
+    needs_ts_join = has_enforcement is not None or min_signals is not None
     if force_non_union_targets:
         ts_select = """,
           ts.signals_present,
@@ -179,8 +183,19 @@ def _search_impl(
           ts.signal_industry_growth,
           ts.signal_union_density,
           ts.pillar_anger,
-          ts.pillar_leverage"""
+          ts.pillar_leverage,
+          ts.pillar_stability,
+          ts.gold_standard_tier,
+          ts.is_low_wage_outlier"""
         ts_join = f"LEFT JOIN mv_target_scorecard ts ON ts.master_id = m.{pk_col}"
+
+    # COUNT query needs the ts JOIN if filters reference ts columns
+    count_join = ts_join if needs_ts_join else ""
+    cur.execute(f"SELECT COUNT(*) AS cnt FROM master_employers m {count_join} WHERE {where}", params)
+    total = int(cur.fetchone()["cnt"])
+
+    offset = (page - 1) * limit
+    q_params = params + [limit, offset]
 
     cur.execute(
         f"""
@@ -267,6 +282,8 @@ def master_non_union_targets(
     source_origin: Optional[str] = None,
     is_federal_contractor: Optional[bool] = None,
     is_nonprofit: Optional[bool] = None,
+    has_enforcement: Optional[bool] = None,
+    min_signals: Optional[int] = Query(default=None, ge=0, le=9),
     min_quality: Optional[int] = Query(default=40, ge=0, le=100),
     sort: str = Query(default="quality", pattern="^(name|quality|employees)$"),
     order: str = Query(default="desc", pattern="^(asc|desc)$"),
@@ -287,6 +304,8 @@ def master_non_union_targets(
                 has_union=False,
                 is_federal_contractor=is_federal_contractor,
                 is_nonprofit=is_nonprofit,
+                has_enforcement=has_enforcement,
+                min_signals=min_signals,
                 min_quality=min_quality,
                 sort=sort,
                 order=order,

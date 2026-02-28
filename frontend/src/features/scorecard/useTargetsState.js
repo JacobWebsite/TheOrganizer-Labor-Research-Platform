@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-const FILTER_KEYS = ['q', 'state', 'naics', 'min_employees', 'max_employees', 'is_federal_contractor', 'is_nonprofit', 'min_quality']
+const FILTER_KEYS = ['q', 'state', 'naics', 'min_employees', 'max_employees', 'is_federal_contractor', 'is_nonprofit', 'min_quality', 'has_enforcement', 'min_signals']
 
 /**
  * Syncs targets page filter/sort/page state with URL search params.
@@ -18,6 +18,8 @@ export function useTargetsState() {
     is_federal_contractor: searchParams.get('is_federal_contractor') || '',
     is_nonprofit: searchParams.get('is_nonprofit') || '',
     min_quality: searchParams.get('min_quality') || '',
+    has_enforcement: searchParams.get('has_enforcement') || '',
+    min_signals: searchParams.get('min_signals') || '',
   }), [searchParams])
 
   const sort = searchParams.get('sort') || 'quality'

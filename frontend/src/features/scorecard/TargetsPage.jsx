@@ -23,6 +23,8 @@ export function TargetsPage() {
     max_employees: filters.max_employees ? Number(filters.max_employees) : undefined,
     is_federal_contractor: filters.is_federal_contractor ? filters.is_federal_contractor === 'true' : undefined,
     is_nonprofit: filters.is_nonprofit ? filters.is_nonprofit === 'true' : undefined,
+    has_enforcement: filters.has_enforcement ? filters.has_enforcement === 'true' : undefined,
+    min_signals: filters.min_signals ? Number(filters.min_signals) : undefined,
     min_quality: filters.min_quality ? Number(filters.min_quality) : undefined,
     sort,
     order,
@@ -57,6 +59,8 @@ export function TargetsPage() {
         onClearFilter={clearFilter}
         onClearAll={clearAll}
         onSetSort={setSort}
+        currentResults={data?.results}
+        totalCount={data?.total}
       />
 
       {isLoading && !data && <PageSkeleton variant="targets" />}

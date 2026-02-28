@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { SlidersHorizontal, X, Search } from 'lucide-react'
+import { SlidersHorizontal, X, Search, Download, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -12,6 +12,33 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'Name (A-Z)' },
   { value: 'signals', label: 'Signals (most)' },
   { value: 'enforcement', label: 'Enforcement (most)' },
+]
+
+const PRESET_FILTERS = [
+  {
+    label: 'Enforcement-flagged',
+    icon: '!',
+    filters: { has_enforcement: 'true', min_signals: '2' },
+    description: 'Employers with OSHA/WHD/NLRB violations + 2+ signals',
+  },
+  {
+    label: 'Large employers',
+    icon: null,
+    filters: { min_employees: '500', min_quality: '50' },
+    description: '500+ employees, quality 50+',
+  },
+  {
+    label: 'Fed contractors',
+    icon: null,
+    filters: { is_federal_contractor: 'true', min_signals: '2' },
+    description: 'Government contractors with 2+ signals',
+  },
+  {
+    label: 'Nonprofits',
+    icon: null,
+    filters: { is_nonprofit: 'true', min_signals: '2' },
+    description: 'Nonprofit employers with 2+ signals',
+  },
 ]
 
 const BOOL_OPTIONS = [
@@ -33,10 +60,38 @@ const FILTER_LABELS = {
   min_signals: 'Min signals',
 }
 
+function exportCSV(rows) {
+  const cols = [
+    'display_name', 'city', 'state', 'naics', 'employee_count',
+    'source_origin', 'signals_present', 'has_enforcement',
+    'signal_osha', 'signal_whd', 'signal_nlrb',
+    'signal_contracts', 'signal_financial', 'signal_industry_growth',
+    'signal_union_density', 'gold_standard_tier',
+    'is_federal_contractor', 'is_nonprofit',
+  ]
+  const header = cols.join(',')
+  const csvRows = rows.map(r =>
+    cols.map(c => {
+      const v = r[c]
+      if (v == null) return ''
+      const s = String(v)
+      return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s
+    }).join(',')
+  )
+  const csv = [header, ...csvRows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `organizing_targets_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 /**
  * Filter bar for targets page: search + dropdowns + toggles + active chips.
  */
-export function TargetsFilters({ filters, sort, onSetFilter, onClearFilter, onClearAll, onSetSort }) {
+export function TargetsFilters({ filters, sort, onSetFilter, onClearFilter, onClearAll, onSetSort, currentResults, totalCount }) {
   const [expanded, setExpanded] = useState(
     Boolean(filters.state || filters.naics || filters.min_employees || filters.max_employees ||
             filters.is_federal_contractor || filters.is_nonprofit || filters.min_quality)
@@ -124,6 +179,38 @@ export function TargetsFilters({ filters, sort, onSetFilter, onClearFilter, onCl
             Clear all
           </Button>
         )}
+
+        {currentResults && currentResults.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportCSV(currentResults)}
+            className="gap-1.5 ml-auto"
+          >
+            <Download className="h-4 w-4" />
+            CSV
+          </Button>
+        )}
+      </div>
+
+      {/* Preset filter combos */}
+      <div className="flex flex-wrap gap-1.5">
+        {PRESET_FILTERS.map((preset) => (
+          <Button
+            key={preset.label}
+            variant="outline"
+            size="sm"
+            className="text-xs gap-1"
+            title={preset.description}
+            onClick={() => {
+              onClearAll()
+              Object.entries(preset.filters).forEach(([k, v]) => onSetFilter(k, v))
+            }}
+          >
+            <Zap className="h-3 w-3" />
+            {preset.label}
+          </Button>
+        ))}
       </div>
 
       {/* Active filter chips */}

@@ -207,7 +207,7 @@ similarity_agg AS (
         COUNT(*) FILTER (WHERE me.is_union) AS unionized_comparable_count,
         MIN(ec.gower_distance)::numeric AS best_distance
     FROM employer_comparables ec
-    JOIN master_employers me ON me.id = ec.comparable_employer_id
+    JOIN master_employers me ON me.master_id = ec.comparable_employer_id
     GROUP BY ec.employer_id
 ),
 -- Research enhancement bridge: link research_score_enhancements to master_ids via F7 source IDs
@@ -738,6 +738,23 @@ def _print_stats(cur):
         cnt, avg = cur.fetchone()
         pct = 100.0 * cnt / total if total > 0 else 0
         print(f"    {col:20s}: {cnt:>10,} ({pct:5.1f}%) avg={avg}")
+
+    # Wage context
+    cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE wage_outlier_score IS NOT NULL")
+    wage_cnt = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE is_low_wage_outlier")
+    low_wage_cnt = cur.fetchone()[0]
+    print(f"\n  Wage context:")
+    print(f"    Has wage comparison: {wage_cnt:>10,} ({100.0*wage_cnt/total:.2f}%)")
+    if wage_cnt > 0:
+        print(f"    Low-wage outliers:   {low_wage_cnt:>10,} ({100.0*low_wage_cnt/wage_cnt:.1f}% of compared)")
+        cur.execute("""
+            SELECT ROUND(AVG(qcew_avg_annual_pay)::numeric, 0),
+                   ROUND(AVG(wage_ratio)::numeric, 3)
+            FROM mv_target_scorecard WHERE wage_outlier_score IS NOT NULL
+        """)
+        avg_pay, avg_ratio = cur.fetchone()
+        print(f"    Avg QCEW local pay: ${avg_pay:,.0f}, avg wage ratio: {avg_ratio}")
 
     # Research integration
     cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE has_research")

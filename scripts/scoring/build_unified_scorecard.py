@@ -189,7 +189,7 @@ similarity_agg AS (
         MIN(ec.gower_distance)::numeric AS best_distance
     FROM master_employer_source_ids mesi
     JOIN employer_comparables ec ON ec.employer_id = mesi.master_id
-    JOIN master_employers me ON me.id = ec.comparable_employer_id
+    JOIN master_employers me ON me.master_id = ec.comparable_employer_id
     WHERE mesi.source_system = 'f7'
     GROUP BY mesi.source_id
 ),
