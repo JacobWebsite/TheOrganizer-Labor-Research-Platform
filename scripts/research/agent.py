@@ -280,12 +280,17 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - Mergent business data (search_mergent)
    - GLEIF corporate ownership (search_gleif_ownership) -- ALWAYS call this. Returns parent companies and subsidiaries.
    - Solidarity Network (search_solidarity_network) -- ALWAYS call this. Finds unionized sister facilities in the corporate family.
+   - Form 5500 benefit plans (search_form5500) -- ALWAYS call this. Returns pension/welfare plan data, participant counts, and collective bargaining indicators.
+   - PPP loans (search_ppp_loans) -- Call this. Returns pandemic-era loan amounts, forgiveness status, and jobs retained.
 
 2. **Get industry and local context:**
-   - BLS industry profile (get_industry_profile) -- needs a NAICS code
+   - BLS industry profile (get_industry_profile) -- needs a NAICS code. Now includes CBP local establishment counts if state is provided.
    - Similar organized employers (get_similar_employers)
    - Local demographics (search_local_demographics) -- ALWAYS call this. Pass the city and state. Returns population, race, and income context.
    - Taxpayer Subsidies (search_local_subsidies) -- ALWAYS call this. Returns local tax breaks and grants.
+   - CBP industry context (search_cbp_context) -- ALWAYS call this if NAICS is known. Returns local establishment counts, employment, and avg wages.
+   - LODES workforce data (search_lodes_workforce) -- Call if state/county is known. Returns job counts, earnings tiers, and industry mix.
+   - ABS firm demographics (search_abs_demographics) -- Call if NAICS is known. Returns firm owner demographics by industry.
 
 3. **Get additional enrichment** (these tools fill critical gaps):
    - SEC proxy executive pay (search_sec_proxy) -- ONLY for public companies. Pass any CIK or ticker you found from search_sec results. Returns top executive compensation.
@@ -629,6 +634,26 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             return ("subsidies", res)
         return None
     forced_tasks.append(_f_subsidies())
+
+    async def _f_form5500():
+        if "search_form5500" in tools_called_set: return None
+        res = await asyncio.to_thread(TOOL_REGISTRY["search_form5500"], company_name=run["company_name"], employer_id=run.get("employer_id"), state=run.get("company_state"))
+        return ("form5500", res)
+    forced_tasks.append(_f_form5500())
+
+    async def _f_cbp():
+        if "search_cbp_context" in tools_called_set: return None
+        naics = run.get("naics")
+        if not naics:
+            d = _extract_dossier_json(final_text)
+            if d:
+                try: naics = d.get("dossier", {}).get("identity", {}).get("naics_code")
+                except: pass
+        if naics:
+            res = await asyncio.to_thread(TOOL_REGISTRY["search_cbp_context"], company_name=run["company_name"], naics=naics, state=run.get("company_state"))
+            return ("cbp", res)
+        return None
+    forced_tasks.append(_f_cbp())
 
     enrich_res = await asyncio.gather(*(t for t in forced_tasks if t is not None))
     

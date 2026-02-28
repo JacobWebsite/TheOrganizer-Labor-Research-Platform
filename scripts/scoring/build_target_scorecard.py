@@ -168,6 +168,21 @@ financial_990 AS (
       AND f.total_revenue IS NOT NULL
     GROUP BY m.master_id
 ),
+-- Form 5500: benefit plan data linked via master_employer_source_ids
+financial_form5500 AS (
+    SELECT
+        f5sid.master_id,
+        MAX(f.total_active_participants) AS f5500_participants,
+        MAX(f.plan_count) AS f5500_plan_count,
+        BOOL_OR(f.has_collective_bargaining) AS f5500_has_cb,
+        BOOL_OR(f.has_pension) AS f5500_has_pension,
+        BOOL_OR(f.has_welfare) AS f5500_has_welfare,
+        MAX(f.years_filed) AS f5500_years_filed
+    FROM cur_form5500_sponsor_rollup f
+    JOIN master_employer_source_ids f5sid
+        ON f5sid.source_system = 'form5500' AND f5sid.source_id = f.sponsor_ein
+    GROUP BY f5sid.master_id
+),
 -- BLS industry projections
 bls_proj AS (
     SELECT matrix_code, employment_change_pct
@@ -327,28 +342,50 @@ raw_signals AS (
             WHEN tds.is_federal_contractor THEN 5
         END AS signal_contracts,
 
-        -- SIGNAL: Financial (0-10) -- 990 nonprofit health + public company flag
-        CASE
-            WHEN f990.latest_revenue IS NOT NULL THEN LEAST(10, GREATEST(0,
-                CASE
-                    WHEN f990.latest_revenue >= 10000000 THEN 6
-                    WHEN f990.latest_revenue >= 1000000 THEN 4
-                    WHEN f990.latest_revenue >= 100000 THEN 2
-                    ELSE 0
-                END
-                + CASE
-                    WHEN COALESCE(f990.latest_assets, 0) > COALESCE(f990.latest_expenses, 1) * 2 THEN 2
-                    WHEN COALESCE(f990.latest_assets, 0) > COALESCE(f990.latest_expenses, 1) THEN 1
-                    ELSE 0
-                END
-                + CASE
-                    WHEN f990.latest_revenue / NULLIF(GREATEST(COALESCE(tds.employee_count, 1), 1), 0) >= 50000 THEN 2
-                    WHEN f990.latest_revenue / NULLIF(GREATEST(COALESCE(tds.employee_count, 1), 1), 0) >= 20000 THEN 1
-                    ELSE 0
-                END
-            ))
-            WHEN tds.is_public THEN 7
-        END AS signal_financial,
+        -- SIGNAL: Financial (0-10) -- GREATEST of 990 score and Form 5500 score
+        GREATEST(
+            -- 990-based financial score
+            CASE
+                WHEN f990.latest_revenue IS NOT NULL THEN LEAST(10, GREATEST(0,
+                    CASE
+                        WHEN f990.latest_revenue >= 10000000 THEN 6
+                        WHEN f990.latest_revenue >= 1000000 THEN 4
+                        WHEN f990.latest_revenue >= 100000 THEN 2
+                        ELSE 0
+                    END
+                    + CASE
+                        WHEN COALESCE(f990.latest_assets, 0) > COALESCE(f990.latest_expenses, 1) * 2 THEN 2
+                        WHEN COALESCE(f990.latest_assets, 0) > COALESCE(f990.latest_expenses, 1) THEN 1
+                        ELSE 0
+                    END
+                    + CASE
+                        WHEN f990.latest_revenue / NULLIF(GREATEST(COALESCE(tds.employee_count, 1), 1), 0) >= 50000 THEN 2
+                        WHEN f990.latest_revenue / NULLIF(GREATEST(COALESCE(tds.employee_count, 1), 1), 0) >= 20000 THEN 1
+                        ELSE 0
+                    END
+                ))
+                WHEN tds.is_public THEN 7
+            END,
+            -- Form 5500-based financial score (benefit plan richness)
+            CASE
+                WHEN ff5.f5500_participants IS NOT NULL THEN LEAST(10, GREATEST(0,
+                    CASE
+                        WHEN ff5.f5500_participants >= 1000 THEN 3
+                        WHEN ff5.f5500_participants >= 500 THEN 2
+                        WHEN ff5.f5500_participants >= 100 THEN 1
+                        ELSE 0
+                    END
+                    + CASE
+                        WHEN ff5.f5500_plan_count >= 5 THEN 4
+                        WHEN ff5.f5500_plan_count >= 3 THEN 3
+                        WHEN ff5.f5500_plan_count >= 2 THEN 2
+                        ELSE 1
+                    END
+                    + CASE WHEN ff5.f5500_has_pension THEN 2 ELSE 0 END
+                    + CASE WHEN ff5.f5500_has_welfare THEN 1 ELSE 0 END
+                ))
+            END
+        ) AS signal_financial,
 
         -- SIGNAL: Industry Growth (0-10) -- BLS employment projections
         CASE
@@ -481,6 +518,7 @@ raw_signals AS (
         ELSE NULL
     END
     LEFT JOIN financial_990 f990 ON f990.master_id = tds.master_id
+    LEFT JOIN financial_form5500 ff5 ON ff5.master_id = tds.master_id
     LEFT JOIN research_bridge rb ON rb.master_id = tds.master_id
     WHERE tds.source_count >= 1
 ),

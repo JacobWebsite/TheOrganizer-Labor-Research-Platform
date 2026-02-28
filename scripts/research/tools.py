@@ -1107,6 +1107,27 @@ def get_industry_profile(
                         "typical_education": wr.get("typical_education"),
                     })
 
+        # CBP local context: establishment counts and employment for this NAICS + state
+        cbp_local = None
+        if state:
+            for prefix_len in [len(naics), 4, 3, 2]:
+                naics_prefix = naics[:prefix_len]
+                cur.execute("""
+                    SELECT naics, naics_label, establishment_count, employment,
+                           annual_payroll, avg_weekly_wage
+                    FROM cur_cbp_geo_naics
+                    WHERE state_fips = (
+                        SELECT state_fips AS fips FROM state_fips_map WHERE state_abbr = %s LIMIT 1
+                    )
+                    AND naics = %s
+                    AND (county_fips IS NULL OR county_fips IN ('', '000'))
+                    LIMIT 1
+                """, (state.upper(), naics_prefix))
+                cbp_local = cur.fetchone()
+                if cbp_local:
+                    cbp_local = _safe_dict(cbp_local)
+                    break
+
         conn.close()
 
         data = {
@@ -1116,6 +1137,7 @@ def get_industry_profile(
             "pay_ranges": pay_ranges,
             "national_density": national_density,
             "state_density": state_density,
+            "cbp_local_context": cbp_local,
         }
 
         summary = f"Industry {bls_code} ({national_density['industry_name'] if national_density else 'N/A'}). "
@@ -1129,6 +1151,8 @@ def get_industry_profile(
             summary += f"National union density: {national_density['union_density_pct']}%."
         if state_density:
             summary += f" State ({state}) estimated density: {state_density['estimated_density']}%."
+        if cbp_local:
+            summary += f" CBP local ({state}): {cbp_local.get('establishment_count', 0):,} establishments, {cbp_local.get('employment', 0):,} employees, avg ${cbp_local.get('avg_weekly_wage', 0):,.0f}/week."
 
         return {"found": True, "source": source, "summary": summary, "data": data}
 
@@ -2910,6 +2934,407 @@ def search_local_subsidies(
 
 
 # ---------------------------------------------------------------------------
+# TOOL: search_form5500
+# ---------------------------------------------------------------------------
+
+def search_form5500(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search Form 5500 benefit plan filings for this employer."""
+    source = "database:cur_form5500_sponsor_rollup"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        rows = []
+
+        # Tier 1: If employer_id, go through master bridge to get EIN
+        if employer_id:
+            cur.execute("""
+                SELECT f.* FROM cur_form5500_sponsor_rollup f
+                JOIN master_employer_source_ids f5sid
+                    ON f5sid.source_system = 'form5500' AND f5sid.source_id = f.sponsor_ein
+                JOIN master_employer_source_ids f7sid
+                    ON f7sid.master_id = f5sid.master_id AND f7sid.source_system = 'f7'
+                WHERE f7sid.source_id = %s
+                LIMIT 10
+            """, (employer_id,))
+            rows = cur.fetchall()
+
+        # Tier 2: Name + state fallback
+        if not rows and company_name:
+            name_upper = company_name.strip().upper()
+            params = [f"%{name_upper}%"]
+            where = "UPPER(f.sponsor_name) LIKE %s"
+            if state:
+                where += " AND f.sponsor_state = %s"
+                params.append(state.upper())
+            cur.execute(f"""
+                SELECT * FROM cur_form5500_sponsor_rollup f
+                WHERE {where}
+                ORDER BY f.total_active_participants DESC NULLS LAST
+                LIMIT 10
+            """, params)
+            rows = cur.fetchall()
+
+        conn.close()
+
+        if not rows:
+            return {"found": False, "source": source,
+                    "summary": f"No Form 5500 filings found for {company_name}.",
+                    "data": {}}
+
+        top = rows[0]
+        data = {
+            "sponsor_count": len(rows),
+            "sponsor_ein": top.get("sponsor_ein"),
+            "sponsor_name": top.get("sponsor_name"),
+            "plan_count": _safe(top.get("plan_count")),
+            "total_active_participants": _safe(top.get("total_active_participants")),
+            "total_participants_beneficiaries": _safe(top.get("total_participants_beneficiaries")),
+            "has_collective_bargaining": top.get("has_collective_bargaining"),
+            "has_pension": top.get("has_pension"),
+            "has_welfare": top.get("has_welfare"),
+            "latest_plan_year": _safe(top.get("latest_plan_year")),
+            "earliest_plan_year": _safe(top.get("earliest_plan_year")),
+            "years_filed": _safe(top.get("years_filed")),
+            "all_sponsors": _safe_list(rows[:5]),
+        }
+
+        summary = f"Form 5500: {top.get('sponsor_name', 'N/A')} has {top.get('plan_count', 0)} benefit plan(s)"
+        if top.get("total_active_participants"):
+            summary += f" covering {top['total_active_participants']:,} active participants"
+        summary += f". Filed {top.get('years_filed', 0)} year(s) ({top.get('earliest_plan_year', '?')}-{top.get('latest_plan_year', '?')})."
+        if top.get("has_collective_bargaining"):
+            summary += " Has collective bargaining plan."
+        if top.get("has_pension"):
+            summary += " Offers pension."
+        if top.get("has_welfare"):
+            summary += " Offers welfare benefits."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_ppp_loans
+# ---------------------------------------------------------------------------
+
+def search_ppp_loans(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search PPP loan data for this employer (pandemic-era financial context)."""
+    source = "database:cur_ppp_employer_rollup"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        name_upper = company_name.strip().upper()
+        params = [f"%{name_upper}%"]
+        where = "UPPER(p.borrower_name) LIKE %s"
+        if state:
+            where += " AND p.borrower_state = %s"
+            params.append(state.upper())
+
+        cur.execute(f"""
+            SELECT * FROM cur_ppp_employer_rollup p
+            WHERE {where}
+            ORDER BY p.total_current_amount DESC NULLS LAST
+            LIMIT 10
+        """, params)
+        rows = cur.fetchall()
+        conn.close()
+
+        if not rows:
+            return {"found": False, "source": source,
+                    "summary": f"No PPP loans found for {company_name}.",
+                    "data": {}}
+
+        top = rows[0]
+        data = {
+            "borrower_count": len(rows),
+            "borrower_name": top.get("borrower_name"),
+            "borrower_state": top.get("borrower_state"),
+            "loan_count": _safe(top.get("loan_count")),
+            "total_initial_amount": _safe(top.get("total_initial_amount")),
+            "total_current_amount": _safe(top.get("total_current_amount")),
+            "total_forgiveness_amount": _safe(top.get("total_forgiveness_amount")),
+            "total_jobs_reported": _safe(top.get("total_jobs_reported")),
+            "any_forgiven": top.get("any_forgiven"),
+            "earliest_date_approved": _safe(top.get("earliest_date_approved")),
+            "latest_date_approved": _safe(top.get("latest_date_approved")),
+            "business_type": top.get("business_type"),
+            "naics_code": top.get("naics_code"),
+            "all_borrowers": _safe_list(rows[:5]),
+        }
+
+        amt = float(top.get("total_current_amount") or 0)
+        summary = f"PPP: {top.get('borrower_name', 'N/A')} received {top.get('loan_count', 0)} PPP loan(s) totaling ${amt:,.0f}."
+        if top.get("total_jobs_reported"):
+            summary += f" Claimed {top['total_jobs_reported']:,} jobs retained."
+        if top.get("any_forgiven"):
+            forgiven = float(top.get("total_forgiveness_amount") or 0)
+            summary += f" ${forgiven:,.0f} forgiven."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_cbp_context
+# ---------------------------------------------------------------------------
+
+def search_cbp_context(
+    company_name: str,
+    *,
+    naics: Optional[str] = None,
+    state: Optional[str] = None,
+    county_fips: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search CBP for local industry establishment counts and employment context."""
+    source = "database:cur_cbp_geo_naics"
+    try:
+        if not naics:
+            return {"found": False, "source": source,
+                    "summary": "Cannot look up CBP context without a NAICS code.",
+                    "data": {}}
+
+        conn = _conn()
+        cur = conn.cursor()
+
+        # State-level data for this NAICS
+        state_data = None
+        if state:
+            # Try exact NAICS, then prefixes
+            for prefix_len in [len(naics), 4, 3, 2]:
+                naics_prefix = naics[:prefix_len]
+                cur.execute("""
+                    SELECT naics, naics_label, establishment_count, employment,
+                           annual_payroll, avg_weekly_wage
+                    FROM cur_cbp_geo_naics
+                    WHERE state_fips = (
+                        SELECT state_fips AS fips FROM state_fips_map WHERE state_abbr = %s LIMIT 1
+                    )
+                    AND naics = %s
+                    AND (county_fips IS NULL OR county_fips IN ('', '000'))
+                    LIMIT 1
+                """, (state.upper(), naics_prefix))
+                state_data = cur.fetchone()
+                if state_data:
+                    break
+
+        # National totals for this NAICS
+        national_data = None
+        for prefix_len in [len(naics), 4, 3, 2]:
+            naics_prefix = naics[:prefix_len]
+            cur.execute("""
+                SELECT naics, naics_label,
+                       SUM(establishment_count) AS establishment_count,
+                       SUM(employment) AS employment,
+                       SUM(annual_payroll) AS annual_payroll,
+                       CASE WHEN SUM(employment) > 0
+                            THEN ROUND(SUM(annual_payroll)::numeric / SUM(employment) / 52, 2)
+                            ELSE NULL END AS avg_weekly_wage
+                FROM cur_cbp_geo_naics
+                WHERE naics = %s
+                  AND geo_type = '01'
+                GROUP BY naics, naics_label
+                LIMIT 1
+            """, (naics_prefix,))
+            national_data = cur.fetchone()
+            if national_data:
+                break
+
+        conn.close()
+
+        if not state_data and not national_data:
+            return {"found": False, "source": source,
+                    "summary": f"No CBP data found for NAICS {naics}.",
+                    "data": {}}
+
+        data = {
+            "naics": naics,
+            "state_data": _safe_dict(state_data) if state_data else None,
+            "national_data": _safe_dict(national_data) if national_data else None,
+        }
+
+        summary = f"CBP industry context for NAICS {naics}: "
+        if national_data:
+            summary += f"National: {national_data.get('establishment_count', 0):,} establishments, {national_data.get('employment', 0):,} employees, avg ${national_data.get('avg_weekly_wage', 0):,.0f}/week. "
+        if state_data:
+            summary += f"State ({state}): {state_data.get('establishment_count', 0):,} establishments, {state_data.get('employment', 0):,} employees."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_lodes_workforce
+# ---------------------------------------------------------------------------
+
+def search_lodes_workforce(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    county_fips: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search LODES for county-level workforce metrics (jobs, earnings, commuting)."""
+    source = "database:cur_lodes_geo_metrics"
+    try:
+        if not county_fips and not state:
+            return {"found": False, "source": source,
+                    "summary": "Need a state or county_fips to look up LODES workforce data.",
+                    "data": {}}
+
+        conn = _conn()
+        cur = conn.cursor()
+
+        rows = []
+        if county_fips:
+            cur.execute("""
+                SELECT * FROM cur_lodes_geo_metrics
+                WHERE county_fips = %s
+                LIMIT 1
+            """, (county_fips,))
+            rows = cur.fetchall()
+
+        # If no county, aggregate state-level
+        if not rows and state:
+            cur.execute("""
+                SELECT
+                    state_fips,
+                    SUM(total_jobs) AS total_jobs,
+                    SUM(jobs_earn_1250_or_less) AS jobs_earn_1250_or_less,
+                    SUM(jobs_earn_1251_to_3333) AS jobs_earn_1251_to_3333,
+                    SUM(jobs_earn_3334_plus) AS jobs_earn_3334_plus,
+                    SUM(jobs_manufacturing) AS jobs_manufacturing,
+                    SUM(jobs_healthcare) AS jobs_healthcare,
+                    SUM(jobs_retail) AS jobs_retail,
+                    SUM(jobs_accommodation_food) AS jobs_accommodation_food,
+                    SUM(jobs_construction) AS jobs_construction,
+                    ROUND(SUM(jobs_earn_3334_plus)::numeric / NULLIF(SUM(total_jobs), 0), 4) AS pct_high_earning,
+                    ROUND(SUM(jobs_manufacturing)::numeric / NULLIF(SUM(total_jobs), 0), 4) AS pct_manufacturing,
+                    ROUND(SUM(jobs_healthcare)::numeric / NULLIF(SUM(total_jobs), 0), 4) AS pct_healthcare
+                FROM cur_lodes_geo_metrics
+                WHERE state_fips = (
+                    SELECT state_fips AS fips FROM state_fips_map WHERE state_abbr = %s LIMIT 1
+                )
+                GROUP BY state_fips
+                LIMIT 1
+            """, (state.upper(),))
+            rows = cur.fetchall()
+
+        conn.close()
+
+        if not rows:
+            return {"found": False, "source": source,
+                    "summary": f"No LODES workforce data found.",
+                    "data": {}}
+
+        row = rows[0]
+        data = _safe_dict(row)
+
+        total = row.get("total_jobs") or 0
+        summary = f"LODES workforce: {total:,} total jobs. "
+        if row.get("pct_high_earning") is not None:
+            summary += f"{float(row['pct_high_earning'])*100:.1f}% high-earning (>$3,333/mo). "
+        if row.get("pct_manufacturing") is not None:
+            summary += f"{float(row['pct_manufacturing'])*100:.1f}% manufacturing. "
+        if row.get("pct_healthcare") is not None:
+            summary += f"{float(row['pct_healthcare'])*100:.1f}% healthcare."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_abs_demographics
+# ---------------------------------------------------------------------------
+
+def search_abs_demographics(
+    company_name: str,
+    *,
+    naics: Optional[str] = None,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search ABS for firm demographics by industry (owner race, sex, veteran status)."""
+    source = "database:cur_abs_geo_naics"
+    try:
+        if not naics:
+            return {"found": False, "source": source,
+                    "summary": "Cannot look up ABS demographics without a NAICS code.",
+                    "data": {}}
+
+        conn = _conn()
+        cur = conn.cursor()
+
+        # Try exact NAICS then prefixes
+        naics_2 = naics[:2]
+        geo_filter = ""
+        params = [naics_2]
+        if state:
+            geo_filter = "AND a.state_fips = (SELECT state_fips AS fips FROM state_fips_map WHERE state_abbr = %s LIMIT 1)"
+            params.append(state.upper())
+
+        cur.execute(f"""
+            SELECT abs_dataset, geo_level, naics, naics_label,
+                   owner_sex, owner_race, owner_ethnicity, owner_veteran,
+                   sex, race_group, eth_group, vet_group,
+                   firm_count, geo_name
+            FROM cur_abs_geo_naics a
+            WHERE a.naics = %s
+              AND a.geo_level IN ('state', 'us')
+              {geo_filter}
+            ORDER BY a.firm_count DESC NULLS LAST
+            LIMIT 50
+        """, params)
+        rows = cur.fetchall()
+        conn.close()
+
+        if not rows:
+            return {"found": False, "source": source,
+                    "summary": f"No ABS demographic data found for NAICS {naics}.",
+                    "data": {}}
+
+        total_firms = sum(r.get("firm_count") or 0 for r in rows)
+        datasets = set(r.get("abs_dataset") for r in rows if r.get("abs_dataset"))
+
+        data = {
+            "naics": naics_2,
+            "record_count": len(rows),
+            "total_firm_count": total_firms,
+            "datasets_available": sorted(datasets),
+            "sample_records": _safe_list(rows[:20]),
+        }
+
+        summary = f"ABS demographics for NAICS {naics_2}: {total_firms:,} firms across {len(rows)} records. "
+        summary += f"Datasets: {', '.join(sorted(datasets))}."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
 # Maps tool names (used in Claude API tool definitions) to callables.
@@ -2940,6 +3365,11 @@ TOOL_REGISTRY: dict[str, callable] = {
     "compare_industry_wages": compare_industry_wages,
     "search_solidarity_network": search_solidarity_network,
     "search_local_subsidies": search_local_subsidies,
+    "search_form5500": search_form5500,
+    "search_ppp_loans": search_ppp_loans,
+    "search_cbp_context": search_cbp_context,
+    "search_lodes_workforce": search_lodes_workforce,
+    "search_abs_demographics": search_abs_demographics,
 }
 
 
@@ -3244,6 +3674,71 @@ TOOL_DEFINITIONS = [
                 "state": {"type": "string", "description": "2-letter state code"},
             },
             "required": ["company_name", "city", "state"],
+        },
+    },
+    {
+        "name": "search_form5500",
+        "description": "Search Form 5500 benefit plan filings for this employer. Returns plan count, active participants, collective bargaining status, pension/welfare plan indicators, and filing history. Useful for understanding employer investment in worker benefits.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "employer_id": {"type": "string", "description": "F7 employer_id if known (for precise lookup)"},
+                "state": {"type": "string", "description": "2-letter state code to narrow search"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_ppp_loans",
+        "description": "Search SBA Paycheck Protection Program (PPP) loan data (2020-2021). Returns loan amounts, forgiveness status, and jobs retained claims. Provides pandemic-era financial stability context.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "state": {"type": "string", "description": "2-letter state code to narrow search"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_cbp_context",
+        "description": "Search County Business Patterns for local industry context. Returns establishment counts, total employment, average wages, and industry concentration for a given NAICS code and state/county. Helps assess competitive landscape.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name (for context)"},
+                "naics": {"type": "string", "description": "NAICS code (2-6 digits). Required."},
+                "state": {"type": "string", "description": "2-letter state code for state-level data"},
+                "county_fips": {"type": "string", "description": "5-digit county FIPS code for county-level data"},
+            },
+            "required": ["company_name", "naics"],
+        },
+    },
+    {
+        "name": "search_lodes_workforce",
+        "description": "Search LEHD LODES for county-level workforce metrics. Returns total jobs, earnings distribution (low/mid/high), industry sector breakdown, and commute patterns. Helps assess labor market tightness.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name (for context)"},
+                "state": {"type": "string", "description": "2-letter state code"},
+                "county_fips": {"type": "string", "description": "5-digit county FIPS code for precise data"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_abs_demographics",
+        "description": "Search Annual Business Survey for firm demographics by industry. Returns firm counts by owner race, sex, veteran status, and firm size distribution. Provides diversity context for the employer's industry.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name (for context)"},
+                "naics": {"type": "string", "description": "NAICS code (2-6 digits). Required."},
+                "state": {"type": "string", "description": "2-letter state code for state-level data"},
+            },
+            "required": ["company_name", "naics"],
         },
     },
 ]

@@ -163,6 +163,24 @@ financial_990 AS (
     WHERE f.total_revenue IS NOT NULL
     GROUP BY m.f7_employer_id
 ),
+-- Form 5500: benefit plan data linked via master_employer_source_ids
+financial_form5500 AS (
+    SELECT
+        f7sid.source_id AS f7_employer_id,
+        MAX(f.total_active_participants) AS f5500_participants,
+        MAX(f.plan_count) AS f5500_plan_count,
+        BOOL_OR(f.has_collective_bargaining) AS f5500_has_cb,
+        BOOL_OR(f.has_pension) AS f5500_has_pension,
+        BOOL_OR(f.has_welfare) AS f5500_has_welfare,
+        MAX(f.years_filed) AS f5500_years_filed,
+        MAX(f.latest_plan_year) AS f5500_latest_year
+    FROM cur_form5500_sponsor_rollup f
+    JOIN master_employer_source_ids f5sid
+        ON f5sid.source_system = 'form5500' AND f5sid.source_id = f.sponsor_ein
+    JOIN master_employer_source_ids f7sid
+        ON f7sid.master_id = f5sid.master_id AND f7sid.source_system = 'f7'
+    GROUP BY f7sid.source_id
+),
 feature_bridge AS (
     SELECT DISTINCT ON (LOWER(TRIM(employer_name)), state)
         LOWER(TRIM(employer_name)) AS employer_name_norm,
@@ -370,7 +388,12 @@ raw_scores AS (
 
         f990.latest_revenue AS n990_revenue,
         f990.latest_assets AS n990_assets,
-        f990.latest_expenses AS n990_expenses
+        f990.latest_expenses AS n990_expenses,
+
+        ff5.f5500_participants,
+        ff5.f5500_plan_count,
+        ff5.f5500_has_pension,
+        ff5.f5500_has_welfare
     FROM mv_employer_data_sources eds
     LEFT JOIN osha_agg oa ON oa.f7_employer_id = eds.employer_id
     LEFT JOIN osha_avgs oa4 ON oa4.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 4)
@@ -389,6 +412,7 @@ raw_scores AS (
     END AND bp.matrix_code IS NULL
     LEFT JOIN similarity_agg sa ON sa.employer_id = eds.employer_id
     LEFT JOIN financial_990 f990 ON f990.f7_employer_id = eds.employer_id
+    LEFT JOIN financial_form5500 ff5 ON ff5.f7_employer_id = eds.employer_id
 ),
 scored AS (
     SELECT
@@ -409,29 +433,54 @@ scored AS (
                 + CASE WHEN rs.best_distance IS NOT NULL AND rs.best_distance < 0.15 THEN 1 ELSE 0 END
             )
         END AS score_similarity,
-        -- score_financial: 990 nonprofit health + public company signal
-        -- Different from score_industry_growth (BLS employment projections)
-        CASE
-            WHEN rs.n990_revenue IS NOT NULL THEN LEAST(10, GREATEST(0,
-                CASE
-                    WHEN rs.n990_revenue >= 10000000 THEN 6
-                    WHEN rs.n990_revenue >= 1000000 THEN 4
-                    WHEN rs.n990_revenue >= 100000 THEN 2
-                    ELSE 0
-                END
-                + CASE
-                    WHEN COALESCE(rs.n990_assets, 0) > COALESCE(rs.n990_expenses, 1) * 2 THEN 2
-                    WHEN COALESCE(rs.n990_assets, 0) > COALESCE(rs.n990_expenses, 1) THEN 1
-                    ELSE 0
-                END
-                + CASE
-                    WHEN rs.n990_revenue / NULLIF(GREATEST(COALESCE(rs.latest_unit_size, 1), 1), 0) >= 50000 THEN 2
-                    WHEN rs.n990_revenue / NULLIF(GREATEST(COALESCE(rs.latest_unit_size, 1), 1), 0) >= 20000 THEN 1
-                    ELSE 0
-                END
-            ))
-            WHEN rs.is_public THEN 7
-        END AS score_financial
+        -- score_financial: 990 nonprofit health + Form 5500 benefit plans + public company signal
+        -- Uses GREATEST of 990-based and Form 5500-based scores
+        GREATEST(
+            -- 990-based financial score
+            CASE
+                WHEN rs.n990_revenue IS NOT NULL THEN LEAST(10, GREATEST(0,
+                    CASE
+                        WHEN rs.n990_revenue >= 10000000 THEN 6
+                        WHEN rs.n990_revenue >= 1000000 THEN 4
+                        WHEN rs.n990_revenue >= 100000 THEN 2
+                        ELSE 0
+                    END
+                    + CASE
+                        WHEN COALESCE(rs.n990_assets, 0) > COALESCE(rs.n990_expenses, 1) * 2 THEN 2
+                        WHEN COALESCE(rs.n990_assets, 0) > COALESCE(rs.n990_expenses, 1) THEN 1
+                        ELSE 0
+                    END
+                    + CASE
+                        WHEN rs.n990_revenue / NULLIF(GREATEST(COALESCE(rs.latest_unit_size, 1), 1), 0) >= 50000 THEN 2
+                        WHEN rs.n990_revenue / NULLIF(GREATEST(COALESCE(rs.latest_unit_size, 1), 1), 0) >= 20000 THEN 1
+                        ELSE 0
+                    END
+                ))
+                WHEN rs.is_public THEN 7
+            END,
+            -- Form 5500-based financial score (benefit plan richness)
+            CASE
+                WHEN rs.f5500_participants IS NOT NULL THEN LEAST(10, GREATEST(0,
+                    -- Participant scale (0-3): 100+=1, 500+=2, 1000+=3
+                    CASE
+                        WHEN rs.f5500_participants >= 1000 THEN 3
+                        WHEN rs.f5500_participants >= 500 THEN 2
+                        WHEN rs.f5500_participants >= 100 THEN 1
+                        ELSE 0
+                    END
+                    -- Plan count (0-4): multiple plans = richer benefits
+                    + CASE
+                        WHEN rs.f5500_plan_count >= 5 THEN 4
+                        WHEN rs.f5500_plan_count >= 3 THEN 3
+                        WHEN rs.f5500_plan_count >= 2 THEN 2
+                        ELSE 1
+                    END
+                    -- Plan type bonus (0-3): pension + welfare
+                    + CASE WHEN rs.f5500_has_pension THEN 2 ELSE 0 END
+                    + CASE WHEN rs.f5500_has_welfare THEN 1 ELSE 0 END
+                ))
+            END
+        ) AS score_financial
     FROM raw_scores rs
 ),
 -- NOTE: Research enhancements are shown on ALL employer profiles regardless

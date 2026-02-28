@@ -355,7 +355,7 @@ def master_detail(master_id: int):
                     """
                     SELECT
                       COUNT(*) AS establishments,
-                      SUM(COALESCE(vs.total_violations, 0)) AS total_violations,
+                      SUM(COALESCE(vs.violation_count, 0)) AS total_violations,
                       SUM(COALESCE(vs.total_penalties, 0)) AS total_penalties
                     FROM osha_establishments o
                     LEFT JOIN osha_violation_summary vs ON vs.establishment_id = o.establishment_id

@@ -423,19 +423,8 @@ This builds on 2.2 (data confidence indicators) — research dossiers are the ri
 
 ### 3.1 — Contract Expiration Data
 
-📊 **New Data Source: FMCS F-7 filings**
-When a union contract is about to expire, the union must notify the Federal Mediation and Conciliation Service (FMCS). FMCS publishes monthly Excel files of these notices. This data tells you exactly when contracts expire, which is valuable for two reasons:
-
-**For the core 147K:** "The contract at Memorial Hospital expires in 8 months — here's everything about their current situation to prepare for bargaining."
-
-**For the broader universe:** "Three hospital contracts in Northern NJ expire this year — non-union hospitals nearby may have workers watching the bargaining and becoming more interested in organizing."
-
-🔍 **Data Question: Are F7 (OLMS) filings and F-7 (FMCS) filings the same thing?**
-These are different forms with confusingly similar names. OLMS F7 is the "bargaining relationship" form already in our database. FMCS F-7 is the "notice of contract expiration" form. We need to verify they're truly separate datasets and check what overlap exists.
-
-🔍 **Data Question: Does FMCS data have employer names that match our database?**
-The usefulness of contract expiration data depends on being able to connect it to employers we already track. If FMCS uses different employer names than OLMS, we'd need another round of entity matching.
-*Source: Gemini R2 Research 6*
+✅ **DESCOPED (2026-02-27).** FMCS F-7 contract expiration data removed from roadmap — not useful for this platform's purposes.
+*Original source: Gemini R2 Research 6*
 
 ---
 
@@ -608,9 +597,8 @@ Using RPE ratios from the 2022 Economic Census, estimate workforce size for the 
 
 ### 4.3 — Contract Expiration as Organizing Trigger
 
-🔧 **Action: Build "nearby expirations" alert for non-union employers**
-When a union contract expires at Employer A, non-union workers at similar, nearby Employer B can see the bargaining process play out and may become more interested in organizing. An alert feature — "3 hospital contracts in your area expire in the next year; here are non-union hospitals within 25 miles" — bridges the core and broader universe layers.
-*Source: Gemini R2 Research 6*
+✅ **DESCOPED (2026-02-27).** Removed along with 3.1 (FMCS data).
+*Original source: Gemini R2 Research 6*
 
 ---
 

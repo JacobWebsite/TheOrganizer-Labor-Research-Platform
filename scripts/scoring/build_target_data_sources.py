@@ -38,7 +38,9 @@ source_flags AS (
         bool_or(source_system = 'mergent') AS has_mergent,
         bool_or(source_system = 'bmf') AS has_bmf,
         bool_or(source_system = 'corpwatch') AS has_corpwatch,
-        bool_or(source_system = 'f7') AS has_f7
+        bool_or(source_system = 'f7') AS has_f7,
+        bool_or(source_system = 'form5500') AS has_form5500,
+        bool_or(source_system = 'ppp') AS has_ppp
     FROM master_employer_source_ids
     GROUP BY master_id
 )
@@ -71,6 +73,8 @@ SELECT
     COALESCE(sf.has_bmf, FALSE) AS has_bmf,
     COALESCE(sf.has_corpwatch, FALSE) AS has_corpwatch,
     COALESCE(sf.has_f7, FALSE) AS has_f7,
+    COALESCE(sf.has_form5500, FALSE) AS has_form5500,
+    COALESCE(sf.has_ppp, FALSE) AS has_ppp,
 
     -- Source count (enforcement + data sources)
     (CASE WHEN COALESCE(sf.has_osha, FALSE) THEN 1 ELSE 0 END
@@ -83,6 +87,8 @@ SELECT
      + CASE WHEN COALESCE(sf.has_mergent, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_bmf, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_corpwatch, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN COALESCE(sf.has_form5500, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN COALESCE(sf.has_ppp, FALSE) THEN 1 ELSE 0 END
     ) AS source_count
 
 FROM master_employers m
@@ -120,7 +126,8 @@ def _print_stats(cur):
 
     print("\n  Source coverage:")
     for col in ['has_osha', 'has_whd', 'has_nlrb', 'has_990', 'has_sam',
-                'has_sec', 'has_gleif', 'has_mergent', 'has_bmf', 'has_corpwatch']:
+                'has_sec', 'has_gleif', 'has_mergent', 'has_bmf', 'has_corpwatch',
+                'has_form5500', 'has_ppp']:
         cur.execute(f"SELECT COUNT(*) FROM mv_target_data_sources WHERE {col}")
         cnt = cur.fetchone()[0]
         pct = 100.0 * cnt / total if total > 0 else 0

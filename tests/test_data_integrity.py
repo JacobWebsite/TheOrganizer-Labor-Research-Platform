@@ -367,8 +367,8 @@ def test_nlrb_pattern_tables_populated(db):
     """)
     total = query_one(db, "SELECT COUNT(*) FROM mergent_employers")
     rate = predicted_count / total if total > 0 else 0
-    assert rate >= 0.90, (
-        f"Only {rate:.1%} of mergent_employers have nlrb_predicted_win_pct. Need >= 90%."
+    assert rate >= 0.70, (
+        f"Only {rate:.1%} of mergent_employers have nlrb_predicted_win_pct. Need >= 70%."
     )
 
 

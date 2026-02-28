@@ -46,6 +46,7 @@ class TestMVSchema:
                     'is_historical', 'canonical_group_id', 'is_canonical_rep',
                     'has_osha', 'has_nlrb', 'has_whd', 'has_990',
                     'has_sam', 'has_sec', 'has_gleif', 'has_mergent', 'has_corpwatch',
+                    'has_form5500', 'has_ppp',
                     'source_count',
                     'corporate_family_id', 'sec_cik', 'gleif_lei',
                     'mergent_duns', 'ein', 'ticker', 'is_public',
@@ -166,7 +167,7 @@ class TestMVDataIntegrity:
                     WHERE source_count != (
                         has_osha::int + has_nlrb::int + has_whd::int + has_990::int +
                         has_sam::int + has_sec::int + has_gleif::int + has_mergent::int +
-                        has_corpwatch::int
+                        has_corpwatch::int + has_form5500::int + has_ppp::int
                     )
                 """)
                 bad = cur.fetchone()[0]
@@ -184,7 +185,7 @@ class TestMVDataIntegrity:
                     WHERE source_count = 0
                       AND (has_osha OR has_nlrb OR has_whd OR has_990
                            OR has_sam OR has_sec OR has_gleif OR has_mergent
-                           OR has_corpwatch)
+                           OR has_corpwatch OR has_form5500 OR has_ppp)
                 """)
                 bad = cur.fetchone()[0]
                 assert bad == 0, f"{bad} zero-source employers have true flags"
@@ -192,7 +193,7 @@ class TestMVDataIntegrity:
             conn.close()
 
     def test_source_count_range(self):
-        """source_count should be between 0 and 8."""
+        """source_count should be between 0 and 11 (9 original + form5500 + ppp)."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
@@ -202,7 +203,7 @@ class TestMVDataIntegrity:
                 """)
                 mn, mx = cur.fetchone()
                 assert mn >= 0, f"Min source_count is {mn}"
-                assert mx <= 8, f"Max source_count is {mx}"
+                assert mx <= 11, f"Max source_count is {mx}"
         finally:
             conn.close()
 

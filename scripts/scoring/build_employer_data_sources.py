@@ -58,6 +58,20 @@ nlrb_matched AS (
         (p.participant_type = 'Charged Party / Respondent'
          AND p.case_number ~ '-CA-')
       )
+),
+-- Form 5500 linkage: via master_employer_source_ids -> F7 employer
+form5500_matched AS (
+    SELECT DISTINCT f7sid.source_id AS f7_employer_id
+    FROM master_employer_source_ids f5sid
+    JOIN master_employer_source_ids f7sid ON f7sid.master_id = f5sid.master_id AND f7sid.source_system = 'f7'
+    WHERE f5sid.source_system = 'form5500'
+),
+-- PPP linkage: via master_employer_source_ids -> F7 employer
+ppp_matched AS (
+    SELECT DISTINCT f7sid.source_id AS f7_employer_id
+    FROM master_employer_source_ids psid
+    JOIN master_employer_source_ids f7sid ON f7sid.master_id = psid.master_id AND f7sid.source_system = 'f7'
+    WHERE psid.source_system = 'ppp'
 )
 
 SELECT
@@ -86,6 +100,8 @@ SELECT
     COALESCE(u.has_gleif, FALSE) AS has_gleif,
     COALESCE(u.has_mergent, FALSE) AS has_mergent,
     COALESCE(u.has_corpwatch, FALSE) AS has_corpwatch,
+    (f5m.f7_employer_id IS NOT NULL) AS has_form5500,
+    (pppm.f7_employer_id IS NOT NULL) AS has_ppp,
 
     -- Source count
     (CASE WHEN om.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
@@ -97,6 +113,8 @@ SELECT
      + CASE WHEN COALESCE(u.has_gleif, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(u.has_mergent, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(u.has_corpwatch, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN f5m.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
+     + CASE WHEN pppm.f7_employer_id IS NOT NULL THEN 1 ELSE 0 END
     ) AS source_count,
 
     -- Corporate crosswalk (denormalized)
@@ -119,6 +137,8 @@ LEFT JOIN whd_matched wm ON wm.f7_employer_id = e.employer_id
 LEFT JOIN n990_matched nm ON nm.f7_employer_id = e.employer_id
 LEFT JOIN sam_matched sm ON sm.f7_employer_id = e.employer_id
 LEFT JOIN uml_sources u ON u.target_id = e.employer_id
+LEFT JOIN form5500_matched f5m ON f5m.f7_employer_id = e.employer_id
+LEFT JOIN ppp_matched pppm ON pppm.f7_employer_id = e.employer_id
 
 -- Corporate crosswalk: pick the best row per employer (highest federal_obligations)
 LEFT JOIN LATERAL (
@@ -159,7 +179,7 @@ def _print_stats(cur):
     # Source distribution
     print("\n  Source coverage:")
     for col in ['has_osha', 'has_nlrb', 'has_whd', 'has_990', 'has_sam',
-                'has_sec', 'has_gleif', 'has_mergent']:
+                'has_sec', 'has_gleif', 'has_mergent', 'has_form5500', 'has_ppp']:
         cur.execute(f"SELECT COUNT(*) FROM mv_employer_data_sources WHERE {col}")
         cnt = cur.fetchone()[0]
         pct = 100.0 * cnt / total if total > 0 else 0
