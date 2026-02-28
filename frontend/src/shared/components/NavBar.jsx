@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 
 const ADMIN_ITEM = { to: '/settings', label: 'Settings', icon: Settings }
 
-export function NavBar() {
+export function NavBar({ onOpenPalette }) {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
@@ -79,6 +79,18 @@ export function NavBar() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {onOpenPalette && (
+            <button
+              type="button"
+              onClick={onOpenPalette}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded border border-[#faf6ef]/20 text-[#faf6ef]/50 hover:text-[#faf6ef]/80 hover:border-[#faf6ef]/40 transition-colors"
+            >
+              Quick Jump...
+              <kbd className="text-[10px] font-mono px-1 py-0.5 rounded bg-[#faf6ef]/10 text-[#faf6ef]/40">
+                {navigator?.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}K
+              </kbd>
+            </button>
+          )}
           <span className="text-sm" style={{ color: 'rgba(250,246,239,0.6)' }}>{user?.username}</span>
           <button
             onClick={handleLogout}

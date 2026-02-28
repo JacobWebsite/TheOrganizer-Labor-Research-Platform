@@ -19,7 +19,7 @@ describe('ScorecardSection', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders all 8 active factor labels plus disabled Peer Similarity', () => {
+  it('renders all 8 active factor labels (Peer Similarity is skipped)', () => {
     const scorecard = {
       score_nlrb: 5.0,
       score_osha: 3.0,
@@ -36,20 +36,20 @@ describe('ScorecardSection', () => {
     for (const label of ACTIVE_FACTORS) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
-    // Peer Similarity is still rendered but as disabled
-    expect(screen.getByText('Peer Similarity')).toBeInTheDocument()
+    // Peer Similarity is disabled and not rendered
+    expect(screen.queryByText('Peer Similarity')).not.toBeInTheDocument()
   })
 
-  it('shows "Under Development" for disabled score_similarity', () => {
+  it('does not render disabled Peer Similarity factor', () => {
     const scorecard = {
       score_similarity: 5.0,
     }
 
     render(<ScorecardSection scorecard={scorecard} />)
-    expect(screen.getByText('Under Development')).toBeInTheDocument()
+    expect(screen.queryByText('Peer Similarity')).not.toBeInTheDocument()
   })
 
-  it('shows em-dash for null score values on active factors', () => {
+  it('shows double-dash for null score values via ScoreGauge', () => {
     const scorecard = {
       score_nlrb: null,
       score_osha: null,
@@ -63,8 +63,9 @@ describe('ScorecardSection', () => {
     }
 
     render(<ScorecardSection scorecard={scorecard} />)
-    const dashElements = screen.getAllByText('\u2014')
-    // 8 dashes for the 8 active null factors (similarity shows "Under Development" instead)
+    // ScoreGauge renders '--' for null values
+    const dashElements = screen.getAllByText('--')
+    // 8 dashes for the 8 active null factors (similarity is not rendered)
     expect(dashElements.length).toBe(8)
   })
 
@@ -83,7 +84,7 @@ describe('ScorecardSection', () => {
 
     render(<ScorecardSection scorecard={scorecard} />)
     expect(screen.getByText('8.2')).toBeInTheDocument()
-    const dashElements = screen.getAllByText('\u2014')
+    const dashElements = screen.getAllByText('--')
     expect(dashElements.length).toBe(7)
   })
 
@@ -113,18 +114,20 @@ describe('ScorecardSection', () => {
     expect(screen.getByText(/38% coverage/)).toBeInTheDocument()
   })
 
-  it('renders colored bars for non-null values', () => {
+  it('renders ScoreGauge SVG elements for non-null values', () => {
     const scorecard = {
-      score_nlrb: 8.0,  // brick red (>=7)
-      score_osha: 5.0,  // copper (>=4)
-      score_whd: 2.0,   // stone (<4)
+      score_nlrb: 8.0,
+      score_osha: 5.0,
+      score_whd: 2.0,
     }
 
     const { container } = render(<ScorecardSection scorecard={scorecard} />)
-    const html = container.innerHTML
-    // Check that colored bar classes exist (aged broadsheet palette)
-    expect(html).toContain('bg-[#c23a22]')  // high signal (brick red)
-    expect(html).toContain('bg-[#c78c4e]')  // mid signal (copper)
-    expect(html).toContain('bg-[#d9cebb]')  // low signal (warm stone)
+    // ScoreGauge renders SVG arcs with stroke colors
+    const svgs = container.querySelectorAll('svg')
+    expect(svgs.length).toBeGreaterThan(0)
+    // Check that score values render
+    expect(screen.getByText('8.0')).toBeInTheDocument()
+    expect(screen.getByText('5.0')).toBeInTheDocument()
+    expect(screen.getByText('2.0')).toBeInTheDocument()
   })
 })

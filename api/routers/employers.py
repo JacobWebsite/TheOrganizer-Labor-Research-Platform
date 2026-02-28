@@ -1504,17 +1504,40 @@ def get_unified_source_types():
 # ============================================================================
 
 @router.get("/api/employers/{employer_id}/comparables")
-def get_employer_comparables(employer_id: int):
-    """Get the top-5 most similar unionized employers for a given mergent employer.
-    Uses pre-computed Gower distance from the employer similarity engine."""
+def get_employer_comparables(employer_id: str):
+    """Get the top-5 most similar unionized employers.
+    Accepts F7 hex IDs (bridged via master_employer_source_ids → mergent) or integer mergent IDs."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Get the target employer
+            # employer_comparables uses mergent_employers.id as employer_id.
+            # Resolve the incoming ID to a mergent employer ID.
+            mergent_id = None
+            try:
+                mergent_id = int(employer_id)
+            except ValueError:
+                # Hex F7 ID — bridge F7 → master_id → mergent
+                cur.execute("""
+                    SELECT msi2.source_id::int AS mergent_id
+                    FROM master_employer_source_ids msi1
+                    JOIN master_employer_source_ids msi2
+                      ON msi2.master_id = msi1.master_id AND msi2.source_system = 'mergent'
+                    WHERE msi1.source_system = 'f7' AND msi1.source_id = %s
+                    LIMIT 1
+                """, [employer_id])
+                row = cur.fetchone()
+                if row:
+                    mergent_id = row['mergent_id']
+
+            if mergent_id is None:
+                raise HTTPException(status_code=404, detail="Employer not found in comparables index")
+
+            # Get the target employer from mergent_employers
             cur.execute("""
-                SELECT id, company_name, state, naics_primary, employees_site,
+                SELECT id, company_name, state,
+                       naics_primary, employees_site,
                        employees_all_sites, similarity_score
                 FROM mergent_employers WHERE id = %s
-            """, [employer_id])
+            """, [mergent_id])
             employer = cur.fetchone()
             if not employer:
                 raise HTTPException(status_code=404, detail="Employer not found")
@@ -1525,12 +1548,12 @@ def get_employer_comparables(employer_id: int):
                        me.id AS comparable_id, me.company_name AS comparable_name,
                        me.state AS comparable_state, me.naics_primary AS comparable_naics,
                        me.employees_site AS comparable_employees,
-                       me.f7_union_name
+                       NULL AS f7_union_name
                 FROM employer_comparables ec
                 JOIN mergent_employers me ON me.id = ec.comparable_employer_id
                 WHERE ec.employer_id = %s
                 ORDER BY ec.rank
-            """, [employer_id])
+            """, [mergent_id])
             rows = cur.fetchall()
 
             comparables = []

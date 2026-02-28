@@ -1,12 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
-import { HelpSection } from '@/shared/components/HelpSection'
+import { MiniStat } from '@/shared/components/MiniStat'
+import { SidebarTOC } from '@/shared/components/SidebarTOC'
 import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources, useEmployerMatches } from '@/shared/api/profile'
 import { useTargetDetail, useTargetScorecardDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
+import { ProfileActionButtons } from './ProfileActionButtons'
 import { ScorecardSection } from './ScorecardSection'
 import { SignalInventory } from './SignalInventory'
 import { OshaSection } from './OshaSection'
@@ -24,11 +26,45 @@ import { DataProvenanceCard } from './DataProvenanceCard'
 import { ResearchInsightsCard } from './ResearchInsightsCard'
 import { WorkforceDemographicsCard } from './WorkforceDemographicsCard'
 
+const PROFILE_SECTIONS = [
+  { id: 'scorecard', label: 'Scorecard' },
+  { id: 'provenance', label: 'Data Provenance' },
+  { id: 'research', label: 'Research' },
+  { id: 'union', label: 'Union' },
+  { id: 'financial', label: 'Financial' },
+  { id: 'demographics', label: 'Demographics' },
+  { id: 'corporate', label: 'Corporate' },
+  { id: 'comparables', label: 'Comparables' },
+  { id: 'nlrb', label: 'NLRB' },
+  { id: 'contracts', label: 'Contracts' },
+  { id: 'osha', label: 'OSHA' },
+  { id: 'whd', label: 'WHD' },
+  { id: 'crossrefs', label: 'Cross-Refs' },
+  { id: 'notes', label: 'Notes' },
+]
+
+function formatNumber(n) {
+  if (n == null) return null
+  return Number(n).toLocaleString()
+}
+
+function formatCurrency(n) {
+  if (n == null) return null
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`
+  return `$${Number(n).toLocaleString()}`
+}
+
 export function EmployerProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { isF7, sourceType, rawId } = parseCanonicalId(id)
   const isMaster = sourceType === 'MASTER'
+
+  // IntersectionObserver state
+  const [activeSection, setActiveSection] = useState('scorecard')
+  const observerRef = useRef(null)
 
   // Mutually exclusive — only one fires per page load
   const f7Query = useEmployerProfile(id, { enabled: isF7 })
@@ -43,6 +79,9 @@ export function EmployerProfilePage() {
   const dataSourcesQuery = useEmployerDataSources(id, { enabled: isF7 && !!data })
   const matchesQuery = useEmployerMatches(id, { enabled: isF7 && !!data })
 
+  // Master employer scorecard — must be called unconditionally (Rules of Hooks)
+  const masterScorecardQuery = useTargetScorecardDetail(rawId, { enabled: isMaster && !!data })
+
   // Update page title with employer name when data loads
   const employerName = data?.employer?.employer_name || data?.display_name || data?.employer_name
   useEffect(() => {
@@ -51,8 +90,32 @@ export function EmployerProfilePage() {
       : 'Employer Profile - The Organizer'
   }, [employerName])
 
+  // IntersectionObserver for sidebar TOC highlighting
+  useEffect(() => {
+    if (!isF7 || !data) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id)
+          }
+        }
+      },
+      { threshold: 0.2, rootMargin: '-80px 0px 0px 0px' }
+    )
+    observerRef.current = observer
+
+    // Observe all section elements
+    for (const section of PROFILE_SECTIONS) {
+      const el = document.getElementById(section.id)
+      if (el) observer.observe(el)
+    }
+
+    return () => observer.disconnect()
+  }, [isF7, data])
+
   const handleBack = () => {
-    // Try to go back in history; if no history, go to search
     if (window.history.length > 1) {
       navigate(-1)
     } else {
@@ -115,8 +178,6 @@ export function EmployerProfilePage() {
   }
 
   // Master employer path — enriched view with signal inventory
-  const masterScorecardQuery = useTargetScorecardDetail(rawId, { enabled: isMaster && !!data })
-
   if (isMaster && data) {
     const masterEmployer = data.master || data
     const masterScorecard = masterScorecardQuery.data?.scorecard
@@ -193,66 +254,140 @@ export function EmployerProfilePage() {
     })
   }
 
+  // Build summary parts for hero banner
+  const summaryParts = []
+  if (osha?.total_violations) summaryParts.push(`${formatNumber(osha.total_violations)} OSHA violations`)
+  if (scorecard?.score_whd != null) summaryParts.push('Wage theft cases on file')
+  const ds = dataSourcesQuery.data
+  if (ds?.is_federal_contractor && ds?.federal_obligations) {
+    summaryParts.push(`${formatCurrency(ds.federal_obligations)} federal contracts`)
+  }
+  if (!employer.union_name && !employer.latest_union_name) {
+    summaryParts.push('Non-union')
+  }
+
+  // Filter sidebar sections to only show ones with data
+  const visibleSections = PROFILE_SECTIONS.filter(s => {
+    switch (s.id) {
+      case 'scorecard': return !!scorecard
+      case 'provenance': return !!matchesQuery.data?.match_summary?.length
+      case 'research': return !!scorecardQuery.data?.has_research
+      case 'union': return !!(employer.union_name || employer.latest_union_name)
+      case 'financial': return !!(scorecard?.score_financial != null || scorecard?.bls_growth_pct != null || ds?.is_public)
+      case 'demographics': return !!(employer?.state && (scorecard?.naics || employer?.naics))
+      case 'corporate': return true  // fetches its own data
+      case 'comparables': return true  // fetches its own data
+      case 'nlrb': return !!nlrb
+      case 'contracts': return !!(ds?.is_federal_contractor)
+      case 'osha': return !!osha
+      case 'whd': return true  // fetches its own data
+      case 'crossrefs': return !!(crossRefs?.length)
+      case 'notes': return true  // always show
+      default: return true
+    }
+  })
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1.5">
         <ArrowLeft className="h-4 w-4" />
         Back
       </Button>
 
+      {/* Hero banner - full width */}
       <ProfileHeader
         employer={employer}
         scorecard={scorecard}
         sourceType="F7"
         isUnionReference={data.is_union_reference === true}
+        summaryParts={summaryParts}
+        dataSources={ds}
       />
-      <HelpSection>
-        <p><strong>Score (0-10):</strong> This employer's overall organizing potential, calculated from up to 8 different factors. The score only uses factors where we actually have data -- if we're missing information on a factor, it's skipped rather than counted against the employer. A score of 8.0 based on 7 factors is more reliable than an 8.0 based on 3 factors. The number of factors used is shown below the score.</p>
-        <p><strong>Tiers -- what they mean and what to do with them:</strong></p>
-        <ul className="list-disc pl-5 space-y-1 text-sm">
-          <li><strong>Priority (top 3%):</strong> The strongest organizing targets in the entire database. Multiple strong signals across strategic position, leverage, and worker conditions. Action: prioritize for active campaign planning and resource allocation.</li>
-          <li><strong>Strong (next 12%):</strong> Very promising targets with solid data across several factors. Action: worth detailed research and preliminary outreach assessment.</li>
-          <li><strong>Promising (next 25%):</strong> Good potential but may be missing data or have mixed signals. Action: monitor and investigate further.</li>
-          <li><strong>Moderate (next 35%):</strong> Some positive signals but not enough to stand out. Action: keep on the radar but don't prioritize over higher-tier targets.</li>
-          <li><strong>Low (bottom 25%):</strong> Few organizing signals in the available data. Action: unlikely to be a strong target based on current information, but new data could change this.</li>
-        </ul>
-        <p><strong>Factor bars:</strong> Each bar shows how this employer scored on one of 8 factors, rated 0-10. Factors are weighted by importance -- (3x) factors matter three times as much as (1x) factors in the final score. A grayed-out factor with a dash means we have no data for that factor.</p>
-        <ul className="list-disc pl-5 space-y-1 text-sm">
-          <li><strong>Union Proximity (3x):</strong> Whether companies in the same corporate family already have unions. Strongest predictor -- the corporate parent has already dealt with unions elsewhere.</li>
-          <li><strong>Employer Size (filter):</strong> Shown for context but not weighted in the score. Use it to filter searches by workforce size rather than as a ranking signal.</li>
-          <li><strong>NLRB Activity (3x):</strong> This employer's own NLRB election history and ULP complaints, plus organizing momentum in their industry and state. Recent activity counts more.</li>
-          <li><strong>Gov Contracts (2x):</strong> Federal government contracts (USASpending/SAM.gov) create public accountability and regulatory leverage. Higher contract obligations score higher. State/local contracts not yet included.</li>
-          <li><strong>Industry Growth (2x):</strong> BLS-projected 10-year industry growth rate. Faster-growing industries mean more workers entering the field.</li>
-          <li><strong>OSHA Safety (1x):</strong> Workplace safety violations. More violations and more serious violations (willful, repeat) score higher. Recent ones count more.</li>
-          <li><strong>WHD Wage Theft (1x):</strong> Wage and hour violations including back wages, overtime, and minimum wage violations.</li>
-          <li><strong>Financial (2x):</strong> Revenue scale, asset cushion, and revenue-per-worker from 990 filings or SEC data.</li>
-        </ul>
-        <p><strong>Source badges -- what each database is:</strong></p>
-        <ul className="list-disc pl-5 space-y-1 text-sm">
-          <li><strong>F-7:</strong> DOL Form LM-10/F-7 filings. Employers with union contracts are required to file these.</li>
-          <li><strong>OSHA:</strong> Occupational Safety and Health Administration inspection records.</li>
-          <li><strong>NLRB:</strong> National Labor Relations Board case records -- election petitions, results, and unfair labor practice complaints.</li>
-          <li><strong>WHD:</strong> Wage and Hour Division enforcement records -- wage theft, overtime, minimum wage investigations.</li>
-          <li><strong>SAM:</strong> System for Award Management -- federal government contractor database.</li>
-          <li><strong>SEC:</strong> Securities and Exchange Commission filings -- public company data from EDGAR.</li>
-        </ul>
-        <p><strong>Confidence dots:</strong> How confident the system is that records from a data source were correctly matched to this employer. 4 dots = matched on unique ID (EIN or exact name + address). 3 dots = name + state or city. 2 dots = fuzzy name similarity + location. 1 dot = name similarity alone -- treat with caution.</p>
-        <p><strong>Employee count range:</strong> Different databases collect employee counts at different times using different definitions. The platform shows the range across all sources so you can see the spread. The scoring system uses the average.</p>
-      </HelpSection>
-      <ScorecardSection scorecard={scorecard} explanations={explanations} scorecardDetail={scorecardQuery.data} matchSummary={matchSummary} />
-      <DataProvenanceCard matchSummary={matchesQuery.data?.match_summary} />
-      <ResearchInsightsCard scorecard={scorecardQuery.data} />
-      <UnionRelationshipsCard employer={employer} />
-      <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} sourceAttribution={getFinancialAttribution()} />
-      <WorkforceDemographicsCard state={employer?.state} naics={scorecard?.naics || employer?.naics} />
-      <CorporateHierarchyCard employerId={id} sourceAttribution={getCorporateAttribution()} />
-      <ComparablesCard employerId={id} />
-      <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} />
-      <GovernmentContractsCard dataSources={dataSourcesQuery.data} sourceAttribution={getAttribution('sam')} />
-      <OshaSection osha={osha} sourceAttribution={getAttribution('osha')} />
-      <WhdCard employerId={id} sourceAttribution={getAttribution('whd')} />
-      <CrossReferencesSection crossReferences={crossRefs} />
-      <ResearchNotesCard employerId={id} sourceType="F7" sourceId={employer.employer_id} />
+
+      {/* MiniStat row - full width */}
+      <div className="flex gap-3 flex-wrap">
+        <MiniStat
+          label="WORKERS"
+          value={formatNumber(employer.consolidated_workers || employer.unit_size || employer.total_workers)}
+          accent="#1a6b5a"
+        />
+        <MiniStat
+          label="OSHA VIOLATIONS"
+          value={osha?.total_violations != null ? formatNumber(osha.total_violations) : '--'}
+          sub={osha?.serious_count ? `${osha.serious_count} serious` : undefined}
+          accent="#c23a22"
+        />
+        {scorecard?.score_whd != null && (
+          <MiniStat
+            label="WAGE CASES"
+            value={scorecard.score_whd > 0 ? 'Yes' : '--'}
+            sub={scorecard.whd_backwages ? formatCurrency(scorecard.whd_backwages) : undefined}
+            accent="#c78c4e"
+          />
+        )}
+        {ds?.is_federal_contractor && (
+          <MiniStat
+            label="FED CONTRACTS"
+            value={ds.federal_obligations ? formatCurrency(ds.federal_obligations) : '--'}
+            sub={ds.federal_contract_count ? `${ds.federal_contract_count} contracts` : undefined}
+            accent="#4a90a4"
+          />
+        )}
+      </div>
+
+      {/* Two-column: sidebar + main */}
+      <div className="flex gap-6">
+        <SidebarTOC sections={visibleSections} activeSection={activeSection} />
+        <div className="flex-1 min-w-0 space-y-4">
+          <div id="scorecard">
+            <ScorecardSection scorecard={scorecard} explanations={explanations} scorecardDetail={scorecardQuery.data} matchSummary={matchSummary} />
+          </div>
+          <div id="provenance">
+            <DataProvenanceCard matchSummary={matchesQuery.data?.match_summary} />
+          </div>
+          <div id="research">
+            <ResearchInsightsCard scorecard={scorecardQuery.data} />
+          </div>
+          <div id="union">
+            <UnionRelationshipsCard employer={employer} />
+          </div>
+          <div id="financial">
+            <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} sourceAttribution={getFinancialAttribution()} />
+          </div>
+          <div id="demographics">
+            <WorkforceDemographicsCard state={employer?.state} naics={scorecard?.naics || employer?.naics} />
+          </div>
+          <div id="corporate">
+            <CorporateHierarchyCard employerId={id} sourceAttribution={getCorporateAttribution()} />
+          </div>
+          <div id="comparables">
+            <ComparablesCard employerId={id} />
+          </div>
+          <div id="nlrb">
+            <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} />
+          </div>
+          <div id="contracts">
+            <GovernmentContractsCard dataSources={dataSourcesQuery.data} sourceAttribution={getAttribution('sam')} />
+          </div>
+          <div id="osha">
+            <OshaSection osha={osha} sourceAttribution={getAttribution('osha')} />
+          </div>
+          <div id="whd">
+            <WhdCard employerId={id} sourceAttribution={getAttribution('whd')} />
+          </div>
+          <div id="crossrefs">
+            <CrossReferencesSection crossReferences={crossRefs} />
+          </div>
+          <div id="notes">
+            <ResearchNotesCard employerId={id} sourceType="F7" sourceId={employer.employer_id} />
+          </div>
+
+          {/* Action buttons at bottom */}
+          <div className="flex gap-3 mt-6 pt-6 border-t border-[#d9cebb]">
+            <ProfileActionButtons employer={employer} scorecard={scorecard} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

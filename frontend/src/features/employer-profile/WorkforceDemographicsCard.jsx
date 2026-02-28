@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
-import { api } from '@/shared/api/client'
+import { apiClient } from '@/shared/api/client'
 
 function StatBar({ label, pct, color = 'bg-[#8B6914]' }) {
   return (
@@ -39,7 +39,7 @@ export function WorkforceDemographicsCard({ state, naics }) {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['demographics', state, naics],
-    queryFn: () => api.get(path).then(r => r.data),
+    queryFn: () => apiClient.get(path),
     enabled,
     staleTime: 1000 * 60 * 30, // cache 30 min
   })
