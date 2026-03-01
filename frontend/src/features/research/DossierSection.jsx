@@ -2,6 +2,7 @@ import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { FactRow } from './FactRow'
 import {
   Building2, Users, HardHat, DollarSign, Briefcase, ClipboardCheck, Database,
+  CheckCircle, XCircle,
 } from 'lucide-react'
 
 const SECTION_META = {
@@ -134,7 +135,7 @@ function formatCellValue(val) {
   return typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val)
 }
 
-export function DossierSection({ sectionKey, facts, dossierData, onReviewFact }) {
+export function DossierSection({ sectionKey, facts, dossierData, onReviewFact, onReviewSection, sectionReviewStatus }) {
   const meta = SECTION_META[sectionKey] || { icon: Database, label: labelFor(sectionKey), defaultOpen: false }
   const narrative = dossierData?.[sectionKey]
 
@@ -155,6 +156,44 @@ export function DossierSection({ sectionKey, facts, dossierData, onReviewFact })
       summary={summary}
       defaultOpen={meta.defaultOpen}
     >
+      {/* Section-level review controls */}
+      {onReviewSection && (
+        <div className="flex items-center gap-2 mb-3">
+          {sectionReviewStatus ? (
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded border ${
+              sectionReviewStatus === 'confirmed'
+                ? 'bg-[#3a7d44]/15 text-[#3a7d44] border-[#3a7d44]/30'
+                : 'bg-[#c23a22]/15 text-[#c23a22] border-[#c23a22]/30'
+            }`}>
+              {sectionReviewStatus === 'confirmed' ? (
+                <><CheckCircle className="h-3 w-3" /> Section Approved</>
+              ) : (
+                <><XCircle className="h-3 w-3" /> Section Rejected</>
+              )}
+            </span>
+          ) : (
+            <>
+              <button
+                onClick={() => onReviewSection(sectionKey, 'confirmed')}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded border border-transparent text-[#8a7e6d] hover:bg-[#3a7d44]/10 hover:text-[#3a7d44] transition-colors"
+                title="Approve all facts in this section"
+              >
+                <CheckCircle className="h-3 w-3" />
+                Approve Section
+              </button>
+              <button
+                onClick={() => onReviewSection(sectionKey, 'rejected')}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded border border-transparent text-[#8a7e6d] hover:bg-[#c23a22]/10 hover:text-[#c23a22] transition-colors"
+                title="Reject all facts in this section"
+              >
+                <XCircle className="h-3 w-3" />
+                Reject Section
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* String narrative (e.g. assessment.organizing_summary at top level) */}
       {narrative && typeof narrative === 'string' && (
         <p className="text-sm whitespace-pre-wrap mb-3">{narrative}</p>

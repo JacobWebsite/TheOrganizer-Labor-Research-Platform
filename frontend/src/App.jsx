@@ -20,6 +20,7 @@ const UnionProfilePage = lazy(() => import('@/features/union-explorer/UnionProfi
 const SettingsPage = lazy(() => import('@/features/admin/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ResearchPage = lazy(() => import('@/features/research/ResearchPage').then(m => ({ default: m.ResearchPage })))
 const ResearchResultPage = lazy(() => import('@/features/research/ResearchResultPage').then(m => ({ default: m.ResearchResultPage })))
+const CompareRunsPage = lazy(() => import('@/features/research/CompareRunsPage').then(m => ({ default: m.CompareRunsPage })))
 
 function AuthChecker({ children }) {
   useAuthCheck()
@@ -49,6 +50,7 @@ export default function App() {
                 <Route path="unions" element={<Suspense fallback={<PageSkeleton variant="unions" />}><UnionsPage /></Suspense>} />
                 <Route path="unions/:fnum" element={<Suspense fallback={<PageSkeleton variant="union-profile" />}><UnionProfilePage /></Suspense>} />
                 <Route path="research" element={<Suspense fallback={<PageSkeleton variant="research" />}><ResearchPage /></Suspense>} />
+                <Route path="research/compare" element={<Suspense fallback={<PageSkeleton />}><CompareRunsPage /></Suspense>} />
                 <Route path="research/:runId" element={<Suspense fallback={<PageSkeleton variant="research-result" />}><ResearchResultPage /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageSkeleton />}><SettingsPage /></Suspense>} />
               </Route>

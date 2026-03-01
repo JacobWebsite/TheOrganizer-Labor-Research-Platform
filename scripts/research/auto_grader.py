@@ -513,9 +513,11 @@ def grade_and_save(run_id: int, conn=None) -> dict:
         cur = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
         cur.execute(
             "UPDATE research_runs "
-            "SET overall_quality_score = %s, quality_dimensions = %s, updated_at = NOW() "
+            "SET overall_quality_score = %s, quality_dimensions = %s, "
+            "    sections_filled = GREATEST(COALESCE(sections_filled, 0), %s), "
+            "    updated_at = NOW() "
             "WHERE id = %s",
-            (result["overall"], json.dumps(dimensions), run_id),
+            (result["overall"], json.dumps(dimensions), result["sections_count"], run_id),
         )
         conn.commit()
 
@@ -915,6 +917,206 @@ def apply_human_fact_review(fact_id: int, verdict: str, conn=None) -> None:
                 update_strategy_quality(conn)
             except Exception as exc:
                 _log.debug("Strategy update after fact review failed: %s", exc)
+
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def apply_run_usefulness(run_id: int, useful: bool, conn=None) -> None:
+    """Propagate run-level usefulness signal into the learning loop.
+
+    If useful=False, apply -2.0 penalty to avg_quality for all strategies
+    matching the tools used in this run. One bad run won't kill a tool,
+    but consistent bad runs will deprioritize it.
+    """
+    if useful:
+        return  # Positive signal is implicit via normal scoring
+
+    close_conn = False
+    if conn is None:
+        conn = get_connection(cursor_factory=RealDictCursor)
+        close_conn = True
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
+
+        # Get run metadata for strategy lookup
+        cur.execute(
+            "SELECT industry_naics, company_type, employee_size_bucket "
+            "FROM research_runs WHERE id = %s",
+            (run_id,),
+        )
+        run = cur.fetchone()
+        if not run:
+            return
+
+        naics_2 = (run["industry_naics"] or "")[:2]
+        ctype = run["company_type"] or ""
+        size_bucket = run["employee_size_bucket"] or ""
+
+        # Get all tool_names used in this run
+        cur.execute(
+            "SELECT DISTINCT tool_name FROM research_actions WHERE run_id = %s",
+            (run_id,),
+        )
+        tool_names = [r["tool_name"] for r in cur.fetchall()]
+
+        if not tool_names:
+            return
+
+        # Apply -2.0 penalty to avg_quality for matching strategies
+        for tool in tool_names:
+            cur.execute("""
+                UPDATE research_strategies
+                SET avg_quality = GREATEST(COALESCE(avg_quality, 0) - 2.0, 0),
+                    last_updated = NOW()
+                WHERE industry_naics_2digit = %s
+                  AND company_type = %s
+                  AND company_size_bucket = %s
+                  AND tool_name = %s
+            """, (naics_2, ctype, size_bucket, tool))
+
+        conn.commit()
+        _log.info("Run %d marked not useful: penalized %d tool strategies.", run_id, len(tool_names))
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def apply_bulk_fact_reviews(run_id: int, conn=None) -> None:
+    """Batch version of apply_human_fact_review() -- processes all facts for a run.
+
+    Groups by action_id, computes data_quality for each action, then triggers
+    a single update_strategy_quality() call at the end.
+    """
+    close_conn = False
+    if conn is None:
+        conn = get_connection(cursor_factory=RealDictCursor)
+        close_conn = True
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
+
+        # Get all reviewed facts grouped by action_id
+        cur.execute("""
+            SELECT action_id,
+                   COUNT(*) FILTER (WHERE human_verdict = 'confirmed') AS confirmed,
+                   COUNT(*) FILTER (WHERE human_verdict = 'rejected') AS rejected
+            FROM research_facts
+            WHERE run_id = %s AND action_id IS NOT NULL AND human_verdict IS NOT NULL
+            GROUP BY action_id
+        """, (run_id,))
+        action_groups = cur.fetchall()
+
+        if not action_groups:
+            return
+
+        # Update data_quality for each action
+        for grp in action_groups:
+            confirmed = grp["confirmed"] or 0
+            rejected = grp["rejected"] or 0
+            denom = confirmed + rejected
+            data_quality = round(confirmed / denom, 4) if denom > 0 else 0.0
+
+            cur.execute(
+                "UPDATE research_actions SET data_quality = %s WHERE id = %s",
+                (data_quality, grp["action_id"]),
+            )
+
+        conn.commit()
+        _log.info("Bulk fact review for run %d: updated %d actions.", run_id, len(action_groups))
+
+        # Single strategy update at the end
+        try:
+            update_strategy_quality(conn)
+        except Exception as exc:
+            _log.debug("Strategy update after bulk review failed: %s", exc)
+
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def apply_comparison_verdict(run_id_a: int, run_id_b: int, winner_run_id: int, conn=None) -> None:
+    """Propagate A/B comparison verdict into the learning loop.
+
+    - Tools in the winner run that weren't in the loser: boost avg_quality +1.0
+    - Tools in the loser run that weren't in the winner: penalize avg_quality -0.5
+    - Tools in both runs: no change
+    """
+    close_conn = False
+    if conn is None:
+        conn = get_connection(cursor_factory=RealDictCursor)
+        close_conn = True
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
+
+        loser_run_id = run_id_b if winner_run_id == run_id_a else run_id_a
+
+        # Get tools from each run
+        cur.execute(
+            "SELECT DISTINCT tool_name FROM research_actions WHERE run_id = %s",
+            (winner_run_id,),
+        )
+        winner_tools = {r["tool_name"] for r in cur.fetchall()}
+
+        cur.execute(
+            "SELECT DISTINCT tool_name FROM research_actions WHERE run_id = %s",
+            (loser_run_id,),
+        )
+        loser_tools = {r["tool_name"] for r in cur.fetchall()}
+
+        winner_only = winner_tools - loser_tools
+        loser_only = loser_tools - winner_tools
+
+        if not winner_only and not loser_only:
+            return
+
+        # Get run metadata for strategy lookup (use winner run)
+        cur.execute(
+            "SELECT industry_naics, company_type, employee_size_bucket "
+            "FROM research_runs WHERE id = %s",
+            (winner_run_id,),
+        )
+        run = cur.fetchone()
+        if not run:
+            return
+
+        naics_2 = (run["industry_naics"] or "")[:2]
+        ctype = run["company_type"] or ""
+        size_bucket = run["employee_size_bucket"] or ""
+
+        # Boost winner-only tools
+        for tool in winner_only:
+            cur.execute("""
+                UPDATE research_strategies
+                SET avg_quality = LEAST(COALESCE(avg_quality, 0) + 1.0, 10),
+                    last_updated = NOW()
+                WHERE industry_naics_2digit = %s
+                  AND company_type = %s
+                  AND company_size_bucket = %s
+                  AND tool_name = %s
+            """, (naics_2, ctype, size_bucket, tool))
+
+        # Penalize loser-only tools
+        for tool in loser_only:
+            cur.execute("""
+                UPDATE research_strategies
+                SET avg_quality = GREATEST(COALESCE(avg_quality, 0) - 0.5, 0),
+                    last_updated = NOW()
+                WHERE industry_naics_2digit = %s
+                  AND company_type = %s
+                  AND company_size_bucket = %s
+                  AND tool_name = %s
+            """, (naics_2, ctype, size_bucket, tool))
+
+        conn.commit()
+        _log.info(
+            "Comparison verdict: run %d beat %d. Boosted %d tools, penalized %d tools.",
+            winner_run_id, loser_run_id, len(winner_only), len(loser_only),
+        )
 
     finally:
         if close_conn:

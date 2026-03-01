@@ -6,10 +6,12 @@ import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import {
   useResearchStatus, useResearchResult, useStartResearch,
   useReviewFact, useReviewSummary, useSetHumanScore,
+  useSetRunUsefulness, useFlagFact, useAutoConfirmFacts, useReviewSection, usePriorityFacts,
 } from '@/shared/api/research'
 import { DossierHeader } from './DossierHeader'
 import { DossierSection } from './DossierSection'
 import { ActionLog } from './ActionLog'
+import { PriorityReviewCard } from './PriorityReviewCard'
 import { cn } from '@/lib/utils'
 
 const SECTION_ORDER = [
@@ -64,6 +66,11 @@ export function ResearchResultPage() {
   const reviewMutation = useReviewFact()
   const reviewSummary = useReviewSummary(runId, { enabled: isCompleted })
   const humanScoreMutation = useSetHumanScore()
+  const usefulnessMutation = useSetRunUsefulness()
+  const flagMutation = useFlagFact()
+  const autoConfirmMutation = useAutoConfirmFacts()
+  const sectionReviewMutation = useReviewSection()
+  const priorityFacts = usePriorityFacts(runId, { enabled: isCompleted })
 
   const [humanScore, setHumanScore] = useState('')
 
@@ -84,8 +91,32 @@ export function ResearchResultPage() {
     )
   }
 
-  function handleReviewFact(factId, verdict) {
-    reviewMutation.mutate({ factId, verdict })
+  function handleReviewFact(factId, verdict, source) {
+    if (source === 'flag') {
+      flagMutation.mutate({ factId })
+    } else {
+      reviewMutation.mutate({ factId, verdict })
+    }
+  }
+
+  function handleUsefulnessChange(useful) {
+    usefulnessMutation.mutate(
+      { runId: Number(runId), useful },
+      {
+        onSuccess: () => {
+          // Auto-confirm unflagged facts after usefulness is set
+          autoConfirmMutation.mutate({ runId: Number(runId) })
+        },
+      }
+    )
+  }
+
+  function handleFlagFact(factId) {
+    flagMutation.mutate({ factId })
+  }
+
+  function handleReviewSection(section, verdict) {
+    sectionReviewMutation.mutate({ runId: Number(runId), section, verdict })
   }
 
   function handleHumanScoreBlur() {
@@ -169,7 +200,7 @@ export function ResearchResultPage() {
         Back
       </Button>
 
-      <DossierHeader status={status} onRunAgain={handleRunAgain} />
+      <DossierHeader status={status} onRunAgain={handleRunAgain} onUsefulnessChange={handleUsefulnessChange} />
 
       {/* Failed state */}
       {isFailed && (
@@ -269,15 +300,34 @@ export function ResearchResultPage() {
             </div>
           )}
 
-          {SECTION_ORDER.map((sectionKey) => (
-            <DossierSection
-              key={sectionKey}
-              sectionKey={sectionKey}
-              facts={result.facts_by_section?.[sectionKey]}
-              dossierData={dossierSections}
+          {/* Priority Review Card */}
+          {priorityFacts.data?.priority_facts && (
+            <PriorityReviewCard
+              priorityFacts={priorityFacts.data.priority_facts}
               onReviewFact={handleReviewFact}
+              onFlagFact={handleFlagFact}
             />
-          ))}
+          )}
+
+          {SECTION_ORDER.map((sectionKey) => {
+            // Determine section review status from facts
+            const sectionFacts = result.facts_by_section?.[sectionKey] || []
+            const allReviewed = sectionFacts.length > 0 && sectionFacts.every(f => f.human_verdict != null)
+            const allSameVerdict = allReviewed && sectionFacts.every(f => f.human_verdict === sectionFacts[0]?.human_verdict)
+            const sectionStatus = allSameVerdict ? sectionFacts[0]?.human_verdict : null
+
+            return (
+              <DossierSection
+                key={sectionKey}
+                sectionKey={sectionKey}
+                facts={sectionFacts}
+                dossierData={dossierSections}
+                onReviewFact={handleReviewFact}
+                onReviewSection={handleReviewSection}
+                sectionReviewStatus={sectionStatus}
+              />
+            )
+          })}
 
           <ActionLog actions={result.action_log} />
         </>

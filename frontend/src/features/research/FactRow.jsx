@@ -1,4 +1,4 @@
-import { ThumbsUp, ThumbsDown, Minus, AlertTriangle } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Minus, AlertTriangle, Flag, MoreHorizontal } from 'lucide-react'
 import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 
 function formatValue(value, valueJson) {
@@ -59,31 +59,52 @@ export function FactRow({ fact, onReview }) {
             {VERDICT_BADGE[fact.human_verdict]?.label || fact.human_verdict}
           </span>
         ) : onReview ? (
-          <span className="inline-flex gap-0.5">
+          <span className="inline-flex items-center gap-0.5 relative">
             <button
-              onClick={() => onReview(fact.fact_id, 'confirmed')}
-              className="p-0.5 rounded hover:bg-[#3a7d44]/10 text-[#8a7e6d] hover:text-[#3a7d44] transition-colors"
-              title="Confirm fact"
-              aria-label="Confirm"
-            >
-              <ThumbsUp className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => onReview(fact.fact_id, 'rejected')}
+              onClick={() => onReview(fact.fact_id, 'rejected', 'flag')}
               className="p-0.5 rounded hover:bg-[#c23a22]/10 text-[#8a7e6d] hover:text-[#c23a22] transition-colors"
-              title="Reject fact"
-              aria-label="Reject"
+              title="Flag as wrong"
+              aria-label="Flag"
             >
-              <ThumbsDown className="h-3.5 w-3.5" />
+              <Flag className="h-3.5 w-3.5" />
             </button>
             <button
-              onClick={() => onReview(fact.fact_id, 'irrelevant')}
-              className="p-0.5 rounded hover:bg-[#8a7e6d]/10 text-[#8a7e6d] hover:text-[#5a5046] transition-colors"
-              title="Mark irrelevant"
-              aria-label="Irrelevant"
+              onClick={(e) => {
+                const menu = e.currentTarget.nextElementSibling
+                if (menu) menu.classList.toggle('hidden')
+              }}
+              className="p-0.5 rounded hover:bg-muted text-[#8a7e6d] hover:text-[#5a5046] transition-colors"
+              title="More review options"
+              aria-label="More options"
             >
-              <Minus className="h-3.5 w-3.5" />
+              <MoreHorizontal className="h-3.5 w-3.5" />
             </button>
+            <span className="hidden absolute right-0 top-full mt-0.5 z-10 bg-card border rounded shadow-md p-1 flex gap-0.5">
+              <button
+                onClick={() => onReview(fact.fact_id, 'confirmed')}
+                className="p-1 rounded hover:bg-[#3a7d44]/10 text-[#8a7e6d] hover:text-[#3a7d44] transition-colors"
+                title="Confirm fact"
+                aria-label="Confirm"
+              >
+                <ThumbsUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => onReview(fact.fact_id, 'rejected')}
+                className="p-1 rounded hover:bg-[#c23a22]/10 text-[#8a7e6d] hover:text-[#c23a22] transition-colors"
+                title="Reject fact"
+                aria-label="Reject"
+              >
+                <ThumbsDown className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => onReview(fact.fact_id, 'irrelevant')}
+                className="p-1 rounded hover:bg-[#8a7e6d]/10 text-[#8a7e6d] hover:text-[#5a5046] transition-colors"
+                title="Mark irrelevant"
+                aria-label="Irrelevant"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+            </span>
           </span>
         ) : null}
       </td>

@@ -12,6 +12,11 @@ vi.mock('@/shared/api/research', () => ({
   useReviewFact: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useReviewSummary: vi.fn(() => ({ data: null, isLoading: false })),
   useSetHumanScore: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useSetRunUsefulness: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useFlagFact: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useAutoConfirmFacts: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useReviewSection: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  usePriorityFacts: vi.fn(() => ({ data: null, isLoading: false })),
 }))
 
 import { useResearchStatus, useResearchResult } from '@/shared/api/research'

@@ -116,3 +116,108 @@ export function useSetHumanScore() {
     },
   })
 }
+
+/**
+ * Set run-level usefulness (thumbs up/down).
+ * PATCH /api/research/runs/{runId}/usefulness
+ */
+export function useSetRunUsefulness() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId, useful }) =>
+      apiClient.patch(`/api/research/runs/${runId}/usefulness`, { useful }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['research-result'] })
+      queryClient.invalidateQueries({ queryKey: ['research-status'] })
+    },
+  })
+}
+
+/**
+ * Flag a fact as wrong (shorthand for reject).
+ * POST /api/research/facts/{factId}/flag
+ */
+export function useFlagFact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ factId }) =>
+      apiClient.post(`/api/research/facts/${factId}/flag`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['research-result'] })
+      queryClient.invalidateQueries({ queryKey: ['review-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['priority-facts'] })
+    },
+  })
+}
+
+/**
+ * Auto-confirm unflagged facts after run usefulness is set.
+ * POST /api/research/maintenance/auto-confirm?run_id={runId}
+ */
+export function useAutoConfirmFacts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId }) =>
+      apiClient.post(`/api/research/maintenance/auto-confirm?run_id=${runId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['research-result'] })
+      queryClient.invalidateQueries({ queryKey: ['review-summary'] })
+    },
+  })
+}
+
+/**
+ * Review all facts in a dossier section at once.
+ * POST /api/research/runs/{runId}/sections/{section}/review
+ */
+export function useReviewSection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId, section, verdict, notes }) =>
+      apiClient.post(`/api/research/runs/${runId}/sections/${section}/review`, { verdict, notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['research-result'] })
+      queryClient.invalidateQueries({ queryKey: ['review-summary'] })
+    },
+  })
+}
+
+/**
+ * Fetch priority facts for active learning prompts.
+ * GET /api/research/runs/{runId}/priority-facts
+ */
+export function usePriorityFacts(runId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['priority-facts', runId],
+    queryFn: () => apiClient.get(`/api/research/runs/${runId}/priority-facts`),
+    enabled: enabled && !!runId,
+  })
+}
+
+/**
+ * Fetch comparison data for two runs.
+ * GET /api/research/runs/compare?run_a={a}&run_b={b}
+ */
+export function useCompareRuns(runIdA, runIdB, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['compare-runs', runIdA, runIdB],
+    queryFn: () => apiClient.get(`/api/research/runs/compare?run_a=${runIdA}&run_b=${runIdB}`),
+    enabled: enabled && !!runIdA && !!runIdB,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+/**
+ * Submit A/B comparison verdict.
+ * POST /api/research/runs/compare
+ */
+export function useSubmitComparison() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) =>
+      apiClient.post('/api/research/runs/compare', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['compare-runs'] })
+    },
+  })
+}
