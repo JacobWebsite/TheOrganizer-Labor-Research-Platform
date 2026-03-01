@@ -52,6 +52,19 @@ Most critical: enforcement gate for Priority, Union Proximity weight, NLRB 25-mi
 
 ---
 
+## Frontend Redesign — Layered Information Architecture (Phase 5) — COMPLETE
+
+**Status:** DONE — completed 2026-02-28
+**Tests:** 919 backend (0 failures, 3 skipped), 180 frontend (0 failures)
+
+**Phase 1 — Shared Components:** ScoreGauge, MiniStat, SidebarTOC, CommandPalette — all built.
+**Phase 2 — All 9 pages redesigned:** Employer Profile (hero+sidebar+gauges), Search (platform stats+tier borders), Targets (tier bar+priority cards+rank column), Unions (3 affiliation cards+tree polish), Union Profile (teal gradient hero+MiniStats), Research (stats row+status pill dots), Research Result (fact counts+confidence borders), Admin (stale warnings), Login (branded card).
+**Phase 3 — NavBar:** Cmd+K integration, active state styling — done.
+**Phase 4 — Cross-cutting:** Cross-page linking (5 files), collapsible state persistence (localStorage hook) — done.
+**Commits:** `5344a4d` (Step 2.1), `a681b29` (Steps 2.2-2.9 + 4.1-4.2).
+
+---
+
 ## Latest Update (2026-02-28 — ACS Data + Raw Table Cleanup)
 
 ### ACS Data Loaded

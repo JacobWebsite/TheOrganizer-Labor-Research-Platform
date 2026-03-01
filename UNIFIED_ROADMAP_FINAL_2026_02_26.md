@@ -673,4 +673,90 @@ These 10 actions would fix the scoring weights, clean the worst data quality pro
 
 ---
 
-*This roadmap synthesizes findings from: Claude Code Audit (Feb 25), Claude Code Deep Investigation R2 (Feb 26), Codex Audit (Feb 26), Codex Deep Investigation R2 (Feb 26), Gemini Strategic Audit (Feb 25), and Gemini Deep Research R2 (Feb 26).*
+---
+
+## PHASE 5: Frontend Redesign — Layered Information Architecture — COMPLETE
+*Transform the flat card-stack UI into a layered Glance → Scan → Deep Dive experience with power-user features.*
+
+**Status: COMPLETE — implemented 2026-02-28**
+**Reference document:** `FRONTEND_REDESIGN_INSTRUCTIONS.md` (full step-by-step prompts)
+**Visual target:** `prototype.jsx` (interactive mockup — to be created)
+
+The current frontend (80+ components, "Aged Broadsheet" theme, 172 tests passing) is functional but flat. Every page is a stack of cards or a table. The redesign introduces three information layers on key pages:
+
+- **Layer 1 — Glance:** Hero banners with key stats, answer "should I care?" in 2 seconds
+- **Layer 2 — Scan:** MiniStat card rows for 30-second overview of key numbers
+- **Layer 3 — Deep Dive:** Collapsible detail sections, default-collapsed except most important
+
+Plus power-user features (Cmd+K command palette, sticky sidebar TOC, cross-linking, collapsible state persistence).
+
+---
+
+### 5.1 — Shared Components (Phase 1 — build first, all pages depend on these)
+
+🔧 **Action: Build 5 new shared components**
+
+| Step | Component | Location | Purpose |
+|------|-----------|----------|---------|
+| 1.1 | **ScoreGauge** | `shared/components/ScoreGauge.jsx` | Half-circle SVG dial (0-10), replaces score bars in ScorecardSection. Color-coded: brick red >=7, copper >=4, stone <4. Animated stroke-dasharray. |
+| 1.2 | **MiniStat** | `shared/components/MiniStat.jsx` | Compact stat card (label, value, sub-text, accent top border). Used in dashboard rows across all pages. |
+| 1.3 | **SidebarTOC** | `shared/components/SidebarTOC.jsx` | Sticky sidebar table of contents for long pages. Active section highlight via IntersectionObserver (parent responsibility). |
+| 1.4 | **CommandPalette** | `shared/components/CommandPalette.jsx` | Ctrl+K / Cmd+K quick-jump popup. Uses existing useEmployerAutocomplete hook + hardcoded page links. Integrates into Layout + NavBar. |
+| 1.5 | **Enhanced Breadcrumbs** | Update existing `Breadcrumbs.jsx` | Clickable path steps with route navigation. Last item = current page (bold, not clickable). |
+
+*Source: FRONTEND_REDESIGN_INSTRUCTIONS.md Phase 1 | Status: Not started*
+
+---
+
+### 5.2 — Page-by-Page Updates (Phase 2 — biggest impact first)
+
+🔧 **Action: Redesign 9 pages with layered information architecture**
+
+| Step | Page | Key Changes | Scope |
+|------|------|-------------|-------|
+| 2.1 | **Employer Profile** | Dark hero banner, sidebar TOC, MiniStat row, ScoreGauge grid, collapsible detail sections | **Large** — most complex page |
+| 2.2 | **Search** | Platform stats under hero, collapsible filter panel, tier-colored card borders | Medium |
+| 2.3 | **Targets** | Tier distribution bar, top 5 priority cards grid, layered layout | Medium |
+| 2.4 | **Unions** | Affiliation summary cards (AFL-CIO/CtW/Indep), tree view polish with indent lines | Medium |
+| 2.5 | **Union Profile** | Teal gradient hero banner, MiniStat row, collapsible sections | Medium |
+| 2.6 | **Research** | Stats row, animated status pill badges (pulse for running) | Small |
+| 2.7 | **Research Result** | Dossier header card, collapsible category sections, confidence-colored fact rows | Small |
+| 2.8 | **Admin/Settings** | Health status dot, stat cards, stale-data warnings, collapsible sections | Small |
+| 2.9 | **Login** | Centered card, warm gradient background, polished inputs | Small |
+
+*Source: FRONTEND_REDESIGN_INSTRUCTIONS.md Phase 2 | Status: Not started*
+
+---
+
+### 5.3 — NavBar + Cross-Cutting Improvements (Phases 3-4)
+
+🔧 **Action: NavBar enhancements**
+- "Quick Jump... Cmd+K" button in nav bar
+- Active page link styling (copper color, bottom border)
+- CommandPalette integration in Layout component
+
+🔧 **Action: Cross-linking between pages**
+- Union names on employer profiles → link to union profile
+- Employer names on union profiles → link to employer profile
+- Employer names in targets table, research table, comparables → link to profile
+
+🔧 **Action: Collapsible state persistence**
+- `useCollapsibleState` hook saving expanded/collapsed preferences to localStorage
+- Per-page, per-section keys (e.g., "employer:osha", "union:nlrb")
+
+*Source: FRONTEND_REDESIGN_INSTRUCTIONS.md Phases 3-4 | Status: Not started*
+
+---
+
+### 5.4 — Test Suite Fixup (Phase 5)
+
+🔧 **Action: Run full test suite and fix all failures**
+- Structural changes (renamed/removed components) require test updates
+- Verify dev server starts cleanly, no console errors on any page
+- Target: all 172+ frontend tests passing
+
+*Source: FRONTEND_REDESIGN_INSTRUCTIONS.md Phase 5 | Status: Not started*
+
+---
+
+*This roadmap synthesizes findings from: Claude Code Audit (Feb 25), Claude Code Deep Investigation R2 (Feb 26), Codex Audit (Feb 26), Codex Deep Investigation R2 (Feb 26), Gemini Strategic Audit (Feb 25), Gemini Deep Research R2 (Feb 26), and Frontend Redesign Instructions (Feb 28).*
