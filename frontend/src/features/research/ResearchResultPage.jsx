@@ -1,8 +1,12 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
-import { useResearchStatus, useResearchResult, useStartResearch } from '@/shared/api/research'
+import {
+  useResearchStatus, useResearchResult, useStartResearch,
+  useReviewFact, useReviewSummary, useSetHumanScore,
+} from '@/shared/api/research'
 import { DossierHeader } from './DossierHeader'
 import { DossierSection } from './DossierSection'
 import { ActionLog } from './ActionLog'
@@ -34,6 +38,7 @@ function qualityBarColor(val) {
 export function ResearchResultPage() {
   const { runId } = useParams()
   const navigate = useNavigate()
+  const { setBreadcrumbs } = useOutletContext() || {}
 
   const statusQuery = useResearchStatus(runId)
   const status = statusQuery.data
@@ -41,10 +46,33 @@ export function ResearchResultPage() {
   const isCompleted = status?.status === 'completed'
   const isFailed = status?.status === 'failed'
 
+  // Set custom breadcrumbs with company name
+  const companyName = status?.company_name
+  useEffect(() => {
+    if (setBreadcrumbs && companyName) {
+      setBreadcrumbs([
+        { label: 'Research', to: '/research' },
+        { label: `${companyName} Dossier` },
+      ])
+    }
+  }, [setBreadcrumbs, companyName])
+
   const resultQuery = useResearchResult(runId, { enabled: isCompleted })
   const result = resultQuery.data
 
   const startMutation = useStartResearch()
+  const reviewMutation = useReviewFact()
+  const reviewSummary = useReviewSummary(runId, { enabled: isCompleted })
+  const humanScoreMutation = useSetHumanScore()
+
+  const [humanScore, setHumanScore] = useState('')
+
+  // Sync human score from API result
+  useEffect(() => {
+    if (result?.human_quality_score != null) {
+      setHumanScore(String(result.human_quality_score))
+    }
+  }, [result?.human_quality_score])
 
   function handleRunAgain() {
     if (!status?.company_name) return
@@ -54,6 +82,17 @@ export function ResearchResultPage() {
         onSuccess: (data) => navigate(`/research/${data.run_id}`),
       }
     )
+  }
+
+  function handleReviewFact(factId, verdict) {
+    reviewMutation.mutate({ factId, verdict })
+  }
+
+  function handleHumanScoreBlur() {
+    const val = parseFloat(humanScore)
+    if (isNaN(val) || val < 0 || val > 10) return
+    if (val === result?.human_quality_score) return
+    humanScoreMutation.mutate({ runId: Number(runId), human_quality_score: val })
   }
 
   const handleBack = () => {
@@ -121,6 +160,8 @@ export function ResearchResultPage() {
   // The dossier JSON is nested: result.dossier = { facts, dossier: { identity, labor, ... }, skipped_tools }
   const dossierSections = result?.dossier?.dossier || result?.dossier || {}
 
+  const summary = reviewSummary.data
+
   return (
     <div className="space-y-4">
       <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1.5">
@@ -175,6 +216,53 @@ export function ResearchResultPage() {
                   })}
                 </div>
               )}
+
+              {/* Review progress */}
+              {summary && summary.total_facts > 0 && (
+                <div className="mt-3 pt-3 border-t border-muted">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                    <span>Fact review progress</span>
+                    <span>{summary.reviewed}/{summary.total_facts} reviewed</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#c78c4e] rounded-full transition-all"
+                      style={{ width: `${(summary.reviewed / summary.total_facts) * 100}%` }}
+                    />
+                  </div>
+                  {summary.reviewed > 0 && (
+                    <div className="flex gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                      {summary.confirmed > 0 && <span className="text-[#3a7d44]">{summary.confirmed} confirmed</span>}
+                      {summary.rejected > 0 && <span className="text-[#c23a22]">{summary.rejected} rejected</span>}
+                      {summary.irrelevant > 0 && <span>{summary.irrelevant} irrelevant</span>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Human quality score */}
+              <div className="mt-3 pt-3 border-t border-muted flex items-center gap-3">
+                <label htmlFor="human-score" className="text-xs text-muted-foreground whitespace-nowrap">
+                  Human score
+                </label>
+                <input
+                  id="human-score"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={humanScore}
+                  onChange={(e) => setHumanScore(e.target.value)}
+                  onBlur={handleHumanScoreBlur}
+                  placeholder="0-10"
+                  className="w-16 text-sm px-2 py-0.5 border rounded bg-background text-center"
+                />
+                <span className="text-[10px] text-muted-foreground">/10</span>
+                {humanScoreMutation.isPending && (
+                  <span className="text-[10px] text-muted-foreground">Saving...</span>
+                )}
+              </div>
+
               <p className="text-xs text-muted-foreground mt-3">
                 {result.total_facts} fact{result.total_facts !== 1 ? 's' : ''} across {result.sections_filled} section{result.sections_filled !== 1 ? 's' : ''}
               </p>
@@ -187,6 +275,7 @@ export function ResearchResultPage() {
               sectionKey={sectionKey}
               facts={result.facts_by_section?.[sectionKey]}
               dossierData={dossierSections}
+              onReviewFact={handleReviewFact}
             />
           ))}
 

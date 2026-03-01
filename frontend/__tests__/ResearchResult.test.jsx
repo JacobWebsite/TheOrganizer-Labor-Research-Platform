@@ -9,6 +9,9 @@ vi.mock('@/shared/api/research', () => ({
   useResearchStatus: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useResearchResult: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useStartResearch: vi.fn(() => ({ mutate: vi.fn(), isPending: false, isError: false })),
+  useReviewFact: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useReviewSummary: vi.fn(() => ({ data: null, isLoading: false })),
+  useSetHumanScore: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }))
 
 import { useResearchStatus, useResearchResult } from '@/shared/api/research'

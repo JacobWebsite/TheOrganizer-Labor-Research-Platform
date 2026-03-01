@@ -858,6 +858,69 @@ def backfill_all_scores() -> int:
         conn.close()
 
 
+def apply_human_fact_review(fact_id: int, verdict: str, conn=None) -> None:
+    """Propagate a human fact review into the learning loop.
+
+    - Look up action_id from the reviewed fact
+    - Count confirmed/rejected verdicts for that action's facts
+    - Compute data_quality = confirmed / (confirmed + rejected)
+    - UPDATE research_actions.data_quality
+    - If >= 3 facts reviewed for this action, trigger update_strategy_quality()
+    """
+    close_conn = False
+    if conn is None:
+        conn = get_connection(cursor_factory=RealDictCursor)
+        close_conn = True
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
+
+        # Get the action_id for this fact
+        cur.execute("SELECT action_id FROM research_facts WHERE id = %s", (fact_id,))
+        row = cur.fetchone()
+        if not row or not row["action_id"]:
+            return
+
+        action_id = row["action_id"]
+
+        # Count verdicts for all facts of this action
+        cur.execute("""
+            SELECT
+                COUNT(*) FILTER (WHERE human_verdict = 'confirmed') AS confirmed,
+                COUNT(*) FILTER (WHERE human_verdict = 'rejected') AS rejected,
+                COUNT(*) FILTER (WHERE human_verdict IS NOT NULL) AS total_reviewed
+            FROM research_facts
+            WHERE action_id = %s
+        """, (action_id,))
+        counts = cur.fetchone()
+        confirmed = counts["confirmed"] or 0
+        rejected = counts["rejected"] or 0
+        total_reviewed = counts["total_reviewed"] or 0
+
+        # Compute data_quality (0.0 - 1.0)
+        denom = confirmed + rejected
+        data_quality = round(confirmed / denom, 4) if denom > 0 else 0.0
+
+        cur.execute(
+            "UPDATE research_actions SET data_quality = %s WHERE id = %s",
+            (data_quality, action_id),
+        )
+        conn.commit()
+        _log.info("Action %d data_quality updated to %.2f (%d confirmed, %d rejected).",
+                   action_id, data_quality, confirmed, rejected)
+
+        # Trigger strategy update when enough facts reviewed
+        if total_reviewed >= 3:
+            try:
+                update_strategy_quality(conn)
+            except Exception as exc:
+                _log.debug("Strategy update after fact review failed: %s", exc)
+
+    finally:
+        if close_conn:
+            conn.close()
+
+
 def update_strategy_quality(conn=None) -> int:
     """
     Seed and update research_strategies from completed research runs.
@@ -892,7 +955,12 @@ def update_strategy_quality(conn=None) -> int:
                     COUNT(*) FILTER (WHERE ra.data_found = TRUE)::numeric
                     / NULLIF(COUNT(*), 0), 4
                 ) AS hit_rate,
-                ROUND(AVG(rr.overall_quality_score) FILTER (WHERE ra.data_found = TRUE), 2),
+                ROUND(AVG(
+                    CASE
+                        WHEN ra.data_quality > 0 THEN ra.data_quality * 10
+                        ELSE rr.overall_quality_score
+                    END
+                ) FILTER (WHERE ra.data_found = TRUE), 2),
                 COALESCE(AVG(ra.latency_ms)::integer, 0),
                 NOW()
             FROM research_actions ra
@@ -910,6 +978,24 @@ def update_strategy_quality(conn=None) -> int:
                 last_updated = NOW()
         """)
         upserted = cur.rowcount
+
+        # Rank tools by effectiveness within each industry/type/size group
+        cur.execute("""
+            WITH ranked AS (
+                SELECT id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY industry_naics_2digit, company_type, company_size_bucket
+                           ORDER BY COALESCE(hit_rate, 0) * COALESCE(avg_quality, 0) DESC,
+                                    avg_latency_ms ASC
+                       ) AS rn
+                FROM research_strategies
+                WHERE times_tried >= 3
+            )
+            UPDATE research_strategies s
+            SET recommended_order = r.rn
+            FROM ranked r WHERE s.id = r.id
+        """)
+
         conn.commit()
         _log.info("Upserted %d strategy rows.", upserted)
         return upserted

@@ -134,7 +134,7 @@ function formatCellValue(val) {
   return typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val)
 }
 
-export function DossierSection({ sectionKey, facts, dossierData }) {
+export function DossierSection({ sectionKey, facts, dossierData, onReviewFact }) {
   const meta = SECTION_META[sectionKey] || { icon: Database, label: labelFor(sectionKey), defaultOpen: false }
   const narrative = dossierData?.[sectionKey]
 
@@ -193,11 +193,12 @@ export function DossierSection({ sectionKey, facts, dossierData }) {
                 <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Source</th>
                 <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Confidence</th>
                 <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">As Of</th>
+                <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Review</th>
               </tr>
             </thead>
             <tbody>
               {facts.map((fact, i) => (
-                <FactRow key={`${fact.attribute_name}-${i}`} fact={fact} />
+                <FactRow key={`${fact.attribute_name}-${i}`} fact={fact} onReview={onReviewFact} />
               ))}
             </tbody>
           </table>

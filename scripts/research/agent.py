@@ -269,7 +269,7 @@ def _load_strategy(naics_2: str, company_type: str, size_bucket: str) -> list[di
               AND company_type = %s
               AND company_size_bucket = %s
               AND times_tried >= 3
-            ORDER BY COALESCE(hit_rate, 0) * COALESCE(avg_quality, 0) DESC
+            ORDER BY recommended_order ASC NULLS LAST
         """, (naics_2, company_type or "", size_bucket or ""))
         rows = [dict(r) for r in cur.fetchall()]
         conn.close()
@@ -471,9 +471,96 @@ def _patch_dossier_financials(dossier_data: dict, web_text: str = "") -> int:
                 patched += 1
     return patched
 
-def _resolve_contradictions(dossier_data: dict) -> int:
-    """Check for and log contradictions in the dossier."""
-    return 0
+def _resolve_contradictions(run_id: int) -> int:
+    """Detect and flag contradictions among facts for a research run.
+
+    For numeric attributes: if max/min > 2.0, flag the newer fact's
+    contradicts_fact_id pointing to the older fact.
+    For string attributes appearing 2+ times with different values:
+    flag if values differ after lowercasing.
+
+    Returns the count of contradictions flagged.
+    """
+    _NUMERIC_ATTRS = {
+        "employee_count", "revenue", "osha_violation_count",
+        "osha_serious_count", "whd_case_count", "nlrb_ulp_count",
+        "federal_obligations",
+    }
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, attribute_name, attribute_value FROM research_facts WHERE run_id = %s ORDER BY id",
+        (run_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    if not rows:
+        return 0
+
+    # Group facts by attribute_name
+    by_attr: dict[str, list[dict]] = {}
+    for r in rows:
+        by_attr.setdefault(r["attribute_name"], []).append(dict(r))
+
+    to_flag: list[tuple[int, int]] = []  # (fact_id_to_flag, contradicts_id)
+
+    for attr, facts in by_attr.items():
+        if len(facts) < 2:
+            continue
+
+        if attr in _NUMERIC_ATTRS:
+            # Extract numeric values
+            nums = []
+            for f in facts:
+                val = f.get("attribute_value")
+                if val is None:
+                    continue
+                cleaned = re.sub(r'[^\d.]', '', str(val).split()[0].replace(',', ''))
+                try:
+                    n = float(cleaned) if cleaned else None
+                except ValueError:
+                    n = None
+                if n is not None and n > 0:
+                    nums.append((n, f))
+            if len(nums) >= 2:
+                nums.sort(key=lambda x: x[0])
+                min_val, min_fact = nums[0]
+                max_val, max_fact = nums[-1]
+                if min_val > 0 and (max_val / min_val) > 2.0:
+                    # Flag the newer (higher id) fact
+                    newer = max_fact if max_fact["id"] > min_fact["id"] else min_fact
+                    older = min_fact if newer is max_fact else max_fact
+                    to_flag.append((newer["id"], older["id"]))
+        else:
+            # String comparison: flag if different values after lowercasing
+            seen: dict[str, dict] = {}
+            for f in facts:
+                val = str(f.get("attribute_value") or "").strip().lower()
+                if not val or val in ("-", "none", "null", "verified none (tools searched)", "not searched"):
+                    continue
+                if val not in seen:
+                    seen[val] = f
+                # else same value, no contradiction
+            if len(seen) >= 2:
+                ordered = sorted(seen.values(), key=lambda x: x["id"])
+                older = ordered[0]
+                for newer in ordered[1:]:
+                    to_flag.append((newer["id"], older["id"]))
+
+    if not to_flag:
+        return 0
+
+    conn = _conn()
+    cur = conn.cursor()
+    for fact_id, contradicts_id in to_flag:
+        cur.execute(
+            "UPDATE research_facts SET contradicts_fact_id = %s WHERE id = %s AND contradicts_fact_id IS NULL",
+            (contradicts_id, fact_id),
+        )
+    conn.commit()
+    conn.close()
+    return len(to_flag)
 
 def _extract_financial_trend(dossier_data: dict, web_text: str = "") -> bool:
     """Extract financial_trend from web text and dossier narratives."""
@@ -779,6 +866,15 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
     _ensure_exhaustive_coverage(run_id, dossier_data, vocabulary)
     facts_saved = _save_facts(run_id, run.get("employer_id"), dossier_data.get("facts", []), vocabulary, tool_action_map)
+
+    # Detect contradictions before auto-grade (feeds into consistency score)
+    try:
+        contradictions = _resolve_contradictions(run_id)
+        if contradictions:
+            _log.info("Run %d: flagged %d contradiction(s).", run_id, contradictions)
+    except Exception as exc:
+        _log.debug("Contradiction detection for run %d failed: %s", run_id, exc)
+
     _update_run(run_id, status="completed", completed_at=datetime.now(), duration_seconds=int(time.time()-start_time), dossier_json=json.dumps(dossier_data, default=str), total_facts_found=facts_saved)
 
     # Auto-grade and update strategy tables (learning loop)

@@ -73,3 +73,46 @@ export function useResearchVocabulary() {
     staleTime: 60 * 60 * 1000, // 1 hour
   })
 }
+
+/**
+ * Submit a human review for a research fact.
+ * POST /api/research/facts/{factId}/review
+ */
+export function useReviewFact() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ factId, verdict, notes }) =>
+      apiClient.post(`/api/research/facts/${factId}/review`, { verdict, notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['research-result'] })
+      queryClient.invalidateQueries({ queryKey: ['review-summary'] })
+    },
+  })
+}
+
+/**
+ * Fetch review progress summary for a research run.
+ * GET /api/research/runs/{runId}/review-summary
+ */
+export function useReviewSummary(runId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['review-summary', runId],
+    queryFn: () => apiClient.get(`/api/research/runs/${runId}/review-summary`),
+    enabled: enabled && !!runId,
+  })
+}
+
+/**
+ * Set a manual human quality score for a research run.
+ * PATCH /api/research/runs/{runId}/human-score
+ */
+export function useSetHumanScore() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId, human_quality_score }) =>
+      apiClient.patch(`/api/research/runs/${runId}/human-score`, { human_quality_score }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['research-result'] })
+    },
+  })
+}

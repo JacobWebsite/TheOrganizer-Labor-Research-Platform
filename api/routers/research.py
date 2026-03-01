@@ -12,6 +12,7 @@ Phase 2+ (scaffolded but not active yet):
   GET  /api/research/strategies  — View learned strategies by industry
 """
 import logging
+import os
 from datetime import datetime
 from typing import Literal, Optional
 
@@ -35,6 +36,17 @@ class ResearchRequest(BaseModel):
     company_type: Optional[str] = None         # Optional: public/private/nonprofit/government
     state: Optional[str] = None                # Optional: state hint
     company_address: Optional[str] = None      # Optional: address hint for stricter matching
+
+
+class FactReviewRequest(BaseModel):
+    """Human review of a single research fact."""
+    verdict: Literal["confirmed", "rejected", "irrelevant"]
+    notes: Optional[str] = None
+
+
+class HumanScoreRequest(BaseModel):
+    """Manual quality score override for a research run."""
+    human_quality_score: float
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +87,41 @@ async def start_research_run(request: ResearchRequest, background_tasks: Backgro
                 row = cur.fetchone()
                 if row:
                     known_info = dict(row)
+                else:
+                    # Fallback: try master_employers (non-F7 employers)
+                    cur.execute("""
+                        SELECT display_name AS employer_name, naics, city, state,
+                               employee_count AS latest_unit_size
+                        FROM master_employers
+                        WHERE master_id::TEXT = %s
+                        LIMIT 1
+                    """, (employer_id,))
+                    mrow = cur.fetchone()
+                    if mrow:
+                        known_info = dict(mrow)
+
+            # Dedup check: warn if recent high-quality run exists
+            dedup_days = int(os.environ.get("RESEARCH_DEDUP_DAYS", "30"))
+            dedup_quality = float(os.environ.get("RESEARCH_DEDUP_MIN_QUALITY", "7.0"))
+            dedup_warning = None
+
+            if employer_id and dedup_days > 0:
+                cur.execute("""
+                    SELECT id, overall_quality_score, completed_at
+                    FROM research_runs
+                    WHERE employer_id = %s AND status = 'completed'
+                      AND overall_quality_score >= %s
+                      AND completed_at >= NOW() - make_interval(days => %s)
+                    ORDER BY overall_quality_score DESC
+                    LIMIT 1
+                """, (employer_id, dedup_quality, dedup_days))
+                existing = cur.fetchone()
+                if existing:
+                    dedup_warning = {
+                        "existing_run_id": existing['id'],
+                        "existing_quality": float(existing['overall_quality_score']),
+                        "message": f"A recent high-quality run already exists (#{existing['id']}, quality={float(existing['overall_quality_score']):.1f})"
+                    }
 
             # Determine size bucket from employee count
             unit_size = known_info.get('latest_unit_size', 0) or 0
@@ -109,6 +156,7 @@ async def start_research_run(request: ResearchRequest, background_tasks: Backgro
     return {
         "run_id": run_id,
         "status": "pending",
+        "warning": dedup_warning,
         "message": f"Deep dive started for '{request.company_name}'. Poll /api/research/status/{run_id} for progress."
     }
 
@@ -190,11 +238,13 @@ def get_research_result(run_id: int):
                                else "Research has not started yet"
                 }
 
-            # Get all facts, organized by section
+            # Get all facts, organized by section (includes review fields)
             cur.execute("""
-                SELECT f.dossier_section, f.attribute_name, f.attribute_value,
-                       f.attribute_value_json, f.source_type, f.source_name,
-                       f.source_url, f.confidence, f.as_of_date,
+                SELECT f.id AS fact_id, f.dossier_section, f.attribute_name,
+                       f.attribute_value, f.attribute_value_json,
+                       f.source_type, f.source_name, f.source_url,
+                       f.confidence, f.as_of_date, f.contradicts_fact_id,
+                       f.human_verdict, f.human_notes, f.reviewed_at,
                        v.display_name, v.data_type
                 FROM research_facts f
                 LEFT JOIN research_fact_vocabulary v ON f.attribute_name = v.attribute_name
@@ -233,6 +283,7 @@ def get_research_result(run_id: int):
         "action_log": [dict(a) for a in actions],  # What the agent did
         "quality_score": float(run['overall_quality_score']) if run['overall_quality_score'] else None,
         "quality_dimensions": run['quality_dimensions'] if run['quality_dimensions'] else None,
+        "human_quality_score": float(run['human_quality_score']) if run.get('human_quality_score') else None,
     }
 
 
@@ -317,17 +368,20 @@ def get_research_candidates(
         with conn.cursor() as cur:
             if type == "non_union":
                 cur.execute("""
-                    SELECT
-                        s.employer_id, s.employer_name, s.state, s.city, s.naics,
-                        s.latest_unit_size, s.weighted_score, s.factors_available,
-                        s.score_tier, s.source_count,
-                        ROUND((s.weighted_score * (8 - s.factors_available))::numeric, 2)
-                            AS research_priority
-                    FROM mv_unified_scorecard s
-                    WHERE NOT s.has_research
-                      AND s.factors_available < 6
-                      AND s.weighted_score IS NOT NULL
-                    ORDER BY s.weighted_score * (8 - s.factors_available) DESC NULLS LAST
+                    SELECT ts.master_id::TEXT AS employer_id,
+                           ts.display_name AS employer_name,
+                           ts.state, ts.city, ts.naics,
+                           ts.employee_count AS latest_unit_size,
+                           ts.signals_present AS factors_available,
+                           ts.gold_standard_tier AS score_tier,
+                           ts.source_count
+                    FROM mv_target_scorecard ts
+                    WHERE NOT ts.has_research
+                      AND ts.signals_present >= 2
+                      AND ts.has_enforcement
+                    ORDER BY ts.enforcement_count DESC,
+                             ts.signals_present ASC,
+                             ts.source_count DESC
                     LIMIT %s
                 """, (limit,))
             else:
@@ -386,6 +440,98 @@ def get_fact_vocabulary(section: Optional[str] = Query(None, description="Filter
             vocab = cur.fetchall()
 
     return {"vocabulary": [dict(v) for v in vocab], "total": len(vocab)}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/research/facts/{fact_id}/review — Human fact review
+# ---------------------------------------------------------------------------
+@router.post("/facts/{fact_id}/review")
+def review_fact(fact_id: int, request: FactReviewRequest):
+    """
+    Submit a human review verdict for a single research fact.
+
+    Propagates the review into the learning loop: updates action-level
+    data_quality and triggers strategy re-ranking when enough facts reviewed.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Verify fact exists
+            cur.execute("SELECT id FROM research_facts WHERE id = %s", (fact_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail=f"Fact {fact_id} not found")
+
+            cur.execute("""
+                UPDATE research_facts
+                SET human_verdict = %s,
+                    human_notes = %s,
+                    reviewed_at = NOW()
+                WHERE id = %s
+            """, (request.verdict, request.notes, fact_id))
+
+    # Propagate to learning loop (outside transaction to avoid blocking)
+    try:
+        from scripts.research.auto_grader import apply_human_fact_review
+        apply_human_fact_review(fact_id, request.verdict)
+    except Exception as exc:
+        _log.debug("Learning loop propagation failed for fact %d: %s", fact_id, exc)
+
+    return {"fact_id": fact_id, "verdict": request.verdict, "message": "Review saved"}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/research/runs/{run_id}/review-summary — Review progress
+# ---------------------------------------------------------------------------
+@router.get("/runs/{run_id}/review-summary")
+def get_review_summary(run_id: int):
+    """
+    Get a summary of human review progress for a research run.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM research_runs WHERE id = %s", (run_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail=f"Research run {run_id} not found")
+
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total_facts,
+                    COUNT(*) FILTER (WHERE human_verdict IS NOT NULL) AS reviewed,
+                    COUNT(*) FILTER (WHERE human_verdict IS NULL) AS unreviewed,
+                    COUNT(*) FILTER (WHERE human_verdict = 'confirmed') AS confirmed,
+                    COUNT(*) FILTER (WHERE human_verdict = 'rejected') AS rejected,
+                    COUNT(*) FILTER (WHERE human_verdict = 'irrelevant') AS irrelevant
+                FROM research_facts
+                WHERE run_id = %s
+            """, (run_id,))
+            row = cur.fetchone()
+
+    return {"run_id": run_id, **{k: v for k, v in dict(row).items()}}
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/research/runs/{run_id}/human-score — Set human quality score
+# ---------------------------------------------------------------------------
+@router.patch("/runs/{run_id}/human-score")
+def set_human_score(run_id: int, request: HumanScoreRequest):
+    """
+    Set a manual human quality score (0.0-10.0) for a research run.
+    """
+    if request.human_quality_score < 0.0 or request.human_quality_score > 10.0:
+        raise HTTPException(status_code=422, detail="human_quality_score must be between 0.0 and 10.0")
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM research_runs WHERE id = %s", (run_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail=f"Research run {run_id} not found")
+
+            cur.execute("""
+                UPDATE research_runs
+                SET human_quality_score = %s
+                WHERE id = %s
+            """, (request.human_quality_score, run_id))
+
+    return {"run_id": run_id, "human_quality_score": request.human_quality_score}
 
 
 # ---------------------------------------------------------------------------
