@@ -375,16 +375,16 @@ export function EmployerProfilePage() {
             <ComparablesCard employerId={id} />
           </div>
           <div id="nlrb">
-            <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} scorecard={scorecard} />
+            <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} scorecard={scorecard} dataSources={ds} />
           </div>
           <div id="contracts">
             <GovernmentContractsCard dataSources={dataSourcesQuery.data} sourceAttribution={getAttribution('sam')} />
           </div>
           <div id="osha">
-            <OshaSection osha={osha} sourceAttribution={getAttribution('osha')} />
+            <OshaSection osha={osha} sourceAttribution={getAttribution('osha')} dataSources={ds} />
           </div>
           <div id="whd">
-            <WhdCard employerId={id} sourceAttribution={getAttribution('whd')} />
+            <WhdCard employerId={id} sourceAttribution={getAttribution('whd')} dataSources={ds} />
           </div>
           <div id="crossrefs">
             <CrossReferencesSection crossReferences={crossRefs} />

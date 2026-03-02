@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
+import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
 
 export function FinancialDataCard({ scorecard, dataSources, sourceAttribution }) {
   const growthPct = scorecard?.bls_growth_pct
@@ -19,6 +20,20 @@ export function FinancialDataCard({ scorecard, dataSources, sourceAttribution })
     <CollapsibleCard icon={TrendingUp} title="Financial Data" summary={summary}>
       <div className="space-y-4">
         <SourceAttribution attribution={sourceAttribution} />
+        {dataSources && (
+          <div className="flex flex-wrap gap-2">
+            <DataSourceBadge
+              source="990"
+              hasFlag={dataSources.has_990}
+              hasData={scorecard?.n990_revenue != null}
+            />
+            <DataSourceBadge
+              source="SEC"
+              hasFlag={dataSources.has_sec}
+              hasData={dataSources.is_public}
+            />
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4 text-sm">
         {growthPct != null && (
           <div>

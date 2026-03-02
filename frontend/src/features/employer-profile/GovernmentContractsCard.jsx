@@ -1,6 +1,7 @@
 import { FileText } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
+import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
 
 function formatCurrency(n) {
   if (n == null) return '$0'
@@ -21,6 +22,11 @@ export function GovernmentContractsCard({ dataSources, sourceAttribution }) {
     <CollapsibleCard icon={FileText} title="Government Contracts" summary={summary}>
       <div className="space-y-4">
         <SourceAttribution attribution={sourceAttribution} />
+        <DataSourceBadge
+          source="SAM"
+          hasFlag={dataSources?.has_sam || dataSources?.is_federal_contractor}
+          hasData={!!dataSources?.federal_obligations}
+        />
         <div className="grid grid-cols-2 gap-4 text-sm">
         <div>
           <span className="text-muted-foreground">Total Obligations</span>

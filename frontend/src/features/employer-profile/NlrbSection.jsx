@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Scale, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
+import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -41,7 +42,7 @@ function ResultBadge({ result }) {
   )
 }
 
-export function NlrbSection({ nlrb, sourceAttribution, scorecard }) {
+export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources }) {
   const [electionsExpanded, setElectionsExpanded] = useState(false)
   const [ulpExpanded, setUlpExpanded] = useState(false)
 
@@ -75,6 +76,13 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard }) {
     <CollapsibleCard icon={Scale} title="NLRB Activity" summary={summaryText}>
       <div className="space-y-4">
         <SourceAttribution attribution={sourceAttribution} />
+        {dataSources && (
+          <DataSourceBadge
+            source="NLRB"
+            hasFlag={dataSources.has_nlrb}
+            hasData={!!(nlrb?.elections?.length > 0 || nlrb?.ulp_cases?.length > 0)}
+          />
+        )}
         {/* Summary stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div>

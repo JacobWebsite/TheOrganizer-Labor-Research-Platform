@@ -21,6 +21,7 @@ const SettingsPage = lazy(() => import('@/features/admin/SettingsPage').then(m =
 const ResearchPage = lazy(() => import('@/features/research/ResearchPage').then(m => ({ default: m.ResearchPage })))
 const ResearchResultPage = lazy(() => import('@/features/research/ResearchResultPage').then(m => ({ default: m.ResearchResultPage })))
 const CompareRunsPage = lazy(() => import('@/features/research/CompareRunsPage').then(m => ({ default: m.CompareRunsPage })))
+const UnifiedScorecardPage = lazy(() => import('@/features/scorecard/UnifiedScorecardPage').then(m => ({ default: m.UnifiedScorecardPage })))
 
 function AuthChecker({ children }) {
   useAuthCheck()
@@ -46,6 +47,7 @@ export default function App() {
                 <Route index element={<Navigate to="/search" replace />} />
                 <Route path="search" element={<Suspense fallback={<PageSkeleton />}><SearchPage /></Suspense>} />
                 <Route path="employers/:id" element={<Suspense fallback={<PageSkeleton variant="profile" />}><EmployerProfilePage /></Suspense>} />
+                <Route path="scorecard" element={<Suspense fallback={<PageSkeleton variant="targets" />}><UnifiedScorecardPage /></Suspense>} />
                 <Route path="targets" element={<Suspense fallback={<PageSkeleton variant="targets" />}><TargetsPage /></Suspense>} />
                 <Route path="unions" element={<Suspense fallback={<PageSkeleton variant="unions" />}><UnionsPage /></Suspense>} />
                 <Route path="unions/:fnum" element={<Suspense fallback={<PageSkeleton variant="union-profile" />}><UnionProfilePage /></Suspense>} />

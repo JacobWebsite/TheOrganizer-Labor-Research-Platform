@@ -128,11 +128,27 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
             </>
           )}
 
-          {/* Union reference: label instead of score */}
+          {/* Union reference: label + factors badge */}
           {isUnionReference && (
-            <span className="inline-flex items-center rounded-md px-3 py-1.5 text-xs font-semibold bg-[#3a7d44]/20 text-[#3a7d44] border border-[#3a7d44]/30">
-              Reference Data
-            </span>
+            <div className="flex flex-col items-end gap-2">
+              <span className="inline-flex items-center rounded-md px-3 py-1.5 text-xs font-semibold bg-[#3a7d44]/20 text-[#3a7d44] border border-[#3a7d44]/30">
+                Reference Data
+              </span>
+              {scorecard?.factors_available != null && (() => {
+                const factors = scorecard.factors_available
+                const total = scorecard.factors_total || 10
+                return (
+                  <span className={cn(
+                    'rounded-md px-2 py-0.5 text-xs font-medium',
+                    factors >= 5 ? 'bg-[#1a6b5a]/20 text-[#1a6b5a]' :
+                    factors >= 3 ? 'bg-[#c78c4e]/20 text-[#c78c4e]' :
+                    'bg-amber-100 text-amber-800 border border-amber-300'
+                  )}>
+                    {factors}/{total} factors
+                  </span>
+                )
+              })()}
+            </div>
           )}
 
           {/* Legacy: weighted score for F7 union employers without explicit flag */}
@@ -142,6 +158,20 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
                 {Number(weightedScore).toFixed(1)}
               </div>
               <div className="text-[10px] uppercase tracking-widest text-[#faf6ef]/50 mt-1">Composite Score</div>
+              {scorecard?.factors_available != null && (() => {
+                const factors = scorecard.factors_available
+                const total = scorecard.factors_total || 10
+                return (
+                  <span className={cn(
+                    'rounded-md px-2 py-0.5 text-xs font-medium mt-2 inline-block',
+                    factors >= 5 ? 'bg-[#1a6b5a]/20 text-[#1a6b5a]' :
+                    factors >= 3 ? 'bg-[#c78c4e]/20 text-[#c78c4e]' :
+                    'bg-amber-100 text-amber-800 border border-amber-300'
+                  )}>
+                    {factors}/{total} factors
+                  </span>
+                )
+              })()}
             </>
           )}
         </div>

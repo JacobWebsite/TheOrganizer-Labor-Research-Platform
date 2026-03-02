@@ -33,7 +33,7 @@ def test_weighted_columns_exist():
 
 
 def test_weighted_score_formula_consistency():
-    """weighted_score = (score_anger*3 + score_stability*3 + score_leverage*4) / 10"""
+    """weighted_score = (anger*3 + leverage*4) / active_pillar_weights (dynamic denominator, stability zeroed)"""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -46,10 +46,13 @@ def test_weighted_score_formula_consistency():
                     weighted_score
                     - ROUND(
                         (
-                            COALESCE(score_anger, 0) * 3
-                          + COALESCE(score_stability, 0) * 3
-                          + COALESCE(score_leverage, 0) * 4
-                        )::numeric / 10,
+                            COALESCE(score_anger * 3, 0)
+                          + COALESCE(score_leverage * 4, 0)
+                        )::numeric / NULLIF(
+                            CASE WHEN score_anger IS NOT NULL THEN 3 ELSE 0 END
+                          + CASE WHEN score_leverage IS NOT NULL THEN 4 ELSE 0 END,
+                          0
+                        ),
                         2
                       )
                   ) > 0.02

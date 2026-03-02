@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Scale, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
+import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
 import { useEmployerWhd } from '@/shared/api/profile'
 import { Button } from '@/components/ui/button'
 
@@ -10,7 +11,7 @@ function formatCurrency(n) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
 
-export function WhdCard({ employerId, sourceAttribution }) {
+export function WhdCard({ employerId, sourceAttribution, dataSources }) {
   const { data, isLoading } = useEmployerWhd(employerId)
   const [showAll, setShowAll] = useState(false)
 
@@ -49,6 +50,13 @@ export function WhdCard({ employerId, sourceAttribution }) {
     >
       <div className="space-y-4">
         <SourceAttribution attribution={sourceAttribution} />
+        {dataSources && (
+          <DataSourceBadge
+            source="WHD"
+            hasFlag={dataSources.has_whd}
+            hasData={!!(data?.cases?.length > 0)}
+          />
+        )}
         {(hasChildLabor || hasRepeatViolator) && (
           <div className="flex flex-wrap gap-2">
             {hasChildLabor && (

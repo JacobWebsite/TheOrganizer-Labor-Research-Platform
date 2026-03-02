@@ -193,11 +193,15 @@ def get_unified_scorecard(
                        is_federal_contractor, is_public,
                        score_osha, score_nlrb, score_whd, score_contracts,
                        score_union_proximity, score_financial, score_size, score_similarity,
+                       score_anger, score_leverage,
                        factors_available, factors_total,
                        total_weight, weighted_score, unified_score, coverage_pct,
                        score_tier, score_tier_legacy,
                        has_research, research_run_id, research_quality,
-                       strategic_delta, research_approach
+                       strategic_delta, research_approach,
+                       has_compound_enforcement, has_child_labor,
+                       is_whd_repeat_violator, has_close_election,
+                       company_workers, size_source
                 FROM mv_unified_scorecard
                 WHERE {where}
                 ORDER BY {order}

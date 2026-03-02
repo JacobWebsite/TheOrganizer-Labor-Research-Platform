@@ -189,6 +189,18 @@ financial_form5500 AS (
         ON f7sid.master_id = f5sid.master_id AND f7sid.source_system = 'f7'
     GROUP BY f7sid.source_id
 ),
+-- PPP: workforce size fallback from PPP loan data
+ppp_size AS (
+    SELECT f7sid.source_id AS f7_employer_id,
+           MAX(pr.total_jobs_reported) AS ppp_jobs_reported
+    FROM cur_ppp_employer_rollup pr
+    JOIN master_employer_source_ids pppsid
+        ON pppsid.source_system = 'ppp'
+        AND pppsid.source_id = pr.borrower_name || '|' || pr.borrower_state
+    JOIN master_employer_source_ids f7sid
+        ON f7sid.master_id = pppsid.master_id AND f7sid.source_system = 'f7'
+    GROUP BY f7sid.source_id
+),
 -- Similarity: bridge F7 employer_id -> master_id -> employer_comparables
 similarity_agg AS (
     SELECT
@@ -349,17 +361,23 @@ raw_scores AS (
         END AS score_industry_growth,
 
         CASE
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size) IS NULL THEN NULL
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size) < 15 THEN 0
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) IS NULL THEN NULL
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) < 15 THEN 0
             -- Sweet spot: 50-500 scales linearly 1-10
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size) BETWEEN 500 AND 25000 THEN 10
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) BETWEEN 500 AND 25000 THEN 10
             -- High-end taper: 25,001-100,000 tapers from 10 down to 5
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size) > 25000 THEN
-                GREATEST(5, 10 - ROUND(((COALESCE(eds.company_size, eds.latest_unit_size) - 25000)::numeric / 75000) * 5, 2))
-            ELSE ROUND((((COALESCE(eds.company_size, eds.latest_unit_size) - 15)::numeric / 485) * 10), 2)
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) > 25000 THEN
+                GREATEST(5, 10 - ROUND(((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) - 25000)::numeric / 75000) * 5, 2))
+            ELSE ROUND((((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) - 15)::numeric / 485) * 10), 2)
         END AS score_size,
 
-        COALESCE(eds.company_size, eds.latest_unit_size) AS company_workers,
+        COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) AS company_workers,
+        CASE
+            WHEN eds.company_size IS NOT NULL THEN 'company_size'
+            WHEN eds.latest_unit_size IS NOT NULL THEN 'f7_unit_size'
+            WHEN ppp.ppp_jobs_reported IS NOT NULL THEN 'ppp_2020'
+            ELSE NULL
+        END AS size_source,
 
         sa.unionized_comparable_count,
         sa.best_distance,
@@ -426,6 +444,7 @@ raw_scores AS (
         WHEN '48' THEN '48-490' WHEN '49' THEN '48-490'
         ELSE NULL
     END AND bp.matrix_code IS NULL
+    LEFT JOIN ppp_size ppp ON ppp.f7_employer_id = eds.employer_id
     LEFT JOIN similarity_agg sa ON sa.employer_id = eds.employer_id
     LEFT JOIN (
         -- Bridge F7 employer_id -> master_id -> wage outliers
