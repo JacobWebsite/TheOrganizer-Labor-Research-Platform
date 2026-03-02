@@ -878,82 +878,88 @@ def refresh_scorecard(user=Depends(require_admin)):
     import time
     import json
     from ..database import get_raw_connection
+    from scripts.scoring._pipeline_lock import pipeline_lock
     conn = get_raw_connection()
     conn.autocommit = True
     try:
-        cur = conn.cursor()
-        t0 = time.time()
-        cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_organizing_scorecard")
-        elapsed = time.time() - t0
-        cur.execute("SELECT COUNT(*) FROM mv_organizing_scorecard")
-        count = cur.fetchone()[0]
+        # Advisory lock prevents concurrent refreshes from corrupting the MV
+        with pipeline_lock(conn, 'scorecard_mv'):
+            cur = conn.cursor()
+            t0 = time.time()
+            cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_organizing_scorecard")
+            elapsed = time.time() - t0
+            cur.execute("SELECT COUNT(*) FROM mv_organizing_scorecard")
+            count = cur.fetchone()[0]
 
-        # Record score version with canonical metadata
-        version_id = None
-        cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'score_versions')")
-        if cur.fetchone()[0]:
-            # Fetch latest canonical metadata (or use fallbacks)
-            cur.execute("""
-                SELECT factor_weights, decay_params FROM score_versions
-                WHERE factor_weights ? 'industry_density'
-                ORDER BY version_id DESC LIMIT 1
-            """)
-            meta_row = cur.fetchone()
-            if meta_row:
-                factor_weights = meta_row[0] if isinstance(meta_row[0], dict) else json.loads(meta_row[0])
-                decay_params = meta_row[1] if isinstance(meta_row[1], dict) else json.loads(meta_row[1])
-            else:
-                factor_weights = _FALLBACK_FACTOR_WEIGHTS
-                decay_params = _FALLBACK_DECAY_PARAMS
-
-            # Compute full score stats
-            cur.execute("""
-                SELECT
-                    MIN(score_company_unions + score_industry_density + score_geographic +
-                        score_size + score_osha + score_nlrb + score_contracts +
-                        score_projections + score_similarity),
-                    ROUND(AVG(score_company_unions + score_industry_density + score_geographic +
-                        score_size + score_osha + score_nlrb + score_contracts +
-                        score_projections + score_similarity)::numeric, 1),
-                    MAX(score_company_unions + score_industry_density + score_geographic +
-                        score_size + score_osha + score_nlrb + score_contracts +
-                        score_projections + score_similarity),
-                    ROUND(AVG(osha_decay_factor)::numeric, 3)
-                FROM mv_organizing_scorecard
-            """)
-            min_s, avg_score, max_s, avg_decay = cur.fetchone()
-            score_stats = {
-                "min_score": int(min_s) if min_s is not None else None,
-                "avg_score": float(avg_score) if avg_score is not None else None,
-                "max_score": int(max_s) if max_s is not None else None,
-                "avg_osha_decay": float(avg_decay) if avg_decay is not None else None,
-            }
-
-            # Dedupe guard: skip if same row_count + avg_score within 5 minutes
-            avg_score_str = str(score_stats["avg_score"]) if score_stats["avg_score"] is not None else ""
-            cur.execute("""
-                SELECT version_id FROM score_versions
-                WHERE created_at > NOW() - INTERVAL '5 minutes'
-                  AND row_count = %s
-                  AND score_stats->>'avg_score' = %s
-                LIMIT 1
-            """, (count, avg_score_str))
-            existing = cur.fetchone()
-            if existing:
-                version_id = existing[0]
-            else:
+            # Record score version with canonical metadata
+            version_id = None
+            cur.execute("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'score_versions')")
+            if cur.fetchone()[0]:
+                # Fetch latest canonical metadata (or use fallbacks)
                 cur.execute("""
-                    INSERT INTO score_versions (description, row_count, factor_weights, decay_params, score_stats)
-                    VALUES (%s, %s, %s::jsonb, %s::jsonb, %s::jsonb)
-                    RETURNING version_id
-                """, (
-                    "API concurrent refresh",
-                    count,
-                    json.dumps(factor_weights),
-                    json.dumps(decay_params),
-                    json.dumps(score_stats),
-                ))
-                version_id = cur.fetchone()[0]
+                    SELECT factor_weights, decay_params FROM score_versions
+                    WHERE factor_weights ? 'industry_density'
+                    ORDER BY version_id DESC LIMIT 1
+                """)
+                meta_row = cur.fetchone()
+                if meta_row:
+                    factor_weights = meta_row[0] if isinstance(meta_row[0], dict) else json.loads(meta_row[0])
+                    decay_params = meta_row[1] if isinstance(meta_row[1], dict) else json.loads(meta_row[1])
+                else:
+                    factor_weights = _FALLBACK_FACTOR_WEIGHTS
+                    decay_params = _FALLBACK_DECAY_PARAMS
+
+                # Compute full score stats
+                cur.execute("""
+                    SELECT
+                        MIN(score_company_unions + score_industry_density + score_geographic +
+                            score_size + score_osha + score_nlrb + score_contracts +
+                            score_projections + score_similarity),
+                        ROUND(AVG(score_company_unions + score_industry_density + score_geographic +
+                            score_size + score_osha + score_nlrb + score_contracts +
+                            score_projections + score_similarity)::numeric, 1),
+                        MAX(score_company_unions + score_industry_density + score_geographic +
+                            score_size + score_osha + score_nlrb + score_contracts +
+                            score_projections + score_similarity),
+                        ROUND(AVG(osha_decay_factor)::numeric, 3)
+                    FROM mv_organizing_scorecard
+                """)
+                min_s, avg_score, max_s, avg_decay = cur.fetchone()
+                score_stats = {
+                    "min_score": int(min_s) if min_s is not None else None,
+                    "avg_score": float(avg_score) if avg_score is not None else None,
+                    "max_score": int(max_s) if max_s is not None else None,
+                    "avg_osha_decay": float(avg_decay) if avg_decay is not None else None,
+                }
+
+                # Dedupe guard: skip if same row_count + avg_score within 5 minutes
+                avg_score_str = str(score_stats["avg_score"]) if score_stats["avg_score"] is not None else ""
+                cur.execute("""
+                    SELECT version_id FROM score_versions
+                    WHERE created_at > NOW() - INTERVAL '5 minutes'
+                      AND row_count = %s
+                      AND score_stats->>'avg_score' = %s
+                    LIMIT 1
+                """, (count, avg_score_str))
+                existing = cur.fetchone()
+                if existing:
+                    version_id = existing[0]
+                else:
+                    cur.execute("""
+                        INSERT INTO score_versions (description, row_count, factor_weights, decay_params, score_stats)
+                        VALUES (%s, %s, %s::jsonb, %s::jsonb, %s::jsonb)
+                        RETURNING version_id
+                    """, (
+                        "API concurrent refresh",
+                        count,
+                        json.dumps(factor_weights),
+                        json.dumps(decay_params),
+                        json.dumps(score_stats),
+                    ))
+                    version_id = cur.fetchone()[0]
+    except RuntimeError:
+        conn.close()
+        raise HTTPException(status_code=409, detail="Scorecard refresh already in progress")
     finally:
         conn.close()
     result = {

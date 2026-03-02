@@ -57,7 +57,11 @@ nlrb_elections_agg AS (
         SUM(COALESCE(e.eligible_voters, 0)) AS total_eligible,
         MAX(
             exp(-LN(2)/7 * GREATEST(0, (CURRENT_DATE - COALESCE(e.election_date, CURRENT_DATE))::float / 365.25))
-        ) AS latest_decay_factor
+        ) AS latest_decay_factor,
+        SUM(CASE WHEN NOT e.union_won AND e.vote_margin IS NOT NULL
+                 AND e.vote_margin <= 5 AND e.eligible_voters > 10 THEN 1 ELSE 0 END) AS close_election_count,
+        MIN(CASE WHEN NOT e.union_won AND e.vote_margin IS NOT NULL
+                 AND e.vote_margin <= 5 AND e.eligible_voters > 10 THEN e.vote_margin END) AS closest_margin
     FROM nlrb_participants p
     JOIN nlrb_elections e ON e.case_number = p.case_number
     WHERE p.participant_type = 'Employer'
@@ -88,6 +92,8 @@ nlrb_agg AS (
         ea.latest_election,
         COALESCE(ea.total_eligible, 0) AS total_eligible,
         COALESCE(ea.latest_decay_factor, 1.0) AS latest_decay_factor,
+        COALESCE(ea.close_election_count, 0) AS close_election_count,
+        ea.closest_margin,
         COALESCE(ua.ulp_count, 0) AS ulp_count,
         ua.latest_ulp,
         COALESCE(ua.ulp_decay_factor, 1.0) AS ulp_decay_factor
@@ -132,6 +138,8 @@ whd_agg AS (
         SUM(COALESCE(wc.civil_penalties, 0)) AS total_penalties,
         SUM(COALESCE(wc.employees_violated, 0)) AS total_employees_violated,
         BOOL_OR(wc.flsa_repeat_violator) AS any_repeat_violator,
+        SUM(COALESCE(wc.flsa_child_labor_violations, 0)) AS total_child_labor_violations,
+        BOOL_OR(wc.flsa_child_labor_violations > 0) AS any_child_labor,
         MAX(wc.findings_end_date) AS latest_finding
     FROM whd_f7_matches wm
     JOIN whd_cases wc ON wc.case_id = wm.case_id
@@ -230,7 +238,14 @@ raw_scores AS (
                     0,
                     ROUND(
                         ((
-                            COALESCE(oa.total_violations, 0)::numeric
+                            (COALESCE(oa.willful_count, 0) * 3
+                             + COALESCE(oa.repeat_count, 0) * 2
+                             + COALESCE(oa.serious_count, 0) * 1
+                             + (COALESCE(oa.total_violations, 0)
+                                - COALESCE(oa.willful_count, 0)
+                                - COALESCE(oa.repeat_count, 0)
+                                - COALESCE(oa.serious_count, 0)) * 0.5
+                            )::numeric
                             / GREATEST(COALESCE(oa4.avg_violations_per_estab, oa2.avg_violations_per_estab, 2.23), 0.1)
                         )
                         * exp(-LN(2)/5 * GREATEST(0, (CURRENT_DATE - COALESCE(oa.latest_inspection, CURRENT_DATE))::float / 365.25)))::numeric,
@@ -373,6 +388,12 @@ raw_scores AS (
         wa.total_penalties AS whd_total_penalties,
         wa.latest_finding AS whd_latest_finding,
         wa.any_repeat_violator AS whd_repeat_violator,
+        wa.any_child_labor AS whd_child_labor,
+        wa.total_child_labor_violations AS whd_child_labor_count,
+
+        na.close_election_count AS nlrb_close_election_count,
+        na.closest_margin AS nlrb_closest_margin,
+
         COALESCE(bp.employment_change_pct, bp_alias.employment_change_pct) AS bls_growth_pct,
 
         f990.latest_revenue AS n990_revenue,
@@ -647,6 +668,12 @@ SELECT
     CASE WHEN r.score_contracts IS NOT NULL AND r.score_contracts > 0
         THEN TRUE ELSE FALSE
     END AS has_active_contracts,
+    CASE WHEN r.score_osha IS NOT NULL AND r.score_whd IS NOT NULL
+        THEN TRUE ELSE FALSE
+    END AS has_compound_enforcement,
+    CASE WHEN r.whd_child_labor THEN TRUE ELSE FALSE END AS has_child_labor,
+    CASE WHEN r.whd_repeat_violator THEN TRUE ELSE FALSE END AS is_whd_repeat_violator,
+    CASE WHEN r.nlrb_close_election_count > 0 THEN TRUE ELSE FALSE END AS has_close_election,
     CASE
         -- Guardrail: min 3 factors for Priority AND Strong (D3)
         WHEN r.score_percentile >= 0.97 AND r.factors_available >= 3 THEN 'Priority'

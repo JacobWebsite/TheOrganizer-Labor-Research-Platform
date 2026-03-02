@@ -41,7 +41,7 @@ function ResultBadge({ result }) {
   )
 }
 
-export function NlrbSection({ nlrb, sourceAttribution }) {
+export function NlrbSection({ nlrb, sourceAttribution, scorecard }) {
   const [electionsExpanded, setElectionsExpanded] = useState(false)
   const [ulpExpanded, setUlpExpanded] = useState(false)
 
@@ -94,6 +94,16 @@ export function NlrbSection({ nlrb, sourceAttribution }) {
             <div className="text-xs text-muted-foreground">ULP Cases</div>
           </div>
         </div>
+
+        {/* Close election badge */}
+        {scorecard?.has_close_election && (
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-800">
+              <AlertTriangle className="h-3 w-3" />
+              Close Election: Lost by {scorecard.nlrb_closest_margin} vote{scorecard.nlrb_closest_margin !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
 
         {/* Elections table */}
         {elections.length > 0 && (

@@ -101,6 +101,7 @@ def get_unified_scorecard(
     has_osha: Optional[bool] = None,
     has_nlrb: Optional[bool] = None,
     has_research: Optional[bool] = None,
+    has_compound_enforcement: Optional[bool] = None,
     sort: str = Query(default="score", pattern="^(score|size|factors|name|strategic_delta|score_delta)$"),
     offset: int = Query(default=0, ge=0),
     page_size: int = Query(default=50, ge=1, le=200),
@@ -140,6 +141,10 @@ def get_unified_scorecard(
                 conditions.append("has_research")
             if has_research is False:
                 conditions.append("NOT has_research")
+            if has_compound_enforcement is True:
+                conditions.append("has_compound_enforcement")
+            if has_compound_enforcement is False:
+                conditions.append("NOT has_compound_enforcement")
 
             where = " AND ".join(conditions)
 

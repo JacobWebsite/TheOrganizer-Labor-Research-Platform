@@ -375,7 +375,7 @@ export function EmployerProfilePage() {
             <ComparablesCard employerId={id} />
           </div>
           <div id="nlrb">
-            <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} />
+            <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} scorecard={scorecard} />
           </div>
           <div id="contracts">
             <GovernmentContractsCard dataSources={dataSourcesQuery.data} sourceAttribution={getAttribution('sam')} />

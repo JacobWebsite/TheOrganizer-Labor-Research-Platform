@@ -38,6 +38,9 @@ export function WhdCard({ employerId, sourceAttribution }) {
   const caseCount = summary.case_count || cases.length
   const backwages = summary.total_backwages || 0
 
+  const hasChildLabor = cases.some(c => c.flsa_child_labor_violations > 0)
+  const hasRepeatViolator = cases.some(c => c.flsa_repeat_violator)
+
   return (
     <CollapsibleCard
       icon={Scale}
@@ -46,6 +49,22 @@ export function WhdCard({ employerId, sourceAttribution }) {
     >
       <div className="space-y-4">
         <SourceAttribution attribution={sourceAttribution} />
+        {(hasChildLabor || hasRepeatViolator) && (
+          <div className="flex flex-wrap gap-2">
+            {hasChildLabor && (
+              <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold bg-red-100 text-red-800">
+                <AlertTriangle className="h-3 w-3" />
+                Child Labor Violation
+              </span>
+            )}
+            {hasRepeatViolator && (
+              <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-800">
+                <AlertTriangle className="h-3 w-3" />
+                Repeat Violator
+              </span>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <div>
             <span className="text-muted-foreground">Cases</span>
