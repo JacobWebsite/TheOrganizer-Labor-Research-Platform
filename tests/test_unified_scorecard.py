@@ -239,6 +239,54 @@ class TestUnifiedScorecardData:
         finally:
             conn.close()
 
+    def test_greatest_null_behavior(self):
+        """Regression: PostgreSQL GREATEST(NULL, 5) must return 5."""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT GREATEST(NULL, 5), GREATEST(NULL, NULL), GREATEST(3, 5)")
+                row = cur.fetchone()
+                assert row[0] == 5
+                assert row[1] is None
+                assert row[2] == 5
+        finally:
+            conn.close()
+
+    def test_anger_null_when_no_subfactors(self):
+        """Anger pillar should be NULL when no OSHA, WHD, or ULP data."""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT COUNT(*) FROM mv_unified_scorecard
+                    WHERE score_anger IS NOT NULL
+                      AND enh_score_osha IS NULL
+                      AND enh_score_whd IS NULL
+                      AND nlrb_ulp_count = 0
+                      AND rse_score_anger IS NULL
+                """)
+                bad = cur.fetchone()[0]
+                assert bad == 0, f"{bad} employers have anger score without any anger sub-factors"
+        finally:
+            conn.close()
+
+    def test_stability_no_fake_baseline(self):
+        """Stability should be NULL (not 5.0) when no turnover/wage data."""
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT COUNT(*) FROM mv_unified_scorecard
+                    WHERE score_stability = 5.0
+                      AND turnover_rate_found IS NULL
+                      AND wage_outlier_score IS NULL
+                      AND rse_score_stability IS NULL
+                """)
+                fake = cur.fetchone()[0]
+                assert fake == 0, f"{fake} employers still have fake 5.0 stability baseline"
+        finally:
+            conn.close()
+
 
 # ── API Tests ────────────────────────────────────────────────────────────
 

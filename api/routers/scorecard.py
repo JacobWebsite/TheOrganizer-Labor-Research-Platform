@@ -8,6 +8,27 @@ from .organizing import get_organizing_scorecard, get_scorecard_detail
 router = APIRouter()
 
 
+def _compute_recommended_action(row):
+    """Compute a recommended action label based on tier, enforcement, and factors.
+
+    This is a request-time computation -- not stored in the MV.
+    """
+    tier = row.get('score_tier')
+    has_enforcement = row.get('has_osha') or row.get('has_whd') or row.get('has_nlrb')
+    factors = row.get('factors_available', 0)
+
+    if tier == 'Priority' and has_enforcement:
+        return 'PURSUE NOW'
+    elif tier in ('Priority', 'Strong') and factors >= 3:
+        return 'RESEARCH FIRST'
+    elif tier in ('Promising', 'Moderate') and has_enforcement:
+        return 'RESEARCH FIRST'
+    elif factors < 3:
+        return 'INSUFFICIENT DATA'
+    else:
+        return 'MONITOR'
+
+
 @router.get("/api/scorecard/")
 def get_scorecard_list(
     state: Optional[str] = None,
@@ -191,6 +212,7 @@ def get_unified_scorecard(
                 # Backward compat aliases for renamed columns
                 row["score_delta"] = row.get("strategic_delta")
                 row["research_weighted_score"] = row.get("research_quality")
+                row["recommended_action"] = _compute_recommended_action(row)
 
             return {
                 "data": data,
@@ -363,9 +385,9 @@ def get_unified_scorecard_detail(employer_id: str):
                     f"best Gower distance {data.get('best_distance')}"
                 )
             explanations["weights"] = (
-                "Weights: union proximity 3x, NLRB 3x, contracts 2x, "
-                "industry growth 2x, financial 2x, OSHA 1x, WHD 1x. "
-                "Size is a filter dimension (not weighted). Similarity disabled."
+                "Pillar weights: Anger 3x, Leverage 4x. "
+                "Stability zeroed pending data coverage. "
+                "Dynamic denominator: only active pillars count toward the divisor."
             )
 
             # Research enhancement info
@@ -378,6 +400,23 @@ def get_unified_scorecard_detail(employer_id: str):
                 data['research_dossier_url'] = f"/api/research/result/{data['research_run_id']}"
 
             data['explanations'] = explanations
+
+            # Research notes (dual-gate: 5.0-6.9 quality runs)
+            if not data.get('has_research'):
+                cur.execute(
+                    "SELECT run_id, run_quality, recommended_approach, "
+                    "       financial_trend, key_findings "
+                    "FROM research_notes WHERE employer_id = %s",
+                    [employer_id],
+                )
+                notes_row = cur.fetchone()
+                if notes_row:
+                    data['research_notes'] = dict(notes_row)
+                    data['research_notes_url'] = f"/api/research/notes/{employer_id}"
+
+            # Recommended action (computed at request time, not stored in MV)
+            data['recommended_action'] = _compute_recommended_action(data)
+
             return data
 
 

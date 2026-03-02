@@ -923,3 +923,30 @@ def get_priority_facts(run_id: int, limit: int = Query(5, ge=1, le=20)):
         "priority_facts": [dict(f) for f in facts],
         "total": len(facts),
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/research/notes/{employer_id} -- Research notes (dual-gate: 5.0-6.9)
+# ---------------------------------------------------------------------------
+@router.get("/notes/{employer_id}")
+def get_research_notes(employer_id: str):
+    """Get unverified research notes for an employer.
+
+    These are findings from research runs that scored 5.0-6.9 (below the 7.0
+    threshold for score enhancement but above the 5.0 rejection floor).
+    Displayed as 'unverified' on employer profiles.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT rn.*, rr.company_name, rr.overall_quality_score
+                FROM research_notes rn
+                JOIN research_runs rr ON rr.id = rn.run_id
+                WHERE rn.employer_id = %s
+            """, (employer_id,))
+            row = cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="No research notes for this employer")
+
+    return dict(row)

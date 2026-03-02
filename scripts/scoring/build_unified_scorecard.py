@@ -543,45 +543,77 @@ strategic_pillars AS (
         s.*,
         -- PILLAR 1: ANGER (Motivation)
         -- Blends violations, ULP history, and research sentiment
+        -- Dynamic denominator: only counts sub-factors that have data
+        -- Guard: LEAST(10, NULL) = 10 in PG, so use CASE to ensure NULL when no data
         COALESCE(
             s.rse_score_anger,
-            LEAST(10, 
-                (COALESCE(s.enh_score_osha, 0) * 0.3)
-                + (COALESCE(s.enh_score_whd, 0) * 0.3)
-                + (CASE 
-                    WHEN s.nlrb_ulp_count = 0 THEN 0
-                    WHEN s.nlrb_ulp_count = 1 THEN 4
-                    WHEN s.nlrb_ulp_count BETWEEN 2 AND 3 THEN 6
-                    WHEN s.nlrb_ulp_count BETWEEN 4 AND 9 THEN 8
-                    ELSE 10
-                  END * 0.4)
-                + COALESCE(s.sentiment_score_found, 0) -- Research bonus
+            CASE WHEN s.enh_score_osha IS NOT NULL
+                   OR s.enh_score_whd IS NOT NULL
+                   OR s.nlrb_ulp_count > 0
+            THEN LEAST(10,
+                (
+                    COALESCE(s.enh_score_osha * 3, 0)
+                    + COALESCE(s.enh_score_whd * 3, 0)
+                    + COALESCE(
+                        CASE
+                            WHEN s.nlrb_ulp_count = 0 THEN NULL
+                            WHEN s.nlrb_ulp_count = 1 THEN 4
+                            WHEN s.nlrb_ulp_count BETWEEN 2 AND 3 THEN 6
+                            WHEN s.nlrb_ulp_count BETWEEN 4 AND 9 THEN 8
+                            ELSE 10
+                        END * 4, 0)
+                    + COALESCE(s.sentiment_score_found, 0) * 10
+                )::numeric / NULLIF(
+                    CASE WHEN s.enh_score_osha IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN s.enh_score_whd IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN s.nlrb_ulp_count > 0 THEN 4 ELSE 0 END,
+                    0
+                )
             )
+            END
         ) AS score_anger,
 
         -- PILLAR 2: STABILITY (Winnability)
-        -- High score = Low turnover / High stability. "Stability is required for a committee."
-        -- Blends research stability, turnover, wage outlier (inverted: low wages -> less stable)
+        -- Weight zeroed (Task 1-2): kept for reference/display but excluded from weighted_score
+        -- No more fake 5.0 baseline: NULL when no real data
         COALESCE(
             s.rse_score_stability,
             CASE
                 WHEN s.turnover_rate_found IS NOT NULL THEN (10 - s.turnover_rate_found)
                 WHEN s.wage_outlier_score IS NOT NULL THEN (10 - s.wage_outlier_score)
-                ELSE 5.0 -- Baseline stability
+                ELSE NULL
             END
         ) AS score_stability,
 
         -- PILLAR 3: LEVERAGE (Power)
-        -- Blends proximity, similarity, contracts, financials (RPE), and growth
-        LEAST(10,
-            (COALESCE(s.score_union_proximity, 0) * 0.25)
-            + (COALESCE(s.score_similarity, 0) * 0.10)
-            + (COALESCE(s.enh_score_contracts, 0) * 0.20)
-            + (COALESCE(s.enh_score_financial, 0) * 0.20)
-            + (COALESCE(s.score_industry_growth, 0) * 0.10)
-            + (COALESCE(s.enh_score_size, 0) * 0.15)
-            + CASE WHEN s.revenue_per_employee_found > 500000 THEN 1 ELSE 0 END -- RPE Bonus
-        ) AS score_leverage
+        -- Dynamic denominator: only counts sub-factors that have data
+        -- Guard: LEAST(10, NULL) = 10 in PG, so use CASE to ensure NULL when no data
+        CASE WHEN s.score_union_proximity IS NOT NULL
+               OR s.score_similarity IS NOT NULL
+               OR s.enh_score_contracts IS NOT NULL
+               OR s.enh_score_financial IS NOT NULL
+               OR s.score_industry_growth IS NOT NULL
+               OR s.enh_score_size IS NOT NULL
+        THEN LEAST(10,
+            (
+                COALESCE(s.score_union_proximity * 25, 0)
+                + COALESCE(s.score_similarity * 10, 0)
+                + COALESCE(s.enh_score_contracts * 20, 0)
+                + COALESCE(s.enh_score_financial * 20, 0)
+                + COALESCE(s.score_industry_growth * 10, 0)
+                + COALESCE(s.enh_score_size * 15, 0)
+                + CASE WHEN s.revenue_per_employee_found > 500000 THEN 10 ELSE 0 END
+            )::numeric / NULLIF(
+                CASE WHEN s.score_union_proximity IS NOT NULL THEN 25 ELSE 0 END
+                + CASE WHEN s.score_similarity IS NOT NULL THEN 10 ELSE 0 END
+                + CASE WHEN s.enh_score_contracts IS NOT NULL THEN 20 ELSE 0 END
+                + CASE WHEN s.enh_score_financial IS NOT NULL THEN 20 ELSE 0 END
+                + CASE WHEN s.score_industry_growth IS NOT NULL THEN 10 ELSE 0 END
+                + CASE WHEN s.enh_score_size IS NOT NULL THEN 15 ELSE 0 END,
+                0
+            )
+        )
+        END AS score_leverage
     FROM research_enhanced s
 ),
 weighted AS (
@@ -595,7 +627,7 @@ weighted AS (
             + CASE WHEN s.score_financial IS NOT NULL THEN 2 ELSE 0 END
             + CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
             + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
-            + CASE WHEN s.score_stability IS NOT NULL THEN 2 ELSE 0 END -- New stability weight
+            -- Stability weight zeroed (Task 1-2)
         ) AS total_weight,
         (
             CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
@@ -612,10 +644,13 @@ weighted AS (
         10 AS factors_total,
         ROUND(
             (
-                (COALESCE(s.score_anger, 0) * 3)
-                + (COALESCE(s.score_stability, 0) * 3)
-                + (COALESCE(s.score_leverage, 0) * 4)
-            )::numeric / 10,
+                COALESCE(s.score_anger * 3, 0)
+                + COALESCE(s.score_leverage * 4, 0)
+            )::numeric / NULLIF(
+                CASE WHEN s.score_anger IS NOT NULL THEN 3 ELSE 0 END
+                + CASE WHEN s.score_leverage IS NOT NULL THEN 4 ELSE 0 END,
+                0
+            ),
             2
         ) AS weighted_score,
         -- Keep original weighted score for comparison

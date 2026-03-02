@@ -72,7 +72,56 @@ export function ResearchInsightsCard({ scorecard }) {
   // Fetch full dossier only when user expands it
   const dossierQuery = useResearchResult(runId, { enabled: showDossier && !!runId })
 
-  if (!hasResearch) return null
+  // Dual-gate: show unverified notes for 5.0-6.9 quality runs
+  const researchNotes = scorecard?.research_notes
+  if (!hasResearch && !researchNotes) return null
+
+  if (!hasResearch && researchNotes) {
+    return (
+      <CollapsibleCard icon={FlaskConical} title="Research Notes (Unverified)" summary={`Quality: ${Number(researchNotes.run_quality).toFixed(1)}/10`} defaultOpen={false}>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#c78c4e]/10 border border-[#c78c4e]/30 rounded text-sm">
+            <AlertTriangle className="h-4 w-4 text-[#c78c4e] shrink-0" />
+            <span>Below verification threshold (7.0). Treat as unconfirmed leads.</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Research Quality</p>
+              <QualityBadge score={researchNotes.run_quality} />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Run ID</p>
+              <span className="text-sm font-mono">#{researchNotes.run_id}</span>
+            </div>
+          </div>
+          {researchNotes.recommended_approach && (
+            <div className="flex items-start gap-2">
+              <Lightbulb className="h-4 w-4 text-[#c78c4e] mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Suggested Approach</p>
+                <p className="text-sm">{researchNotes.recommended_approach}</p>
+              </div>
+            </div>
+          )}
+          {researchNotes.financial_trend && (
+            <div className="flex items-start gap-2">
+              <TrendingUp className="h-4 w-4 text-[#3a6b8c] mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Financial Trend</p>
+                <p className="text-sm">{researchNotes.financial_trend}</p>
+              </div>
+            </div>
+          )}
+          {researchNotes.key_findings && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Key Findings</p>
+              <pre className="text-xs bg-muted/50 p-3 rounded overflow-auto max-h-48 whitespace-pre-wrap">{researchNotes.key_findings}</pre>
+            </div>
+          )}
+        </div>
+      </CollapsibleCard>
+    )
+  }
 
   const contradictionList = Array.isArray(contradictions) ? contradictions : []
   const summary = quality != null

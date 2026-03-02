@@ -104,14 +104,10 @@ cd frontend && VITE_DISABLE_AUTH=true npx vite
 py -m pytest tests/ -x -q          # backend (~942 tests)
 cd frontend && npx vitest run       # frontend (~184 tests)
 
-# MV rebuild (in dependency order)
-py scripts/scoring/create_scorecard_mv.py
-py scripts/scoring/compute_gower_similarity.py
-py scripts/scoring/build_employer_data_sources.py
-py scripts/scoring/build_unified_scorecard.py
-py scripts/scoring/build_target_data_sources.py
-py scripts/scoring/build_target_scorecard.py
-py scripts/scoring/rebuild_search_mv.py
+# MV rebuild (orchestrated)
+py scripts/scoring/refresh_all.py              # full chain
+py scripts/scoring/refresh_all.py --skip-gower # skip slow Gower step
+py scripts/scoring/refresh_all.py --with-report # with score change report
 
 # Auto-metrics
 py scripts/maintenance/generate_project_metrics.py
@@ -174,8 +170,8 @@ FastAPI (api/main.py, port 8001) -> React Frontend (frontend/)
 **Union Reference Track (F7-based):**
 - `mv_unified_scorecard` — 146,863 rows (1:1 with f7_employers_deduped)
 - 10 factors (each 0-10): OSHA, NLRB, WHD, Contracts, Union Proximity, Financial, Industry Growth, Size (weight=0), Similarity (weight=1 nominally, 0% non-NULL)
-- Pillar formula: `weighted_score = (anger*3 + stability*3 + leverage*4) / 10`
-- Tiers: Priority (1.5%), Strong (10.5%), Promising (27.9%), Moderate (35.0%), Low (25.0%)
+- Pillar formula: `weighted_score = (anger*3 + leverage*4) / active_weights` (stability zeroed, dynamic denominator)
+- Tiers: Priority (~2.0%), Strong (~10.2%), Promising (~27.7%), Moderate (~34.3%), Low (~25.8%)
 
 **Non-Union Target Track:**
 - `mv_target_scorecard` — 4,386,205 rows (from master_employers)
@@ -220,26 +216,34 @@ create_scorecard_mv.py        # OSHA-based organizing scorecard
 - **RapidFuzz replaced Splink** — Splink geography overweighting was unfixable. match_method still = `'FUZZY_SPLINK_ADAPTIVE'` for backward compat.
 - **Fuzzy FP rates:** 0.80-0.85=40-50%, 0.85-0.90=50-70%, 0.90-0.95=30-40%. Below-0.85 deactivated.
 
-### Unified Scorecard (10 Factors)
-| Factor | Coverage | Avg | Weight | Predictive Power |
-|--------|----------|-----|--------|-----------------|
-| NLRB | 17.6% | 6.65 | 3x | +10.2 pp (strongest) |
-| Industry Growth | 84.9% | — | 2x | +9.6 pp |
-| Contracts | 5.9% | — | 2x | +5.7 pp |
-| WHD | 7.7% | — | 1x | +4.1 pp |
-| Financial | 7.3% | — | 2x | +4.1 pp |
-| OSHA | 22.3% | — | 1x | -0.6 pp (predicts losses) |
-| Similarity | 0% | — | 1x | N/A (0% non-NULL coverage, pipeline broken) |
-| Union Proximity | 100% | — | 3x | +0.0 pp (zero power) |
-| Size | 100% | — | 0x | +0.2 pp (zero power) |
+### Unified Scorecard (10 Factors, 3 Pillars)
 
-**The score succeeds DESPITE its weights, not because of them.** NLRB and Industry Growth carry the signal.
+**Pillar Architecture (Round 4 audit batch 3):**
+- **Anger** (weight 3): OSHA + WHD + ULP, dynamic sub-factor denominator
+- **Stability** (weight 0): zeroed pending data coverage; kept for display
+- **Leverage** (weight 4): proximity + similarity + contracts + financial + growth + size, dynamic sub-factor denominator
+- **Formula:** `weighted_score = (anger*3 + leverage*4) / active_pillar_weights`
+- Dynamic denominator at both pillar and final level: NULL pillars do not inflate or deflate scores
+
+| Factor | Coverage | Weight (in pillar) | Predictive Power |
+|--------|----------|-------------------|-----------------|
+| NLRB | 17.6% | Anger sub-factor (4/10) | +10.2 pp (strongest) |
+| Industry Growth | 84.9% | Leverage sub-factor (10/100) | +9.6 pp |
+| Contracts | 5.9% | Leverage sub-factor (20/100) | +5.7 pp |
+| WHD | 7.7% | Anger sub-factor (3/10) | +4.1 pp |
+| Financial | 7.3% | Leverage sub-factor (20/100) | +4.1 pp |
+| OSHA | 22.3% | Anger sub-factor (3/10) | -0.6 pp (predicts losses) |
+| Union Proximity | 100% | Leverage sub-factor (25/100) | +0.0 pp (zero power) |
+| Size | 100% | Leverage sub-factor (15/100) | +0.2 pp (zero power) |
+| Similarity | 0% | Leverage sub-factor (10/100) | N/A (0% non-NULL) |
+
+**Research quality dual-gate:** >=7.0 enhances scores, 5.0-6.9 saves as unverified notes, <5.0 rejected.
 
 ### Audit-Validated Findings
 - **Score IS predictive** — win rates monotonic by tier: Priority 90.9%, Strong 84.7%, Low 74.1%
 - **Selection bias:** Only 34% of NLRB elections link to scored employers. F7-matched baseline is 80.8%.
 - **Data richness paradox:** Fewer factors = higher win rates (2-factor=88.2%, 8-factor=73.4%).
-- **Priority tier:** 2,278 employers, 86% with zero enforcement data. D1/D7 decision: NO enforcement gate.
+- **Priority tier:** ~2,891 employers (post-batch-3 rebalance). D1/D7 decision: NO enforcement gate.
 - **Propensity model KILLED** — was hardcoded formula (coin-flip accuracy). Code archived.
 
 ---
@@ -347,20 +351,37 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - **Phase R1: Research Agent Learning Loop — DONE.** Contradiction detection, human fact review API, learning propagation, frontend review UI.
 - **Phase 5 Frontend Redesign — DONE.** All pages redesigned with "Aged Broadsheet" visual theme.
 - **Phase 3 Workstreams A+B+C+D — DONE.** Research quality, similarity rebuild, wage outliers, demographics API.
-- **All tests pass:** 960 backend (0 failures, 3 skipped), 184 frontend (0 failures).
+- **All tests pass:** ~963 backend (0 failures, 3 skipped), 184 frontend (0 failures).
 
 ### Active Decisions
 | ID | Decision | Status |
 |----|----------|--------|
 | D1/D7 | No enforcement gate for any tier | CLOSED |
 | D5 | Industry Growth weight increase to 3x? | Open |
-| D11 | Scoring framework overhaul (Anger/Stability/Leverage) | Investigating |
+| D11 | Scoring framework overhaul (Anger/Stability/Leverage) | Implemented (batch 3): stability zeroed, dynamic denominator |
 | D12 | Union Proximity weight (3x despite zero power) | Open |
 
 ### Deferred (do NOT prompt about until roadmap mostly done)
 - Phase 2 remaining re-runs (SAM/WHD/990/SEC with RapidFuzz)
 - Phase 2.4 grouping quality
 - Phase 2.5 master dedup
+
+### Round 4 Audit Batch 3 (2026-03-01) -- DONE
+- **1-1:** Gower similarity (pending re-run, pipeline intact)
+- **1-2:** Stability weight zeroed (was 3, now 0)
+- **1-8:** Union designation TRIM (already clean)
+- **1-10:** Recommended action (API-only, computed at request time)
+- **1-14:** Nightly backup via Task Scheduler (2AM daily, 7-day retention)
+- **1-15:** Pillar weight validation script (`scripts/analysis/validate_pillar_weights.py`)
+- **2-1:** Dynamic denominator at pillar + final formula level
+- **2-3:** `refresh_all.py` MV rebuild orchestrator
+- **2-4:** Extended `generate_project_metrics.py` -> `PLATFORM_STATUS.md`
+- **2-5:** Documentation updates (scoring formulas, tier counts, weights)
+- **2-6:** `check_doc_consistency.py` reconciliation check
+- **2-7:** `score_change_report.py` (snapshot/compare before/after rebuild)
+- **2-8:** GREATEST NULL regression test + anger/stability NULL tests
+- **2-9:** `coverage_qa.py` monthly factor coverage QA
+- **2-10:** Research quality dual-gate (>=7.0 enhances, 5.0-6.9 notes, <5.0 reject)
 
 ### Next Up
 - E1 RPE workforce estimates, or other roadmap items

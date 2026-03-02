@@ -296,6 +296,128 @@ def generate_markdown():
             lines.append(f'**Total tests collected:** {test_count}')
             lines.append('')
 
+        # Section 8: MV Freshness
+        lines.append('## MV Freshness')
+        lines.append('')
+        lines.append('Approximate last rebuild time based on `pg_stat_user_tables.last_analyze`.')
+        lines.append('')
+        lines.append('| Materialized View | Last Analyze |')
+        lines.append('|-------------------|-------------|')
+        cur.execute("""
+            SELECT s.relname, s.last_analyze
+            FROM pg_stat_user_tables s
+            JOIN pg_class c ON c.relname = s.relname
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public' AND c.relkind = 'm'
+            ORDER BY s.relname
+        """)
+        for row in cur.fetchall():
+            mv_name = row['relname']
+            last_analyze = row['last_analyze']
+            ts = str(last_analyze) if last_analyze else '(never)'
+            lines.append(f'| `{mv_name}` | {ts} |')
+        lines.append('')
+
+        # Section 9: Score Factor Coverage
+        lines.append('## Score Factor Coverage')
+        lines.append('')
+        lines.append('Percentage of employers with each scoring factor in mv_unified_scorecard.')
+        lines.append('')
+
+        factor_cols = [
+            'score_osha', 'score_nlrb', 'score_whd', 'score_contracts',
+            'score_union_proximity', 'score_financial', 'score_industry_growth',
+            'score_size', 'score_similarity',
+        ]
+        try:
+            cur.execute('SELECT COUNT(*) AS cnt FROM mv_unified_scorecard')
+            total_employers = cur.fetchone()['cnt']
+            lines.append(f'**Total employers:** {total_employers:,}')
+            lines.append('')
+            lines.append('| Factor | Count | Pct |')
+            lines.append('|--------|-------|-----|')
+            for fc in factor_cols:
+                cur.execute(f'SELECT COUNT(*) AS cnt FROM mv_unified_scorecard WHERE {fc} IS NOT NULL')
+                cnt = cur.fetchone()['cnt']
+                pct = (100.0 * cnt / total_employers) if total_employers else 0
+                lines.append(f'| `{fc}` | {cnt:,} | {pct:.1f}% |')
+            lines.append('')
+        except Exception:
+            lines.append('*(mv_unified_scorecard not available)*')
+            lines.append('')
+
+        # Section 10: Score Distribution
+        lines.append('## Score Distribution')
+        lines.append('')
+        try:
+            cur.execute("""
+                SELECT
+                    ROUND(MIN(weighted_score)::numeric, 2) AS mn,
+                    ROUND(AVG(weighted_score)::numeric, 2) AS avg,
+                    ROUND(MAX(weighted_score)::numeric, 2) AS mx
+                FROM mv_unified_scorecard
+                WHERE weighted_score IS NOT NULL
+            """)
+            dist = cur.fetchone()
+            lines.append(f'| Metric | Value |')
+            lines.append(f'|--------|-------|')
+            lines.append(f'| Min weighted_score | {dist["mn"]} |')
+            lines.append(f'| Avg weighted_score | {dist["avg"]} |')
+            lines.append(f'| Max weighted_score | {dist["mx"]} |')
+            lines.append('')
+
+            lines.append('**Tier Distribution:**')
+            lines.append('')
+            lines.append('| Tier | Count | Pct |')
+            lines.append('|------|-------|-----|')
+            cur.execute("""
+                SELECT score_tier, COUNT(*) AS cnt
+                FROM mv_unified_scorecard
+                GROUP BY score_tier
+                ORDER BY CASE score_tier
+                    WHEN 'Priority' THEN 1
+                    WHEN 'Strong' THEN 2
+                    WHEN 'Promising' THEN 3
+                    WHEN 'Moderate' THEN 4
+                    WHEN 'Low' THEN 5
+                    ELSE 6
+                END
+            """)
+            tier_total = total_employers if total_employers else 1
+            for row in cur.fetchall():
+                pct = (100.0 * row['cnt'] / tier_total)
+                lines.append(f'| {row["score_tier"]} | {row["cnt"]:,} | {pct:.1f}% |')
+            lines.append('')
+        except Exception:
+            lines.append('*(mv_unified_scorecard not available)*')
+            lines.append('')
+
+        # Section 11: Data Freshness
+        lines.append('## Data Freshness')
+        lines.append('')
+        lines.append('Latest dates per data source.')
+        lines.append('')
+        lines.append('| Source | Latest Date |')
+        lines.append('|--------|------------|')
+
+        freshness_queries = [
+            ('OSHA (inspections)', "SELECT MAX(last_inspection_date) AS d FROM osha_establishments"),
+            ('WHD (findings)', "SELECT MAX(findings_end_date) AS d FROM whd_cases"),
+            ('NLRB (elections)', "SELECT MAX(election_date) AS d FROM nlrb_elections"),
+            ('NLRB (cases)', "SELECT MAX(latest_date) AS d FROM nlrb_cases"),
+            ('SAM (registrations)', "SELECT MAX(registration_date) AS d FROM sam_entities"),
+            ('Form 990', "SELECT MAX(tax_period) AS d FROM irs_990_data"),
+        ]
+        for label, query in freshness_queries:
+            try:
+                cur.execute(query)
+                val = cur.fetchone()['d']
+                lines.append(f'| {label} | {val} |')
+            except Exception:
+                conn.rollback()
+                lines.append(f'| {label} | (table not found) |')
+        lines.append('')
+
         return '\n'.join(lines)
 
     finally:
@@ -311,6 +433,12 @@ def main():
     with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
         f.write(md)
     print(f'\nWritten to {OUTPUT_PATH}')
+
+    # Also write to PLATFORM_STATUS.md
+    status_path = os.path.join(PROJECT_ROOT, 'docs', 'PLATFORM_STATUS.md')
+    with open(status_path, 'w', encoding='utf-8') as f:
+        f.write(md)
+    print(f'Written to {status_path}')
 
 
 if __name__ == '__main__':

@@ -528,6 +528,84 @@ def grade_and_save(run_id: int, conn=None) -> dict:
             conn.close()
 
 
+def _save_research_notes(run_id: int, run: dict, quality: float, cur, conn) -> None:
+    """Save medium-quality research (5.0-6.9) to research_notes instead of score enhancements.
+
+    These findings are displayed as 'unverified notes' on employer profiles but do NOT
+    affect scoring factors.
+    """
+    employer_id = run.get("employer_id")
+    if not employer_id:
+        return
+
+    raw = run.get("dossier_json")
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return
+    if not isinstance(raw, dict) or "dossier" not in raw:
+        return
+    body = raw["dossier"]
+
+    assessment = body.get("assessment", {}) or {}
+    rec_approach = assessment.get("recommended_approach")
+    strengths = assessment.get("campaign_strengths")
+    challenges = assessment.get("campaign_challenges")
+    contradictions = assessment.get("source_contradictions")
+    fin_trend = assessment.get("financial_trend")
+
+    # Build a summary of key findings from all sections
+    findings = []
+    for section_name in ("identity", "labor", "financial", "workforce", "workplace"):
+        section = body.get(section_name, {}) or {}
+        for k, v in section.items():
+            if v and str(v).strip() and str(v).strip().lower() not in ("none", "null", "n/a"):
+                findings.append(f"{section_name}.{k}: {str(v)[:200]}")
+    key_findings = "\n".join(findings[:50]) if findings else None
+
+    # Build summary JSON (stripped-down dossier for display)
+    summary = {}
+    for section_name in ("identity", "labor", "financial", "workforce", "workplace", "assessment"):
+        section = body.get(section_name)
+        if section and isinstance(section, dict):
+            # Only keep non-null values
+            cleaned = {k: v for k, v in section.items() if v is not None}
+            if cleaned:
+                summary[section_name] = cleaned
+
+    cur.execute("""
+        INSERT INTO research_notes (
+            employer_id, run_id, run_quality, dossier_summary,
+            recommended_approach, campaign_strengths, campaign_challenges,
+            source_contradictions, financial_trend, key_findings, updated_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT (employer_id) DO UPDATE SET
+            run_id = EXCLUDED.run_id,
+            run_quality = EXCLUDED.run_quality,
+            dossier_summary = EXCLUDED.dossier_summary,
+            recommended_approach = COALESCE(EXCLUDED.recommended_approach, research_notes.recommended_approach),
+            campaign_strengths = COALESCE(EXCLUDED.campaign_strengths, research_notes.campaign_strengths),
+            campaign_challenges = COALESCE(EXCLUDED.campaign_challenges, research_notes.campaign_challenges),
+            source_contradictions = COALESCE(EXCLUDED.source_contradictions, research_notes.source_contradictions),
+            financial_trend = COALESCE(EXCLUDED.financial_trend, research_notes.financial_trend),
+            key_findings = COALESCE(EXCLUDED.key_findings, research_notes.key_findings),
+            updated_at = NOW()
+        WHERE EXCLUDED.run_quality >= COALESCE(research_notes.run_quality, 0)
+    """, (
+        employer_id, run_id, quality,
+        json.dumps(summary) if summary else None,
+        rec_approach if isinstance(rec_approach, str) and len(rec_approach.strip()) >= 10 else None,
+        json.dumps(strengths) if isinstance(strengths, list) else None,
+        json.dumps(challenges) if isinstance(challenges, list) else None,
+        json.dumps(contradictions) if isinstance(contradictions, (list, dict)) else None,
+        fin_trend if isinstance(fin_trend, str) and len(fin_trend.strip()) >= 5 else None,
+        key_findings,
+    ))
+    conn.commit()
+    _log.info("Research notes saved for employer %s (run %d, quality %.2f)", employer_id, run_id, quality)
+
+
 def compute_research_enhancements(run_id: int, conn=None) -> Optional[int]:
     """Compute scorecard factor scores from a research dossier and UPSERT into
     research_score_enhancements.
@@ -559,8 +637,12 @@ def compute_research_enhancements(run_id: int, conn=None) -> Optional[int]:
             return None
 
         quality = float(run["overall_quality_score"]) if run["overall_quality_score"] else 0.0
+        if quality < 5.0:
+            _log.info("Enhancement skipped: run %d quality %.2f < 5.0 (rejected)", run_id, quality)
+            return None
         if quality < 7.0:
-            _log.info("Enhancement skipped: run %d quality %.2f < 7.0", run_id, quality)
+            _log.info("Enhancement dual-gate: run %d quality %.2f in notes range (5.0-6.9)", run_id, quality)
+            _save_research_notes(run_id, run, quality, cur, conn)
             return None
 
         # Parse dossier
