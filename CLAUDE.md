@@ -239,6 +239,8 @@ create_scorecard_mv.py        # OSHA-based organizing scorecard
 
 **Research quality dual-gate:** >=7.0 enhances scores, 5.0-6.9 saves as unverified notes, <5.0 rejected.
 
+**Pillar weight validation (2026-03-02):** Logistic regression on 6,403 NLRB outcomes shows anger is the strongest predictor (coeff 0.12), stability slightly negative, leverage weak. Model accuracy = base win rate (79.9%), confirming pillars don't add marginal predictive power. This is expected -- the score flags for investigation, not prediction. Current weights (3-0-4) kept. See `docs/pillar_weight_validation.csv`.
+
 ### Audit-Validated Findings
 - **Score IS predictive** — win rates monotonic by tier: Priority 90.9%, Strong 84.7%, Low 74.1%
 - **Selection bias:** Only 34% of NLRB elections link to scored employers. F7-matched baseline is 80.8%.
