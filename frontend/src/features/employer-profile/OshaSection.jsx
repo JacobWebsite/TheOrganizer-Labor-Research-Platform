@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { Button } from '@/components/ui/button'
@@ -34,13 +34,24 @@ function SeverityBadge({ label, count }) {
 export function OshaSection({ osha, sourceAttribution }) {
   const [expanded, setExpanded] = useState(false)
 
-  if (!osha) return null
+  const summary = osha?.summary || {}
+  const establishments = osha?.establishments || []
 
-  const summary = osha.summary || {}
-  const establishments = osha.establishments || []
-
-  // If no data at all, hide section
-  if (!summary.total_establishments && establishments.length === 0) return null
+  // If no data at all, show warning instead of hiding
+  if (!osha || (!summary.total_establishments && establishments.length === 0)) {
+    return (
+      <CollapsibleCard icon={ShieldAlert} title="OSHA Safety Record" summary="No records matched">
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <p>
+            No OSHA records have been matched to this employer. This does <strong>not</strong> mean
+            no violations exist — it may mean our matching has not yet connected this employer to
+            OSHA inspection records.
+          </p>
+        </div>
+      </CollapsibleCard>
+    )
+  }
 
   const summaryText = `${formatNumber(summary.total_violations)} violations \u00b7 ${formatCurrency(summary.total_penalties)} penalties`
   const visibleEstablishments = expanded ? establishments : establishments.slice(0, VISIBLE_ROWS)

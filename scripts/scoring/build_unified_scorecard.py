@@ -714,8 +714,26 @@ def _print_stats(cur):
         print(f"    {tier:10s}: {cnt:>8,} ({pct:5.1f}%)")
 
 
+def _check_contract_data(conn):
+    """Pre-build guard: verify contract data hasn't been silently wiped."""
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM mv_employer_data_sources WHERE has_sam = TRUE")
+    sam_count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM corporate_identifier_crosswalk WHERE is_federal_contractor = TRUE")
+    contractor_count = cur.fetchone()[0]
+    print(f"  Contract data check: {sam_count} SAM matches, {contractor_count} flagged contractors")
+    if sam_count > 1000 and contractor_count == 0:
+        raise RuntimeError(
+            "CONTRACT DATA MISSING -- crosswalk has %d SAM matches but 0 contractor flags. "
+            "Re-run _match_usaspending.py first." % sam_count
+        )
+
+
 def create_mv(conn):
     cur = conn.cursor()
+    print("Pre-build checks...")
+    _check_contract_data(conn)
+
     print("Dropping old MV if exists...")
     cur.execute("DROP MATERIALIZED VIEW IF EXISTS mv_unified_scorecard CASCADE")
     conn.commit()
@@ -737,6 +755,9 @@ def create_mv(conn):
 
 
 def refresh_mv(conn):
+    print("Pre-build checks...")
+    _check_contract_data(conn)
+
     conn.autocommit = True
     cur = conn.cursor()
     print("Refreshing mv_unified_scorecard CONCURRENTLY...")

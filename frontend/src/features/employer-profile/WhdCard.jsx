@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Scale } from 'lucide-react'
+import { Scale, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { useEmployerWhd } from '@/shared/api/profile'
@@ -15,7 +15,22 @@ export function WhdCard({ employerId, sourceAttribution }) {
   const [showAll, setShowAll] = useState(false)
 
   if (isLoading) return null
-  if (!data || (!data.whd_summary && (!data.cases || data.cases.length === 0))) return null
+
+  // If no data at all, show warning instead of hiding
+  if (!data || (!data.whd_summary && (!data.cases || data.cases.length === 0))) {
+    return (
+      <CollapsibleCard icon={Scale} title="Wage & Hour (WHD)" summary="No records matched">
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <p>
+            No Wage & Hour Division records have been matched to this employer. This does{' '}
+            <strong>not</strong> mean no violations exist — it may mean our matching has not yet
+            connected this employer to WHD case records.
+          </p>
+        </div>
+      </CollapsibleCard>
+    )
+  }
 
   const summary = data.whd_summary || {}
   const cases = data.cases || []

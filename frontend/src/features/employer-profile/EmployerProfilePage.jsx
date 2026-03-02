@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
@@ -59,6 +59,7 @@ function formatCurrency(n) {
 export function EmployerProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { setBreadcrumbs } = useOutletContext() || {}
   const { isF7, sourceType, rawId } = parseCanonicalId(id)
   const isMaster = sourceType === 'MASTER'
 
@@ -89,6 +90,16 @@ export function EmployerProfilePage() {
       ? `${employerName} - The Organizer`
       : 'Employer Profile - The Organizer'
   }, [employerName])
+
+  // Set custom breadcrumbs with employer name
+  useEffect(() => {
+    if (setBreadcrumbs && employerName) {
+      setBreadcrumbs([
+        { label: 'Employers', to: '/search' },
+        { label: employerName },
+      ])
+    }
+  }, [setBreadcrumbs, employerName])
 
   // IntersectionObserver for sidebar TOC highlighting
   useEffect(() => {
@@ -277,10 +288,10 @@ export function EmployerProfilePage() {
       case 'demographics': return !!(employer?.state && (scorecard?.naics || employer?.naics))
       case 'corporate': return true  // fetches its own data
       case 'comparables': return true  // fetches its own data
-      case 'nlrb': return !!nlrb
+      case 'nlrb': return true  // shows warning when no data
       case 'contracts': return !!(ds?.is_federal_contractor)
-      case 'osha': return !!osha
-      case 'whd': return true  // fetches its own data
+      case 'osha': return true  // shows warning when no data
+      case 'whd': return true  // shows warning when no data
       case 'crossrefs': return !!(crossRefs?.length)
       case 'notes': return true  // always show
       default: return true

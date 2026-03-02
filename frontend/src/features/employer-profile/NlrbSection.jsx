@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Scale } from 'lucide-react'
+import { Scale, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { Button } from '@/components/ui/button'
@@ -45,15 +45,24 @@ export function NlrbSection({ nlrb, sourceAttribution }) {
   const [electionsExpanded, setElectionsExpanded] = useState(false)
   const [ulpExpanded, setUlpExpanded] = useState(false)
 
-  if (!nlrb) return null
+  const summary = nlrb?.summary || {}
+  const elections = nlrb?.elections || []
+  const ulpCases = nlrb?.ulp_cases || []
 
-  const summary = nlrb.summary || {}
-  const elections = nlrb.elections || []
-  const ulpCases = nlrb.ulp_cases || []
-
-  // If no data at all, hide section
-  if (!summary.total_elections && !summary.total_ulp_cases && elections.length === 0 && ulpCases.length === 0) {
-    return null
+  // If no data at all, show warning instead of hiding
+  if (!nlrb || (!summary.total_elections && !summary.total_ulp_cases && elections.length === 0 && ulpCases.length === 0)) {
+    return (
+      <CollapsibleCard icon={Scale} title="NLRB Activity" summary="No records matched">
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <p>
+            No NLRB election or unfair labor practice records have been matched to this employer.
+            This does <strong>not</strong> mean no activity exists — it may mean our matching has
+            not yet connected this employer to NLRB case records.
+          </p>
+        </div>
+      </CollapsibleCard>
+    )
   }
 
   const summaryText = `${formatNumber(summary.total_elections)} elections \u00b7 ${formatNumber(summary.total_ulp_cases)} ULP cases`
