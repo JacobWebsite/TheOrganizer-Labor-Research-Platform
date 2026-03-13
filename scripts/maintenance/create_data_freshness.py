@@ -12,6 +12,7 @@ import argparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from db_config import get_connection
+from api.data_source_catalog import DATA_SOURCE_ENTRIES
 
 
 CREATE_SQL = """
@@ -30,166 +31,13 @@ CREATE TABLE IF NOT EXISTS data_source_freshness (
 # date_range_query should return (min_date, max_date) or None if not applicable
 SOURCES = [
     (
-        'f7_employers',
-        'F-7 Employers (Deduped)',
-        "SELECT COUNT(*) FROM f7_employers_deduped",
-        None,
-        'DOL OLMS Form F-7 employer filings (146K+ bargaining units)',
-    ),
-    (
-        'nlrb_cases',
-        'NLRB Cases',
-        "SELECT COUNT(*) FROM nlrb_cases",
-        "SELECT MIN(earliest_date), MAX(latest_date) FROM nlrb_cases",
-        'National Labor Relations Board case data',
-    ),
-    (
-        'nlrb_elections',
-        'NLRB Elections',
-        "SELECT COUNT(*) FROM nlrb_elections",
-        "SELECT MIN(election_date), MAX(election_date) FROM nlrb_elections",
-        'NLRB representation election results',
-    ),
-    (
-        'nlrb_allegations',
-        'NLRB Allegations',
-        "SELECT COUNT(*) FROM nlrb_allegations",
-        None,
-        'ULP and other NLRB allegations',
-    ),
-    (
-        'osha_establishments',
-        'OSHA Establishments',
-        "SELECT COUNT(*) FROM osha_establishments",
-        None,
-        'OSHA inspection establishment records (1M+)',
-    ),
-    (
-        'osha_violations',
-        'OSHA Violations',
-        "SELECT COUNT(*) FROM osha_violations_detail",
-        "SELECT MIN(issuance_date), MAX(issuance_date) FROM osha_violations_detail",
-        'OSHA violation detail records',
-    ),
-    (
-        'whd_cases',
-        'WHD Wage & Hour Cases',
-        "SELECT COUNT(*) FROM whd_cases",
-        "SELECT MIN(findings_start_date), MAX(findings_end_date) FROM whd_cases WHERE findings_end_date < '2100-01-01'",
-        'DOL Wage and Hour Division enforcement',
-    ),
-    (
-        'irs_990',
-        'IRS Form 990',
-        "SELECT COUNT(*) FROM national_990_filers",
-        None,
-        'IRS Form 990 nonprofit/labor org filings (2022-2024)',
-    ),
-    (
-        'irs_bmf',
-        'IRS Business Master File',
-        "SELECT COUNT(*) FROM irs_bmf",
-        None,
-        'IRS tax-exempt organization registry (2M+)',
-    ),
-    (
-        'sam_entities',
-        'SAM.gov Entities',
-        "SELECT COUNT(*) FROM sam_entities",
-        None,
-        'System for Award Management federal contractors (826K)',
-    ),
-    (
-        'bls_national_industry',
-        'BLS National Industry Density',
-        "SELECT COUNT(*) FROM bls_national_industry_density",
-        None,
-        'BLS union density by industry (national averages)',
-    ),
-    (
-        'bls_state_density',
-        'BLS State Density',
-        "SELECT COUNT(*) FROM bls_state_density",
-        "SELECT make_date(MIN(year), 1, 1), make_date(MAX(year), 12, 31) FROM bls_state_density",
-        'BLS union density by state (overall)',
-    ),
-    (
-        'bls_state_industry_estimates',
-        'BLS State x Industry Estimates',
-        "SELECT COUNT(*) FROM estimated_state_industry_density",
-        None,
-        'BLS state x industry union density estimates (51 states x 9 industries)',
-    ),
-    (
-        'oews_occupation_matrix',
-        'OEWS Occupation-Industry Matrix',
-        "SELECT COUNT(*) FROM bls_industry_occupation_matrix",
-        None,
-        'BLS occupational employment by industry (staffing patterns)',
-    ),
-    (
-        'mergent_employers',
-        'Mergent Intellect',
-        "SELECT COUNT(*) FROM mergent_employers",
-        None,
-        'Mergent Intellect employer enrichment (56K)',
-    ),
-    (
-        'sec_companies',
-        'SEC Companies',
-        "SELECT COUNT(*) FROM sec_companies",
-        None,
-        'SEC EDGAR company filings (517K)',
-    ),
-    (
-        'gleif_us_entities',
-        'GLEIF US Entities',
-        "SELECT COUNT(*) FROM gleif_us_entities",
-        None,
-        'Global Legal Entity Identifier Foundation US entities (379K)',
-    ),
-    (
-        'ny_state_contracts',
-        'NY State Contracts',
-        "SELECT COUNT(*) FROM ny_state_contracts",
-        "SELECT MIN(start_date), MAX(end_date) FROM ny_state_contracts WHERE end_date < '2030-01-01'",
-        'New York State government contracts',
-    ),
-    (
-        'nyc_contracts',
-        'NYC Contracts',
-        "SELECT COUNT(*) FROM nyc_contracts",
-        "SELECT MIN(start_date), MAX(end_date) FROM nyc_contracts",
-        'New York City government contracts',
-    ),
-    (
-        'unions_master',
-        'Union Locals (Master)',
-        "SELECT COUNT(*) FROM unions_master",
-        None,
-        'DOL OLMS union local registry (26K+)',
-    ),
-    (
-        'lm_data',
-        'OLMS LM Filings',
-        "SELECT COUNT(*) FROM lm_data",
-        "SELECT MIN(fiscal_year_start), MAX(fiscal_year_end) FROM lm_data",
-        'DOL OLMS annual financial filings (2010-2024)',
-    ),
-    (
-        'unified_match_log',
-        'Unified Match Log',
-        "SELECT COUNT(*) FROM unified_match_log",
-        "SELECT MIN(matched_at), MAX(matched_at) FROM unified_match_log",
-        'Central matching audit trail (1.7M+ entries)',
-    ),
-    (
-        'master_employers',
-        'Master Employers',
-        "SELECT COUNT(*) FROM master_employers",
-        "SELECT MIN(created_at), MAX(updated_at) FROM master_employers",
-        'Master employer table (union + non-union, 2.7M+)',
-    ),
+        src["source_name"],
+        src["display_name"],
+        src["count_query"],
+        src.get("date_query"),
+        src.get("freshness_notes", src.get("description", "")),
+    )
+    for src in DATA_SOURCE_ENTRIES
 ]
 
 

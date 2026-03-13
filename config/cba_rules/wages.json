@@ -1,6 +1,6 @@
 {
   "category": "wages",
-  "provision_classes": ["wages_base_pay", "wages_premiums"],
+  "provision_classes": ["base_wage_rate", "wage_increase", "step_increase", "cola", "lump_sum", "shift_differential", "hazard_pay", "lead_pay", "bilingual_pay", "wage_schedule_table"],
   "heading_signals": [
     {"pattern": "\\b(wages?|compensation|pay\\s+rate|salary|wage\\s+schedule|wage\\s+scale)\\b", "weight": 0.35},
     {"pattern": "\\b(shift\\s+differential|premium\\s+pay|hazard\\s+pay)\\b", "weight": 0.3},
@@ -11,70 +11,70 @@
       "name": "base_wage_rate",
       "pattern": "(?:base|hourly|annual|minimum)\\s+(?:wage|rate|salary|pay)\\s*(?:of|is|shall be|will be)?\\s*\\$[\\d,.]+",
       "confidence": 0.90,
-      "provision_class": "wages_base_pay",
+      "provision_class": "base_wage_rate",
       "summary": "Base wage rate specification"
     },
     {
       "name": "wage_increase",
       "pattern": "(?:wage|salary|pay|rate)\\s+(?:increase|raise|adjustment|increment)\\s+(?:of\\s+)?(?:\\$[\\d,.]+|\\d+(?:\\.\\d+)?\\s*(?:%|percent))",
       "confidence": 0.90,
-      "provision_class": "wages_base_pay",
+      "provision_class": "wage_increase",
       "summary": "Wage increase"
     },
     {
       "name": "step_increase",
       "pattern": "(?:step|longevity|anniversary|experience)\\s+(?:increase|increment|progression|advancement)",
       "confidence": 0.80,
-      "provision_class": "wages_base_pay",
+      "provision_class": "step_increase",
       "summary": "Step/longevity increase"
     },
     {
       "name": "cola",
       "pattern": "\\b(?:cost[- ]of[- ]living|COLA|CPI)\\s+(?:adjustment|increase|allowance)",
       "confidence": 0.85,
-      "provision_class": "wages_base_pay",
+      "provision_class": "cola",
       "summary": "Cost-of-living adjustment"
     },
     {
       "name": "lump_sum",
       "pattern": "\\b(?:lump[- ]sum|bonus|signing\\s+bonus|ratification\\s+bonus)\\s*(?:of\\s+)?\\$[\\d,.]+",
       "confidence": 0.85,
-      "provision_class": "wages_base_pay",
+      "provision_class": "lump_sum",
       "summary": "Lump sum payment"
     },
     {
       "name": "shift_differential",
       "pattern": "\\b(?:shift|evening|night|weekend|second|third)\\s+(?:differential|premium|bonus|pay)\\s*(?:of\\s+)?(?:\\$[\\d,.]+|\\d+(?:\\.\\d+)?\\s*(?:%|percent|cents?))",
       "confidence": 0.85,
-      "provision_class": "wages_premiums",
+      "provision_class": "shift_differential",
       "summary": "Shift differential"
     },
     {
       "name": "hazard_pay",
       "pattern": "\\b(?:hazard|danger|environmental|toxic|lead|asbestos)\\s+(?:pay|premium|differential|allowance)",
       "confidence": 0.85,
-      "provision_class": "wages_premiums",
+      "provision_class": "hazard_pay",
       "summary": "Hazard pay"
     },
     {
       "name": "lead_pay",
       "pattern": "\\b(?:lead|charge|acting|temporary\\s+(?:lead|supervisor))\\s+(?:pay|premium|differential|rate)",
       "confidence": 0.80,
-      "provision_class": "wages_premiums",
+      "provision_class": "lead_pay",
       "summary": "Lead/charge pay"
     },
     {
       "name": "bilingual_pay",
       "pattern": "\\b(?:bilingual|language|interpreter|translation)\\s+(?:pay|premium|differential|stipend)",
       "confidence": 0.85,
-      "provision_class": "wages_premiums",
+      "provision_class": "bilingual_pay",
       "summary": "Bilingual pay"
     },
     {
       "name": "wage_schedule_table",
       "pattern": "(?:classification|title|position|grade)\\s+.*\\$[\\d,.]+\\s+.*\\$[\\d,.]+",
       "confidence": 0.80,
-      "provision_class": "wages_base_pay",
+      "provision_class": "wage_schedule_table",
       "summary": "Wage schedule table entry"
     }
   ],

@@ -1,3 +1,5 @@
+> **Note:** This spec was written Feb 2026 and covers the Phase 5 redesign. Core decisions still apply. For current status see PROJECT_STATE.md.
+
 # The Organizer — Complete Platform Redesign Specification
 ## Unified Reference Document | February 20, 2026
 ### For: Claude Code, Codex, Gemini — Multi-AI Implementation

@@ -8,6 +8,7 @@ Fix extraction quality issues:
 import sys, os, re
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from db_config import get_connection
+from scripts.scraper.parse_structured import guess_sector
 
 
 def fix_employers(conn):
@@ -15,7 +16,7 @@ def fix_employers(conn):
     cur = conn.cursor()
 
     # 1. Delete ALL auto-extracted employers (they're mostly bad)
-    cur.execute("DELETE FROM web_union_employers WHERE extraction_method = 'auto_extract'")
+    cur.execute("DELETE FROM web_union_employers WHERE extraction_method IN ('auto_extract', 'auto_extract_v2')")
     deleted = cur.rowcount
     print(f"Deleted {deleted} auto-extracted employer rows")
 
@@ -62,10 +63,19 @@ def fix_employers(conn):
             cur.execute("""
                 INSERT INTO web_union_employers
                     (web_profile_id, employer_name, employer_name_clean, state, sector,
-                     source_url, extraction_method, confidence_score)
+                     source_url, extraction_method, confidence_score,
+                     source_element, updated_at)
                 VALUES (%s, %s, %s, %s, %s,
                     (SELECT website_url FROM web_union_profiles WHERE id = %s),
-                    'auto_extract_v2', %s)
+                    'auto_extract_v2', %s, 'regex', NOW())
+                ON CONFLICT (web_profile_id, employer_name_clean) DO UPDATE
+                SET confidence_score = GREATEST(web_union_employers.confidence_score, EXCLUDED.confidence_score),
+                    extraction_method = CASE
+                        WHEN EXCLUDED.confidence_score > web_union_employers.confidence_score
+                        THEN EXCLUDED.extraction_method
+                        ELSE web_union_employers.extraction_method
+                    END,
+                    updated_at = NOW()
             """, (pid, emp['employer_name'], emp['employer_name_clean'],
                   emp.get('state', state), emp.get('sector'),
                   pid, emp.get('confidence', 0.7)))
@@ -140,25 +150,6 @@ def extract_employers_v2(text, state, local_number, boilerplate):
             })
 
     return results
-
-
-def guess_sector(name):
-    """Guess employer sector from name keywords."""
-    nl = name.lower()
-    if any(w in nl for w in ['city of', 'county of', 'town of', 'village of',
-                              'borough of', 'municipal', 'city council']):
-        return 'PUBLIC_LOCAL'
-    if any(w in nl for w in ['state of', 'commonwealth', 'department of']):
-        return 'PUBLIC_STATE'
-    if any(w in nl for w in ['university', 'college', 'school district',
-                              'board of education', 'public school']):
-        return 'PUBLIC_EDUCATION'
-    if any(w in nl for w in ['hospital', 'health', 'medical center',
-                              'nursing', 'healthcare']):
-        return 'HEALTHCARE'
-    if any(w in nl for w in ['federal', 'u.s.', 'united states']):
-        return 'PUBLIC_FEDERAL'
-    return None
 
 
 def fix_membership(conn):

@@ -73,6 +73,9 @@ const MOCK_RESULT = {
   dossier: {
     dossier: {
       identity: { legal_name: 'Amazon.com Inc.', company_type: 'public' },
+      corporate_structure: { parent_company: 'Amazon.com Inc.', parent_type: 'public' },
+      locations: { total_locations: 5, headquarters: 'Seattle, WA' },
+      leadership: { ceo: 'Andy Jassy' },
       labor: { union_names: ['Teamsters', 'ALU'], nlrb_election_count: 15 },
       assessment: { organizing_summary: 'Active NLRB cases and recent organizing campaigns.' },
       workplace: { osha_violation_count: 23 },
@@ -95,6 +98,8 @@ const MOCK_RESULT = {
     { tool_name: 'query_osha', execution_order: 2, data_found: true, facts_extracted: 8, latency_ms: 350, result_summary: '23 violations found' },
     { tool_name: 'query_nlrb', execution_order: 3, data_found: true, facts_extracted: 3, latency_ms: 200, result_summary: '15 elections, 4 ULPs' },
     { tool_name: 'query_sec', execution_order: 4, data_found: false, facts_extracted: 0, latency_ms: 150, result_summary: 'No SEC filings matched' },
+    { tool_name: 'query_990', execution_order: 5, data_found: false, facts_extracted: 0, latency_ms: 80, result_summary: 'No 990 filings' },
+    { tool_name: 'query_whd', execution_order: 6, data_found: false, facts_extracted: 0, latency_ms: 90, error_message: 'WHD API timeout' },
   ],
   quality_score: 7.5,
   quality_dimensions: {
@@ -162,7 +167,7 @@ describe('ResearchResultPage', () => {
     renderResultPage()
     expect(screen.getByText('1m 30s')).toBeInTheDocument() // duration
     expect(screen.getByText('32')).toBeInTheDocument() // total facts
-    expect(screen.getByText('7/7')).toBeInTheDocument() // sections
+    expect(screen.getByText('7/10')).toBeInTheDocument() // sections
     expect(screen.getByText('12')).toBeInTheDocument() // tools called
   })
 
@@ -174,6 +179,15 @@ describe('ResearchResultPage', () => {
     expect(screen.getByText(/Company Identity/)).toBeInTheDocument()
     expect(screen.getByText(/Labor Relations/)).toBeInTheDocument()
     expect(screen.getByText(/Overall Assessment/)).toBeInTheDocument()
+  })
+
+  it('renders new dossier sections for completed run', () => {
+    useResearchStatus.mockReturnValue({ data: MOCK_STATUS_COMPLETED, isLoading: false, isError: false })
+    useResearchResult.mockReturnValue({ data: MOCK_RESULT, isLoading: false, isError: false })
+    renderResultPage()
+    expect(screen.getByText(/Corporate Structure/)).toBeInTheDocument()
+    expect(screen.getByText(/Locations/)).toBeInTheDocument()
+    expect(screen.getByText(/Leadership/)).toBeInTheDocument()
   })
 
   it('renders quality score for completed run', () => {

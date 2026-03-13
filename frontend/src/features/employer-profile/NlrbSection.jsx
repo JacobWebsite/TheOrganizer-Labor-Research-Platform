@@ -42,9 +42,10 @@ function ResultBadge({ result }) {
   )
 }
 
-export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources }) {
+export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, docket }) {
   const [electionsExpanded, setElectionsExpanded] = useState(false)
   const [ulpExpanded, setUlpExpanded] = useState(false)
+  const [docketExpanded, setDocketExpanded] = useState(false)
 
   const summary = nlrb?.summary || {}
   const elections = nlrb?.elections || []
@@ -192,6 +193,82 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources })
             )}
           </div>
         )}
+
+        {/* Docket Activity sub-section */}
+        {docket && docket.summary && docket.summary.cases_with_docket > 0 && (() => {
+          const docketSummary = docket.summary
+          const docketCases = docket.cases || []
+          const visibleDocket = docketExpanded ? docketCases : docketCases.slice(0, VISIBLE_ROWS)
+          const hasMoreDocket = docketCases.length > VISIBLE_ROWS
+
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-semibold">Docket Activity</h4>
+                {docketSummary.has_recent_activity && (
+                  <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800">
+                    <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    Active
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {docketSummary.cases_with_docket} case{docketSummary.cases_with_docket !== 1 ? 's' : ''} with docket data
+                {docketSummary.most_recent_date && (
+                  <>, most recent activity {formatDate(docketSummary.most_recent_date)}</>
+                )}
+              </p>
+              <div className="overflow-x-auto border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">Case</th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">First Activity</th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">Last Activity</th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">Duration</th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">Entries</th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleDocket.map((c, i) => (
+                      <tr key={c.case_number || i} className="border-b">
+                        <td className="px-3 py-2 font-mono text-xs">{c.case_number || '\u2014'}</td>
+                        <td className="px-3 py-2">{formatDate(c.first_activity)}</td>
+                        <td className="px-3 py-2">{formatDate(c.last_activity)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {c.duration_days != null ? c.duration_days + 'd' : '\u2014'}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{formatNumber(c.entry_count)}</td>
+                        <td className="px-3 py-2">
+                          {c.is_recent ? (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                              Recent
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
+                              Inactive
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {hasMoreDocket && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setDocketExpanded((v) => !v)}
+                >
+                  {docketExpanded ? 'Show less' : `Show all ${docketCases.length} cases`}
+                </Button>
+              )}
+            </div>
+          )
+        })()}
       </div>
     </CollapsibleCard>
   )

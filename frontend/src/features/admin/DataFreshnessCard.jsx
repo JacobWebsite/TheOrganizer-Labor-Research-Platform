@@ -61,7 +61,10 @@ export function DataFreshnessCard() {
               <tbody>
                 {(data?.sources || []).map((row, i) => (
                   <tr key={row.source_name} className={`border-b last:border-0 ${i % 2 === 1 ? 'bg-[#f5f0e8]/50' : ''}`}>
-                    <td className='py-2 px-2 font-medium uppercase'>{row.source_name}</td>
+                    <td className='py-2 px-2'>
+                      <div className='font-medium'>{row.display_name || row.source_name}</div>
+                      <div className='text-xs text-muted-foreground'>{row.source_name}</div>
+                    </td>
                     <td className='py-2 px-2'>{formatNumber(row.row_count)}</td>
                     <td className={`py-2 px-2 ${row.stale ? 'text-[#c23a22]' : ''}`}>
                       {row.stale && <AlertTriangle className="h-3 w-3 inline mr-1" />}

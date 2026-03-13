@@ -116,7 +116,14 @@ export function OshaSection({ osha, sourceAttribution, dataSources }) {
                 <tbody>
                   {visibleEstablishments.map((est, i) => (
                     <tr key={est.establishment_id || i} className="border-b">
-                      <td className="px-3 py-2 font-medium">{est.establishment_name || '\u2014'}</td>
+                      <td className="px-3 py-2 font-medium">
+                        {est.establishment_name || '\u2014'}
+                        {est.score_eligible === false && (
+                          <span className="ml-2 inline-flex items-center border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700" title={`Match: ${est.match_method || 'unknown'} (${(est.match_confidence * 100).toFixed(0)}%)`}>
+                            Unverified match
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2">{est.city || '\u2014'}</td>
                       <td className="px-3 py-2">{est.state || '\u2014'}</td>
                       <td className="px-3 py-2 text-right">{formatNumber(est.inspection_count)}</td>

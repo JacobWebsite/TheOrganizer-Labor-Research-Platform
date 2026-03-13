@@ -39,7 +39,18 @@ _OUTPUT_COST_PER_1K = 0.025  # $2.50 per 1M
 
 _log = logging.getLogger("research.agent")
 
-_DOSSIER_SECTIONS = ["identity", "financial", "workforce", "labor", "workplace", "assessment", "sources"]
+_DOSSIER_SECTIONS = [
+    "identity",
+    "corporate_structure",
+    "locations",
+    "leadership",
+    "financial",
+    "workforce",
+    "labor",
+    "workplace",
+    "assessment",
+    "sources",
+]
 
 _INTERNAL_TOOLS = [
     "search_osha", "search_nlrb", "search_whd", "search_sec",
@@ -50,6 +61,11 @@ _INTERNAL_TOOLS = [
     "search_worker_sentiment", "search_sos_filings", "compare_industry_wages",
     "search_solidarity_network", "search_local_subsidies",
     "search_acs_workforce",
+    "search_local_union_density",
+    "search_corporate_structure",
+    "search_employer_locations",
+    "search_leadership",
+    "search_state_enforcement",
 ]
 
 # ---------------------------------------------------------------------------
@@ -370,12 +386,20 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
 
 5. **Synthesize** your findings into the dossier.
 
+6. **Populate the new dossier sections:**
+   - **corporate_structure**: parent company, parent type (public/private/PE/nonprofit), known subsidiaries, investors, corporate family context. Use data from search_gleif_ownership, search_sec, search_mergent, search_solidarity_network. If no parent found, note "Appears to be an independent company."
+   - **locations**: all known employer addresses from OSHA establishments, SAM entities, SOS filings, and web scrape. Group by city/state. Include establishment counts per location if available.
+   - **leadership**: CEO/president, executive team, local management. Source from search_sos_filings (officers/directors), search_sec (for public companies), and web scrape of "about us" / "leadership" pages.
+
 IMPORTANT: Do NOT call `google_search` directly -- web search is handled separately after your database queries. But DO call all tools listed in steps 1-4 above.
 
 Return your final report as a JSON object inside a code block. Your response must be parseable JSON with this structure:
 {{
   "dossier": {{
     "identity": {{ ... }},
+    "corporate_structure": {{ ... }},
+    "locations": {{ ... }},
+    "leadership": {{ ... }},
     "financial": {{ ... }},
     "workforce": {{ ... }},
     "labor": {{ ... }},
@@ -651,10 +675,14 @@ def _save_facts(run_id: int, employer_id: str, facts: list, vocabulary: dict, to
         attr = f.get("attribute_name")
         if attr not in vocabulary: continue
         aid = tool_action_map.get(f.get("source_name"))
+        # Truncate varchar fields to match column limits
+        section = (f.get("dossier_section") or "")[:50]
+        src_type = (f.get("source_type") or "")[:30]
+        src_name = (f.get("source_name") or "")[:200]
         cur.execute("""
             INSERT INTO research_facts (run_id, employer_id, action_id, dossier_section, attribute_name, attribute_value, attribute_value_json, source_type, source_name, confidence, as_of_date)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (run_id, employer_id, aid, f.get("dossier_section"), attr, str(f.get("attribute_value"))[:1000], json.dumps(f.get("attribute_value_json")), f.get("source_type"), f.get("source_name"), f.get("confidence", 0.5), f.get("as_of_date")))
+        """, (run_id, employer_id, aid, section, attr[:100], str(f.get("attribute_value"))[:1000], json.dumps(f.get("attribute_value_json")), src_type, src_name, f.get("confidence", 0.5), f.get("as_of_date")))
         saved += 1
     conn.commit(); conn.close()
     return saved
@@ -714,13 +742,18 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 
     # Phase 1: Gemini Multi-Turn Loop
     for turn in range(MAX_TOOL_TURNS):
+        pct = min(int((turn / MAX_TOOL_TURNS) * 70), 70)
+        _update_run(run_id, current_step=f"Turn {turn+1}: querying Gemini...", progress_pct=pct)
         response = await asyncio.to_thread(client.models.generate_content, model=MODEL, contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt, tools=gemini_tools, max_output_tokens=MAX_TOKENS))
         candidate = response.candidates[0]
         function_calls = [p for p in candidate.content.parts if p.function_call]
         if not function_calls:
             final_text = "\n".join(p.text for p in candidate.content.parts if p.text)
             break
-        
+
+        tool_names = [p.function_call.name for p in function_calls]
+        _update_run(run_id, current_step=f"Turn {turn+1}: running {', '.join(tool_names)}...", progress_pct=pct, total_tools_called=tools_called + len(function_calls))
+
         contents.append(candidate.content)
         async def _run_tool(part, order):
             fc = part.function_call
@@ -735,7 +768,7 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         tasks = [ _run_tool(fc, execution_order + i + 1) for i, fc in enumerate(function_calls) ]
         results = await asyncio.gather(*tasks)
         execution_order += len(function_calls); tools_called += len(function_calls)
-        
+
         f_resps = []
         for tname, p_resp, aid in results:
             if aid: tool_action_map[tname] = aid
@@ -749,7 +782,20 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     _company_type = run.get("company_type") or ""
     _size_bucket = run.get("employee_size_bucket") or ""
     _strategy = _load_strategy(_naics_2, _company_type, _size_bucket)
-    _skip_tools = {r["tool_name"] for r in _strategy if (r.get("hit_rate") or 0) < 0.10 and (r.get("times_tried") or 0) >= 5}
+    _prune_hr = float(os.environ.get("RESEARCH_PRUNE_HIT_RATE", "0.10"))
+    _prune_min = int(os.environ.get("RESEARCH_PRUNE_MIN_TRIES", "5"))
+    _latency_skip_ms = int(os.environ.get("RESEARCH_LATENCY_SKIP_MS", "15000"))
+    _latency_skip_hr = float(os.environ.get("RESEARCH_LATENCY_SKIP_HIT_RATE", "0.20"))
+    _latency_skip_min = int(os.environ.get("RESEARCH_LATENCY_SKIP_MIN_TRIES", "3"))
+    _skip_tools = set()
+    for r in _strategy:
+        hr = r.get("hit_rate") or 0
+        tries = r.get("times_tried") or 0
+        latency = r.get("avg_latency_ms") or 0
+        if hr < _prune_hr and tries >= _prune_min:
+            _skip_tools.add(r["tool_name"])
+        elif latency > _latency_skip_ms and hr < _latency_skip_hr and tries >= _latency_skip_min:
+            _skip_tools.add(r["tool_name"])
     if _skip_tools:
         _log.info("Run %d: skipping low-value tools based on strategy: %s", run_id, _skip_tools)
 
@@ -840,6 +886,7 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         return None
     forced_tasks.append(_f_acs())
 
+    _update_run(run_id, current_step="Enriching with additional data sources...", progress_pct=72, total_tools_called=tools_called)
     enrich_res = await asyncio.gather(*(t for t in forced_tasks if t is not None))
     
     # Patch Dossier with Enrichment Results
@@ -850,13 +897,13 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         if not r or not r[1].get("found"): continue
         rtype, rdata = r[0], r[1]
         if rtype == "gleif":
-            body.setdefault("identity", {})["parent_company"] = rdata.get("data", {}).get("parents", [{}])[0].get("parent_name")
+            body.setdefault("corporate_structure", {})["parent_company"] = rdata.get("data", {}).get("parents", [{}])[0].get("parent_name")
         elif rtype == "donations":
             body.setdefault("assessment", {})["political_donations"] = rdata.get("data")
         elif rtype == "sentiment":
             body.setdefault("workplace", {})["worker_complaints"] = rdata.get("summary")
         elif rtype == "sos":
-            body.setdefault("identity", {})["registered_agent"] = rdata.get("data", {}).get("registered_agent")
+            body.setdefault("leadership", {})["registered_agent"] = rdata.get("data", {}).get("registered_agent")
         elif rtype == "acs_workforce":
             body.setdefault("workforce", {})["acs_demographics"] = rdata.get("data")
 
@@ -864,6 +911,7 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         aid = await asyncio.to_thread(_log_action, run_id, f"search_{rtype} (forced)", {"company_name": run["company_name"]}, execution_order, rdata, 0)
         tool_action_map[f"search_{rtype}"] = aid
 
+    _update_run(run_id, current_step="Saving facts and checking coverage...", progress_pct=85, total_tools_called=tools_called)
     _ensure_exhaustive_coverage(run_id, dossier_data, vocabulary)
     facts_saved = _save_facts(run_id, run.get("employer_id"), dossier_data.get("facts", []), vocabulary, tool_action_map)
 
@@ -875,7 +923,45 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     except Exception as exc:
         _log.debug("Contradiction detection for run %d failed: %s", run_id, exc)
 
-    _update_run(run_id, status="completed", completed_at=datetime.now(), duration_seconds=int(time.time()-start_time), dossier_json=json.dumps(dossier_data, default=str), total_facts_found=facts_saved)
+    # Count filled sections in the dossier
+    _DOSSIER_SECTIONS = {
+        "identity",
+        "corporate_structure",
+        "locations",
+        "leadership",
+        "labor",
+        "assessment",
+        "workforce",
+        "workplace",
+        "financial",
+        "sources",
+    }
+    _body = dossier_data.get("dossier", {})
+    _sections_filled = sum(1 for s in _DOSSIER_SECTIONS if _body.get(s))
+
+    _update_run(run_id, status="completed", completed_at=datetime.now(), duration_seconds=int(time.time()-start_time), dossier_json=json.dumps(dossier_data, default=str), total_facts_found=facts_saved, sections_filled=_sections_filled, total_tools_called=tools_called)
+
+    _update_run(run_id, current_step="Auto-grading and updating strategy...", progress_pct=95, total_facts_found=facts_saved)
+
+    # Auto-linkage: if employer_id is still NULL, attempt lookup now
+    try:
+        _conn2 = _conn()
+        _cur2 = _conn2.cursor()
+        _cur2.execute("SELECT employer_id, company_name, company_state, company_address FROM research_runs WHERE id = %s", (run_id,))
+        _run_row = _cur2.fetchone()
+        if _run_row and not _run_row.get("employer_id"):
+            from scripts.research.employer_lookup import lookup_employer
+            _eid, _ename, _method = lookup_employer(
+                _cur2, _run_row["company_name"],
+                _run_row.get("company_state"), _run_row.get("company_address"),
+            )
+            if _eid:
+                _cur2.execute("UPDATE research_runs SET employer_id = %s WHERE id = %s", (_eid, run_id))
+                _conn2.commit()
+                _log.info("Run %d: auto-linked to employer %s (%s) via %s", run_id, _eid, _ename, _method)
+        _conn2.close()
+    except Exception as exc:
+        _log.debug("Auto-linkage for run %d failed: %s", run_id, exc)
 
     # Auto-grade and update strategy tables (learning loop)
     try:

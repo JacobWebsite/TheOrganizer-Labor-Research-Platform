@@ -346,18 +346,18 @@ def _extract_sentence_context(text: str, match_start: int, match_end: int) -> st
         if boundary:
             result = text[sent_start:sent_end + boundary.end()].strip()
 
-    # Cap at 600 chars
-    if len(result) > 600:
-        result = result[:597] + "..."
+    # Cap at 1500 chars (capture full clause, not just one sentence)
+    if len(result) > 1500:
+        result = result[:1497] + "..."
     return result
 
 
 def extract_context_window(
-    full_text: str, char_start: int, char_end: int, window: int = 100
+    full_text: str, char_start: int, char_end: int, window: int = 500
 ) -> tuple[str, str]:
     """Fix 9: Extract context before and after a matched provision.
 
-    Returns (context_before, context_after) — ~100 chars each, trimmed to
+    Returns (context_before, context_after) — ~500 chars each, trimmed to
     word boundaries for readability.
     """
     # Context before
@@ -377,6 +377,14 @@ def extract_context_window(
         after = after[:space_idx]
 
     return before.strip(), after.strip()
+
+
+def populate_context(matches: list[RuleMatch], full_text: str, window: int = 500) -> None:
+    """Populate context_before and context_after on each RuleMatch."""
+    for m in matches:
+        before, after = extract_context_window(full_text, m.char_start, m.char_end, window)
+        m.context_before = before
+        m.context_after = after
 
 
 def _extract_modal(text: str) -> tuple[str | None, float | None]:

@@ -80,14 +80,19 @@ def write_legacy(conn, matches):
     """
     from psycopg2.extras import execute_batch
     sql = """
-        INSERT INTO osha_f7_matches (establishment_id, f7_employer_id, match_method, match_confidence)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO osha_f7_matches (establishment_id, f7_employer_id, match_method, match_confidence, score_eligible)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (establishment_id) DO UPDATE SET
             f7_employer_id = EXCLUDED.f7_employer_id,
             match_method = EXCLUDED.match_method,
-            match_confidence = EXCLUDED.match_confidence
+            match_confidence = EXCLUDED.match_confidence,
+            score_eligible = EXCLUDED.score_eligible
     """
-    rows = [(m["source_id"], m["target_id"], m["method"], m["score"]) for m in matches]
+    rows = [
+        (m["source_id"], m["target_id"], m["method"].upper(), m["score"],
+         m["score"] >= 0.85 or m["method"].upper() in ("EIN_EXACT", "CROSSWALK", "CIK_BRIDGE"))
+        for m in matches
+    ]
     with conn.cursor() as cur:
         execute_batch(cur, sql, rows, page_size=1000)
     conn.commit()

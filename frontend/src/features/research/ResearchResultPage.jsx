@@ -16,6 +16,9 @@ import { cn } from '@/lib/utils'
 
 const SECTION_ORDER = [
   'identity',
+  'corporate_structure',
+  'locations',
+  'leadership',
   'labor',
   'assessment',
   'workforce',

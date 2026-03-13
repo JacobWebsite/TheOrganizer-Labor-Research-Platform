@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { SearchX } from 'lucide-react'
-import { useUnifiedScorecard, useUnifiedScorecardStats, useUnifiedScorecardStates } from '@/shared/api/scorecard'
+import { SearchX, Download } from 'lucide-react'
+import { useUnifiedScorecard, useUnifiedScorecardStats, useUnifiedScorecardStates, buildExportUrl } from '@/shared/api/scorecard'
 import { UnifiedScorecardTable } from './UnifiedScorecardTable'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 
@@ -262,6 +262,31 @@ export function UnifiedScorecardPage() {
             </button>
           </div>
         )}
+
+        {/* Export CSV */}
+        <div className="flex flex-col gap-1 justify-end ml-auto">
+          <label className="text-[10px] font-medium uppercase tracking-wider text-transparent">Export</label>
+          <button
+            type="button"
+            onClick={() => {
+              const url = buildExportUrl({
+                state: state || undefined,
+                score_tier: scoreTier || undefined,
+                min_factors: minFactors ? Number(minFactors) : undefined,
+                has_osha: hasOsha,
+                has_nlrb: hasNlrb,
+                has_research: hasResearch,
+                has_compound_enforcement: hasCompound,
+              })
+              window.open(url, '_blank')
+            }}
+            disabled={!data || data.total === 0}
+            className="h-8 rounded border border-[#d9cebb] bg-white px-3 text-xs font-medium text-[#2c2418] hover:border-[#c78c4e] transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="h-3 w-3" />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Loading */}

@@ -53,7 +53,7 @@ export function UnionResultsTable({ data, total, page, onPageChange }) {
     },
     {
       id: 'members',
-      header: () => <div className="text-right">Members</div>,
+      header: () => <div className="text-right" title="Dues-paying members (LM filings)">Members</div>,
       accessorKey: 'members',
       cell: ({ getValue }) => (
         <div className="text-right tabular-nums">{formatNumber(getValue())}</div>
@@ -69,7 +69,7 @@ export function UnionResultsTable({ data, total, page, onPageChange }) {
     },
     {
       id: 'workers',
-      header: () => <div className="text-right">Workers</div>,
+      header: () => <div className="text-right" title="Workers covered by bargaining agreements (F-7 filings)">Covered</div>,
       accessorKey: 'f7_total_workers',
       cell: ({ getValue }) => (
         <div className="text-right tabular-nums">{formatNumber(getValue())}</div>

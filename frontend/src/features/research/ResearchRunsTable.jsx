@@ -101,7 +101,7 @@ export function ResearchRunsTable({ runs, total, page, pageSize, onPageChange })
                     ? Number(run.overall_quality_score).toFixed(1)
                     : '-'}
                 </td>
-                <td className="px-3 py-2 text-right">{run.sections_filled != null ? `${run.sections_filled}/7` : '-'}</td>
+                <td className="px-3 py-2 text-right">{run.sections_filled != null ? `${run.sections_filled}/10` : '-'}</td>
                 <td className="px-3 py-2 text-muted-foreground">{formatDate(run.started_at)}</td>
               </tr>
             ))}

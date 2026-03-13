@@ -47,7 +47,7 @@ export function UnionsPage() {
             <p className="text-sm text-[#8a7e6d] mt-1">
               {nationalQuery.data.national_unions.reduce((s, u) => s + (u.local_count || 0), 0).toLocaleString()} organizations
               {' '}&middot;{' '}
-              {nationalQuery.data.national_unions.reduce((s, u) => s + (u.total_members || 0), 0).toLocaleString()} members
+              {nationalQuery.data.national_unions.reduce((s, u) => s + (u.deduplicated_members ?? u.total_members ?? 0), 0).toLocaleString()} members
             </p>
           )}
         </div>

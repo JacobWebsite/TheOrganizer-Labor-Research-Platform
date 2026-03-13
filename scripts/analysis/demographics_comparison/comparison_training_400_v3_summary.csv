@@ -1,0 +1,497 @@
+classification_dim,bucket,method,n_companies,avg_mae_race,avg_mae_gender,avg_mae_hispanic,avg_hellinger_race,win_count
+naics_group,Accommodation/Food Svc (72),M1 Baseline (60/40),2,7.39,5.69,10.81,0.192,1
+naics_group,Accommodation/Food Svc (72),M2 Three-Layer (50/30/20),2,7.7,5.75,10.6,0.1899,0
+naics_group,Accommodation/Food Svc (72),M3 IPF,2,15.55,4.92,24.12,0.4007,0
+naics_group,Accommodation/Food Svc (72),M4 Occ-Weighted,2,7.12,5.82,10.25,0.1952,1
+naics_group,Accommodation/Food Svc (72),M5 Variable-Weight,2,7.39,5.69,10.81,0.192,0
+naics_group,Accommodation/Food Svc (72),M1b Learned-Wt,2,8.63,5.54,12.53,0.2022,0
+naics_group,Accommodation/Food Svc (72),M3b Damp-IPF,2,8.88,4.92,24.12,0.2326,0
+naics_group,Accommodation/Food Svc (72),M1c CV-Learned-Wt,2,8.39,5.35,12.24,0.1983,0
+naics_group,Accommodation/Food Svc (72),M1d Regional-Wt,2,7.39,5.69,10.81,0.192,0
+naics_group,Accommodation/Food Svc (72),M2c ZIP-Tract,2,7.92,7.99,11.5,0.1981,0
+naics_group,Accommodation/Food Svc (72),M3c Var-Damp-IPF,2,9.3,4.92,24.12,0.2346,0
+naics_group,Accommodation/Food Svc (72),M3d Select-Damp,2,8.88,4.92,24.12,0.2326,0
+naics_group,Accommodation/Food Svc (72),M4c Top10-Occ,2,7.12,5.82,10.25,0.1952,0
+naics_group,Accommodation/Food Svc (72),M4d State-Top5,2,7.12,5.82,10.25,0.1952,0
+naics_group,Accommodation/Food Svc (72),M5c CV-Var-Wt,2,8.39,5.35,12.24,0.1983,0
+naics_group,Accommodation/Food Svc (72),M5d Corr-Min-Adapt,2,7.67,5.55,11.38,0.1925,0
+naics_group,Admin/Staffing (56),M1 Baseline (60/40),12,5.87,18.59,13.52,0.1769,0
+naics_group,Admin/Staffing (56),M2 Three-Layer (50/30/20),12,6.21,19.45,14.0,0.1871,0
+naics_group,Admin/Staffing (56),M3 IPF,12,8.77,17.48,17.6,0.2711,2
+naics_group,Admin/Staffing (56),M4 Occ-Weighted,12,5.91,18.13,13.33,0.1829,1
+naics_group,Admin/Staffing (56),M5 Variable-Weight,12,5.87,18.59,13.52,0.1769,0
+naics_group,Admin/Staffing (56),M1b Learned-Wt,12,6.22,17.45,12.98,0.2012,3
+naics_group,Admin/Staffing (56),M3b Damp-IPF,12,5.93,17.48,17.6,0.1786,0
+naics_group,Admin/Staffing (56),M1c CV-Learned-Wt,12,5.9,20.48,13.98,0.1693,1
+naics_group,Admin/Staffing (56),M1d Regional-Wt,12,5.89,18.85,13.4,0.1792,0
+naics_group,Admin/Staffing (56),M2c ZIP-Tract,12,5.79,19.38,13.79,0.1718,2
+naics_group,Admin/Staffing (56),M3c Var-Damp-IPF,12,5.95,17.48,17.6,0.1749,3
+naics_group,Admin/Staffing (56),M3d Select-Damp,12,6.45,17.48,17.6,0.1956,0
+naics_group,Admin/Staffing (56),M4c Top10-Occ,12,5.91,18.13,13.33,0.1829,0
+naics_group,Admin/Staffing (56),M4d State-Top5,12,5.91,18.13,13.33,0.1829,0
+naics_group,Admin/Staffing (56),M5c CV-Var-Wt,12,5.9,20.48,13.98,0.1693,0
+naics_group,Admin/Staffing (56),M5d Corr-Min-Adapt,12,5.79,18.73,13.53,0.1743,0
+naics_group,Chemical/Material Mfg (325-327),M1 Baseline (60/40),10,6.93,11.71,7.02,0.2045,0
+naics_group,Chemical/Material Mfg (325-327),M2 Three-Layer (50/30/20),10,7.21,12.15,7.55,0.2143,0
+naics_group,Chemical/Material Mfg (325-327),M3 IPF,10,9.45,10.56,11.24,0.2848,0
+naics_group,Chemical/Material Mfg (325-327),M4 Occ-Weighted,10,7.17,11.26,6.73,0.2146,2
+naics_group,Chemical/Material Mfg (325-327),M5 Variable-Weight,10,6.81,11.94,7.16,0.1998,0
+naics_group,Chemical/Material Mfg (325-327),M1b Learned-Wt,10,6.44,13.8,7.89,0.1796,0
+naics_group,Chemical/Material Mfg (325-327),M3b Damp-IPF,10,6.25,10.56,11.24,0.18,1
+naics_group,Chemical/Material Mfg (325-327),M1c CV-Learned-Wt,10,6.5,13.4,7.74,0.1832,0
+naics_group,Chemical/Material Mfg (325-327),M1d Regional-Wt,10,7.06,11.77,6.65,0.2097,0
+naics_group,Chemical/Material Mfg (325-327),M2c ZIP-Tract,10,6.65,12.2,7.67,0.1946,2
+naics_group,Chemical/Material Mfg (325-327),M3c Var-Damp-IPF,10,5.98,10.56,11.24,0.1707,5
+naics_group,Chemical/Material Mfg (325-327),M3d Select-Damp,10,7.51,10.56,11.24,0.2279,0
+naics_group,Chemical/Material Mfg (325-327),M4c Top10-Occ,10,7.17,11.26,6.73,0.2146,0
+naics_group,Chemical/Material Mfg (325-327),M4d State-Top5,10,7.17,11.26,6.73,0.2146,0
+naics_group,Chemical/Material Mfg (325-327),M5c CV-Var-Wt,10,6.5,13.4,7.74,0.1832,0
+naics_group,Chemical/Material Mfg (325-327),M5d Corr-Min-Adapt,10,6.77,12.16,7.18,0.1969,0
+naics_group,Computer/Electrical Mfg (334-335),M1 Baseline (60/40),4,3.81,7.6,4.34,0.1691,0
+naics_group,Computer/Electrical Mfg (334-335),M2 Three-Layer (50/30/20),4,3.64,8.04,4.52,0.1629,0
+naics_group,Computer/Electrical Mfg (334-335),M3 IPF,4,4.04,7.82,3.75,0.1947,1
+naics_group,Computer/Electrical Mfg (334-335),M4 Occ-Weighted,4,4.19,7.62,3.87,0.1816,0
+naics_group,Computer/Electrical Mfg (334-335),M5 Variable-Weight,4,3.62,7.59,4.57,0.1631,0
+naics_group,Computer/Electrical Mfg (334-335),M1b Learned-Wt,4,2.69,11.44,5.74,0.1348,1
+naics_group,Computer/Electrical Mfg (334-335),M3b Damp-IPF,4,2.99,7.82,3.75,0.1494,0
+naics_group,Computer/Electrical Mfg (334-335),M1c CV-Learned-Wt,4,2.88,10.36,5.5,0.1402,0
+naics_group,Computer/Electrical Mfg (334-335),M1d Regional-Wt,4,3.81,7.6,4.34,0.1691,0
+naics_group,Computer/Electrical Mfg (334-335),M2c ZIP-Tract,4,3.32,7.26,4.08,0.151,0
+naics_group,Computer/Electrical Mfg (334-335),M3c Var-Damp-IPF,4,2.67,7.82,3.75,0.1325,2
+naics_group,Computer/Electrical Mfg (334-335),M3d Select-Damp,4,4.04,7.82,3.75,0.1947,0
+naics_group,Computer/Electrical Mfg (334-335),M4c Top10-Occ,4,4.19,7.62,3.87,0.1816,0
+naics_group,Computer/Electrical Mfg (334-335),M4d State-Top5,4,4.19,7.62,3.87,0.1816,0
+naics_group,Computer/Electrical Mfg (334-335),M5c CV-Var-Wt,4,2.88,10.36,5.5,0.1402,0
+naics_group,Computer/Electrical Mfg (334-335),M5d Corr-Min-Adapt,4,3.62,7.59,4.57,0.1631,0
+naics_group,Construction (23),M1 Baseline (60/40),25,4.65,15.2,10.53,0.1647,0
+naics_group,Construction (23),M2 Three-Layer (50/30/20),25,5.64,18.95,10.74,0.1883,1
+naics_group,Construction (23),M3 IPF,25,5.66,5.19,13.71,0.2257,5
+naics_group,Construction (23),M4 Occ-Weighted,25,4.48,11.94,10.75,0.1646,0
+naics_group,Construction (23),M5 Variable-Weight,25,5.05,21.89,11.03,0.1706,3
+naics_group,Construction (23),M1b Learned-Wt,25,4.3,6.27,11.62,0.1738,2
+naics_group,Construction (23),M3b Damp-IPF,25,4.08,5.19,13.71,0.161,5
+naics_group,Construction (23),M1c CV-Learned-Wt,25,4.41,10.42,10.94,0.1655,0
+naics_group,Construction (23),M1d Regional-Wt,25,4.44,11.74,10.84,0.1649,0
+naics_group,Construction (23),M2c ZIP-Tract,25,5.19,18.07,10.83,0.1768,1
+naics_group,Construction (23),M3c Var-Damp-IPF,25,4.01,5.19,13.71,0.1641,7
+naics_group,Construction (23),M3d Select-Damp,25,4.7,5.19,13.71,0.1908,0
+naics_group,Construction (23),M4c Top10-Occ,25,4.48,11.94,10.75,0.1646,0
+naics_group,Construction (23),M4d State-Top5,25,4.48,11.94,10.75,0.1646,0
+naics_group,Construction (23),M5c CV-Var-Wt,25,4.41,10.42,10.94,0.1655,0
+naics_group,Construction (23),M5d Corr-Min-Adapt,25,5.27,23.16,11.15,0.1758,1
+naics_group,Finance/Insurance (52),M1 Baseline (60/40),97,4.7,11.95,4.24,0.2033,0
+naics_group,Finance/Insurance (52),M2 Three-Layer (50/30/20),97,4.87,14.17,4.15,0.2067,0
+naics_group,Finance/Insurance (52),M3 IPF,97,1.65,7.21,2.21,0.0946,84
+naics_group,Finance/Insurance (52),M4 Occ-Weighted,97,4.88,10.06,4.31,0.2095,0
+naics_group,Finance/Insurance (52),M5 Variable-Weight,97,4.97,9.24,4.37,0.2127,2
+naics_group,Finance/Insurance (52),M1b Learned-Wt,97,4.2,18.78,4.05,0.1847,2
+naics_group,Finance/Insurance (52),M3b Damp-IPF,97,3.97,7.21,2.21,0.1797,1
+naics_group,Finance/Insurance (52),M1c CV-Learned-Wt,97,4.28,17.61,4.08,0.1878,1
+naics_group,Finance/Insurance (52),M1d Regional-Wt,97,4.7,11.94,4.26,0.2033,0
+naics_group,Finance/Insurance (52),M2c ZIP-Tract,97,4.63,13.55,4.19,0.1992,2
+naics_group,Finance/Insurance (52),M3c Var-Damp-IPF,97,3.72,7.21,2.21,0.1688,5
+naics_group,Finance/Insurance (52),M3d Select-Damp,97,2.86,7.21,2.21,0.1243,0
+naics_group,Finance/Insurance (52),M4c Top10-Occ,97,4.88,10.06,4.31,0.2095,0
+naics_group,Finance/Insurance (52),M4d State-Top5,97,4.88,10.06,4.31,0.2095,0
+naics_group,Finance/Insurance (52),M5c CV-Var-Wt,97,4.28,17.61,4.08,0.1878,0
+naics_group,Finance/Insurance (52),M5d Corr-Min-Adapt,97,5.03,9.69,4.36,0.2131,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1 Baseline (60/40),9,2.6,12.7,13.19,0.11,0
+naics_group,"Food/Bev Manufacturing (311,312)",M2 Three-Layer (50/30/20),9,3.24,14.49,13.22,0.1255,1
+naics_group,"Food/Bev Manufacturing (311,312)",M3 IPF,9,4.84,7.78,17.33,0.1883,0
+naics_group,"Food/Bev Manufacturing (311,312)",M4 Occ-Weighted,9,2.67,11.11,13.15,0.1147,1
+naics_group,"Food/Bev Manufacturing (311,312)",M5 Variable-Weight,9,2.62,16.16,13.27,0.1041,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1b Learned-Wt,9,2.64,17.93,13.3,0.1027,2
+naics_group,"Food/Bev Manufacturing (311,312)",M3b Damp-IPF,9,2.4,7.78,17.33,0.1059,1
+naics_group,"Food/Bev Manufacturing (311,312)",M1c CV-Learned-Wt,9,2.63,17.05,13.28,0.1032,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1d Regional-Wt,9,2.66,12.42,13.18,0.1126,0
+naics_group,"Food/Bev Manufacturing (311,312)",M2c ZIP-Tract,9,2.56,15.08,13.2,0.1052,0
+naics_group,"Food/Bev Manufacturing (311,312)",M3c Var-Damp-IPF,9,2.43,7.78,17.33,0.1019,3
+naics_group,"Food/Bev Manufacturing (311,312)",M3d Select-Damp,9,4.35,7.78,17.33,0.1734,0
+naics_group,"Food/Bev Manufacturing (311,312)",M4c Top10-Occ,9,2.67,11.11,13.15,0.1147,0
+naics_group,"Food/Bev Manufacturing (311,312)",M4d State-Top5,9,2.67,11.11,13.15,0.1147,0
+naics_group,"Food/Bev Manufacturing (311,312)",M5c CV-Var-Wt,9,2.73,10.31,13.14,0.1177,1
+naics_group,"Food/Bev Manufacturing (311,312)",M5d Corr-Min-Adapt,9,2.66,16.88,13.18,0.1044,0
+naics_group,Healthcare/Social (62),M1 Baseline (60/40),22,6.08,10.66,8.42,0.1901,0
+naics_group,Healthcare/Social (62),M2 Three-Layer (50/30/20),22,6.26,12.37,8.48,0.1979,5
+naics_group,Healthcare/Social (62),M3 IPF,22,8.35,6.04,10.72,0.2543,3
+naics_group,Healthcare/Social (62),M4 Occ-Weighted,22,6.19,9.07,8.65,0.195,0
+naics_group,Healthcare/Social (62),M5 Variable-Weight,22,6.25,8.32,8.77,0.1978,5
+naics_group,Healthcare/Social (62),M1b Learned-Wt,22,5.88,15.11,7.86,0.1812,3
+naics_group,Healthcare/Social (62),M3b Damp-IPF,22,5.67,6.04,10.72,0.181,2
+naics_group,Healthcare/Social (62),M1c CV-Learned-Wt,22,5.88,15.11,7.86,0.1812,0
+naics_group,Healthcare/Social (62),M1d Regional-Wt,22,6.15,10.33,8.58,0.1915,0
+naics_group,Healthcare/Social (62),M2c ZIP-Tract,22,6.05,12.2,8.18,0.1885,0
+naics_group,Healthcare/Social (62),M3c Var-Damp-IPF,22,5.61,6.04,10.72,0.178,4
+naics_group,Healthcare/Social (62),M3d Select-Damp,22,6.13,6.04,10.72,0.2004,0
+naics_group,Healthcare/Social (62),M4c Top10-Occ,22,6.19,9.07,8.65,0.195,0
+naics_group,Healthcare/Social (62),M4d State-Top5,22,6.19,9.07,8.65,0.195,0
+naics_group,Healthcare/Social (62),M5c CV-Var-Wt,22,5.88,15.11,7.86,0.1812,0
+naics_group,Healthcare/Social (62),M5d Corr-Min-Adapt,22,6.25,8.95,8.57,0.1964,0
+naics_group,Information (51),M1 Baseline (60/40),11,5.95,8.99,8.04,0.2014,0
+naics_group,Information (51),M2 Three-Layer (50/30/20),11,6.23,9.45,9.15,0.2098,0
+naics_group,Information (51),M3 IPF,11,7.35,8.74,6.32,0.2253,1
+naics_group,Information (51),M4 Occ-Weighted,11,6.53,8.99,7.2,0.218,0
+naics_group,Information (51),M5 Variable-Weight,11,5.95,8.99,8.04,0.2014,0
+naics_group,Information (51),M1b Learned-Wt,11,4.51,10.16,10.57,0.1535,3
+naics_group,Information (51),M3b Damp-IPF,11,4.37,8.74,6.32,0.1607,1
+naics_group,Information (51),M1c CV-Learned-Wt,11,4.71,9.92,10.15,0.1612,0
+naics_group,Information (51),M1d Regional-Wt,11,6.64,9.27,6.84,0.22,0
+naics_group,Information (51),M2c ZIP-Tract,11,5.46,9.38,8.58,0.1866,0
+naics_group,Information (51),M3c Var-Damp-IPF,11,3.84,8.74,6.32,0.1396,6
+naics_group,Information (51),M3d Select-Damp,11,4.67,8.74,6.32,0.1678,0
+naics_group,Information (51),M4c Top10-Occ,11,6.53,8.99,7.2,0.218,0
+naics_group,Information (51),M4d State-Top5,11,6.53,8.99,7.2,0.218,0
+naics_group,Information (51),M5c CV-Var-Wt,11,4.71,9.92,10.15,0.1612,0
+naics_group,Information (51),M5d Corr-Min-Adapt,11,5.56,9.24,8.32,0.1897,0
+naics_group,Metal/Machinery Mfg (331-333),M1 Baseline (60/40),11,3.69,14.51,4.7,0.174,0
+naics_group,Metal/Machinery Mfg (331-333),M2 Three-Layer (50/30/20),11,4.06,16.81,4.45,0.1854,0
+naics_group,Metal/Machinery Mfg (331-333),M3 IPF,11,4.49,8.02,6.56,0.2203,3
+naics_group,Metal/Machinery Mfg (331-333),M4 Occ-Weighted,11,3.74,12.6,4.96,0.1802,1
+naics_group,Metal/Machinery Mfg (331-333),M5 Variable-Weight,11,3.68,15.47,4.57,0.1714,0
+naics_group,Metal/Machinery Mfg (331-333),M1b Learned-Wt,11,3.71,19.29,4.05,0.1638,2
+naics_group,Metal/Machinery Mfg (331-333),M3b Damp-IPF,11,3.72,8.02,6.56,0.1846,2
+naics_group,Metal/Machinery Mfg (331-333),M1c CV-Learned-Wt,11,3.71,19.29,4.05,0.1638,0
+naics_group,Metal/Machinery Mfg (331-333),M1d Regional-Wt,11,3.72,14.9,4.75,0.1757,0
+naics_group,Metal/Machinery Mfg (331-333),M2c ZIP-Tract,11,3.63,17.17,4.29,0.1671,1
+naics_group,Metal/Machinery Mfg (331-333),M3c Var-Damp-IPF,11,3.64,8.02,6.56,0.1779,2
+naics_group,Metal/Machinery Mfg (331-333),M3d Select-Damp,11,4.09,8.02,6.56,0.2057,0
+naics_group,Metal/Machinery Mfg (331-333),M4c Top10-Occ,11,3.74,12.6,4.96,0.1802,0
+naics_group,Metal/Machinery Mfg (331-333),M4d State-Top5,11,3.74,12.6,4.96,0.1802,0
+naics_group,Metal/Machinery Mfg (331-333),M5c CV-Var-Wt,11,3.71,19.29,4.05,0.1638,0
+naics_group,Metal/Machinery Mfg (331-333),M5d Corr-Min-Adapt,11,3.67,15.7,4.55,0.1708,0
+naics_group,Other,M1 Baseline (60/40),49,4.73,19.53,7.55,0.1792,1
+naics_group,Other,M2 Three-Layer (50/30/20),49,5.04,19.71,8.0,0.193,1
+naics_group,Other,M3 IPF,49,6.01,19.84,8.06,0.2213,13
+naics_group,Other,M4 Occ-Weighted,49,4.92,19.38,7.61,0.1885,2
+naics_group,Other,M5 Variable-Weight,49,4.73,19.53,7.55,0.1792,0
+naics_group,Other,M1b Learned-Wt,49,4.31,20.01,7.73,0.1564,12
+naics_group,Other,M3b Damp-IPF,49,4.26,19.84,8.06,0.1655,5
+naics_group,Other,M1c CV-Learned-Wt,49,4.36,19.93,7.67,0.1597,3
+naics_group,Other,M1d Regional-Wt,49,4.82,19.54,7.48,0.1816,0
+naics_group,Other,M2c ZIP-Tract,49,4.66,19.81,7.38,0.1734,0
+naics_group,Other,M3c Var-Damp-IPF,49,4.05,19.84,8.06,0.1539,12
+naics_group,Other,M3d Select-Damp,49,4.35,19.84,8.06,0.1725,0
+naics_group,Other,M4c Top10-Occ,49,4.92,19.38,7.61,0.1885,0
+naics_group,Other,M4d State-Top5,49,4.92,19.38,7.61,0.1885,0
+naics_group,Other,M5c CV-Var-Wt,49,4.36,19.93,7.67,0.1597,0
+naics_group,Other,M5d Corr-Min-Adapt,49,4.73,19.5,7.58,0.1765,0
+naics_group,Other Manufacturing,M1 Baseline (60/40),13,4.47,8.71,9.37,0.1707,1
+naics_group,Other Manufacturing,M2 Three-Layer (50/30/20),13,4.94,9.54,8.63,0.1837,0
+naics_group,Other Manufacturing,M3 IPF,13,6.36,6.88,9.86,0.2357,1
+naics_group,Other Manufacturing,M4 Occ-Weighted,13,4.55,7.96,10.07,0.1806,2
+naics_group,Other Manufacturing,M5 Variable-Weight,13,4.46,9.09,9.02,0.1665,0
+naics_group,Other Manufacturing,M1b Learned-Wt,13,4.62,11.42,7.31,0.1514,2
+naics_group,Other Manufacturing,M3b Damp-IPF,13,4.3,6.88,9.86,0.1647,2
+naics_group,Other Manufacturing,M1c CV-Learned-Wt,13,4.58,10.88,7.64,0.1537,1
+naics_group,Other Manufacturing,M1d Regional-Wt,13,4.56,8.12,9.78,0.1746,0
+naics_group,Other Manufacturing,M2c ZIP-Tract,13,4.55,9.24,8.39,0.1633,0
+naics_group,Other Manufacturing,M3c Var-Damp-IPF,13,4.44,6.88,9.86,0.1559,4
+naics_group,Other Manufacturing,M3d Select-Damp,13,5.22,6.88,9.86,0.2028,0
+naics_group,Other Manufacturing,M4c Top10-Occ,13,4.55,7.96,10.07,0.1806,0
+naics_group,Other Manufacturing,M4d State-Top5,13,4.55,7.96,10.07,0.1806,0
+naics_group,Other Manufacturing,M5c CV-Var-Wt,13,4.58,10.88,7.64,0.1537,0
+naics_group,Other Manufacturing,M5d Corr-Min-Adapt,13,4.51,9.38,8.84,0.1659,0
+naics_group,Professional/Technical (54),M1 Baseline (60/40),90,4.66,11.85,6.55,0.1703,1
+naics_group,Professional/Technical (54),M2 Three-Layer (50/30/20),90,5.25,12.33,7.39,0.185,2
+naics_group,Professional/Technical (54),M3 IPF,90,6.55,11.51,5.71,0.2355,17
+naics_group,Professional/Technical (54),M4 Occ-Weighted,90,4.82,11.61,6.22,0.1794,3
+naics_group,Professional/Technical (54),M5 Variable-Weight,90,4.93,11.5,6.06,0.1845,5
+naics_group,Professional/Technical (54),M1b Learned-Wt,90,4.48,13.45,7.66,0.1518,23
+naics_group,Professional/Technical (54),M3b Damp-IPF,90,4.07,11.51,5.71,0.1513,16
+naics_group,Professional/Technical (54),M1c CV-Learned-Wt,90,4.49,13.11,7.45,0.1539,3
+naics_group,Professional/Technical (54),M1d Regional-Wt,90,4.78,11.59,6.17,0.1745,0
+naics_group,Professional/Technical (54),M2c ZIP-Tract,90,4.56,12.4,6.78,0.1624,6
+naics_group,Professional/Technical (54),M3c Var-Damp-IPF,90,4.02,11.51,5.71,0.1453,14
+naics_group,Professional/Technical (54),M3d Select-Damp,90,4.61,11.51,5.71,0.173,0
+naics_group,Professional/Technical (54),M4c Top10-Occ,90,4.82,11.61,6.22,0.1794,0
+naics_group,Professional/Technical (54),M4d State-Top5,90,4.82,11.61,6.22,0.1794,0
+naics_group,Professional/Technical (54),M5c CV-Var-Wt,90,4.49,13.11,7.45,0.1539,0
+naics_group,Professional/Technical (54),M5d Corr-Min-Adapt,90,4.85,11.57,6.19,0.1795,0
+naics_group,Retail Trade (44-45),M1 Baseline (60/40),4,4.3,9.26,5.64,0.1308,0
+naics_group,Retail Trade (44-45),M2 Three-Layer (50/30/20),4,4.26,9.85,5.73,0.1356,1
+naics_group,Retail Trade (44-45),M3 IPF,4,8.44,7.2,7.33,0.2738,1
+naics_group,Retail Trade (44-45),M4 Occ-Weighted,4,4.47,8.58,5.58,0.137,0
+naics_group,Retail Trade (44-45),M5 Variable-Weight,4,4.3,9.26,5.64,0.1308,0
+naics_group,Retail Trade (44-45),M1b Learned-Wt,4,4.02,11.32,5.79,0.1232,1
+naics_group,Retail Trade (44-45),M3b Damp-IPF,4,4.42,7.2,7.33,0.1315,0
+naics_group,Retail Trade (44-45),M1c CV-Learned-Wt,4,4.01,10.98,5.76,0.1231,0
+naics_group,Retail Trade (44-45),M1d Regional-Wt,4,4.31,9.0,5.5,0.133,0
+naics_group,Retail Trade (44-45),M2c ZIP-Tract,4,4.04,11.26,6.28,0.1257,1
+naics_group,Retail Trade (44-45),M3c Var-Damp-IPF,4,4.34,7.2,7.33,0.1292,0
+naics_group,Retail Trade (44-45),M3d Select-Damp,4,5.8,7.2,7.33,0.187,0
+naics_group,Retail Trade (44-45),M4c Top10-Occ,4,4.47,8.58,5.58,0.137,0
+naics_group,Retail Trade (44-45),M4d State-Top5,4,4.47,8.58,5.58,0.137,0
+naics_group,Retail Trade (44-45),M5c CV-Var-Wt,4,4.01,10.98,5.76,0.1231,0
+naics_group,Retail Trade (44-45),M5d Corr-Min-Adapt,4,4.3,9.26,5.64,0.1308,0
+naics_group,Transport Equip Mfg (336),M1 Baseline (60/40),5,2.61,11.03,6.86,0.1463,0
+naics_group,Transport Equip Mfg (336),M2 Three-Layer (50/30/20),5,3.16,13.74,7.25,0.161,0
+naics_group,Transport Equip Mfg (336),M3 IPF,5,4.32,5.18,8.93,0.2209,1
+naics_group,Transport Equip Mfg (336),M4 Occ-Weighted,5,2.73,9.27,6.95,0.1536,0
+naics_group,Transport Equip Mfg (336),M5 Variable-Weight,5,2.57,12.24,6.89,0.1434,0
+naics_group,Transport Equip Mfg (336),M1b Learned-Wt,5,2.52,18.25,7.04,0.1352,1
+naics_group,Transport Equip Mfg (336),M3b Damp-IPF,5,2.4,5.18,8.93,0.1438,0
+naics_group,Transport Equip Mfg (336),M1c CV-Learned-Wt,5,2.48,17.05,7.01,0.1361,2
+naics_group,Transport Equip Mfg (336),M1d Regional-Wt,5,2.68,10.28,6.66,0.1495,0
+naics_group,Transport Equip Mfg (336),M2c ZIP-Tract,5,2.73,13.28,6.61,0.1455,0
+naics_group,Transport Equip Mfg (336),M3c Var-Damp-IPF,5,2.35,5.18,8.93,0.1408,1
+naics_group,Transport Equip Mfg (336),M3d Select-Damp,5,3.46,5.18,8.93,0.1862,0
+naics_group,Transport Equip Mfg (336),M4c Top10-Occ,5,2.73,9.27,6.95,0.1536,0
+naics_group,Transport Equip Mfg (336),M4d State-Top5,5,2.73,9.27,6.95,0.1536,0
+naics_group,Transport Equip Mfg (336),M5c CV-Var-Wt,5,2.48,17.05,7.01,0.1361,0
+naics_group,Transport Equip Mfg (336),M5d Corr-Min-Adapt,5,2.54,12.75,6.68,0.1429,0
+naics_group,Utilities (22),M1 Baseline (60/40),9,2.93,10.61,5.36,0.1358,0
+naics_group,Utilities (22),M2 Three-Layer (50/30/20),9,3.78,13.32,5.36,0.1595,0
+naics_group,Utilities (22),M3 IPF,9,2.7,3.65,4.93,0.1415,4
+naics_group,Utilities (22),M4 Occ-Weighted,9,2.92,8.48,5.46,0.1401,0
+naics_group,Utilities (22),M5 Variable-Weight,9,2.93,10.61,5.36,0.1358,0
+naics_group,Utilities (22),M1b Learned-Wt,9,2.96,4.24,5.67,0.1525,1
+naics_group,Utilities (22),M3b Damp-IPF,9,2.45,3.65,4.93,0.1227,2
+naics_group,Utilities (22),M1c CV-Learned-Wt,9,3.03,17.32,5.7,0.1286,0
+naics_group,Utilities (22),M1d Regional-Wt,9,2.96,10.22,5.63,0.1371,0
+naics_group,Utilities (22),M2c ZIP-Tract,9,2.97,13.26,5.26,0.1317,0
+naics_group,Utilities (22),M3c Var-Damp-IPF,9,2.5,3.65,4.93,0.118,2
+naics_group,Utilities (22),M3d Select-Damp,9,1.91,3.65,4.93,0.1057,0
+naics_group,Utilities (22),M4c Top10-Occ,9,2.92,8.48,5.46,0.1401,0
+naics_group,Utilities (22),M4d State-Top5,9,2.92,8.48,5.46,0.1401,0
+naics_group,Utilities (22),M5c CV-Var-Wt,9,3.03,17.32,5.7,0.1286,0
+naics_group,Utilities (22),M5d Corr-Min-Adapt,9,3.01,11.23,5.39,0.1364,0
+naics_group,Wholesale Trade (42),M1 Baseline (60/40),26,4.72,13.65,8.57,0.1614,0
+naics_group,Wholesale Trade (42),M2 Three-Layer (50/30/20),26,5.27,14.85,8.46,0.1764,0
+naics_group,Wholesale Trade (42),M3 IPF,26,6.24,11.13,10.84,0.2224,7
+naics_group,Wholesale Trade (42),M4 Occ-Weighted,26,4.73,12.68,8.81,0.1657,4
+naics_group,Wholesale Trade (42),M5 Variable-Weight,26,4.72,13.65,8.57,0.1614,0
+naics_group,Wholesale Trade (42),M1b Learned-Wt,26,4.82,17.34,7.93,0.1563,7
+naics_group,Wholesale Trade (42),M3b Damp-IPF,26,4.39,11.13,10.84,0.1571,4
+naics_group,Wholesale Trade (42),M1c CV-Learned-Wt,26,4.72,14.78,8.36,0.1586,0
+naics_group,Wholesale Trade (42),M1d Regional-Wt,26,4.76,13.5,8.68,0.1639,0
+naics_group,Wholesale Trade (42),M2c ZIP-Tract,26,4.77,14.79,8.34,0.1589,1
+naics_group,Wholesale Trade (42),M3c Var-Damp-IPF,26,4.39,11.13,10.84,0.156,3
+naics_group,Wholesale Trade (42),M3d Select-Damp,26,4.33,11.13,10.84,0.1594,0
+naics_group,Wholesale Trade (42),M4c Top10-Occ,26,4.73,12.68,8.81,0.1657,0
+naics_group,Wholesale Trade (42),M4d State-Top5,26,4.73,12.68,8.81,0.1657,0
+naics_group,Wholesale Trade (42),M5c CV-Var-Wt,26,4.78,16.64,8.04,0.1564,0
+naics_group,Wholesale Trade (42),M5d Corr-Min-Adapt,26,4.79,13.82,8.62,0.1615,0
+size,1-99,M1 Baseline (60/40),86,5.01,12.59,5.8,0.2149,1
+size,1-99,M2 Three-Layer (50/30/20),86,5.36,14.22,5.98,0.2236,0
+size,1-99,M3 IPF,86,2.98,9.13,3.68,0.1284,61
+size,1-99,M4 Occ-Weighted,86,5.12,11.13,5.84,0.2205,1
+size,1-99,M5 Variable-Weight,86,5.17,10.51,5.75,0.2216,2
+size,1-99,M1b Learned-Wt,86,4.79,17.63,5.79,0.2003,7
+size,1-99,M3b Damp-IPF,86,4.4,9.13,3.68,0.1929,5
+size,1-99,M1c CV-Learned-Wt,86,4.81,16.82,5.79,0.2026,0
+size,1-99,M1d Regional-Wt,86,5.04,12.51,5.84,0.216,0
+size,1-99,M2c ZIP-Tract,86,5.02,13.82,5.67,0.2118,2
+size,1-99,M3c Var-Damp-IPF,86,4.31,9.13,3.68,0.1855,7
+size,1-99,M3d Select-Damp,86,3.79,9.13,3.68,0.1542,0
+size,1-99,M4c Top10-Occ,86,5.12,11.13,5.84,0.2205,0
+size,1-99,M4d State-Top5,86,5.12,11.13,5.84,0.2205,0
+size,1-99,M5c CV-Var-Wt,86,4.82,16.8,5.77,0.2025,0
+size,1-99,M5d Corr-Min-Adapt,86,5.22,10.85,5.79,0.2212,0
+size,100-999,M1 Baseline (60/40),185,4.77,13.18,6.6,0.1738,1
+size,100-999,M2 Three-Layer (50/30/20),185,5.16,14.6,6.79,0.1842,8
+size,100-999,M3 IPF,185,5.39,10.11,6.78,0.2005,65
+size,100-999,M4 Occ-Weighted,185,4.89,12.06,6.61,0.1801,11
+size,100-999,M5 Variable-Weight,185,4.99,13.05,6.55,0.1813,9
+size,100-999,M1b Learned-Wt,185,4.52,15.42,6.7,0.1612,23
+size,100-999,M3b Damp-IPF,185,4.21,10.11,6.78,0.1588,22
+size,100-999,M1c CV-Learned-Wt,185,4.52,15.42,6.66,0.161,3
+size,100-999,M1d Regional-Wt,185,4.81,12.8,6.5,0.1759,0
+size,100-999,M2c ZIP-Tract,185,4.77,14.28,6.63,0.1705,9
+size,100-999,M3c Var-Damp-IPF,185,4.1,10.11,6.78,0.1527,33
+size,100-999,M3d Select-Damp,185,4.38,10.11,6.78,0.1676,0
+size,100-999,M4c Top10-Occ,185,4.89,12.06,6.61,0.1801,0
+size,100-999,M4d State-Top5,185,4.89,12.06,6.61,0.1801,0
+size,100-999,M5c CV-Var-Wt,185,4.53,15.41,6.7,0.1613,0
+size,100-999,M5d Corr-Min-Adapt,185,5.0,13.35,6.56,0.1802,1
+size,10000+,M1 Baseline (60/40),32,4.3,11.77,8.05,0.149,2
+size,10000+,M2 Three-Layer (50/30/20),32,4.81,12.95,8.41,0.1644,0
+size,10000+,M3 IPF,32,7.6,9.82,9.88,0.2587,3
+size,10000+,M4 Occ-Weighted,32,4.43,10.94,8.0,0.158,2
+size,10000+,M5 Variable-Weight,32,4.43,12.71,8.04,0.1521,1
+size,10000+,M1b Learned-Wt,32,3.81,12.51,7.96,0.1324,11
+size,10000+,M3b Damp-IPF,32,4.25,9.82,9.88,0.1473,1
+size,10000+,M1c CV-Learned-Wt,32,4.09,13.56,8.21,0.1324,2
+size,10000+,M1d Regional-Wt,32,4.35,11.72,7.99,0.1503,0
+size,10000+,M2c ZIP-Tract,32,4.19,13.14,7.98,0.1412,2
+size,10000+,M3c Var-Damp-IPF,32,4.14,9.82,9.88,0.1387,7
+size,10000+,M3d Select-Damp,32,4.9,9.82,9.88,0.1732,0
+size,10000+,M4c Top10-Occ,32,4.43,10.94,8.0,0.158,0
+size,10000+,M4d State-Top5,32,4.43,10.94,8.0,0.158,0
+size,10000+,M5c CV-Var-Wt,32,4.02,13.42,8.17,0.1313,1
+size,10000+,M5d Corr-Min-Adapt,32,4.38,13.04,8.12,0.1486,0
+size,1k-9999,M1 Baseline (60/40),96,4.6,13.64,8.56,0.1663,0
+size,1k-9999,M2 Three-Layer (50/30/20),96,5.08,14.73,9.02,0.1803,3
+size,1k-9999,M3 IPF,96,6.43,11.22,10.7,0.2358,14
+size,1k-9999,M4 Occ-Weighted,96,4.81,12.8,8.44,0.1758,3
+size,1k-9999,M5 Variable-Weight,96,4.65,14.15,8.54,0.1686,3
+size,1k-9999,M1b Learned-Wt,96,4.28,14.54,9.43,0.1503,24
+size,1k-9999,M3b Damp-IPF,96,4.05,11.22,10.7,0.1542,14
+size,1k-9999,M1c CV-Learned-Wt,96,4.27,15.03,9.27,0.1495,6
+size,1k-9999,M1d Regional-Wt,96,4.76,13.12,8.39,0.1713,0
+size,1k-9999,M2c ZIP-Tract,96,4.48,14.92,8.67,0.1587,3
+size,1k-9999,M3c Var-Damp-IPF,96,3.88,11.22,10.7,0.1454,26
+size,1k-9999,M3d Select-Damp,96,4.41,11.22,10.7,0.1708,0
+size,1k-9999,M4c Top10-Occ,96,4.81,12.8,8.44,0.1758,0
+size,1k-9999,M4d State-Top5,96,4.81,12.8,8.44,0.1758,0
+size,1k-9999,M5c CV-Var-Wt,96,4.29,14.99,9.12,0.1502,0
+size,1k-9999,M5d Corr-Min-Adapt,96,4.61,14.47,8.6,0.1657,0
+region,Midwest,M1 Baseline (60/40),103,3.13,13.47,6.15,0.1524,1
+region,Midwest,M2 Three-Layer (50/30/20),103,3.42,14.98,6.27,0.1614,6
+region,Midwest,M3 IPF,103,3.73,9.66,7.17,0.1682,43
+region,Midwest,M4 Occ-Weighted,103,3.2,12.12,6.12,0.1574,5
+region,Midwest,M5 Variable-Weight,103,3.23,12.99,6.15,0.1563,4
+region,Midwest,M1b Learned-Wt,103,3.07,16.75,6.23,0.1442,16
+region,Midwest,M3b Damp-IPF,103,2.86,9.66,7.17,0.1442,6
+region,Midwest,M1c CV-Learned-Wt,103,3.06,16.55,6.25,0.144,7
+region,Midwest,M1d Regional-Wt,103,3.13,13.47,6.15,0.1524,0
+region,Midwest,M2c ZIP-Tract,103,3.12,14.99,6.24,0.1498,2
+region,Midwest,M3c Var-Damp-IPF,103,2.78,9.66,7.17,0.1379,12
+region,Midwest,M3d Select-Damp,103,2.67,9.66,7.17,0.1321,0
+region,Midwest,M4c Top10-Occ,103,3.2,12.12,6.12,0.1574,0
+region,Midwest,M4d State-Top5,103,3.2,12.12,6.12,0.1574,0
+region,Midwest,M5c CV-Var-Wt,103,3.07,16.54,6.24,0.1442,1
+region,Midwest,M5d Corr-Min-Adapt,103,3.23,13.03,6.14,0.1563,0
+region,Northeast,M1 Baseline (60/40),53,5.46,12.72,7.41,0.1823,1
+region,Northeast,M2 Three-Layer (50/30/20),53,5.75,13.32,7.67,0.1928,0
+region,Northeast,M3 IPF,53,7.22,12.05,9.47,0.2499,10
+region,Northeast,M4 Occ-Weighted,53,5.63,12.33,7.56,0.1903,3
+region,Northeast,M5 Variable-Weight,53,5.47,12.61,7.54,0.1843,3
+region,Northeast,M1b Learned-Wt,53,5.22,14.48,7.13,0.1694,9
+region,Northeast,M3b Damp-IPF,53,5.05,12.05,9.47,0.1703,7
+region,Northeast,M1c CV-Learned-Wt,53,5.15,14.28,7.22,0.1674,1
+region,Northeast,M1d Regional-Wt,53,5.46,12.72,7.41,0.1823,0
+region,Northeast,M2c ZIP-Tract,53,5.32,13.26,7.38,0.1751,6
+region,Northeast,M3c Var-Damp-IPF,53,4.88,12.05,9.47,0.163,13
+region,Northeast,M3d Select-Damp,53,5.76,12.05,9.47,0.2038,0
+region,Northeast,M4c Top10-Occ,53,5.63,12.33,7.56,0.1903,0
+region,Northeast,M4d State-Top5,53,5.63,12.33,7.56,0.1903,0
+region,Northeast,M5c CV-Var-Wt,53,5.15,14.36,7.12,0.1677,0
+region,Northeast,M5d Corr-Min-Adapt,53,5.43,12.69,7.57,0.1816,0
+region,South,M1 Baseline (60/40),175,5.2,12.71,6.32,0.1878,2
+region,South,M2 Three-Layer (50/30/20),175,5.57,14.14,6.51,0.1975,4
+region,South,M3 IPF,175,4.87,10.18,5.67,0.181,83
+region,South,M4 Occ-Weighted,175,5.32,11.6,6.38,0.195,8
+region,South,M5 Variable-Weight,175,5.38,11.81,6.28,0.1953,6
+region,South,M1b Learned-Wt,175,4.95,16.1,6.24,0.1725,31
+region,South,M3b Damp-IPF,175,4.64,10.18,5.67,0.1714,17
+region,South,M1c CV-Learned-Wt,175,5.0,15.96,6.29,0.1737,2
+region,South,M1d Regional-Wt,175,5.2,12.71,6.32,0.1878,0
+region,South,M2c ZIP-Tract,175,5.19,13.99,6.12,0.183,3
+region,South,M3c Var-Damp-IPF,175,4.55,10.18,5.67,0.1638,19
+region,South,M3d Select-Damp,175,4.39,10.18,5.67,0.1599,0
+region,South,M4c Top10-Occ,175,5.32,11.6,6.38,0.195,0
+region,South,M4d State-Top5,175,5.32,11.6,6.38,0.195,0
+region,South,M5c CV-Var-Wt,175,5.0,15.89,6.28,0.1738,0
+region,South,M5d Corr-Min-Adapt,175,5.41,12.28,6.28,0.1931,0
+region,West,M1 Baseline (60/40),68,5.47,13.56,9.8,0.1932,0
+region,West,M2 Three-Layer (50/30/20),68,6.26,15.11,10.5,0.2127,1
+region,West,M3 IPF,68,7.28,9.3,10.0,0.2472,7
+region,West,M4 Occ-Weighted,68,5.7,12.29,9.46,0.2027,1
+region,West,M5 Variable-Weight,68,5.76,14.87,9.61,0.2002,2
+region,West,M1b Learned-Wt,68,4.72,12.58,11.55,0.1721,9
+region,West,M3b Damp-IPF,68,4.51,9.3,10.0,0.1709,12
+region,West,M1c CV-Learned-Wt,68,4.82,13.54,11.1,0.172,1
+region,West,M1d Regional-Wt,68,5.84,11.66,9.32,0.2079,0
+region,West,M2c ZIP-Tract,68,5.39,14.53,10.24,0.1879,5
+region,West,M3c Var-Damp-IPF,68,4.28,9.3,10.0,0.163,29
+region,West,M3d Select-Damp,68,5.4,9.3,10.0,0.2032,0
+region,West,M4c Top10-Occ,68,5.7,12.29,9.46,0.2027,0
+region,West,M4d State-Top5,68,5.7,12.29,9.46,0.2027,0
+region,West,M5c CV-Var-Wt,68,4.83,13.51,11.06,0.1723,0
+region,West,M5d Corr-Min-Adapt,68,5.73,15.36,9.76,0.1985,1
+minority_share,High (>50%),M1 Baseline (60/40),25,12.01,9.83,12.75,0.3022,1
+minority_share,High (>50%),M2 Three-Layer (50/30/20),25,12.1,10.38,12.47,0.3078,2
+minority_share,High (>50%),M3 IPF,25,17.19,8.58,15.94,0.4314,0
+minority_share,High (>50%),M4 Occ-Weighted,25,12.0,9.35,12.97,0.3084,3
+minority_share,High (>50%),M5 Variable-Weight,25,12.16,9.74,12.65,0.307,3
+minority_share,High (>50%),M1b Learned-Wt,25,11.98,10.01,12.48,0.2922,8
+minority_share,High (>50%),M3b Damp-IPF,25,12.27,8.58,15.94,0.3016,1
+minority_share,High (>50%),M1c CV-Learned-Wt,25,12.22,10.74,12.47,0.2964,0
+minority_share,High (>50%),M1d Regional-Wt,25,12.15,9.6,12.94,0.309,0
+minority_share,High (>50%),M2c ZIP-Tract,25,11.95,11.08,12.64,0.2957,4
+minority_share,High (>50%),M3c Var-Damp-IPF,25,12.48,8.58,15.94,0.302,3
+minority_share,High (>50%),M3d Select-Damp,25,13.1,8.58,15.94,0.3303,0
+minority_share,High (>50%),M4c Top10-Occ,25,12.0,9.35,12.97,0.3084,0
+minority_share,High (>50%),M4d State-Top5,25,12.0,9.35,12.97,0.3084,0
+minority_share,High (>50%),M5c CV-Var-Wt,25,12.18,10.61,12.44,0.295,0
+minority_share,High (>50%),M5d Corr-Min-Adapt,25,12.07,9.83,12.8,0.3031,0
+minority_share,Low (<25%),M1 Baseline (60/40),273,3.96,14.03,6.07,0.1667,2
+minority_share,Low (<25%),M2 Three-Layer (50/30/20),273,4.44,15.72,6.29,0.1786,3
+minority_share,Low (<25%),M3 IPF,273,2.97,10.04,5.58,0.1468,141
+minority_share,Low (<25%),M4 Occ-Weighted,273,4.07,12.59,6.09,0.1725,10
+minority_share,Low (<25%),M5 Variable-Weight,273,4.13,13.62,6.08,0.1724,5
+minority_share,Low (<25%),M1b Learned-Wt,273,3.72,16.84,6.32,0.1555,19
+minority_share,Low (<25%),M3b Damp-IPF,273,3.31,10.04,5.58,0.1504,30
+minority_share,Low (<25%),M1c CV-Learned-Wt,273,3.71,16.98,6.26,0.1547,6
+minority_share,Low (<25%),M1d Regional-Wt,273,3.98,13.59,6.07,0.1679,0
+minority_share,Low (<25%),M2c ZIP-Tract,273,3.98,15.46,6.08,0.1639,7
+minority_share,Low (<25%),M3c Var-Damp-IPF,273,3.18,10.04,5.58,0.1433,49
+minority_share,Low (<25%),M3d Select-Damp,273,3.15,10.04,5.58,0.1428,0
+minority_share,Low (<25%),M4c Top10-Occ,273,4.07,12.59,6.09,0.1725,0
+minority_share,Low (<25%),M4d State-Top5,273,4.07,12.59,6.09,0.1725,0
+minority_share,Low (<25%),M5c CV-Var-Wt,273,3.73,17.02,6.21,0.1552,1
+minority_share,Low (<25%),M5d Corr-Min-Adapt,273,4.18,14.0,6.1,0.1727,0
+minority_share,Medium (25-50%),M1 Baseline (60/40),101,5.07,11.21,8.14,0.1813,1
+minority_share,Medium (25-50%),M2 Three-Layer (50/30/20),101,5.37,11.9,8.69,0.1924,6
+minority_share,Medium (25-50%),M3 IPF,101,8.65,10.81,9.83,0.2791,2
+minority_share,Medium (25-50%),M4 Occ-Weighted,101,5.32,10.85,7.97,0.1923,4
+minority_share,Medium (25-50%),M5 Variable-Weight,101,5.2,11.12,8.01,0.1872,7
+minority_share,Medium (25-50%),M1b Learned-Wt,101,4.62,13.04,8.53,0.1579,38
+minority_share,Medium (25-50%),M3b Damp-IPF,101,4.66,10.81,9.83,0.1673,11
+minority_share,Medium (25-50%),M1c CV-Learned-Wt,101,4.67,12.59,8.53,0.16,5
+minority_share,Medium (25-50%),M1d Regional-Wt,101,5.24,11.17,7.79,0.1863,0
+minority_share,Medium (25-50%),M2c ZIP-Tract,101,4.88,11.74,8.17,0.1721,5
+minority_share,Medium (25-50%),M3c Var-Damp-IPF,101,4.48,10.81,9.83,0.1577,21
+minority_share,Medium (25-50%),M3d Select-Damp,101,5.24,10.81,9.83,0.1877,0
+minority_share,Medium (25-50%),M4c Top10-Occ,101,5.32,10.85,7.97,0.1923,0
+minority_share,Medium (25-50%),M4d State-Top5,101,5.32,10.85,7.97,0.1923,0
+minority_share,Medium (25-50%),M5c CV-Var-Wt,101,4.64,12.4,8.58,0.1595,0
+minority_share,Medium (25-50%),M5d Corr-Min-Adapt,101,5.08,11.31,8.04,0.181,1
+urbanicity,Rural,M1 Baseline (60/40),76,4.85,13.4,4.37,0.2112,0
+urbanicity,Rural,M2 Three-Layer (50/30/20),76,4.92,15.59,4.29,0.2125,0
+urbanicity,Rural,M3 IPF,76,1.54,8.02,2.14,0.0933,67
+urbanicity,Rural,M4 Occ-Weighted,76,5.07,11.5,4.48,0.2189,0
+urbanicity,Rural,M5 Variable-Weight,76,5.18,10.76,4.57,0.2221,1
+urbanicity,Rural,M1b Learned-Wt,76,4.24,19.39,4.06,0.1893,1
+urbanicity,Rural,M3b Damp-IPF,76,3.94,8.02,2.14,0.1819,0
+urbanicity,Rural,M1c CV-Learned-Wt,76,4.3,18.79,4.21,0.1918,1
+urbanicity,Rural,M1d Regional-Wt,76,4.85,13.43,4.37,0.2111,0
+urbanicity,Rural,M2c ZIP-Tract,76,4.73,14.95,4.24,0.2054,0
+urbanicity,Rural,M3c Var-Damp-IPF,76,3.64,8.02,2.14,0.1684,6
+urbanicity,Rural,M3d Select-Damp,76,2.68,8.02,2.14,0.1208,0
+urbanicity,Rural,M4c Top10-Occ,76,5.07,11.5,4.48,0.2189,0
+urbanicity,Rural,M4d State-Top5,76,5.07,11.5,4.48,0.2189,0
+urbanicity,Rural,M5c CV-Var-Wt,76,4.3,18.79,4.21,0.1918,0
+urbanicity,Rural,M5d Corr-Min-Adapt,76,5.24,11.14,4.55,0.2223,0
+urbanicity,Suburban,M1 Baseline (60/40),35,4.22,12.5,5.09,0.1675,0
+urbanicity,Suburban,M2 Three-Layer (50/30/20),35,4.55,14.67,5.14,0.1758,0
+urbanicity,Suburban,M3 IPF,35,2.59,7.43,4.42,0.1236,23
+urbanicity,Suburban,M4 Occ-Weighted,35,4.31,10.83,5.17,0.1708,1
+urbanicity,Suburban,M5 Variable-Weight,35,4.22,12.43,4.96,0.1679,1
+urbanicity,Suburban,M1b Learned-Wt,35,4.07,15.67,5.61,0.1631,1
+urbanicity,Suburban,M3b Damp-IPF,35,3.63,7.43,4.42,0.1483,2
+urbanicity,Suburban,M1c CV-Learned-Wt,35,4.06,15.56,5.27,0.1617,1
+urbanicity,Suburban,M1d Regional-Wt,35,4.25,12.39,5.18,0.1678,0
+urbanicity,Suburban,M2c ZIP-Tract,35,4.28,14.54,5.21,0.1683,1
+urbanicity,Suburban,M3c Var-Damp-IPF,35,3.6,7.43,4.42,0.1452,5
+urbanicity,Suburban,M3d Select-Damp,35,3.32,7.43,4.42,0.1436,0
+urbanicity,Suburban,M4c Top10-Occ,35,4.31,10.83,5.17,0.1708,0
+urbanicity,Suburban,M4d State-Top5,35,4.31,10.83,5.17,0.1708,0
+urbanicity,Suburban,M5c CV-Var-Wt,35,4.07,15.68,5.29,0.1622,0
+urbanicity,Suburban,M5d Corr-Min-Adapt,35,4.27,12.76,4.96,0.1686,0
+urbanicity,Urban,M1 Baseline (60/40),288,4.78,13.03,7.95,0.1717,4
+urbanicity,Urban,M2 Three-Layer (50/30/20),288,5.29,14.07,8.33,0.186,11
+urbanicity,Urban,M3 IPF,288,6.62,11.03,9.01,0.2348,53
+urbanicity,Urban,M4 Occ-Weighted,288,4.9,12.2,7.88,0.1792,16
+urbanicity,Urban,M5 Variable-Weight,288,4.91,13.3,7.86,0.1767,13
+urbanicity,Urban,M1b Learned-Wt,288,4.57,14.39,8.31,0.1584,63
+urbanicity,Urban,M3b Damp-IPF,288,4.36,11.03,9.01,0.1614,40
+urbanicity,Urban,M1c CV-Learned-Wt,288,4.59,14.59,8.25,0.1582,9
+urbanicity,Urban,M1d Regional-Wt,288,4.87,12.59,7.82,0.1752,0
+urbanicity,Urban,M2c ZIP-Tract,288,4.75,14.02,7.98,0.1667,15
+urbanicity,Urban,M3c Var-Damp-IPF,288,4.27,11.03,9.01,0.1553,62
+urbanicity,Urban,M3d Select-Damp,288,4.85,11.03,9.01,0.1806,0
+urbanicity,Urban,M4c Top10-Occ,288,4.9,12.2,7.88,0.1792,0
+urbanicity,Urban,M4d State-Top5,288,4.9,12.2,7.88,0.1792,0
+urbanicity,Urban,M5c CV-Var-Wt,288,4.6,14.54,8.22,0.1584,1
+urbanicity,Urban,M5d Corr-Min-Adapt,288,4.89,13.6,7.91,0.1744,1

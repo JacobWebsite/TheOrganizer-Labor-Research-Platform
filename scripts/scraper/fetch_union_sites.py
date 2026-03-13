@@ -62,7 +62,7 @@ def get_domain(url):
 
 
 async def fetch_page(crawler, url, run_config, retries=MAX_RETRIES):
-    """Fetch a single page with retries. Returns (markdown_text, success, error)."""
+    """Fetch a single page with retries. Returns (markdown_text, success, error, final_url)."""
     for attempt in range(retries):
         try:
             result = await crawler.arun(url=url, config=run_config)
@@ -73,7 +73,8 @@ async def fetch_page(crawler, url, run_config, retries=MAX_RETRIES):
                         text = result.markdown.raw_markdown or ''
                     else:
                         text = str(result.markdown)
-                return text, True, None
+                final_url = getattr(result, 'url', url) or url
+                return text, True, None, final_url
             else:
                 error = result.error_message or 'Unknown error'
                 if attempt < retries - 1:
@@ -81,7 +82,7 @@ async def fetch_page(crawler, url, run_config, retries=MAX_RETRIES):
                     print(f"    Retry {attempt + 1}/{retries} in {wait}s: {error}")
                     await asyncio.sleep(wait)
                 else:
-                    return '', False, error
+                    return '', False, error, url
         except Exception as e:
             error = str(e)
             if attempt < retries - 1:
@@ -89,8 +90,8 @@ async def fetch_page(crawler, url, run_config, retries=MAX_RETRIES):
                 print(f"    Retry {attempt + 1}/{retries} in {wait}s: {error[:80]}")
                 await asyncio.sleep(wait)
             else:
-                return '', False, error
-    return '', False, 'Max retries exceeded'
+                return '', False, error, url
+    return '', False, 'Max retries exceeded', url
 
 
 async def check_wordpress(crawler, base_url, run_config):
@@ -120,7 +121,7 @@ async def discover_subpages(crawler, base_url, run_config):
 
     for path, sub_url in page_urls:
         await asyncio.sleep(RATE_LIMIT_SECS)
-        text, success, error = await fetch_page(crawler, sub_url, run_config, retries=1)
+        text, success, error, _ = await fetch_page(crawler, sub_url, run_config, retries=1)
 
         if success and text and len(text.strip()) > 200:
             # Categorize the page
@@ -173,7 +174,7 @@ async def fetch_profile(crawler, run_config, profile, conn):
     try:
         # 1. Fetch homepage
         print(f"  Fetching homepage...")
-        homepage_text, success, error = await fetch_page(crawler, url, run_config)
+        homepage_text, success, error, final_url = await fetch_page(crawler, url, run_config)
 
         if not success:
             error_msg = f"Homepage failed: {error}"

@@ -12,9 +12,11 @@ def get_platform_summary():
         with conn.cursor() as cur:
             # Unions
             cur.execute("""
-                SELECT COUNT(*) as total_unions, SUM(members) as total_members,
-                    COUNT(DISTINCT aff_abbr) as affiliations
-                FROM unions_master
+                SELECT COUNT(*) as total_unions, SUM(um.members) as total_members,
+                    SUM(CASE WHEN uh.count_members THEN um.members ELSE 0 END) as deduplicated_members,
+                    COUNT(DISTINCT um.aff_abbr) as affiliations
+                FROM unions_master um
+                LEFT JOIN union_hierarchy uh ON um.f_num = uh.f_num
             """)
             unions = cur.fetchone()
 

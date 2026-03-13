@@ -37,14 +37,16 @@ def get_affiliations(sector: Optional[str] = None):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(f"""
-                SELECT aff_abbr, MAX(union_name) as example_name,
-                    COUNT(*) as local_count, SUM(members) as total_members,
-                    SUM(f7_employer_count) as employer_count
-                FROM unions_master
-                WHERE {where_clause}
-                GROUP BY aff_abbr
+                SELECT um.aff_abbr, MAX(um.union_name) as example_name,
+                    COUNT(*) as local_count, SUM(um.members) as total_members,
+                    SUM(CASE WHEN uh.count_members THEN um.members ELSE 0 END) as deduplicated_members,
+                    SUM(um.f7_employer_count) as employer_count
+                FROM unions_master um
+                LEFT JOIN union_hierarchy uh ON um.f_num = uh.f_num
+                WHERE {where_clause.replace('aff_abbr', 'um.aff_abbr').replace('sector', 'um.sector')}
+                GROUP BY um.aff_abbr
                 HAVING COUNT(*) >= 3
-                ORDER BY SUM(members) DESC NULLS LAST
+                ORDER BY SUM(CASE WHEN uh.count_members THEN um.members ELSE 0 END) DESC NULLS LAST
             """, params)
             return {"affiliations": cur.fetchall()}
 

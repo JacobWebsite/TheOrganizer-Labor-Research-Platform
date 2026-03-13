@@ -1,6 +1,6 @@
 {
   "category": "management_rights",
-  "provision_classes": ["management_rights"],
+  "provision_classes": ["management_rights_clause", "management_enumerated", "operational_discretion", "not_limited_to"],
   "heading_signals": [
     {"pattern": "\\bmanagement\\s+rights\\b", "weight": 0.5},
     {"pattern": "\\b(?:employer|management)\\s+(?:rights|prerogatives|authority)\\b", "weight": 0.4},
@@ -11,28 +11,28 @@
       "name": "management_rights_clause",
       "pattern": "(?:employer|management|company)\\s+(?:retains|reserves|shall\\s+(?:have|retain))\\s+(?:the\\s+)?(?:exclusive\\s+)?(?:right|authority|prerogative)",
       "confidence": 0.90,
-      "provision_class": "management_rights",
+      "provision_class": "management_rights_clause",
       "summary": "Management rights clause"
     },
     {
       "name": "management_enumerated",
       "pattern": "(?:right|authority)\\s+to\\s+(?:hire|fire|direct|assign|transfer|promote|demote|discipline|discharge|determine|establish|maintain|schedule|subcontract)",
       "confidence": 0.80,
-      "provision_class": "management_rights",
+      "provision_class": "management_enumerated",
       "summary": "Enumerated management rights"
     },
     {
       "name": "operational_discretion",
       "pattern": "\\b(?:determine|direct|control|manage)\\s+(?:the\\s+)?(?:operations?|workforce|business|methods?|means?)\\b",
       "confidence": 0.75,
-      "provision_class": "management_rights",
+      "provision_class": "operational_discretion",
       "summary": "Operational discretion"
     },
     {
       "name": "not_limited_to",
       "pattern": "(?:including\\s+but\\s+not\\s+limited\\s+to).*(?:hire|fire|direct|assign|transfer|promote)",
       "confidence": 0.80,
-      "provision_class": "management_rights",
+      "provision_class": "not_limited_to",
       "summary": "Non-exhaustive management rights list"
     }
   ],

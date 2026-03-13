@@ -1,6 +1,6 @@
 {
   "category": "job_security",
-  "provision_classes": ["job_security_layoff_recall", "discipline_and_discharge"],
+  "provision_classes": ["just_cause_exact", "proper_cause", "good_cause_discipline", "progressive_discipline", "discipline_steps", "weingarten", "layoff_order", "recall_rights", "bumping", "subcontracting", "probationary_period", "personnel_file"],
   "heading_signals": [
     {"pattern": "\\b(layoff|recall|bumping|reduction\\s+in\\s+force|RIF)\\b", "weight": 0.35},
     {"pattern": "\\b(discipline|discharge|just\\s+cause|termination|dismissal)\\b", "weight": 0.35},
@@ -12,84 +12,84 @@
       "name": "just_cause_exact",
       "pattern": "\\bjust\\s+cause\\b",
       "confidence": 0.92,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "just_cause_exact",
       "summary": "Just cause standard"
     },
     {
       "name": "proper_cause",
       "pattern": "\\bproper\\s+cause\\b",
       "confidence": 0.88,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "proper_cause",
       "summary": "Proper cause standard"
     },
     {
       "name": "good_cause_discipline",
       "pattern": "\\bgood\\s+cause\\b(?=.{0,80}(?:discharge|discipline|disciplinary|termination|terminate|dismiss|dismissal|fired?|suspend|suspension|penalty))",
       "confidence": 0.75,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "good_cause_discipline",
       "summary": "Good cause discipline standard"
     },
     {
       "name": "progressive_discipline",
       "pattern": "\\b(?:progressive|corrective)\\s+(?:discipline|action|steps)\\b",
       "confidence": 0.85,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "progressive_discipline",
       "summary": "Progressive discipline"
     },
     {
       "name": "discipline_steps",
       "pattern": "(?:verbal|written|oral)\\s+(?:warning|reprimand|counseling|notice).*(?:suspension|termination|discharge|dismissal)",
       "confidence": 0.85,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "discipline_steps",
       "summary": "Discipline steps"
     },
     {
       "name": "weingarten",
       "pattern": "\\b(?:Weingarten|right\\s+to\\s+(?:union\\s+)?representation|entitled\\s+to\\s+(?:have\\s+)?(?:a\\s+)?(?:union\\s+)?(?:representative|steward)\\s+present)\\b",
       "confidence": 0.90,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "weingarten",
       "summary": "Weingarten rights"
     },
     {
       "name": "layoff_order",
       "pattern": "\\b(?:layoff|lay[- ]off|reduction).*(?:order\\s+of\\s+seniority|inverse\\s+(?:order\\s+of\\s+)?seniority|last\\s+(?:hired|in).*first\\s+(?:laid\\s+off|out))",
       "confidence": 0.90,
-      "provision_class": "job_security_layoff_recall",
+      "provision_class": "layoff_order",
       "summary": "Layoff order by seniority"
     },
     {
       "name": "recall_rights",
       "pattern": "\\b(?:recall|rehire)\\s+(?:rights?|order|list|period).*(?:seniority|\\d+\\s+(?:months?|years?))",
       "confidence": 0.85,
-      "provision_class": "job_security_layoff_recall",
+      "provision_class": "recall_rights",
       "summary": "Recall rights"
     },
     {
       "name": "bumping",
       "pattern": "\\b(?:bump(?:ing)?|displace(?:ment)?)\\s+(?:rights?|another|less\\s+senior|junior)",
       "confidence": 0.85,
-      "provision_class": "job_security_layoff_recall",
+      "provision_class": "bumping",
       "summary": "Bumping rights"
     },
     {
       "name": "subcontracting",
       "pattern": "\\b(?:subcontract(?:ing)?|outsourc(?:ing|e)|contract(?:ing)?\\s+out)\\b.*(?:bargaining\\s+unit|shall\\s+not|prohibited|restricted|notification|discuss)",
       "confidence": 0.85,
-      "provision_class": "job_security_layoff_recall",
+      "provision_class": "subcontracting",
       "summary": "Subcontracting restrictions"
     },
     {
       "name": "probationary_period",
       "pattern": "\\b(?:probationary|probation|trial)\\s+(?:period|employee)\\s+(?:of\\s+)?(?:\\d+|thirty|sixty|ninety|one\\s+hundred)\\s+(?:calendar\\s+|working\\s+)?days?",
       "confidence": 0.85,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "probationary_period",
       "summary": "Probationary period"
     },
     {
       "name": "personnel_file",
       "pattern": "\\b(?:personnel|employee)\\s+(?:file|record|folder).*(?:right\\s+to\\s+(?:review|inspect|examine|copy)|shall\\s+(?:be\\s+)?(?:notified|informed))",
       "confidence": 0.80,
-      "provision_class": "discipline_and_discharge",
+      "provision_class": "personnel_file",
       "summary": "Personnel file access"
     }
   ],

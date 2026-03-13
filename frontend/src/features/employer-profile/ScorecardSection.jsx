@@ -69,6 +69,13 @@ export function ScorecardSection({ scorecard, explanations, scorecardDetail, mat
     const enh = detail[enhKey]
     return base != null && enh != null && enh > base
   }
+  function isVerified(key) {
+    const enhKey = FACTOR_ENH_MAP[key]
+    if (!enhKey || !detail.has_research) return false
+    const base = scorecard[key]
+    const enh = detail[enhKey]
+    return base != null && enh != null && enh === base
+  }
 
   return (
     <Card>
@@ -82,12 +89,14 @@ export function ScorecardSection({ scorecard, explanations, scorecardDetail, mat
             const value = scorecard[key]
             const attribution = getFactorAttribution(matchSummary, key)
             const enhanced = isEnhanced(key)
+            const verified = isVerified(key)
 
             return (
               <div key={key} className="flex flex-col items-center gap-1 min-w-[80px]">
                 <ScoreGauge value={value} label={label} size={64} />
                 <div className="flex items-center gap-1">
                   {enhanced && <span className="text-[10px] text-[#3a7d44] font-semibold" title="Enhanced by web research">R</span>}
+                  {verified && <span className="text-[10px] text-[#3a6b8c] font-semibold" title="Verified by web research">V</span>}
                   {attribution && value != null && (
                     <ConfidenceDots
                       confidence={attribution.best_confidence_score != null ? attribution.best_confidence_score : attribution.best_confidence}

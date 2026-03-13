@@ -42,3 +42,32 @@
     font-family: var(--font-serif);
   }
 }
+
+@media print {
+  /* Hide non-essential elements */
+  nav, [data-no-print], .toast-container { display: none !important; }
+
+  /* Reset colors for printing */
+  body { background: white !important; color: black !important; }
+
+  /* Full-width layout */
+  main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+
+  /* Page settings */
+  @page { margin: 0.75in; size: letter; }
+
+  /* Prevent section breaks */
+  .print-section { break-inside: avoid; }
+
+  /* Force collapsible sections open */
+  [data-collapsible-content] { max-height: none !important; overflow: visible !important; }
+
+  /* Score tier badges: border instead of background */
+  .print-tier-badge { background: transparent !important; border: 1px solid currentColor !important; }
+
+  /* Hide interactive controls */
+  button:not([data-print-keep]) { display: none !important; }
+
+  /* Show link URLs */
+  a[href^="http"]:after { content: " (" attr(href) ")"; font-size: 0.8em; color: #666; }
+}

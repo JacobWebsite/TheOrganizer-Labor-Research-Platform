@@ -8,6 +8,12 @@ export function Layout() {
   const { pathname } = useLocation()
   const [searchParams] = useSearchParams()
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
+  const [breadcrumbItems, setBreadcrumbItems] = useState(null)
+
+  // Clear custom breadcrumbs on navigation
+  useEffect(() => {
+    setBreadcrumbItems(null)
+  }, [pathname])
 
   // Hide breadcrumbs on search page when no query is active (hero state)
   const isSearchHero = pathname === '/search' && !Array.from(searchParams).length
@@ -34,10 +40,10 @@ export function Layout() {
       <main id="main-content" className="mx-auto max-w-7xl px-4 pt-20 pb-8">
         {!isSearchHero && (
           <div className="mb-4">
-            <Breadcrumbs />
+            <Breadcrumbs items={breadcrumbItems} />
           </div>
         )}
-        <Outlet />
+        <Outlet context={{ setBreadcrumbs: setBreadcrumbItems }} />
       </main>
       {isPaletteOpen && (
         <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />

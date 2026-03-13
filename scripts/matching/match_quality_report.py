@@ -7,7 +7,7 @@ and state-level variation from unified_match_log.
 Usage:
     py scripts/matching/match_quality_report.py
     py scripts/matching/match_quality_report.py --json
-    py scripts/matching/match_quality_report.py --output docs/MATCH_QUALITY_REPORT.md
+    py scripts/matching/match_quality_report.py --output docs/analysis/MATCH_QUALITY_REPORT.md
 """
 import argparse
 import json

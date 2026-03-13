@@ -35,10 +35,10 @@ describe('SearchPage', () => {
 
   it('shows hero search bar in pre-search state', () => {
     renderWithRoute('/search')
-    expect(screen.getByText('Employer Search')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Search Employers')).toBeInTheDocument()
+    expect(screen.getByText('Union Employer Search')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Check if an employer has a union')).toBeInTheDocument()
     // Hero variant uses h-14
-    const input = screen.getByPlaceholderText('Search Employers')
+    const input = screen.getByPlaceholderText('Check if an employer has a union')
     expect(input.className).toContain('h-14')
   })
 

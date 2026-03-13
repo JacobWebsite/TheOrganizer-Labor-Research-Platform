@@ -36,7 +36,7 @@ except ImportError:
     sys.exit(1)
 
 
-CENSUS_API_URL = "https://geocoding.geo.census.gov/geocoder/locations/addressbatch"
+CENSUS_API_URL = "https://geocoding.geo.census.gov/geocoder/geographies/addressbatch"
 BENCHMARK = "Public_AR_Current"
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data')
 MAX_RETRIES = 3
@@ -57,7 +57,8 @@ def submit_batch(csv_path):
                     files={'addressFile': ('batch.csv', f, 'text/csv')},
                     data={
                         'benchmark': BENCHMARK,
-                        'returntype': 'locations',
+                        'returntype': 'geographies',
+                        'vintage': 'Current_Current',
                     },
                     timeout=API_TIMEOUT,
                 )
@@ -86,6 +87,16 @@ def submit_batch(csv_path):
                         except (ValueError, IndexError):
                             pass
 
+                # Parse census tract from geographies response
+                # Geographies columns: 8=state_fips, 9=county_fips, 10=tract, 11=block
+                census_tract = None
+                if match_status == 'Match' and len(row) > 10:
+                    st_fips = row[8].strip().strip('"') if len(row) > 8 else ''
+                    co_fips = row[9].strip().strip('"') if len(row) > 9 else ''
+                    tract_code = row[10].strip().strip('"') if len(row) > 10 else ''
+                    if st_fips and co_fips and tract_code:
+                        census_tract = st_fips + co_fips + tract_code
+
                 results.append({
                     'employer_id': record_id,
                     'match': match_status == 'Match',
@@ -93,6 +104,7 @@ def submit_batch(csv_path):
                     'matched_address': matched_addr,
                     'latitude': lat,
                     'longitude': lon,
+                    'census_tract': census_tract,
                 })
 
             return results
@@ -266,10 +278,12 @@ def main():
                                 UPDATE f7_employers_deduped
                                 SET latitude = %s,
                                     longitude = %s,
-                                    geocode_status = 'CENSUS_MATCH'
+                                    geocode_status = 'CENSUS_MATCH',
+                                    census_tract = COALESCE(%s, census_tract)
                                 WHERE employer_id = %s
                                   AND latitude IS NULL
-                            """, (r['latitude'], r['longitude'], r['employer_id']))
+                            """, (r['latitude'], r['longitude'],
+                                  r.get('census_tract'), r['employer_id']))
                             if cur.rowcount > 0:
                                 applied += 1
                     print("  Applied: %d records updated" % applied)

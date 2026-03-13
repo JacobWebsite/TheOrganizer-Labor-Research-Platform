@@ -1,0 +1,37 @@
+Questions that MUST be answered for a gold standard research
+
+1. What is the company name
+	a. does it have alternative names
+2. What is the parent company
+	a. What companies are also owned by that company
+	b. who are the investors in the company if they have investors?
+3. What is the NAICS code, what do we infer the code down to 3, 4, 5, 6
+4. What is the company address
+	a. does it have other locations in the zip, MSA, state, country?
+	b. What is the email address?
+5. What type of company is it? Public, private, non-profit?
+6. Who is the CEO of the parent company, who are the leadership team of the location?
+7. Is there a union there?
+	a. which union represents them? Are there multiple unions there?
+	b. Has there ever been an NLRB election? What was the result?
+	c. What are the most similar workplaces that are union?
+8. How many people work there? 
+	a. Are there online comments about what it's like to work there?
+	b. How many job postings do they have at that location?
+	c. What type of workers work there?
+	d. What are the demographics of the workers in the area in the state, county, zip?
+	e. How much do people make there?
+	f. How much is the average wage in the industry, in the same occupations within the same state, county, zip
+9.What is the revenue?
+	a. Assets?
+	b. liabilities?
+10. Is the industry growing?
+	a. Are the occupations in the industry growing?
+	b. Are there many unions in the industry nationally, state, county, zip?
+
+11. Does the employer receive federal, state, or municipal contracts? How much?
+	a. Did they get PPP loans
+	b. Do they register pension, healthcare, or other benefits with 5500 forms?
+	c. do they have past osha violations?
+	d. do they have national, state, or local labor violations?
+12. What's the latest news on the company?

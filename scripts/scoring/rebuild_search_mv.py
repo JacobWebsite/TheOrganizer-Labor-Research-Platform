@@ -91,10 +91,16 @@ def _run(conn, cur):
             LOWER(e.employer_name) AS search_name,
             e.canonical_group_id,
             g.member_count AS group_member_count,
-            g.consolidated_workers
+            g.consolidated_workers,
+            usc.factors_available,
+            usc.factors_total,
+            usc.weighted_score,
+            usc.score_tier
         FROM f7_employers_deduped e
         LEFT JOIN employer_canonical_groups g
             ON e.canonical_group_id = g.group_id
+        LEFT JOIN mv_unified_scorecard usc
+            ON usc.employer_id = e.employer_id
         WHERE NOT e.is_historical
           AND (e.canonical_group_id IS NULL
                OR e.is_canonical_rep = TRUE)
@@ -120,7 +126,11 @@ def _run(conn, cur):
             LOWER(sub.participant_name) AS search_name,
             NULL::int AS canonical_group_id,
             NULL::int AS group_member_count,
-            NULL::int AS consolidated_workers
+            NULL::int AS consolidated_workers,
+            NULL::int AS factors_available,
+            NULL::int AS factors_total,
+            NULL::numeric AS weighted_score,
+            NULL::text AS score_tier
         FROM (
             SELECT DISTINCT ON (
                 UPPER(p.participant_name),
@@ -168,7 +178,11 @@ def _run(conn, cur):
             LOWER(vr.employer_name) AS search_name,
             NULL::int AS canonical_group_id,
             NULL::int AS group_member_count,
-            NULL::int AS consolidated_workers
+            NULL::int AS consolidated_workers,
+            NULL::int AS factors_available,
+            NULL::int AS factors_total,
+            NULL::numeric AS weighted_score,
+            NULL::text AS score_tier
         FROM nlrb_voluntary_recognition vr
         WHERE vr.matched_employer_id IS NULL
           AND vr.employer_name IS NOT NULL
@@ -194,7 +208,11 @@ def _run(conn, cur):
             LOWER(m.employer_name) AS search_name,
             NULL::int AS canonical_group_id,
             NULL::int AS group_member_count,
-            NULL::int AS consolidated_workers
+            NULL::int AS consolidated_workers,
+            NULL::int AS factors_available,
+            NULL::int AS factors_total,
+            NULL::numeric AS weighted_score,
+            NULL::text AS score_tier
         FROM manual_employers m
     """)
 

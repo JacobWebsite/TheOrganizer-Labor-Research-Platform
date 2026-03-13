@@ -89,6 +89,60 @@ class TestStatePreference:
         assert eid2 is not None
 
 
+class TestMasterFallback:
+    """Test that master_employers fallback activates when F7 misses."""
+
+    def test_master_exact_when_f7_misses(self, cur):
+        """A non-F7 company should resolve via master_employers."""
+        # Pick a company that exists in master_employers but not in F7
+        cur.execute("""
+            SELECT display_name FROM master_employers me
+            WHERE NOT EXISTS (
+                SELECT 1 FROM f7_employers_deduped f
+                WHERE f.name_standard = me.canonical_name
+            )
+            AND me.canonical_name IS NOT NULL
+            AND LENGTH(me.canonical_name) > 5
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if row is None:
+            pytest.skip("No master-only employer found for test")
+        name = row[0] if isinstance(row, tuple) else row['display_name']
+        eid, ename, method = lookup_employer(cur, name)
+        # Should find it via master fallback
+        assert eid is not None, f"Expected master fallback for {name}"
+        assert method in ("master_exact", "master_trigram")
+
+    def test_master_returns_numeric_id(self, cur):
+        """Returned ID from master fallback should be a numeric string (master_id)."""
+        cur.execute("""
+            SELECT display_name FROM master_employers me
+            WHERE NOT EXISTS (
+                SELECT 1 FROM f7_employers_deduped f
+                WHERE f.name_standard = me.canonical_name
+            )
+            AND me.canonical_name IS NOT NULL
+            AND LENGTH(me.canonical_name) > 5
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if row is None:
+            pytest.skip("No master-only employer found for test")
+        name = row[0] if isinstance(row, tuple) else row['display_name']
+        eid, _, method = lookup_employer(cur, name)
+        if eid and method and method.startswith("master_"):
+            assert eid.isdigit(), f"Master fallback ID should be numeric, got {eid}"
+
+    def test_f7_preferred_over_master(self, cur):
+        """F7 match should win when both F7 and master would match."""
+        eid, name, method = lookup_employer(cur, "Starbucks")
+        assert eid is not None
+        # F7 methods should take priority
+        assert method in ("exact_standard", "prefix_standard", "trigram", "name_and_address"), \
+            f"F7 should be preferred, got method={method}"
+
+
 class TestReturnTypes:
     def test_returns_tuple_of_three(self, cur):
         result = lookup_employer(cur, "Starbucks")

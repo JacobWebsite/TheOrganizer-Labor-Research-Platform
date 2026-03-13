@@ -1,27 +1,49 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Flag, Download, AlertTriangle, Microscope } from 'lucide-react'
+import { Flag, Download, AlertTriangle, Microscope, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { FlagModal } from './FlagModal'
 import { useStartResearch, useResearchStatus } from '@/shared/api/research'
 
 function exportProfileCsv(employer, scorecard) {
+  const now = new Date().toISOString().split('T')[0]
   const rows = [
     ['Field', 'Value'],
+    ['Export Date', now],
     ['Name', employer?.employer_name || ''],
     ['City', employer?.city || ''],
     ['State', employer?.state || ''],
+    ['ZIP', employer?.zip || ''],
     ['Workers', employer?.consolidated_workers || employer?.unit_size || ''],
+    ['Size Source', scorecard?.size_source || ''],
     ['NAICS', employer?.naics_code || employer?.naics || ''],
-    ['Union', employer?.union_name || 'None'],
+    ['Union', employer?.union_name || employer?.latest_union_name || 'None'],
     ['Score Tier', scorecard?.score_tier || ''],
-    ['Weighted Score', scorecard?.weighted_score || ''],
-    ['OSHA Score', scorecard?.score_osha || ''],
-    ['NLRB Score', scorecard?.score_nlrb || ''],
-    ['WHD Score', scorecard?.score_whd || ''],
+    ['Weighted Score', scorecard?.weighted_score ?? ''],
+    ['OSHA Score', scorecard?.score_osha ?? ''],
+    ['NLRB Score', scorecard?.score_nlrb ?? ''],
+    ['WHD Score', scorecard?.score_whd ?? ''],
+    ['Contracts Score', scorecard?.score_contracts ?? ''],
+    ['Union Proximity Score', scorecard?.score_union_proximity ?? ''],
+    ['Financial Score', scorecard?.score_financial ?? ''],
+    ['Size Score', scorecard?.score_size ?? ''],
+    ['Similarity Score', scorecard?.score_similarity ?? ''],
+    ['Anger Pillar', scorecard?.score_anger ?? ''],
+    ['Leverage Pillar', scorecard?.score_leverage ?? ''],
+    ['Factors Available', scorecard?.factors_available ?? ''],
+    ['Coverage %', scorecard?.coverage_pct ?? ''],
+    ['Has OSHA', scorecard?.has_osha ?? ''],
+    ['Has NLRB', scorecard?.has_nlrb ?? ''],
+    ['Has WHD', scorecard?.has_whd ?? ''],
+    ['Has Research', scorecard?.has_research ?? ''],
+    ['Has Compound Enforcement', scorecard?.has_compound_enforcement ?? ''],
+    ['Has Child Labor', scorecard?.has_child_labor ?? ''],
+    ['WHD Repeat Violator', scorecard?.is_whd_repeat_violator ?? ''],
+    ['Has Close Election', scorecard?.has_close_election ?? ''],
+    ['Recommended Action', scorecard?.recommended_action || ''],
   ]
-  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -119,6 +141,16 @@ export function ProfileActionButtons({ employer, scorecard }) {
         >
           <Download className="h-3.5 w-3.5" />
           Export Data
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => window.print()}
+          data-print-keep
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Print Profile
         </Button>
         <Button
           variant="outline"

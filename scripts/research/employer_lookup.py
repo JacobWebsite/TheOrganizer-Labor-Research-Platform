@@ -160,7 +160,82 @@ def lookup_employer(
         )
         return pick[0], pick[1], "trigram"
 
+    # ------------------------------------------------------------------
+    # 4. UML evidence fallback: search unified_match_log evidence->>'source_name'
+    #    via trigram similarity. Useful for research runs where name variants differ.
+    # ------------------------------------------------------------------
+    uml_result = _lookup_uml_evidence(cur, company_name, agg, state)
+    if uml_result[0]:
+        return uml_result
+
+    # ------------------------------------------------------------------
+    # 5. Master employers fallback (4.5M rows, non-F7 employers)
+    # ------------------------------------------------------------------
+    master_result = _lookup_master(cur, company_name, std, agg, state)
+    if master_result[0]:
+        return master_result
+
     _log.info("employer_lookup: no match for %r", company_name)
+    return None, None, None
+
+
+def _lookup_uml_evidence(
+    cur,
+    company_name: str,
+    agg: str,
+    state: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Fallback: search unified_match_log evidence->>'source_name' via trigram.
+
+    Returns (f7_employer_id, employer_name, 'uml_evidence') or (None, None, None).
+    """
+    try:
+        state_clause = ""
+        params = [agg, agg, agg, 0.40]
+        if state:
+            state_clause = "AND evidence->>'state' = %s"
+            params.append(state.upper().strip())
+
+        cur.execute(
+            f"""
+            SELECT target_id AS employer_id,
+                   evidence->>'source_name' AS source_name,
+                   similarity(evidence->>'source_name', %s) AS sim
+            FROM unified_match_log
+            WHERE status = 'active'
+              AND target_system = 'f7'
+              AND evidence->>'source_name' IS NOT NULL
+              AND evidence->>'source_name' %% %s
+              AND similarity(evidence->>'source_name', %s) >= %s
+              {state_clause}
+            ORDER BY sim DESC
+            LIMIT 1
+            """,
+            params,
+        )
+        rows = _fetch_tuples(cur)
+        if rows:
+            emp_id = rows[0][0]
+            # Get actual employer name from F7
+            cur.execute(
+                "SELECT employer_name FROM f7_employers_deduped WHERE employer_id = %s",
+                (emp_id,),
+            )
+            name_rows = _fetch_tuples(cur)
+            emp_name = name_rows[0][0] if name_rows else rows[0][1]
+            _log.info(
+                "employer_lookup: UML evidence match %r -> %s (%s)",
+                company_name, emp_id, emp_name,
+            )
+            return emp_id, emp_name, "uml_evidence"
+    except Exception as exc:
+        _log.debug("UML evidence lookup failed: %s", exc)
+        # Reset transaction state so subsequent queries don't fail
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+
     return None, None, None
 
 
@@ -186,6 +261,80 @@ def _best_row(rows: list, state: Optional[str]) -> tuple:
         if in_state:
             return in_state[0]
     return rows[0]
+
+
+_MASTER_TRGM_THRESHOLD = 0.50
+
+
+def _lookup_master(
+    cur,
+    company_name: str,
+    std: str,
+    agg: str,
+    state: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Fallback lookup in master_employers (4.5M rows).
+
+    Returns (master_id::TEXT, display_name, match_method) or (None, None, None).
+    """
+    state_clause = ""
+    params_exact: list = [std]
+    params_trgm: list = [agg, agg, agg, _MASTER_TRGM_THRESHOLD]
+
+    if state:
+        state_clause = "AND me.state = %s"
+        params_exact.append(state.upper().strip())
+        params_trgm.append(state.upper().strip())
+
+    # Tier 1: Exact match on canonical_name
+    cur.execute(
+        f"""
+        SELECT me.master_id::TEXT AS employer_id, me.display_name,
+               COALESCE(tds.source_count, 0) AS source_count
+        FROM master_employers me
+        LEFT JOIN mv_target_data_sources tds ON tds.master_id = me.master_id
+        WHERE me.canonical_name = %s
+          {state_clause}
+        ORDER BY COALESCE(tds.source_count, 0) DESC,
+                 COALESCE(me.employee_count, 0) DESC
+        LIMIT 5
+        """,
+        params_exact,
+    )
+    rows = _fetch_tuples(cur)
+    if rows:
+        pick = rows[0]
+        _log.info(
+            "employer_lookup: master exact match %r -> %s (%s)",
+            company_name, pick[0], pick[1],
+        )
+        return pick[0], pick[1], "master_exact"
+
+    # Tier 2: Trigram on canonical_name (uses idx_master_employers_canonical_name_trgm)
+    cur.execute(
+        f"""
+        SELECT me.master_id::TEXT AS employer_id, me.display_name,
+               similarity(me.canonical_name, %s) AS sim
+        FROM master_employers me
+        WHERE me.canonical_name %% %s
+          AND similarity(me.canonical_name, %s) >= %s
+          {state_clause}
+        ORDER BY sim DESC, COALESCE(me.employee_count, 0) DESC
+        LIMIT 5
+        """,
+        params_trgm,
+    )
+    rows = _fetch_tuples(cur)
+    if rows:
+        pick = rows[0]
+        _log.info(
+            "employer_lookup: master trigram match %r -> %s (%s, sim=%.3f)",
+            company_name, pick[0], pick[1],
+            rows[0][2] if len(rows[0]) > 2 else 0,
+        )
+        return pick[0], pick[1], "master_trigram"
+
+    return None, None, None
 
 
 def backfill_employer_ids(conn, dry_run: bool = True) -> int:

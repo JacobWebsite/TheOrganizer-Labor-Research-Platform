@@ -69,6 +69,30 @@ class ComparisonVerdictRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _get_cross_validation(cur, run_id: int) -> Optional[dict]:
+    """Fetch cross-validation results for a research run."""
+    try:
+        cur.execute(
+            "SELECT cross_validation_rate, cross_validation_discrepancies "
+            "FROM research_score_enhancements "
+            "WHERE run_id = %s",
+            (run_id,),
+        )
+        row = cur.fetchone()
+        if row and row.get("cross_validation_rate") is not None:
+            return {
+                "match_rate": float(row["cross_validation_rate"]),
+                "discrepancies": row.get("cross_validation_discrepancies") or [],
+            }
+    except Exception:
+        pass
+    return None
+
+
+# ---------------------------------------------------------------------------
 # POST /api/research/run — Start a new deep dive
 # ---------------------------------------------------------------------------
 @router.post("/run")
@@ -303,6 +327,11 @@ def get_research_result(run_id: int):
             """, (run_id,))
             actions = cur.fetchall()
 
+            # Get cross-validation data if available
+            cross_val = None
+            if run.get('employer_id'):
+                cross_val = _get_cross_validation(cur, run_id)
+
     # Organize facts by section
     sections = {}
     for fact in facts:
@@ -324,6 +353,7 @@ def get_research_result(run_id: int):
         "quality_score": float(run['overall_quality_score']) if run['overall_quality_score'] else None,
         "quality_dimensions": run['quality_dimensions'] if run['quality_dimensions'] else None,
         "human_quality_score": float(run['human_quality_score']) if run.get('human_quality_score') else None,
+        "cross_validation": cross_val,
     }
 
 
@@ -817,7 +847,10 @@ def auto_confirm_facts(run_id: int = Query(..., description="Run ID to auto-conf
 @router.post("/runs/{run_id}/sections/{section}/review")
 def review_section(run_id: int, section: str, request: SectionReviewRequest):
     """Approve/reject all facts in a dossier section at once."""
-    valid_sections = {'identity', 'labor', 'workforce', 'workplace', 'financial', 'assessment', 'sources'}
+    valid_sections = {
+        'identity', 'corporate_structure', 'locations', 'leadership',
+        'labor', 'workforce', 'workplace', 'financial', 'assessment', 'sources',
+    }
     if section not in valid_sections:
         raise HTTPException(status_code=400, detail=f"Invalid section '{section}'. Must be one of: {', '.join(sorted(valid_sections))}")
 
@@ -950,3 +983,82 @@ def get_research_notes(employer_id: str):
         raise HTTPException(status_code=404, detail="No research notes for this employer")
 
     return dict(row)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/research/tool-effectiveness — Tool performance and pruning recs
+# ---------------------------------------------------------------------------
+@router.get("/tool-effectiveness")
+def get_tool_effectiveness():
+    """Aggregate tool effectiveness from research_actions and research_strategies.
+
+    Returns overall tool stats plus per-industry breakdowns and pruning
+    recommendations based on configurable thresholds.
+    """
+    prune_hit_rate = float(os.environ.get("RESEARCH_PRUNE_HIT_RATE", "0.10"))
+    prune_min_tries = int(os.environ.get("RESEARCH_PRUNE_MIN_TRIES", "5"))
+    latency_skip_ms = int(os.environ.get("RESEARCH_LATENCY_SKIP_MS", "15000"))
+    latency_skip_hit_rate = float(os.environ.get("RESEARCH_LATENCY_SKIP_HIT_RATE", "0.20"))
+    latency_skip_min_tries = int(os.environ.get("RESEARCH_LATENCY_SKIP_MIN_TRIES", "3"))
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Overall tool stats
+            cur.execute("""
+                SELECT
+                    ra.tool_name,
+                    COUNT(*) AS total_calls,
+                    COUNT(*) FILTER (WHERE ra.data_found = TRUE) AS successful_calls,
+                    ROUND(
+                        COUNT(*) FILTER (WHERE ra.data_found = TRUE)::numeric
+                        / NULLIF(COUNT(*), 0), 4
+                    ) AS hit_rate,
+                    COALESCE(AVG(ra.latency_ms)::integer, 0) AS avg_latency_ms,
+                    ROUND(AVG(ra.data_quality) FILTER (WHERE ra.data_found = TRUE), 2) AS avg_quality,
+                    COUNT(DISTINCT ra.run_id) AS runs_used_in
+                FROM research_actions ra
+                JOIN research_runs rr ON rr.id = ra.run_id
+                WHERE rr.status = 'completed'
+                GROUP BY ra.tool_name
+                ORDER BY hit_rate DESC NULLS LAST
+            """)
+            overall = cur.fetchall()
+
+            # Per-industry breakdown (top strategies)
+            cur.execute("""
+                SELECT industry_naics_2digit, tool_name, times_tried,
+                       hit_rate, avg_quality, avg_latency_ms, recommended_order
+                FROM research_strategies
+                WHERE times_tried >= 3
+                ORDER BY industry_naics_2digit, recommended_order
+            """)
+            strategies = cur.fetchall()
+
+    # Build pruning recommendations
+    tools = []
+    for row in overall:
+        tool = dict(row)
+        hr = float(tool["hit_rate"] or 0)
+        tries = tool["total_calls"]
+        latency = tool["avg_latency_ms"] or 0
+
+        rec = "active"
+        if hr < prune_hit_rate and tries >= prune_min_tries:
+            rec = "prune_low_hit_rate"
+        elif latency > latency_skip_ms and hr < latency_skip_hit_rate and tries >= latency_skip_min_tries:
+            rec = "prune_slow_and_low"
+
+        tool["pruning_recommendation"] = rec
+        tools.append(tool)
+
+    return {
+        "tools": tools,
+        "strategies": [dict(s) for s in strategies],
+        "thresholds": {
+            "prune_hit_rate": prune_hit_rate,
+            "prune_min_tries": prune_min_tries,
+            "latency_skip_ms": latency_skip_ms,
+            "latency_skip_hit_rate": latency_skip_hit_rate,
+            "latency_skip_min_tries": latency_skip_min_tries,
+        },
+    }

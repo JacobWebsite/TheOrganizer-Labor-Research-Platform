@@ -1,4 +1,5 @@
-import { useParams } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useParams, useOutletContext } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import {
@@ -6,6 +7,8 @@ import {
   useUnionMembershipHistory,
   useUnionOrganizingCapacity,
   useUnionEmployers,
+  useUnionDisbursements,
+  useUnionHealth,
 } from '@/shared/api/unions'
 import { UnionProfileHeader } from './UnionProfileHeader'
 import { MembershipSection } from './MembershipSection'
@@ -13,18 +16,36 @@ import { OrganizingCapacitySection } from './OrganizingCapacitySection'
 import { UnionEmployersTable } from './UnionEmployersTable'
 import { UnionElectionsSection } from './UnionElectionsSection'
 import { UnionFinancialsSection } from './UnionFinancialsSection'
+import { UnionDisbursementsSection } from './UnionDisbursementsSection'
 import { SisterLocalsSection } from './SisterLocalsSection'
 import { ExpansionTargetsSection } from './ExpansionTargetsSection'
+import { UnionHealthSection } from './UnionHealthSection'
 
 export function UnionProfilePage() {
   const { fnum } = useParams()
+  const { setBreadcrumbs } = useOutletContext() || {}
 
   const detailQuery = useUnionDetail(fnum)
   const membershipQuery = useUnionMembershipHistory(fnum)
   const capacityQuery = useUnionOrganizingCapacity(fnum)
   const employersQuery = useUnionEmployers(fnum)
+  const disbursementsQuery = useUnionDisbursements(fnum)
+  const healthQuery = useUnionHealth(fnum)
 
   const { data: detail, isLoading, isError, error } = detailQuery
+
+  // Set custom breadcrumbs with union name and affiliation
+  // (must be called before any early returns to satisfy rules of hooks)
+  const unionName = detail?.union?.abbreviation || detail?.union?.union_name
+  const affiliation = detail?.union?.affiliation
+  useEffect(() => {
+    if (setBreadcrumbs && unionName) {
+      const crumbs = [{ label: 'Unions', to: '/unions' }]
+      if (affiliation) crumbs.push({ label: affiliation, to: '/unions' })
+      crumbs.push({ label: unionName })
+      setBreadcrumbs(crumbs)
+    }
+  }, [setBreadcrumbs, unionName, affiliation])
 
   // Loading state
   if (isLoading) {
@@ -77,12 +98,20 @@ export function UnionProfilePage() {
 
   return (
     <div className="space-y-4">
-      <UnionProfileHeader union={union} employers={employers} />
+      {union.is_likely_inactive && (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>Likely Inactive -- Last filing year: {union.yr_covered || 'Unknown'}</span>
+        </div>
+      )}
+      <UnionProfileHeader union={union} employers={employers} healthGrade={healthQuery.data?.composite?.grade} />
+      <UnionHealthSection data={healthQuery.data} isLoading={healthQuery.isLoading} />
       <MembershipSection data={membershipQuery.data} />
       <OrganizingCapacitySection data={capacityQuery.data} />
       <UnionEmployersTable employers={employers} />
       <UnionElectionsSection elections={nlrbElections} />
       <UnionFinancialsSection trends={financialTrends} />
+      <UnionDisbursementsSection data={disbursementsQuery.data} isLoading={disbursementsQuery.isLoading} />
       <SisterLocalsSection sisters={sisterLocals} />
       <ExpansionTargetsSection union={union} employers={employers} />
     </div>

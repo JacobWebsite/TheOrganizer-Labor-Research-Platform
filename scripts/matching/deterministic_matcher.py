@@ -971,6 +971,7 @@ class DeterministicMatcher:
     def _make_result(self, source_id, target_id, method, tier, band, score, evidence):
         """Create result dict and queue for unified_match_log."""
         normalized_score = self._normalize_confidence_score(score)
+        method = method.upper()  # normalize match_method to UPPER
         result = {
             "source_id": str(source_id),
             "target_id": str(target_id),

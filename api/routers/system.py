@@ -2,6 +2,11 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
+from ..data_source_catalog import (
+    DATA_SOURCE_ENTRIES,
+    DATA_SOURCE_GROUPS,
+    DATA_SOURCE_INVENTORY_LAST_UPDATED,
+)
 from ..database import get_db
 
 router = APIRouter()
@@ -78,6 +83,7 @@ def system_data_freshness():
                 cur.execute("""
                     SELECT
                         source_name,
+                        NULL::text AS display_name,
                         latest_record_date,
                         table_name,
                         row_count,
@@ -90,6 +96,7 @@ def system_data_freshness():
                 cur.execute("""
                     SELECT
                         source_name,
+                        display_name,
                         date_range_end AS latest_record_date,
                         source_name AS table_name,
                         record_count AS row_count,
@@ -115,6 +122,7 @@ def system_data_freshness():
         sources.append(
             {
                 "source_name": row.get("source_name"),
+                "display_name": row.get("display_name") or row.get("source_name"),
                 "latest_record_date": (
                     row.get("latest_record_date").isoformat()
                     if row.get("latest_record_date") is not None
@@ -136,4 +144,39 @@ def system_data_freshness():
         "source_count": len(sources),
         "stale_count": sum(1 for s in sources if s["stale"]),
         "uses_fallback_table": not has_data_freshness,
+    }
+
+
+@router.get("/api/system/data-source-inventory")
+def system_data_source_inventory():
+    """Return canonical grouped source inventory used across platform docs and refresh logic."""
+    groups_by_id = {
+        g["group_id"]: {
+            "group_id": g["group_id"],
+            "title": g["title"],
+            "order": g["order"],
+            "sources": [],
+        }
+        for g in DATA_SOURCE_GROUPS
+    }
+    for entry in DATA_SOURCE_ENTRIES:
+        group = groups_by_id.get(entry["group_id"])
+        if group is None:
+            continue
+        group["sources"].append(
+            {
+                "source_name": entry["source_name"],
+                "display_name": entry["display_name"],
+                "tables": entry["tables"],
+                "record_count_note": entry["record_count_note"],
+                "description": entry["description"],
+            }
+        )
+
+    groups = sorted(groups_by_id.values(), key=lambda g: g["order"])
+    return {
+        "last_updated": DATA_SOURCE_INVENTORY_LAST_UPDATED,
+        "group_count": len(groups),
+        "source_count": len(DATA_SOURCE_ENTRIES),
+        "groups": groups,
     }

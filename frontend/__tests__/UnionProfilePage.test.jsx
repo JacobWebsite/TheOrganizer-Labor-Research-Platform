@@ -19,6 +19,8 @@ vi.mock('@/shared/api/unions', () => ({
   useUnionMembershipHistory: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionOrganizingCapacity: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionEmployers: vi.fn(() => ({ data: null, isLoading: false })),
+  useUnionDisbursements: vi.fn(() => ({ data: null, isLoading: false })),
+  useUnionHealth: vi.fn(() => ({ data: null, isLoading: false })),
 }))
 
 import {
@@ -26,6 +28,8 @@ import {
   useUnionMembershipHistory,
   useUnionOrganizingCapacity,
   useUnionEmployers,
+  useUnionDisbursements,
+  useUnionHealth,
 } from '@/shared/api/unions'
 
 const MOCK_DETAIL = {
@@ -73,6 +77,8 @@ describe('UnionProfilePage', () => {
     useUnionMembershipHistory.mockReturnValue({ data: null, isLoading: false })
     useUnionOrganizingCapacity.mockReturnValue({ data: null, isLoading: false })
     useUnionEmployers.mockReturnValue({ data: null, isLoading: false })
+    useUnionDisbursements.mockReturnValue({ data: null, isLoading: false })
+    useUnionHealth.mockReturnValue({ data: null, isLoading: false })
   })
 
   it('shows loading skeleton while fetching', () => {
@@ -114,6 +120,17 @@ describe('UnionProfilePage', () => {
     useUnionDetail.mockReturnValue({ data: MOCK_DETAIL, isLoading: false, isError: false })
     renderPage()
     expect(screen.getByText('Back to Unions')).toBeInTheDocument()
+  })
+
+  it('shows inactive banner for stale union', () => {
+    const inactiveDetail = {
+      ...MOCK_DETAIL,
+      union: { ...MOCK_DETAIL.union, is_likely_inactive: true, yr_covered: 2019 },
+    }
+    useUnionDetail.mockReturnValue({ data: inactiveDetail, isLoading: false, isError: false })
+    renderPage()
+    expect(screen.getByText(/Likely Inactive/)).toBeInTheDocument()
+    expect(screen.getByText(/2019/)).toBeInTheDocument()
   })
 
   it('renders elections section', () => {

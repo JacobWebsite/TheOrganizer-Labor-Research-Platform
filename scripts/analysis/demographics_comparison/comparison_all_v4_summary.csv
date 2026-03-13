@@ -1,0 +1,737 @@
+classification_dim,bucket,method,n_companies,avg_mae_race,avg_mae_gender,avg_mae_hispanic,avg_hellinger_race,win_count
+naics_group,Accommodation/Food Svc (72),M1 Baseline (60/40),8,7.97,5.68,9.28,0.2162,0
+naics_group,Accommodation/Food Svc (72),M2 Three-Layer (50/30/20),8,7.94,5.58,9.43,0.2133,0
+naics_group,Accommodation/Food Svc (72),M3 IPF,8,13.16,6.87,17.5,0.3683,0
+naics_group,Accommodation/Food Svc (72),M4 Occ-Weighted,8,8.13,6.37,9.43,0.2257,0
+naics_group,Accommodation/Food Svc (72),M5 Variable-Weight,8,7.97,5.68,9.28,0.2162,0
+naics_group,Accommodation/Food Svc (72),M1b Learned-Wt,8,7.28,5.72,10.24,0.1844,2
+naics_group,Accommodation/Food Svc (72),M3b Damp-IPF,8,8.33,6.87,17.5,0.2371,0
+naics_group,Accommodation/Food Svc (72),M1c CV-Learned-Wt,8,7.31,5.66,10.02,0.1881,0
+naics_group,Accommodation/Food Svc (72),M1d Regional-Wt,8,8.22,5.74,9.24,0.2225,0
+naics_group,Accommodation/Food Svc (72),M2c ZIP-Tract,8,7.5,6.2,9.45,0.2001,0
+naics_group,Accommodation/Food Svc (72),M3c Var-Damp-IPF,8,8.15,6.87,17.5,0.2226,0
+naics_group,Accommodation/Food Svc (72),M3d Select-Damp,8,8.33,6.87,17.5,0.2371,0
+naics_group,Accommodation/Food Svc (72),M4c Top10-Occ,8,7.94,7.54,9.18,0.2252,0
+naics_group,Accommodation/Food Svc (72),M4d State-Top5,8,7.79,8.76,8.8,0.2246,0
+naics_group,Accommodation/Food Svc (72),M5c CV-Var-Wt,8,7.31,5.66,10.02,0.1881,0
+naics_group,Accommodation/Food Svc (72),M5d Corr-Min-Adapt,8,7.34,5.54,9.46,0.1979,0
+naics_group,Accommodation/Food Svc (72),M3e Fin-Route-IPF,8,8.15,6.87,17.5,0.2226,0
+naics_group,Accommodation/Food Svc (72),M3f Min-Ind-Thresh,8,8.33,6.87,17.5,0.2371,0
+naics_group,Accommodation/Food Svc (72),M1e Hi-Min-Floor,8,7.31,5.66,10.02,0.1881,0
+naics_group,Accommodation/Food Svc (72),M4e Var-Occ-Trim,8,7.73,10.8,7.91,0.2199,4
+naics_group,Accommodation/Food Svc (72),M2d Amp-Tract,8,7.32,6.67,9.75,0.1939,2
+naics_group,Accommodation/Food Svc (72),M5e Ind-Dispatch,8,8.15,6.87,17.5,0.2226,0
+naics_group,Accommodation/Food Svc (72),M8 Adaptive-Router,8,7.81,6.87,9.45,0.2066,0
+naics_group,Admin/Staffing (56),M1 Baseline (60/40),29,5.72,17.74,13.41,0.1756,2
+naics_group,Admin/Staffing (56),M2 Three-Layer (50/30/20),29,5.99,18.66,13.78,0.1849,1
+naics_group,Admin/Staffing (56),M3 IPF,29,8.38,16.4,17.54,0.2657,5
+naics_group,Admin/Staffing (56),M4 Occ-Weighted,29,6.12,18.85,15.44,0.1905,1
+naics_group,Admin/Staffing (56),M5 Variable-Weight,29,5.72,17.74,13.41,0.1756,0
+naics_group,Admin/Staffing (56),M1b Learned-Wt,29,6.14,16.38,12.92,0.1967,7
+naics_group,Admin/Staffing (56),M3b Damp-IPF,29,5.82,16.4,17.54,0.1792,0
+naics_group,Admin/Staffing (56),M1c CV-Learned-Wt,29,5.85,20.03,14.32,0.1715,3
+naics_group,Admin/Staffing (56),M1d Regional-Wt,29,5.77,17.79,13.41,0.1782,0
+naics_group,Admin/Staffing (56),M2c ZIP-Tract,29,5.75,18.72,13.76,0.173,0
+naics_group,Admin/Staffing (56),M3c Var-Damp-IPF,29,5.96,16.4,17.54,0.1787,3
+naics_group,Admin/Staffing (56),M3d Select-Damp,29,6.79,16.4,17.54,0.2123,0
+naics_group,Admin/Staffing (56),M4c Top10-Occ,29,6.13,17.74,15.67,0.1901,0
+naics_group,Admin/Staffing (56),M4d State-Top5,29,6.13,17.71,15.62,0.1918,2
+naics_group,Admin/Staffing (56),M5c CV-Var-Wt,29,5.85,20.03,14.32,0.1715,0
+naics_group,Admin/Staffing (56),M5d Corr-Min-Adapt,29,5.67,17.87,13.48,0.1732,0
+naics_group,Admin/Staffing (56),M3e Fin-Route-IPF,29,5.96,16.4,17.54,0.1787,0
+naics_group,Admin/Staffing (56),M3f Min-Ind-Thresh,29,6.28,16.4,17.54,0.1966,0
+naics_group,Admin/Staffing (56),M1e Hi-Min-Floor,29,5.85,20.03,14.32,0.1715,0
+naics_group,Admin/Staffing (56),M4e Var-Occ-Trim,29,6.01,22.65,15.51,0.1893,1
+naics_group,Admin/Staffing (56),M2d Amp-Tract,29,5.78,19.32,14.02,0.1728,4
+naics_group,Admin/Staffing (56),M5e Ind-Dispatch,29,5.96,16.4,17.54,0.1787,0
+naics_group,Admin/Staffing (56),M8 Adaptive-Router,29,6.01,16.4,12.92,0.1893,0
+naics_group,"Agriculture/Mining (11,21)",M1 Baseline (60/40),4,3.51,14.6,8.37,0.1617,0
+naics_group,"Agriculture/Mining (11,21)",M2 Three-Layer (50/30/20),4,4.04,18.29,8.99,0.189,0
+naics_group,"Agriculture/Mining (11,21)",M3 IPF,4,5.16,3.15,5.2,0.2378,1
+naics_group,"Agriculture/Mining (11,21)",M4 Occ-Weighted,4,4.31,14.67,11.38,0.2036,0
+naics_group,"Agriculture/Mining (11,21)",M5 Variable-Weight,4,3.51,14.6,8.37,0.1617,0
+naics_group,"Agriculture/Mining (11,21)",M1b Learned-Wt,4,3.43,12.68,8.2,0.1606,1
+naics_group,"Agriculture/Mining (11,21)",M3b Damp-IPF,4,4.03,3.15,5.2,0.2037,0
+naics_group,"Agriculture/Mining (11,21)",M1c CV-Learned-Wt,4,3.61,16.52,8.54,0.1641,0
+naics_group,"Agriculture/Mining (11,21)",M1d Regional-Wt,4,3.62,12.1,7.86,0.1657,1
+naics_group,"Agriculture/Mining (11,21)",M2c ZIP-Tract,4,3.71,19.12,8.6,0.1678,0
+naics_group,"Agriculture/Mining (11,21)",M3c Var-Damp-IPF,4,4.03,3.15,5.2,0.2037,0
+naics_group,"Agriculture/Mining (11,21)",M3d Select-Damp,4,4.14,3.15,5.2,0.2055,0
+naics_group,"Agriculture/Mining (11,21)",M4c Top10-Occ,4,3.84,10.46,12.46,0.1925,0
+naics_group,"Agriculture/Mining (11,21)",M4d State-Top5,4,3.81,5.29,13.27,0.1819,0
+naics_group,"Agriculture/Mining (11,21)",M5c CV-Var-Wt,4,3.97,24.21,9.22,0.1771,1
+naics_group,"Agriculture/Mining (11,21)",M5d Corr-Min-Adapt,4,3.51,14.6,8.37,0.1617,0
+naics_group,"Agriculture/Mining (11,21)",M3e Fin-Route-IPF,4,4.03,3.15,5.2,0.2037,0
+naics_group,"Agriculture/Mining (11,21)",M3f Min-Ind-Thresh,4,4.14,3.15,5.2,0.2055,0
+naics_group,"Agriculture/Mining (11,21)",M1e Hi-Min-Floor,4,3.61,16.52,8.54,0.1641,0
+naics_group,"Agriculture/Mining (11,21)",M4e Var-Occ-Trim,4,4.31,14.67,11.38,0.2036,0
+naics_group,"Agriculture/Mining (11,21)",M2d Amp-Tract,4,3.82,21.55,8.68,0.1715,0
+naics_group,"Agriculture/Mining (11,21)",M5e Ind-Dispatch,4,4.03,3.15,5.2,0.2037,0
+naics_group,"Agriculture/Mining (11,21)",M8 Adaptive-Router,4,4.03,3.15,8.6,0.2037,0
+naics_group,Chemical/Material Mfg (325-327),M1 Baseline (60/40),25,5.29,9.99,8.84,0.1848,0
+naics_group,Chemical/Material Mfg (325-327),M2 Three-Layer (50/30/20),25,5.44,10.53,9.27,0.1928,1
+naics_group,Chemical/Material Mfg (325-327),M3 IPF,25,7.87,9.25,12.2,0.2666,1
+naics_group,Chemical/Material Mfg (325-327),M4 Occ-Weighted,25,5.9,12.12,11.36,0.2007,1
+naics_group,Chemical/Material Mfg (325-327),M5 Variable-Weight,25,5.17,10.27,8.89,0.1796,0
+naics_group,Chemical/Material Mfg (325-327),M1b Learned-Wt,25,4.73,12.25,9.17,0.1558,4
+naics_group,Chemical/Material Mfg (325-327),M3b Damp-IPF,25,4.82,9.25,12.2,0.1631,2
+naics_group,Chemical/Material Mfg (325-327),M1c CV-Learned-Wt,25,4.81,11.79,9.1,0.1603,0
+naics_group,Chemical/Material Mfg (325-327),M1d Regional-Wt,25,5.38,10.02,8.7,0.1884,0
+naics_group,Chemical/Material Mfg (325-327),M2c ZIP-Tract,25,5.07,10.61,9.05,0.1744,0
+naics_group,Chemical/Material Mfg (325-327),M3c Var-Damp-IPF,25,4.54,9.25,12.2,0.1519,10
+naics_group,Chemical/Material Mfg (325-327),M3d Select-Damp,25,6.24,9.25,12.2,0.2211,0
+naics_group,Chemical/Material Mfg (325-327),M4c Top10-Occ,25,6.26,12.49,12.44,0.2087,0
+naics_group,Chemical/Material Mfg (325-327),M4d State-Top5,25,6.36,11.95,13.71,0.2102,1
+naics_group,Chemical/Material Mfg (325-327),M5c CV-Var-Wt,25,4.81,11.79,9.1,0.1603,0
+naics_group,Chemical/Material Mfg (325-327),M5d Corr-Min-Adapt,25,5.11,10.42,8.85,0.1763,0
+naics_group,Chemical/Material Mfg (325-327),M3e Fin-Route-IPF,25,4.54,9.25,12.2,0.1519,0
+naics_group,Chemical/Material Mfg (325-327),M3f Min-Ind-Thresh,25,5.51,9.25,12.2,0.1965,0
+naics_group,Chemical/Material Mfg (325-327),M1e Hi-Min-Floor,25,4.81,11.79,9.1,0.1603,0
+naics_group,Chemical/Material Mfg (325-327),M4e Var-Occ-Trim,25,6.24,11.83,12.74,0.2085,2
+naics_group,Chemical/Material Mfg (325-327),M2d Amp-Tract,25,4.97,10.97,9.19,0.1695,3
+naics_group,Chemical/Material Mfg (325-327),M5e Ind-Dispatch,25,4.54,9.25,12.2,0.1519,0
+naics_group,Chemical/Material Mfg (325-327),M8 Adaptive-Router,25,5.26,9.25,9.05,0.1875,0
+naics_group,Computer/Electrical Mfg (334-335),M1 Baseline (60/40),13,6.51,12.63,7.65,0.2468,0
+naics_group,Computer/Electrical Mfg (334-335),M2 Three-Layer (50/30/20),13,6.56,13.53,8.17,0.2471,0
+naics_group,Computer/Electrical Mfg (334-335),M3 IPF,13,7.08,12.93,6.73,0.2629,2
+naics_group,Computer/Electrical Mfg (334-335),M4 Occ-Weighted,13,6.73,12.56,8.17,0.2611,1
+naics_group,Computer/Electrical Mfg (334-335),M5 Variable-Weight,13,6.31,13.03,7.83,0.24,0
+naics_group,Computer/Electrical Mfg (334-335),M1b Learned-Wt,13,5.33,16.35,8.91,0.2082,4
+naics_group,Computer/Electrical Mfg (334-335),M3b Damp-IPF,13,5.7,12.93,6.73,0.2235,0
+naics_group,Computer/Electrical Mfg (334-335),M1c CV-Learned-Wt,13,5.52,15.49,8.67,0.2143,1
+naics_group,Computer/Electrical Mfg (334-335),M1d Regional-Wt,13,6.72,12.18,7.3,0.2517,0
+naics_group,Computer/Electrical Mfg (334-335),M2c ZIP-Tract,13,6.0,13.0,7.57,0.2301,0
+naics_group,Computer/Electrical Mfg (334-335),M3c Var-Damp-IPF,13,5.23,12.93,6.73,0.2063,4
+naics_group,Computer/Electrical Mfg (334-335),M3d Select-Damp,13,6.02,12.93,6.73,0.2374,0
+naics_group,Computer/Electrical Mfg (334-335),M4c Top10-Occ,13,7.15,11.04,7.5,0.2706,0
+naics_group,Computer/Electrical Mfg (334-335),M4d State-Top5,13,8.15,10.22,5.99,0.2949,0
+naics_group,Computer/Electrical Mfg (334-335),M5c CV-Var-Wt,13,5.52,15.49,8.67,0.2143,0
+naics_group,Computer/Electrical Mfg (334-335),M5d Corr-Min-Adapt,13,6.15,13.36,7.95,0.2356,0
+naics_group,Computer/Electrical Mfg (334-335),M3e Fin-Route-IPF,13,5.23,12.93,6.73,0.2063,0
+naics_group,Computer/Electrical Mfg (334-335),M3f Min-Ind-Thresh,13,5.73,12.93,6.73,0.2238,0
+naics_group,Computer/Electrical Mfg (334-335),M1e Hi-Min-Floor,13,5.52,15.49,8.67,0.2143,0
+naics_group,Computer/Electrical Mfg (334-335),M4e Var-Occ-Trim,13,7.77,10.52,6.85,0.2813,0
+naics_group,Computer/Electrical Mfg (334-335),M2d Amp-Tract,13,5.73,13.19,7.46,0.2217,1
+naics_group,Computer/Electrical Mfg (334-335),M5e Ind-Dispatch,13,5.33,16.35,8.91,0.2082,0
+naics_group,Computer/Electrical Mfg (334-335),M8 Adaptive-Router,13,5.6,12.93,7.57,0.2272,0
+naics_group,Construction (23),M1 Baseline (60/40),60,4.09,14.66,9.61,0.1556,0
+naics_group,Construction (23),M2 Three-Layer (50/30/20),60,4.72,17.93,9.57,0.1729,3
+naics_group,Construction (23),M3 IPF,60,4.82,6.41,11.98,0.2007,14
+naics_group,Construction (23),M4 Occ-Weighted,60,4.24,15.01,9.47,0.1607,1
+naics_group,Construction (23),M5 Variable-Weight,60,4.48,21.13,9.56,0.1623,7
+naics_group,Construction (23),M1b Learned-Wt,60,3.75,7.11,10.67,0.1596,8
+naics_group,Construction (23),M3b Damp-IPF,60,3.71,6.41,11.98,0.1503,7
+naics_group,Construction (23),M1c CV-Learned-Wt,60,3.85,10.4,10.04,0.1545,0
+naics_group,Construction (23),M1d Regional-Wt,60,3.98,12.66,9.78,0.1556,0
+naics_group,Construction (23),M2c ZIP-Tract,60,4.5,17.82,9.55,0.1647,0
+naics_group,Construction (23),M3c Var-Damp-IPF,60,3.6,6.41,11.98,0.1515,9
+naics_group,Construction (23),M3d Select-Damp,60,4.24,6.41,11.98,0.1762,0
+naics_group,Construction (23),M4c Top10-Occ,60,4.18,11.68,9.65,0.1593,0
+naics_group,Construction (23),M4d State-Top5,60,4.18,9.23,9.96,0.1588,7
+naics_group,Construction (23),M5c CV-Var-Wt,60,3.85,10.4,10.04,0.1545,0
+naics_group,Construction (23),M5d Corr-Min-Adapt,60,4.71,22.35,9.63,0.1673,0
+naics_group,Construction (23),M3e Fin-Route-IPF,60,3.6,6.41,11.98,0.1515,0
+naics_group,Construction (23),M3f Min-Ind-Thresh,60,3.9,6.41,11.98,0.166,0
+naics_group,Construction (23),M1e Hi-Min-Floor,60,3.96,10.79,9.96,0.1555,0
+naics_group,Construction (23),M4e Var-Occ-Trim,60,4.34,15.38,9.43,0.1627,0
+naics_group,Construction (23),M2d Amp-Tract,60,4.78,19.52,9.54,0.1715,4
+naics_group,Construction (23),M5e Ind-Dispatch,60,4.24,6.41,11.98,0.1762,0
+naics_group,Construction (23),M8 Adaptive-Router,60,3.59,6.41,9.55,0.1561,0
+naics_group,Finance/Insurance (52),M1 Baseline (60/40),242,4.91,11.89,4.92,0.1978,0
+naics_group,Finance/Insurance (52),M2 Three-Layer (50/30/20),242,4.95,13.67,4.85,0.2003,1
+naics_group,Finance/Insurance (52),M3 IPF,242,3.46,7.91,3.71,0.1435,163
+naics_group,Finance/Insurance (52),M4 Occ-Weighted,242,5.15,17.46,5.03,0.2106,5
+naics_group,Finance/Insurance (52),M5 Variable-Weight,242,5.24,9.66,5.07,0.2094,2
+naics_group,Finance/Insurance (52),M1b Learned-Wt,242,4.32,17.41,4.75,0.1771,26
+naics_group,Finance/Insurance (52),M3b Damp-IPF,242,4.35,7.91,3.71,0.1803,10
+naics_group,Finance/Insurance (52),M1c CV-Learned-Wt,242,4.41,16.42,4.77,0.1803,3
+naics_group,Finance/Insurance (52),M1d Regional-Wt,242,4.94,11.81,4.96,0.1991,0
+naics_group,Finance/Insurance (52),M2c ZIP-Tract,242,4.76,13.09,4.84,0.1921,1
+naics_group,Finance/Insurance (52),M3c Var-Damp-IPF,242,4.01,7.91,3.71,0.1675,15
+naics_group,Finance/Insurance (52),M3d Select-Damp,242,3.54,7.91,3.71,0.1401,0
+naics_group,Finance/Insurance (52),M4c Top10-Occ,242,5.2,17.08,5.21,0.2117,1
+naics_group,Finance/Insurance (52),M4d State-Top5,242,5.28,13.42,5.66,0.2126,5
+naics_group,Finance/Insurance (52),M5c CV-Var-Wt,242,4.41,16.42,4.77,0.1803,0
+naics_group,Finance/Insurance (52),M5d Corr-Min-Adapt,242,5.22,9.89,5.03,0.2078,0
+naics_group,Finance/Insurance (52),M3e Fin-Route-IPF,242,3.46,7.91,3.71,0.1435,0
+naics_group,Finance/Insurance (52),M3f Min-Ind-Thresh,242,3.46,7.91,3.71,0.1435,0
+naics_group,Finance/Insurance (52),M1e Hi-Min-Floor,242,4.41,16.42,4.77,0.1803,0
+naics_group,Finance/Insurance (52),M4e Var-Occ-Trim,242,5.52,16.33,5.05,0.2187,1
+naics_group,Finance/Insurance (52),M2d Amp-Tract,242,4.7,13.63,4.81,0.1899,9
+naics_group,Finance/Insurance (52),M5e Ind-Dispatch,242,3.46,7.91,3.71,0.1435,0
+naics_group,Finance/Insurance (52),M8 Adaptive-Router,242,3.46,7.91,4.84,0.1435,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1 Baseline (60/40),23,5.84,11.19,11.28,0.1873,1
+naics_group,"Food/Bev Manufacturing (311,312)",M2 Three-Layer (50/30/20),23,6.22,12.29,10.9,0.1987,0
+naics_group,"Food/Bev Manufacturing (311,312)",M3 IPF,23,8.83,9.25,15.46,0.2845,2
+naics_group,"Food/Bev Manufacturing (311,312)",M4 Occ-Weighted,23,6.63,15.19,11.4,0.2102,2
+naics_group,"Food/Bev Manufacturing (311,312)",M5 Variable-Weight,23,5.85,13.46,10.46,0.1765,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1b Learned-Wt,23,5.88,14.61,10.49,0.1732,3
+naics_group,"Food/Bev Manufacturing (311,312)",M3b Damp-IPF,23,5.76,9.25,15.46,0.1823,2
+naics_group,"Food/Bev Manufacturing (311,312)",M1c CV-Learned-Wt,23,5.87,14.03,10.42,0.1747,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1d Regional-Wt,23,5.92,10.96,11.94,0.1921,0
+naics_group,"Food/Bev Manufacturing (311,312)",M2c ZIP-Tract,23,5.73,12.56,10.84,0.1786,0
+naics_group,"Food/Bev Manufacturing (311,312)",M3c Var-Damp-IPF,23,5.82,9.25,15.46,0.1772,3
+naics_group,"Food/Bev Manufacturing (311,312)",M3d Select-Damp,23,7.58,9.25,15.46,0.2452,0
+naics_group,"Food/Bev Manufacturing (311,312)",M4c Top10-Occ,23,6.7,16.19,11.66,0.2133,1
+naics_group,"Food/Bev Manufacturing (311,312)",M4d State-Top5,23,6.53,18.79,11.71,0.2142,3
+naics_group,"Food/Bev Manufacturing (311,312)",M5c CV-Var-Wt,23,6.04,9.89,11.94,0.1987,1
+naics_group,"Food/Bev Manufacturing (311,312)",M5d Corr-Min-Adapt,23,5.88,13.81,10.51,0.1758,0
+naics_group,"Food/Bev Manufacturing (311,312)",M3e Fin-Route-IPF,23,5.82,9.25,15.46,0.1772,0
+naics_group,"Food/Bev Manufacturing (311,312)",M3f Min-Ind-Thresh,23,6.05,9.25,15.46,0.1973,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1e Hi-Min-Floor,23,5.87,14.03,10.42,0.1747,0
+naics_group,"Food/Bev Manufacturing (311,312)",M4e Var-Occ-Trim,23,6.48,15.8,11.88,0.2124,2
+naics_group,"Food/Bev Manufacturing (311,312)",M2d Amp-Tract,23,5.7,13.44,10.62,0.1748,3
+naics_group,"Food/Bev Manufacturing (311,312)",M5e Ind-Dispatch,23,7.58,9.25,15.46,0.2452,0
+naics_group,"Food/Bev Manufacturing (311,312)",M8 Adaptive-Router,23,6.14,9.25,10.84,0.1934,0
+naics_group,Healthcare/Social (62),M1 Baseline (60/40),53,7.41,11.93,8.8,0.2072,1
+naics_group,Healthcare/Social (62),M2 Three-Layer (50/30/20),53,7.48,13.35,8.62,0.2122,5
+naics_group,Healthcare/Social (62),M3 IPF,53,11.05,8.02,10.79,0.309,3
+naics_group,Healthcare/Social (62),M4 Occ-Weighted,53,7.73,10.26,8.6,0.2169,1
+naics_group,Healthcare/Social (62),M5 Variable-Weight,53,7.63,9.98,9.4,0.2161,4
+naics_group,Healthcare/Social (62),M1b Learned-Wt,53,7.27,15.85,7.85,0.199,9
+naics_group,Healthcare/Social (62),M3b Damp-IPF,53,7.38,8.02,10.79,0.2114,2
+naics_group,Healthcare/Social (62),M1c CV-Learned-Wt,53,7.27,15.85,7.85,0.199,0
+naics_group,Healthcare/Social (62),M1d Regional-Wt,53,7.55,11.6,8.96,0.2107,0
+naics_group,Healthcare/Social (62),M2c ZIP-Tract,53,7.38,13.22,8.27,0.2042,0
+naics_group,Healthcare/Social (62),M3c Var-Damp-IPF,53,7.33,8.02,10.79,0.2086,8
+naics_group,Healthcare/Social (62),M3d Select-Damp,53,8.2,8.02,10.79,0.2399,0
+naics_group,Healthcare/Social (62),M4c Top10-Occ,53,7.59,9.53,8.58,0.2139,0
+naics_group,Healthcare/Social (62),M4d State-Top5,53,7.59,9.33,8.69,0.2144,10
+naics_group,Healthcare/Social (62),M5c CV-Var-Wt,53,7.27,15.85,7.85,0.199,0
+naics_group,Healthcare/Social (62),M5d Corr-Min-Adapt,53,7.48,10.49,9.12,0.212,0
+naics_group,Healthcare/Social (62),M3e Fin-Route-IPF,53,7.33,8.02,10.79,0.2086,0
+naics_group,Healthcare/Social (62),M3f Min-Ind-Thresh,53,7.96,8.02,10.79,0.2327,0
+naics_group,Healthcare/Social (62),M1e Hi-Min-Floor,53,7.27,15.85,7.85,0.199,0
+naics_group,Healthcare/Social (62),M4e Var-Occ-Trim,53,7.44,10.07,8.9,0.2129,8
+naics_group,Healthcare/Social (62),M2d Amp-Tract,53,7.39,14.1,8.03,0.2037,2
+naics_group,Healthcare/Social (62),M5e Ind-Dispatch,53,7.33,8.02,10.79,0.2086,0
+naics_group,Healthcare/Social (62),M8 Adaptive-Router,53,7.44,8.02,7.85,0.2117,0
+naics_group,Information (51),M1 Baseline (60/40),27,5.83,10.49,7.96,0.2048,0
+naics_group,Information (51),M2 Three-Layer (50/30/20),27,6.13,11.11,9.04,0.2141,0
+naics_group,Information (51),M3 IPF,27,7.21,8.99,5.72,0.2361,4
+naics_group,Information (51),M4 Occ-Weighted,27,6.12,11.66,9.22,0.2161,0
+naics_group,Information (51),M5 Variable-Weight,27,5.83,10.49,7.96,0.2048,0
+naics_group,Information (51),M1b Learned-Wt,27,4.95,12.08,9.8,0.17,9
+naics_group,Information (51),M3b Damp-IPF,27,4.87,8.99,5.72,0.1779,3
+naics_group,Information (51),M1c CV-Learned-Wt,27,5.07,11.75,9.49,0.1754,0
+naics_group,Information (51),M1d Regional-Wt,27,6.22,10.4,7.19,0.2173,0
+naics_group,Information (51),M2c ZIP-Tract,27,5.55,11.15,8.31,0.1933,0
+naics_group,Information (51),M3c Var-Damp-IPF,27,4.54,8.99,5.72,0.1633,9
+naics_group,Information (51),M3d Select-Damp,27,5.38,8.99,5.72,0.1933,0
+naics_group,Information (51),M4c Top10-Occ,27,6.25,10.89,9.04,0.2203,0
+naics_group,Information (51),M4d State-Top5,27,6.51,10.99,8.88,0.2269,1
+naics_group,Information (51),M5c CV-Var-Wt,27,5.07,11.75,9.49,0.1754,0
+naics_group,Information (51),M5d Corr-Min-Adapt,27,5.58,10.7,8.17,0.1966,0
+naics_group,Information (51),M3e Fin-Route-IPF,27,4.54,8.99,5.72,0.1633,0
+naics_group,Information (51),M3f Min-Ind-Thresh,27,4.84,8.99,5.72,0.1757,0
+naics_group,Information (51),M1e Hi-Min-Floor,27,5.07,11.75,9.49,0.1754,0
+naics_group,Information (51),M4e Var-Occ-Trim,27,6.81,10.96,8.56,0.2346,0
+naics_group,Information (51),M2d Amp-Tract,27,5.49,11.59,8.43,0.1889,1
+naics_group,Information (51),M5e Ind-Dispatch,27,4.54,8.99,5.72,0.1633,0
+naics_group,Information (51),M8 Adaptive-Router,27,4.79,8.99,8.31,0.1703,0
+naics_group,Metal/Machinery Mfg (331-333),M1 Baseline (60/40),28,3.93,13.83,6.83,0.1703,1
+naics_group,Metal/Machinery Mfg (331-333),M2 Three-Layer (50/30/20),28,4.43,16.14,6.62,0.1834,1
+naics_group,Metal/Machinery Mfg (331-333),M3 IPF,28,4.24,8.18,8.1,0.2029,7
+naics_group,Metal/Machinery Mfg (331-333),M4 Occ-Weighted,28,4.64,11.92,7.11,0.1868,1
+naics_group,Metal/Machinery Mfg (331-333),M5 Variable-Weight,28,3.87,14.88,6.7,0.1669,0
+naics_group,Metal/Machinery Mfg (331-333),M1b Learned-Wt,28,3.74,19.52,6.19,0.1558,3
+naics_group,Metal/Machinery Mfg (331-333),M3b Damp-IPF,28,3.69,8.18,8.1,0.1796,3
+naics_group,Metal/Machinery Mfg (331-333),M1c CV-Learned-Wt,28,3.74,19.52,6.19,0.1558,0
+naics_group,Metal/Machinery Mfg (331-333),M1d Regional-Wt,28,4.04,13.21,7.02,0.1746,0
+naics_group,Metal/Machinery Mfg (331-333),M2c ZIP-Tract,28,3.85,16.18,6.47,0.1633,0
+naics_group,Metal/Machinery Mfg (331-333),M3c Var-Damp-IPF,28,3.51,8.18,8.1,0.1717,7
+naics_group,Metal/Machinery Mfg (331-333),M3d Select-Damp,28,4.07,8.18,8.1,0.1984,0
+naics_group,Metal/Machinery Mfg (331-333),M4c Top10-Occ,28,4.77,9.58,6.95,0.1894,0
+naics_group,Metal/Machinery Mfg (331-333),M4d State-Top5,28,4.28,7.9,6.29,0.1826,2
+naics_group,Metal/Machinery Mfg (331-333),M5c CV-Var-Wt,28,3.74,19.52,6.19,0.1558,0
+naics_group,Metal/Machinery Mfg (331-333),M5d Corr-Min-Adapt,28,3.83,15.17,6.7,0.1655,0
+naics_group,Metal/Machinery Mfg (331-333),M3e Fin-Route-IPF,28,3.51,8.18,8.1,0.1717,0
+naics_group,Metal/Machinery Mfg (331-333),M3f Min-Ind-Thresh,28,3.82,8.18,8.1,0.1882,0
+naics_group,Metal/Machinery Mfg (331-333),M1e Hi-Min-Floor,28,3.74,19.52,6.19,0.1558,0
+naics_group,Metal/Machinery Mfg (331-333),M4e Var-Occ-Trim,28,4.9,12.37,7.34,0.1913,1
+naics_group,Metal/Machinery Mfg (331-333),M2d Amp-Tract,28,3.84,17.44,6.38,0.1609,2
+naics_group,Metal/Machinery Mfg (331-333),M5e Ind-Dispatch,28,3.51,8.18,8.1,0.1717,0
+naics_group,Metal/Machinery Mfg (331-333),M8 Adaptive-Router,28,3.6,8.18,6.47,0.1759,0
+naics_group,Other,M1 Baseline (60/40),119,4.86,19.54,7.04,0.1736,1
+naics_group,Other,M2 Three-Layer (50/30/20),119,5.11,19.72,7.28,0.1842,3
+naics_group,Other,M3 IPF,119,6.52,19.69,9.68,0.2354,26
+naics_group,Other,M4 Occ-Weighted,119,5.13,20.12,7.22,0.184,6
+naics_group,Other,M5 Variable-Weight,119,4.86,19.54,7.04,0.1736,0
+naics_group,Other,M1b Learned-Wt,119,4.45,19.84,7.14,0.1533,26
+naics_group,Other,M3b Damp-IPF,119,4.54,19.69,9.68,0.1687,11
+naics_group,Other,M1c CV-Learned-Wt,119,4.51,19.79,7.09,0.1561,3
+naics_group,Other,M1d Regional-Wt,119,4.94,19.55,7.02,0.1765,0
+naics_group,Other,M2c ZIP-Tract,119,4.73,19.62,6.95,0.1665,2
+naics_group,Other,M3c Var-Damp-IPF,119,4.33,19.69,9.68,0.1588,23
+naics_group,Other,M3d Select-Damp,119,4.79,19.69,9.68,0.1817,0
+naics_group,Other,M4c Top10-Occ,119,5.21,19.71,7.21,0.1876,1
+naics_group,Other,M4d State-Top5,119,5.31,19.02,7.24,0.1902,4
+naics_group,Other,M5c CV-Var-Wt,119,4.51,19.79,7.09,0.1561,0
+naics_group,Other,M5d Corr-Min-Adapt,119,4.82,19.55,7.05,0.1707,0
+naics_group,Other,M3e Fin-Route-IPF,119,4.33,19.69,9.68,0.1588,0
+naics_group,Other,M3f Min-Ind-Thresh,119,4.57,19.69,9.68,0.1729,0
+naics_group,Other,M1e Hi-Min-Floor,119,4.51,19.79,7.09,0.1561,0
+naics_group,Other,M4e Var-Occ-Trim,119,5.25,20.1,7.23,0.1878,2
+naics_group,Other,M2d Amp-Tract,119,4.69,19.65,6.9,0.1639,11
+naics_group,Other,M5e Ind-Dispatch,119,4.33,19.69,9.68,0.1588,0
+naics_group,Other,M8 Adaptive-Router,119,4.38,19.69,7.14,0.1637,0
+naics_group,Other Manufacturing,M1 Baseline (60/40),29,4.92,10.66,9.99,0.173,3
+naics_group,Other Manufacturing,M2 Three-Layer (50/30/20),29,5.4,11.8,9.5,0.1859,0
+naics_group,Other Manufacturing,M3 IPF,29,6.4,8.27,10.49,0.2361,4
+naics_group,Other Manufacturing,M4 Occ-Weighted,29,6.27,11.2,11.16,0.2001,1
+naics_group,Other Manufacturing,M5 Variable-Weight,29,4.85,11.21,9.76,0.1685,0
+naics_group,Other Manufacturing,M1b Learned-Wt,29,4.73,14.12,8.62,0.1515,4
+naics_group,Other Manufacturing,M3b Damp-IPF,29,4.51,8.27,10.49,0.1621,5
+naics_group,Other Manufacturing,M1c CV-Learned-Wt,29,4.73,13.51,8.85,0.1542,0
+naics_group,Other Manufacturing,M1d Regional-Wt,29,5.18,10.18,10.25,0.1805,0
+naics_group,Other Manufacturing,M2c ZIP-Tract,29,4.81,11.72,9.27,0.164,1
+naics_group,Other Manufacturing,M3c Var-Damp-IPF,29,4.46,8.27,10.49,0.1527,7
+naics_group,Other Manufacturing,M3d Select-Damp,29,5.23,8.27,10.49,0.1948,0
+naics_group,Other Manufacturing,M4c Top10-Occ,29,6.36,10.25,11.67,0.2011,1
+naics_group,Other Manufacturing,M4d State-Top5,29,6.46,10.64,12.1,0.2041,0
+naics_group,Other Manufacturing,M5c CV-Var-Wt,29,4.73,13.51,8.85,0.1542,0
+naics_group,Other Manufacturing,M5d Corr-Min-Adapt,29,4.9,11.64,9.64,0.168,0
+naics_group,Other Manufacturing,M3e Fin-Route-IPF,29,4.46,8.27,10.49,0.1527,0
+naics_group,Other Manufacturing,M3f Min-Ind-Thresh,29,4.94,8.27,10.49,0.1841,0
+naics_group,Other Manufacturing,M1e Hi-Min-Floor,29,4.73,13.51,8.85,0.1542,0
+naics_group,Other Manufacturing,M4e Var-Occ-Trim,29,6.54,11.36,10.92,0.2062,0
+naics_group,Other Manufacturing,M2d Amp-Tract,29,4.81,12.41,8.84,0.1606,3
+naics_group,Other Manufacturing,M5e Ind-Dispatch,29,4.46,8.27,10.49,0.1527,0
+naics_group,Other Manufacturing,M8 Adaptive-Router,29,4.73,8.27,9.27,0.171,0
+naics_group,Professional/Technical (54),M1 Baseline (60/40),223,4.91,12.75,5.82,0.1744,2
+naics_group,Professional/Technical (54),M2 Three-Layer (50/30/20),223,5.42,13.38,6.58,0.1876,2
+naics_group,Professional/Technical (54),M3 IPF,223,6.57,11.99,5.71,0.2342,46
+naics_group,Professional/Technical (54),M4 Occ-Weighted,223,5.26,13.69,6.14,0.1867,2
+naics_group,Professional/Technical (54),M5 Variable-Weight,223,5.18,12.18,5.38,0.1888,13
+naics_group,Professional/Technical (54),M1b Learned-Wt,223,4.68,14.72,6.87,0.1554,52
+naics_group,Professional/Technical (54),M3b Damp-IPF,223,4.3,11.99,5.71,0.1554,31
+naics_group,Professional/Technical (54),M1c CV-Learned-Wt,223,4.69,14.31,6.68,0.1576,6
+naics_group,Professional/Technical (54),M1d Regional-Wt,223,5.0,12.52,5.55,0.178,0
+naics_group,Professional/Technical (54),M2c ZIP-Tract,223,4.79,13.54,5.97,0.1664,2
+naics_group,Professional/Technical (54),M3c Var-Damp-IPF,223,4.23,11.99,5.71,0.1494,38
+naics_group,Professional/Technical (54),M3d Select-Damp,223,4.7,11.99,5.71,0.1721,0
+naics_group,Professional/Technical (54),M4c Top10-Occ,223,5.31,12.85,5.86,0.1896,1
+naics_group,Professional/Technical (54),M4d State-Top5,223,5.34,13.28,5.74,0.1907,11
+naics_group,Professional/Technical (54),M5c CV-Var-Wt,223,4.69,14.31,6.68,0.1576,0
+naics_group,Professional/Technical (54),M5d Corr-Min-Adapt,223,5.08,12.31,5.5,0.1832,0
+naics_group,Professional/Technical (54),M3e Fin-Route-IPF,223,4.23,11.99,5.71,0.1494,0
+naics_group,Professional/Technical (54),M3f Min-Ind-Thresh,223,4.47,11.99,5.71,0.163,0
+naics_group,Professional/Technical (54),M1e Hi-Min-Floor,223,4.69,14.31,6.68,0.1576,0
+naics_group,Professional/Technical (54),M4e Var-Occ-Trim,223,5.5,13.38,6.05,0.1936,2
+naics_group,Professional/Technical (54),M2d Amp-Tract,223,4.76,14.06,6.0,0.1632,15
+naics_group,Professional/Technical (54),M5e Ind-Dispatch,223,4.23,11.99,5.71,0.1494,0
+naics_group,Professional/Technical (54),M8 Adaptive-Router,223,4.33,11.99,5.97,0.1547,0
+naics_group,Retail Trade (44-45),M1 Baseline (60/40),13,5.51,11.15,5.99,0.1608,0
+naics_group,Retail Trade (44-45),M2 Three-Layer (50/30/20),13,5.63,12.14,6.02,0.1675,1
+naics_group,Retail Trade (44-45),M3 IPF,13,8.38,7.17,6.23,0.2597,4
+naics_group,Retail Trade (44-45),M4 Occ-Weighted,13,5.74,11.32,5.83,0.1704,0
+naics_group,Retail Trade (44-45),M5 Variable-Weight,13,5.51,11.15,5.99,0.1608,0
+naics_group,Retail Trade (44-45),M1b Learned-Wt,13,4.83,14.19,5.44,0.1457,5
+naics_group,Retail Trade (44-45),M3b Damp-IPF,13,5.16,7.17,6.23,0.1569,1
+naics_group,Retail Trade (44-45),M1c CV-Learned-Wt,13,4.89,13.68,5.53,0.1468,0
+naics_group,Retail Trade (44-45),M1d Regional-Wt,13,5.57,10.9,5.92,0.1627,0
+naics_group,Retail Trade (44-45),M2c ZIP-Tract,13,5.14,12.88,6.08,0.1527,2
+naics_group,Retail Trade (44-45),M3c Var-Damp-IPF,13,4.98,7.17,6.23,0.1522,0
+naics_group,Retail Trade (44-45),M3d Select-Damp,13,5.44,7.17,6.23,0.1697,0
+naics_group,Retail Trade (44-45),M4c Top10-Occ,13,5.76,10.92,5.82,0.1705,0
+naics_group,Retail Trade (44-45),M4d State-Top5,13,5.77,10.81,5.75,0.1702,0
+naics_group,Retail Trade (44-45),M5c CV-Var-Wt,13,4.89,13.68,5.53,0.1468,0
+naics_group,Retail Trade (44-45),M5d Corr-Min-Adapt,13,5.35,11.37,5.89,0.1571,0
+naics_group,Retail Trade (44-45),M3e Fin-Route-IPF,13,4.98,7.17,6.23,0.1522,0
+naics_group,Retail Trade (44-45),M3f Min-Ind-Thresh,13,4.95,7.17,6.23,0.1526,0
+naics_group,Retail Trade (44-45),M1e Hi-Min-Floor,13,4.89,13.68,5.53,0.1468,0
+naics_group,Retail Trade (44-45),M4e Var-Occ-Trim,13,5.74,11.34,5.87,0.1705,0
+naics_group,Retail Trade (44-45),M2d Amp-Tract,13,5.07,13.95,6.2,0.1505,0
+naics_group,Retail Trade (44-45),M5e Ind-Dispatch,13,4.98,7.17,6.23,0.1522,0
+naics_group,Retail Trade (44-45),M8 Adaptive-Router,13,4.8,7.17,5.44,0.149,0
+naics_group,Transport Equip Mfg (336),M1 Baseline (60/40),14,2.68,11.07,5.62,0.1362,0
+naics_group,Transport Equip Mfg (336),M2 Three-Layer (50/30/20),14,2.98,13.74,5.44,0.1427,0
+naics_group,Transport Equip Mfg (336),M3 IPF,14,4.64,4.39,9.81,0.2101,2
+naics_group,Transport Equip Mfg (336),M4 Occ-Weighted,14,3.24,7.58,5.85,0.1488,1
+naics_group,Transport Equip Mfg (336),M5 Variable-Weight,14,2.62,12.17,5.53,0.1321,0
+naics_group,Transport Equip Mfg (336),M1b Learned-Wt,14,2.41,17.97,5.04,0.1172,4
+naics_group,Transport Equip Mfg (336),M3b Damp-IPF,14,2.51,4.39,9.81,0.1411,0
+naics_group,Transport Equip Mfg (336),M1c CV-Learned-Wt,14,2.43,16.66,5.14,0.1194,0
+naics_group,Transport Equip Mfg (336),M1d Regional-Wt,14,2.7,10.8,5.55,0.1373,0
+naics_group,Transport Equip Mfg (336),M2c ZIP-Tract,14,2.67,12.59,5.42,0.131,0
+naics_group,Transport Equip Mfg (336),M3c Var-Damp-IPF,14,2.41,4.39,9.81,0.1324,3
+naics_group,Transport Equip Mfg (336),M3d Select-Damp,14,3.2,4.39,9.81,0.1679,0
+naics_group,Transport Equip Mfg (336),M4c Top10-Occ,14,3.28,6.35,5.82,0.1505,0
+naics_group,Transport Equip Mfg (336),M4d State-Top5,14,3.43,7.51,6.47,0.1553,1
+naics_group,Transport Equip Mfg (336),M5c CV-Var-Wt,14,2.43,16.66,5.14,0.1194,0
+naics_group,Transport Equip Mfg (336),M5d Corr-Min-Adapt,14,2.56,13.5,5.41,0.1283,0
+naics_group,Transport Equip Mfg (336),M3e Fin-Route-IPF,14,2.41,4.39,9.81,0.1324,0
+naics_group,Transport Equip Mfg (336),M3f Min-Ind-Thresh,14,2.67,4.39,9.81,0.1542,0
+naics_group,Transport Equip Mfg (336),M1e Hi-Min-Floor,14,2.43,16.66,5.14,0.1194,0
+naics_group,Transport Equip Mfg (336),M4e Var-Occ-Trim,14,3.43,8.92,5.93,0.1526,0
+naics_group,Transport Equip Mfg (336),M2d Amp-Tract,14,2.69,13.27,5.33,0.13,3
+naics_group,Transport Equip Mfg (336),M5e Ind-Dispatch,14,2.41,4.39,9.81,0.1324,0
+naics_group,Transport Equip Mfg (336),M8 Adaptive-Router,14,2.6,4.39,5.04,0.1467,0
+naics_group,Utilities (22),M1 Baseline (60/40),24,3.36,9.62,5.42,0.1523,1
+naics_group,Utilities (22),M2 Three-Layer (50/30/20),24,4.04,11.58,5.43,0.1707,0
+naics_group,Utilities (22),M3 IPF,24,2.46,7.23,3.92,0.1322,11
+naics_group,Utilities (22),M4 Occ-Weighted,24,3.79,9.3,6.21,0.1648,0
+naics_group,Utilities (22),M5 Variable-Weight,24,3.36,9.62,5.42,0.1523,0
+naics_group,Utilities (22),M1b Learned-Wt,24,3.43,6.65,5.74,0.1672,2
+naics_group,Utilities (22),M3b Damp-IPF,24,2.95,7.23,3.92,0.1385,2
+naics_group,Utilities (22),M1c CV-Learned-Wt,24,3.45,15.34,5.37,0.1456,2
+naics_group,Utilities (22),M1d Regional-Wt,24,3.37,9.68,5.54,0.1525,0
+naics_group,Utilities (22),M2c ZIP-Tract,24,3.48,12.04,5.21,0.1504,0
+naics_group,Utilities (22),M3c Var-Damp-IPF,24,3.01,7.23,3.92,0.1343,4
+naics_group,Utilities (22),M3d Select-Damp,24,2.58,7.23,3.92,0.1294,0
+naics_group,Utilities (22),M4c Top10-Occ,24,3.4,6.43,6.31,0.1542,0
+naics_group,Utilities (22),M4d State-Top5,24,3.42,5.87,6.42,0.1527,2
+naics_group,Utilities (22),M5c CV-Var-Wt,24,3.45,15.34,5.37,0.1456,0
+naics_group,Utilities (22),M5d Corr-Min-Adapt,24,3.45,10.01,5.43,0.1527,0
+naics_group,Utilities (22),M3e Fin-Route-IPF,24,2.46,7.23,3.92,0.1322,0
+naics_group,Utilities (22),M3f Min-Ind-Thresh,24,2.46,7.23,3.92,0.1322,0
+naics_group,Utilities (22),M1e Hi-Min-Floor,24,3.45,15.34,5.37,0.1456,0
+naics_group,Utilities (22),M4e Var-Occ-Trim,24,3.92,10.12,6.26,0.1672,0
+naics_group,Utilities (22),M2d Amp-Tract,24,3.57,13.6,5.09,0.1504,0
+naics_group,Utilities (22),M5e Ind-Dispatch,24,3.01,7.23,3.92,0.1343,0
+naics_group,Utilities (22),M8 Adaptive-Router,24,2.46,7.23,5.21,0.1322,0
+naics_group,Wholesale Trade (42),M1 Baseline (60/40),63,4.55,13.79,7.71,0.1591,3
+naics_group,Wholesale Trade (42),M2 Three-Layer (50/30/20),63,5.12,15.03,7.78,0.1752,0
+naics_group,Wholesale Trade (42),M3 IPF,63,6.03,11.29,9.44,0.2229,17
+naics_group,Wholesale Trade (42),M4 Occ-Weighted,63,5.5,18.19,8.08,0.1845,1
+naics_group,Wholesale Trade (42),M5 Variable-Weight,63,4.55,13.79,7.71,0.1591,0
+naics_group,Wholesale Trade (42),M1b Learned-Wt,63,4.65,17.59,7.49,0.1531,8
+naics_group,Wholesale Trade (42),M3b Damp-IPF,63,4.31,11.29,9.44,0.163,11
+naics_group,Wholesale Trade (42),M1c CV-Learned-Wt,63,4.54,14.96,7.64,0.1558,0
+naics_group,Wholesale Trade (42),M1d Regional-Wt,63,4.64,13.68,7.72,0.163,1
+naics_group,Wholesale Trade (42),M2c ZIP-Tract,63,4.51,14.93,7.46,0.1545,1
+naics_group,Wholesale Trade (42),M3c Var-Damp-IPF,63,4.3,11.29,9.44,0.1618,5
+naics_group,Wholesale Trade (42),M3d Select-Damp,63,4.52,11.29,9.44,0.172,0
+naics_group,Wholesale Trade (42),M4c Top10-Occ,63,5.88,16.01,8.56,0.1928,4
+naics_group,Wholesale Trade (42),M4d State-Top5,63,6.18,13.09,8.85,0.2007,5
+naics_group,Wholesale Trade (42),M5c CV-Var-Wt,63,4.61,16.9,7.53,0.1532,0
+naics_group,Wholesale Trade (42),M5d Corr-Min-Adapt,63,4.68,14.25,7.74,0.1606,0
+naics_group,Wholesale Trade (42),M3e Fin-Route-IPF,63,4.3,11.29,9.44,0.1618,0
+naics_group,Wholesale Trade (42),M3f Min-Ind-Thresh,63,4.21,11.29,9.44,0.1604,0
+naics_group,Wholesale Trade (42),M1e Hi-Min-Floor,63,4.54,14.96,7.64,0.1558,0
+naics_group,Wholesale Trade (42),M4e Var-Occ-Trim,63,5.65,18.09,8.33,0.1875,1
+naics_group,Wholesale Trade (42),M2d Amp-Tract,63,4.52,15.61,7.29,0.1532,6
+naics_group,Wholesale Trade (42),M5e Ind-Dispatch,63,4.3,11.29,9.44,0.1618,0
+naics_group,Wholesale Trade (42),M8 Adaptive-Router,63,4.45,11.29,7.46,0.1643,0
+size,1-99,M1 Baseline (60/40),190,4.99,13.78,5.65,0.2115,2
+size,1-99,M2 Three-Layer (50/30/20),190,5.21,15.45,5.74,0.218,2
+size,1-99,M3 IPF,190,3.22,10.03,4.15,0.1392,127
+size,1-99,M4 Occ-Weighted,190,5.1,17.94,5.74,0.2216,6
+size,1-99,M5 Variable-Weight,190,5.19,11.99,5.66,0.2189,1
+size,1-99,M1b Learned-Wt,190,4.65,18.53,5.7,0.197,16
+size,1-99,M3b Damp-IPF,190,4.41,10.03,4.15,0.1922,10
+size,1-99,M1c CV-Learned-Wt,190,4.69,17.83,5.66,0.1989,1
+size,1-99,M1d Regional-Wt,190,5.04,13.62,5.62,0.2127,1
+size,1-99,M2c ZIP-Tract,190,4.94,15.13,5.53,0.2079,1
+size,1-99,M3c Var-Damp-IPF,190,4.23,10.03,4.15,0.1841,10
+size,1-99,M3d Select-Damp,190,3.77,10.03,4.15,0.1539,0
+size,1-99,M4c Top10-Occ,190,5.19,17.28,5.74,0.2236,2
+size,1-99,M4d State-Top5,190,5.31,14.65,5.95,0.2257,6
+size,1-99,M5c CV-Var-Wt,190,4.7,17.86,5.66,0.199,0
+size,1-99,M5d Corr-Min-Adapt,190,5.22,12.29,5.69,0.2184,0
+size,1-99,M3e Fin-Route-IPF,190,2.95,10.03,4.15,0.132,0
+size,1-99,M3f Min-Ind-Thresh,190,3.05,10.03,4.15,0.1362,0
+size,1-99,M1e Hi-Min-Floor,190,4.69,17.83,5.66,0.1989,0
+size,1-99,M4e Var-Occ-Trim,190,5.57,16.77,5.76,0.2311,2
+size,1-99,M2d Amp-Tract,190,4.93,15.78,5.47,0.2068,3
+size,1-99,M5e Ind-Dispatch,190,2.99,10.21,4.31,0.1325,0
+size,1-99,M8 Adaptive-Router,190,2.92,10.03,5.54,0.1297,0
+size,100-999,M1 Baseline (60/40),453,4.95,13.5,6.65,0.1775,8
+size,100-999,M2 Three-Layer (50/30/20),453,5.27,14.78,6.84,0.1867,11
+size,100-999,M3 IPF,453,5.92,10.91,7.38,0.2144,138
+size,100-999,M4 Occ-Weighted,453,5.48,15.23,7.18,0.193,7
+size,100-999,M5 Variable-Weight,453,5.15,13.39,6.57,0.1849,13
+size,100-999,M1b Learned-Wt,453,4.67,15.66,6.8,0.1646,74
+size,100-999,M3b Damp-IPF,453,4.49,10.91,7.38,0.1666,48
+size,100-999,M1c CV-Learned-Wt,453,4.68,15.62,6.79,0.1645,7
+size,100-999,M1d Regional-Wt,453,5.0,13.15,6.61,0.1801,1
+size,100-999,M2c ZIP-Tract,453,4.91,14.62,6.62,0.1732,6
+size,100-999,M3c Var-Damp-IPF,453,4.35,10.91,7.38,0.1604,70
+size,100-999,M3d Select-Damp,453,4.72,10.91,7.38,0.1769,0
+size,100-999,M4c Top10-Occ,453,5.51,14.23,7.22,0.1945,3
+size,100-999,M4d State-Top5,453,5.57,13.0,7.35,0.1961,22
+size,100-999,M5c CV-Var-Wt,453,4.69,15.73,6.84,0.1648,2
+size,100-999,M5d Corr-Min-Adapt,453,5.12,13.65,6.59,0.1829,0
+size,100-999,M3e Fin-Route-IPF,453,4.25,10.91,7.38,0.1582,0
+size,100-999,M3f Min-Ind-Thresh,453,4.46,10.91,7.38,0.1689,0
+size,100-999,M1e Hi-Min-Floor,453,4.69,15.66,6.79,0.1646,0
+size,100-999,M4e Var-Occ-Trim,453,5.6,15.08,7.22,0.1969,9
+size,100-999,M2d Amp-Tract,453,4.92,15.27,6.6,0.1721,34
+size,100-999,M5e Ind-Dispatch,453,4.38,10.86,7.32,0.1622,0
+size,100-999,M8 Adaptive-Router,453,4.32,10.91,6.5,0.1625,0
+size,10000+,M1 Baseline (60/40),100,5.29,11.84,8.03,0.1688,4
+size,10000+,M2 Three-Layer (50/30/20),100,5.63,12.77,8.27,0.1804,1
+size,10000+,M3 IPF,100,8.64,10.22,11.03,0.28,8
+size,10000+,M4 Occ-Weighted,100,5.54,12.55,8.43,0.1796,3
+size,10000+,M5 Variable-Weight,100,5.43,11.97,8.03,0.1738,1
+size,10000+,M1b Learned-Wt,100,4.86,13.39,8.04,0.1492,27
+size,10000+,M3b Damp-IPF,100,5.18,10.22,11.03,0.1676,7
+size,10000+,M1c CV-Learned-Wt,100,4.99,13.78,8.07,0.1499,3
+size,10000+,M1d Regional-Wt,100,5.37,11.83,8.04,0.172,0
+size,10000+,M2c ZIP-Tract,100,5.08,12.99,7.95,0.1587,0
+size,10000+,M3c Var-Damp-IPF,100,5.02,10.22,11.03,0.1578,13
+size,10000+,M3d Select-Damp,100,5.87,10.22,11.03,0.1945,0
+size,10000+,M4c Top10-Occ,100,5.59,11.57,8.41,0.1814,2
+size,10000+,M4d State-Top5,100,5.59,11.58,8.53,0.1821,10
+size,10000+,M5c CV-Var-Wt,100,4.94,13.83,8.1,0.1497,0
+size,10000+,M5d Corr-Min-Adapt,100,5.33,12.35,7.98,0.1689,0
+size,10000+,M3e Fin-Route-IPF,100,5.69,10.22,11.03,0.1823,0
+size,10000+,M3f Min-Ind-Thresh,100,6.04,10.22,11.03,0.1994,0
+size,10000+,M1e Hi-Min-Floor,100,5.0,13.78,8.08,0.1499,0
+size,10000+,M4e Var-Occ-Trim,100,5.61,13.44,8.51,0.183,7
+size,10000+,M2d Amp-Tract,100,4.99,13.7,7.9,0.1546,14
+size,10000+,M5e Ind-Dispatch,100,5.78,10.35,11.17,0.1836,0
+size,10000+,M8 Adaptive-Router,100,5.91,10.22,7.94,0.1939,0
+size,1k-9999,M1 Baseline (60/40),254,4.96,13.03,7.98,0.1688,1
+size,1k-9999,M2 Three-Layer (50/30/20),254,5.34,14.03,8.27,0.1805,4
+size,1k-9999,M3 IPF,254,6.95,10.93,9.41,0.246,39
+size,1k-9999,M4 Occ-Weighted,254,5.39,14.26,8.23,0.1821,8
+size,1k-9999,M5 Variable-Weight,254,5.05,13.5,7.87,0.1722,11
+size,1k-9999,M1b Learned-Wt,254,4.59,14.11,8.4,0.1492,60
+size,1k-9999,M3b Damp-IPF,254,4.59,10.93,9.41,0.1617,25
+size,1k-9999,M1c CV-Learned-Wt,254,4.61,14.31,8.26,0.1507,7
+size,1k-9999,M1d Regional-Wt,254,5.11,12.71,7.92,0.1738,0
+size,1k-9999,M2c ZIP-Tract,254,4.81,13.99,7.89,0.1604,2
+size,1k-9999,M3c Var-Damp-IPF,254,4.4,10.93,9.41,0.1523,55
+size,1k-9999,M3d Select-Damp,254,5.05,10.93,9.41,0.1827,0
+size,1k-9999,M4c Top10-Occ,254,5.48,13.23,8.42,0.185,2
+size,1k-9999,M4d State-Top5,254,5.55,12.59,8.52,0.1872,16
+size,1k-9999,M5c CV-Var-Wt,254,4.64,14.29,8.28,0.1519,0
+size,1k-9999,M5d Corr-Min-Adapt,254,4.98,13.81,7.88,0.1682,0
+size,1k-9999,M3e Fin-Route-IPF,254,4.69,10.93,9.41,0.1626,0
+size,1k-9999,M3f Min-Ind-Thresh,254,4.94,10.93,9.41,0.1778,0
+size,1k-9999,M1e Hi-Min-Floor,254,4.62,14.33,8.25,0.1508,0
+size,1k-9999,M4e Var-Occ-Trim,254,5.62,14.36,8.19,0.1879,6
+size,1k-9999,M2d Amp-Tract,254,4.77,14.56,7.83,0.1572,18
+size,1k-9999,M5e Ind-Dispatch,254,4.77,11.01,9.44,0.1668,0
+size,1k-9999,M8 Adaptive-Router,254,4.85,10.93,7.95,0.172,0
+region,Midwest,M1 Baseline (60/40),244,3.24,13.41,5.57,0.1544,4
+region,Midwest,M2 Three-Layer (50/30/20),244,3.54,14.82,5.64,0.1636,7
+region,Midwest,M3 IPF,244,3.8,10.08,7.28,0.1743,96
+region,Midwest,M4 Occ-Weighted,244,3.77,15.97,5.68,0.172,7
+region,Midwest,M5 Variable-Weight,244,3.32,13.04,5.5,0.1576,7
+region,Midwest,M1b Learned-Wt,244,3.12,16.15,5.73,0.1446,36
+region,Midwest,M3b Damp-IPF,244,2.96,10.08,7.28,0.148,19
+region,Midwest,M1c CV-Learned-Wt,244,3.13,16.04,5.73,0.1449,4
+region,Midwest,M1d Regional-Wt,244,3.24,13.41,5.57,0.1544,0
+region,Midwest,M2c ZIP-Tract,244,3.21,14.69,5.58,0.1506,3
+region,Midwest,M3c Var-Damp-IPF,244,2.87,10.08,7.28,0.1417,27
+region,Midwest,M3d Select-Damp,244,2.93,10.08,7.28,0.1426,0
+region,Midwest,M4c Top10-Occ,244,3.84,14.99,5.79,0.1743,1
+region,Midwest,M4d State-Top5,244,3.91,13.42,5.99,0.177,17
+region,Midwest,M5c CV-Var-Wt,244,3.14,16.06,5.74,0.1455,0
+region,Midwest,M5d Corr-Min-Adapt,244,3.33,13.07,5.49,0.1577,0
+region,Midwest,M3e Fin-Route-IPF,244,2.71,10.08,7.28,0.1273,0
+region,Midwest,M3f Min-Ind-Thresh,244,2.93,10.08,7.28,0.1426,0
+region,Midwest,M1e Hi-Min-Floor,244,3.13,16.04,5.73,0.1449,0
+region,Midwest,M4e Var-Occ-Trim,244,3.81,16.12,5.61,0.1734,1
+region,Midwest,M2d Amp-Tract,244,3.21,15.36,5.59,0.1494,15
+region,Midwest,M5e Ind-Dispatch,244,2.73,10.06,7.2,0.1291,0
+region,Midwest,M8 Adaptive-Router,244,3.04,10.08,5.59,0.1466,0
+region,Northeast,M1 Baseline (60/40),166,4.59,12.01,6.28,0.1671,3
+region,Northeast,M2 Three-Layer (50/30/20),166,4.82,12.97,6.46,0.1756,1
+region,Northeast,M3 IPF,166,6.39,10.18,8.05,0.2298,39
+region,Northeast,M4 Occ-Weighted,166,5.03,14.03,6.53,0.1829,4
+region,Northeast,M5 Variable-Weight,166,4.77,11.63,6.35,0.1741,5
+region,Northeast,M1b Learned-Wt,166,4.27,14.35,6.17,0.1515,28
+region,Northeast,M3b Damp-IPF,166,4.3,10.18,8.05,0.1575,20
+region,Northeast,M1c CV-Learned-Wt,166,4.3,14.08,6.19,0.1522,5
+region,Northeast,M1d Regional-Wt,166,4.59,12.01,6.28,0.1671,0
+region,Northeast,M2c ZIP-Tract,166,4.46,12.82,6.21,0.1602,0
+region,Northeast,M3c Var-Damp-IPF,166,4.1,10.18,8.05,0.1487,27
+region,Northeast,M3d Select-Damp,166,4.88,10.18,8.05,0.1823,0
+region,Northeast,M4c Top10-Occ,166,5.04,13.37,6.67,0.1837,2
+region,Northeast,M4d State-Top5,166,5.02,12.17,6.81,0.1831,9
+region,Northeast,M5c CV-Var-Wt,166,4.29,14.14,6.12,0.1523,0
+region,Northeast,M5d Corr-Min-Adapt,166,4.7,11.68,6.33,0.1712,0
+region,Northeast,M3e Fin-Route-IPF,166,4.54,10.18,8.05,0.1647,0
+region,Northeast,M3f Min-Ind-Thresh,166,4.86,10.18,8.05,0.1805,0
+region,Northeast,M1e Hi-Min-Floor,166,4.3,14.09,6.19,0.1523,0
+region,Northeast,M4e Var-Occ-Trim,166,4.99,14.11,6.6,0.1826,8
+region,Northeast,M2d Amp-Tract,166,4.41,13.32,6.19,0.1575,15
+region,Northeast,M5e Ind-Dispatch,166,4.57,10.13,8.03,0.1658,0
+region,Northeast,M8 Adaptive-Router,166,4.54,10.18,6.06,0.1661,0
+region,South,M1 Baseline (60/40),408,5.64,13.5,6.65,0.1902,5
+region,South,M2 Three-Layer (50/30/20),408,5.96,14.75,6.87,0.1991,6
+region,South,M3 IPF,408,5.97,11.26,6.85,0.2072,160
+region,South,M4 Occ-Weighted,408,5.92,15.67,6.85,0.1999,11
+region,South,M5 Variable-Weight,408,5.84,13.01,6.64,0.1975,10
+region,South,M1b Learned-Wt,408,5.37,16.23,6.65,0.1753,76
+region,South,M3b Damp-IPF,408,5.19,11.26,6.85,0.1786,31
+region,South,M1c CV-Learned-Wt,408,5.39,16.12,6.66,0.1759,6
+region,South,M1d Regional-Wt,408,5.64,13.5,6.65,0.1902,0
+region,South,M2c ZIP-Tract,408,5.6,14.76,6.47,0.1853,3
+region,South,M3c Var-Damp-IPF,408,5.06,11.26,6.85,0.1711,43
+region,South,M3d Select-Damp,408,5.08,11.26,6.85,0.1731,0
+region,South,M4c Top10-Occ,408,5.99,14.98,6.85,0.2022,3
+region,South,M4d State-Top5,408,6.08,13.7,6.89,0.2043,22
+region,South,M5c CV-Var-Wt,408,5.41,16.21,6.66,0.1764,1
+region,South,M5d Corr-Min-Adapt,408,5.83,13.56,6.68,0.1944,0
+region,South,M3e Fin-Route-IPF,408,4.48,11.26,6.85,0.1552,0
+region,South,M3f Min-Ind-Thresh,408,4.55,11.26,6.85,0.16,0
+region,South,M1e Hi-Min-Floor,408,5.4,16.14,6.67,0.176,0
+region,South,M4e Var-Occ-Trim,408,6.3,15.23,6.84,0.2091,12
+region,South,M2d Amp-Tract,408,5.62,15.51,6.37,0.1839,19
+region,South,M5e Ind-Dispatch,408,4.59,11.35,6.9,0.1581,0
+region,South,M8 Adaptive-Router,408,4.49,11.26,6.4,0.1556,0
+region,West,M1 Baseline (60/40),179,6.28,13.7,10.06,0.2085,3
+region,West,M2 Three-Layer (50/30/20),179,6.69,15.0,10.43,0.2211,4
+region,West,M3 IPF,179,8.4,10.63,9.57,0.2728,17
+region,West,M4 Occ-Weighted,179,6.74,14.33,11.24,0.2227,2
+region,West,M5 Variable-Weight,179,6.5,14.23,9.77,0.2152,4
+region,West,M1b Learned-Wt,179,5.52,14.48,10.98,0.1836,37
+region,West,M3b Damp-IPF,179,5.59,10.63,9.57,0.1938,20
+region,West,M1c CV-Learned-Wt,179,5.61,14.79,10.68,0.1855,3
+region,West,M1d Regional-Wt,179,6.72,12.18,9.85,0.2253,2
+region,West,M2c ZIP-Tract,179,6.04,14.61,10.14,0.1991,3
+region,West,M3c Var-Damp-IPF,179,5.3,10.63,9.57,0.1845,51
+region,West,M3d Select-Damp,179,6.3,10.63,9.57,0.2211,0
+region,West,M4c Top10-Occ,179,6.8,12.61,11.32,0.2246,3
+region,West,M4d State-Top5,179,6.88,11.98,11.58,0.2266,6
+region,West,M5c CV-Var-Wt,179,5.61,14.83,10.9,0.186,1
+region,West,M5d Corr-Min-Adapt,179,6.37,14.53,9.79,0.2106,0
+region,West,M3e Fin-Route-IPF,179,5.61,10.63,9.57,0.1928,0
+region,West,M3f Min-Ind-Thresh,179,6.03,10.63,9.57,0.2093,0
+region,West,M1e Hi-Min-Floor,179,5.62,14.86,10.64,0.1855,0
+region,West,M4e Var-Occ-Trim,179,7.04,14.09,11.39,0.2301,3
+region,West,M2d Amp-Tract,179,5.97,15.07,10.17,0.1957,20
+region,West,M5e Ind-Dispatch,179,5.83,10.76,9.77,0.2002,0
+region,West,M8 Adaptive-Router,179,5.64,10.63,10.2,0.1927,0
+minority_share,High (>50%),M1 Baseline (60/40),96,11.94,10.51,11.29,0.3034,3
+minority_share,High (>50%),M2 Three-Layer (50/30/20),96,11.7,11.16,11.04,0.3023,4
+minority_share,High (>50%),M3 IPF,96,16.8,9.27,13.25,0.4312,0
+minority_share,High (>50%),M4 Occ-Weighted,96,12.6,10.75,11.89,0.3203,0
+minority_share,High (>50%),M5 Variable-Weight,96,12.22,10.1,11.46,0.3115,2
+minority_share,High (>50%),M1b Learned-Wt,96,11.32,11.93,10.55,0.2789,39
+minority_share,High (>50%),M3b Damp-IPF,96,12.1,9.27,13.25,0.3058,1
+minority_share,High (>50%),M1c CV-Learned-Wt,96,11.55,11.9,10.73,0.2842,1
+minority_share,High (>50%),M1d Regional-Wt,96,12.19,10.2,11.59,0.3123,0
+minority_share,High (>50%),M2c ZIP-Tract,96,11.71,11.54,11.0,0.2937,1
+minority_share,High (>50%),M3c Var-Damp-IPF,96,11.86,9.27,13.25,0.2962,4
+minority_share,High (>50%),M3d Select-Damp,96,12.65,9.27,13.25,0.3242,0
+minority_share,High (>50%),M4c Top10-Occ,96,12.52,10.45,12.09,0.3202,2
+minority_share,High (>50%),M4d State-Top5,96,12.42,10.37,12.48,0.3207,8
+minority_share,High (>50%),M5c CV-Var-Wt,96,11.55,11.8,10.97,0.2862,0
+minority_share,High (>50%),M5d Corr-Min-Adapt,96,11.92,10.24,11.47,0.3019,0
+minority_share,High (>50%),M3e Fin-Route-IPF,96,12.82,9.27,13.25,0.3238,0
+minority_share,High (>50%),M3f Min-Ind-Thresh,96,13.02,9.27,13.25,0.3345,0
+minority_share,High (>50%),M1e Hi-Min-Floor,96,11.55,11.9,10.73,0.2842,0
+minority_share,High (>50%),M4e Var-Occ-Trim,96,11.79,11.17,11.73,0.3086,16
+minority_share,High (>50%),M2d Amp-Tract,96,11.6,12.29,10.86,0.2894,15
+minority_share,High (>50%),M5e Ind-Dispatch,96,13.02,9.27,13.25,0.3318,0
+minority_share,High (>50%),M8 Adaptive-Router,96,12.7,9.27,10.62,0.3205,0
+minority_share,Low (<25%),M1 Baseline (60/40),630,3.87,14.19,5.73,0.1646,7
+minority_share,Low (<25%),M2 Three-Layer (50/30/20),630,4.33,15.77,5.9,0.1763,5
+minority_share,Low (<25%),M3 IPF,630,2.99,10.59,5.55,0.1502,304
+minority_share,Low (<25%),M4 Occ-Weighted,630,4.29,16.78,6.1,0.1788,17
+minority_share,Low (<25%),M5 Variable-Weight,630,4.01,13.84,5.66,0.1699,16
+minority_share,Low (<25%),M1b Learned-Wt,630,3.68,16.99,5.94,0.1539,50
+minority_share,Low (<25%),M3b Damp-IPF,630,3.27,10.59,5.55,0.1503,72
+minority_share,Low (<25%),M1c CV-Learned-Wt,630,3.66,17.0,5.88,0.1533,5
+minority_share,Low (<25%),M1d Regional-Wt,630,3.91,13.91,5.71,0.1661,1
+minority_share,Low (<25%),M2c ZIP-Tract,630,3.88,15.51,5.68,0.1614,5
+minority_share,Low (<25%),M3c Var-Damp-IPF,630,3.16,10.59,5.55,0.1438,98
+minority_share,Low (<25%),M3d Select-Damp,630,3.21,10.59,5.55,0.147,0
+minority_share,Low (<25%),M4c Top10-Occ,630,4.36,15.66,6.16,0.1807,5
+minority_share,Low (<25%),M4d State-Top5,630,4.44,13.77,6.33,0.1823,25
+minority_share,Low (<25%),M5c CV-Var-Wt,630,3.69,17.09,5.86,0.1538,1
+minority_share,Low (<25%),M5d Corr-Min-Adapt,630,4.06,14.14,5.68,0.1701,0
+minority_share,Low (<25%),M3e Fin-Route-IPF,630,2.63,10.59,5.55,0.1257,0
+minority_share,Low (<25%),M3f Min-Ind-Thresh,630,2.77,10.59,5.55,0.1349,0
+minority_share,Low (<25%),M1e Hi-Min-Floor,630,3.67,17.05,5.88,0.1534,0
+minority_share,Low (<25%),M4e Var-Occ-Trim,630,4.66,16.45,6.13,0.1869,1
+minority_share,Low (<25%),M2d Amp-Tract,630,3.91,16.19,5.65,0.1607,18
+minority_share,Low (<25%),M5e Ind-Dispatch,630,2.69,10.62,5.55,0.1276,0
+minority_share,Low (<25%),M8 Adaptive-Router,630,2.72,10.59,5.64,0.1314,0
+minority_share,Medium (25-50%),M1 Baseline (60/40),271,5.14,12.09,8.2,0.1754,5
+minority_share,Medium (25-50%),M2 Three-Layer (50/30/20),271,5.32,12.79,8.65,0.1838,9
+minority_share,Medium (25-50%),M3 IPF,271,8.95,11.38,10.54,0.2879,8
+minority_share,Medium (25-50%),M4 Occ-Weighted,271,5.4,13.2,8.47,0.1859,7
+minority_share,Medium (25-50%),M5 Variable-Weight,271,5.33,12.1,8.08,0.1828,8
+minority_share,Medium (25-50%),M1b Learned-Wt,271,4.6,13.6,8.66,0.1517,88
+minority_share,Medium (25-50%),M3b Damp-IPF,271,4.91,11.38,10.54,0.1689,17
+minority_share,Medium (25-50%),M1c CV-Learned-Wt,271,4.66,13.37,8.56,0.154,12
+minority_share,Medium (25-50%),M1d Regional-Wt,271,5.27,11.85,7.99,0.1797,1
+minority_share,Medium (25-50%),M2c ZIP-Tract,271,4.89,12.8,8.17,0.1649,3
+minority_share,Medium (25-50%),M3c Var-Damp-IPF,271,4.67,11.38,10.54,0.159,46
+minority_share,Medium (25-50%),M3d Select-Damp,271,5.5,11.38,10.54,0.1902,0
+minority_share,Medium (25-50%),M4c Top10-Occ,271,5.49,12.47,8.48,0.1887,2
+minority_share,Medium (25-50%),M4d State-Top5,271,5.58,12.38,8.46,0.1912,21
+minority_share,Medium (25-50%),M5c CV-Var-Wt,271,4.64,13.4,8.63,0.1538,1
+minority_share,Medium (25-50%),M5d Corr-Min-Adapt,271,5.19,12.43,8.09,0.1764,0
+minority_share,Medium (25-50%),M3e Fin-Route-IPF,271,5.01,11.38,10.54,0.1696,0
+minority_share,Medium (25-50%),M3f Min-Ind-Thresh,271,5.39,11.38,10.54,0.1858,0
+minority_share,Medium (25-50%),M1e Hi-Min-Floor,271,4.66,13.35,8.55,0.154,0
+minority_share,Medium (25-50%),M4e Var-Occ-Trim,271,5.59,13.18,8.51,0.191,7
+minority_share,Medium (25-50%),M2d Amp-Tract,271,4.8,13.31,8.15,0.1608,36
+minority_share,Medium (25-50%),M5e Ind-Dispatch,271,5.13,11.48,10.65,0.1739,0
+minority_share,Medium (25-50%),M8 Adaptive-Router,271,5.18,11.38,8.24,0.1763,0
+urbanicity,Rural,M1 Baseline (60/40),122,4.53,12.72,4.33,0.2006,1
+urbanicity,Rural,M2 Three-Layer (50/30/20),122,4.58,14.74,4.21,0.2018,3
+urbanicity,Rural,M3 IPF,122,1.84,8.8,2.71,0.1073,94
+urbanicity,Rural,M4 Occ-Weighted,122,4.66,17.46,4.69,0.2092,3
+urbanicity,Rural,M5 Variable-Weight,122,4.84,10.86,4.48,0.2103,1
+urbanicity,Rural,M1b Learned-Wt,122,3.94,17.94,4.21,0.181,6
+urbanicity,Rural,M3b Damp-IPF,122,3.76,8.8,2.71,0.1774,0
+urbanicity,Rural,M1c CV-Learned-Wt,122,3.97,17.54,4.19,0.1819,1
+urbanicity,Rural,M1d Regional-Wt,122,4.55,12.71,4.36,0.2011,0
+urbanicity,Rural,M2c ZIP-Tract,122,4.44,14.28,4.23,0.1957,1
+urbanicity,Rural,M3c Var-Damp-IPF,122,3.44,8.8,2.71,0.165,10
+urbanicity,Rural,M3d Select-Damp,122,2.78,8.8,2.71,0.1299,0
+urbanicity,Rural,M4c Top10-Occ,122,4.65,16.96,4.84,0.2094,0
+urbanicity,Rural,M4d State-Top5,122,4.78,13.74,5.18,0.2114,1
+urbanicity,Rural,M5c CV-Var-Wt,122,3.97,17.51,4.16,0.1821,0
+urbanicity,Rural,M5d Corr-Min-Adapt,122,4.9,11.28,4.5,0.2106,0
+urbanicity,Rural,M3e Fin-Route-IPF,122,1.82,8.8,2.71,0.1067,0
+urbanicity,Rural,M3f Min-Ind-Thresh,122,1.85,8.8,2.71,0.1074,0
+urbanicity,Rural,M1e Hi-Min-Floor,122,3.98,17.53,4.21,0.1821,0
+urbanicity,Rural,M4e Var-Occ-Trim,122,5.16,16.59,4.73,0.2207,0
+urbanicity,Rural,M2d Amp-Tract,122,4.43,15.06,4.17,0.1939,1
+urbanicity,Rural,M5e Ind-Dispatch,122,1.96,8.8,2.71,0.1115,0
+urbanicity,Rural,M8 Adaptive-Router,122,1.85,8.8,4.23,0.1079,0
+urbanicity,Suburban,M1 Baseline (60/40),127,4.16,13.78,5.4,0.1812,0
+urbanicity,Suburban,M2 Three-Layer (50/30/20),127,4.29,15.7,5.28,0.1854,1
+urbanicity,Suburban,M3 IPF,127,2.44,8.76,4.99,0.1261,82
+urbanicity,Suburban,M4 Occ-Weighted,127,4.44,17.63,5.77,0.1947,3
+urbanicity,Suburban,M5 Variable-Weight,127,4.29,12.96,5.38,0.185,1
+urbanicity,Suburban,M1b Learned-Wt,127,3.72,17.28,5.47,0.1675,9
+urbanicity,Suburban,M3b Damp-IPF,127,3.59,8.76,4.99,0.1651,3
+urbanicity,Suburban,M1c CV-Learned-Wt,127,3.82,17.1,5.3,0.1694,1
+urbanicity,Suburban,M1d Regional-Wt,127,4.19,13.77,5.42,0.182,0
+urbanicity,Suburban,M2c ZIP-Tract,127,4.1,15.26,5.31,0.1781,0
+urbanicity,Suburban,M3c Var-Damp-IPF,127,3.41,8.76,4.99,0.158,18
+urbanicity,Suburban,M3d Select-Damp,127,3.04,8.76,4.99,0.1397,0
+urbanicity,Suburban,M4c Top10-Occ,127,4.54,16.96,5.91,0.1969,1
+urbanicity,Suburban,M4d State-Top5,127,4.69,14.62,6.16,0.1997,2
+urbanicity,Suburban,M5c CV-Var-Wt,127,3.82,17.17,5.3,0.1694,0
+urbanicity,Suburban,M5d Corr-Min-Adapt,127,4.33,13.26,5.38,0.1852,0
+urbanicity,Suburban,M3e Fin-Route-IPF,127,2.19,8.76,4.99,0.1135,0
+urbanicity,Suburban,M3f Min-Ind-Thresh,127,2.35,8.76,4.99,0.1229,0
+urbanicity,Suburban,M1e Hi-Min-Floor,127,3.84,17.15,5.31,0.1697,0
+urbanicity,Suburban,M4e Var-Occ-Trim,127,4.87,16.9,5.88,0.2031,1
+urbanicity,Suburban,M2d Amp-Tract,127,4.1,15.96,5.32,0.1772,5
+urbanicity,Suburban,M5e Ind-Dispatch,127,2.28,8.83,4.9,0.1162,0
+urbanicity,Suburban,M8 Adaptive-Router,127,2.29,8.76,5.34,0.1223,0
+urbanicity,Urban,M1 Baseline (60/40),748,5.21,13.27,7.62,0.1776,14
+urbanicity,Urban,M2 Three-Layer (50/30/20),748,5.6,14.28,7.93,0.1895,14
+urbanicity,Urban,M3 IPF,748,7.21,11.31,8.9,0.2472,136
+urbanicity,Urban,M4 Occ-Weighted,748,5.67,14.46,7.98,0.1919,18
+urbanicity,Urban,M5 Variable-Weight,748,5.36,13.37,7.52,0.1836,24
+urbanicity,Urban,M1b Learned-Wt,748,4.94,14.91,7.88,0.1624,162
+urbanicity,Urban,M3b Damp-IPF,748,4.87,11.31,8.9,0.1701,87
+urbanicity,Urban,M1c CV-Learned-Wt,748,4.96,14.92,7.85,0.1629,16
+urbanicity,Urban,M1d Regional-Wt,748,5.31,12.91,7.56,0.1814,2
+urbanicity,Urban,M2c ZIP-Tract,748,5.12,14.26,7.56,0.1712,8
+urbanicity,Urban,M3c Var-Damp-IPF,748,4.73,11.31,8.9,0.163,120
+urbanicity,Urban,M3d Select-Damp,748,5.35,11.31,8.9,0.1894,0
+urbanicity,Urban,M4c Top10-Occ,748,5.74,13.4,8.02,0.1941,8
+urbanicity,Urban,M4d State-Top5,748,5.78,12.69,8.11,0.1956,51
+urbanicity,Urban,M5c CV-Var-Wt,748,4.97,14.99,7.89,0.1635,2
+urbanicity,Urban,M5d Corr-Min-Adapt,748,5.3,13.64,7.53,0.1801,0
+urbanicity,Urban,M3e Fin-Route-IPF,748,5.01,11.31,8.9,0.1722,0
+urbanicity,Urban,M3f Min-Ind-Thresh,748,5.26,11.31,8.9,0.1855,0
+urbanicity,Urban,M1e Hi-Min-Floor,748,4.97,14.95,7.84,0.1629,0
+urbanicity,Urban,M4e Var-Occ-Trim,748,5.8,14.49,7.98,0.1957,23
+urbanicity,Urban,M2d Amp-Tract,748,5.1,14.87,7.52,0.1691,63
+urbanicity,Urban,M5e Ind-Dispatch,748,5.1,11.36,8.96,0.1752,0
+urbanicity,Urban,M8 Adaptive-Router,748,5.11,11.31,7.51,0.1773,0

@@ -101,7 +101,7 @@ cd frontend && VITE_DISABLE_AUTH=true npx vite
 # (frontend/.env has VITE_DISABLE_AUTH=true)
 
 # Tests
-py -m pytest tests/ -x -q          # backend (~942 tests)
+py -m pytest tests/ -x -q          # backend (~1135 tests)
 cd frontend && npx vitest run       # frontend (~184 tests)
 
 # MV rebuild (orchestrated)
@@ -119,7 +119,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Backend
 - **Command:** `py -m pytest tests/ -x -q`
-- **Current count:** ~942 tests passing, 0 failures, 3 skipped
+- **Current count:** ~1135 tests passing, 0 failures, 3 skipped
 - **Run after every code change.** Report exact pass count before committing.
 - **Match rate tests are F7-only** — `osha_f7_matches`/`whd_f7_matches` track matches to F7 (union employers only). Rates are ~8.3%/~4.7%. Don't set thresholds expecting high rates.
 - **`RESEARCH_SCRAPER_GOOGLE_FALLBACK=false`** — set in tests that mock DB to prevent real URL resolution (Tier 4 Google Search).
@@ -127,7 +127,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Frontend
 - **Command:** `cd frontend && npx vitest run`
-- **Current count:** ~184 tests passing, 0 failures
+- **Current count:** ~240 tests passing, 0 failures
 - **Vitest + RTL + jsdom.** Mock API hooks with `vi.mock('@/shared/api/...')`. Wrap in `QueryClientProvider` + `MemoryRouter`.
 - **Color assertions:** Use `container.innerHTML.includes('bg-[#hex]')` not CSS selector queries (jsdom bracket escaping issues).
 - **Text changes break tests:** Always grep `__tests__/` for old text strings when changing UI copy.
@@ -336,13 +336,15 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - `.claude/agents/` — 9 domain-specialist agent specs (Tier 2)
 - `.claude/specs/` — 12 on-demand reference specs (Tier 3)
 - `.claude/skills/` — 6 user-invoked skills (start, ship, debug, schema-check, rebuild-mvs, union-research)
+- `PROJECT_CATALOG.md` — comprehensive file catalog (~755 code files, every section)
+- `DOCUMENT_INDEX.md` — master catalog of all project documentation
 - `Start each AI/PROJECT_STATE.md` — shared AI context (multi-tool)
 - `Start each AI/CLAUDE.md` — shared technical reference (multi-tool)
-- `COMPLETE_PROJECT_ROADMAP_2026_03.md` — authoritative roadmap (63 tasks, 36 open questions)
+- `COMPLETE_PROJECT_ROADMAP_2026_03.md` — authoritative roadmap (62 tasks, 36 open questions)
 
 ### Tests
-- `tests/` — backend tests (~942)
-- `frontend/src/**/*.test.jsx` — frontend tests (~184)
+- `tests/` — backend tests (~1135)
+- `frontend/src/**/*.test.jsx` — frontend tests (~233)
 
 ---
 
@@ -353,7 +355,7 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - **Phase R1: Research Agent Learning Loop — DONE.** Contradiction detection, human fact review API, learning propagation, frontend review UI.
 - **Phase 5 Frontend Redesign — DONE.** All pages redesigned with "Aged Broadsheet" visual theme.
 - **Phase 3 Workstreams A+B+C+D — DONE.** Research quality, similarity rebuild, wage outliers, demographics API.
-- **All tests pass:** ~963 backend (0 failures, 3 skipped), 184 frontend (0 failures).
+- **All tests pass:** ~1135 backend (0 failures, 3 skipped), 240 frontend (0 failures).
 
 ### Active Decisions
 | ID | Decision | Status |
@@ -386,34 +388,44 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - **2-10:** Research quality dual-gate (>=7.0 enhances, 5.0-6.9 notes, <5.0 reject)
 
 ### Next Up
-- E1 RPE workforce estimates, or other roadmap items
+- Phase 4 (Matching Quality) DONE. MV rebuilt with score_eligible filters.
+- Remaining roadmap items (~52 tasks)
 
 ---
 
 ## 13. Doc Maintenance Protocol
 
-### Staleness Prevention (per paper's G6 principle)
-1. **Spec headers:** Every agent spec and cold spec has `Last-Verified: YYYY-MM-DD`
-2. **Post-change updates:**
-   - New failure mode -> Section 9 (cross-cutting) or agent spec (domain-specific)
-   - New data source -> `etl` agent spec + `specs/database-schema.md`
-   - New API endpoint -> `specs/api-endpoints.md`
-   - New scoring factor -> `scoring` agent spec + `specs/scoring-system.md`
-3. **G4 rule:** If the same gotcha appears in two sessions, add to canonical location
-4. **Monthly:** Run `generate_project_metrics.py`, compare against Section 12 status
-5. **Quarterly:** Review agent specs for stale content, archive superseded material
+### Update Triggers
+| After this event... | Update these files |
+|---------------------|-------------------|
+| New tests added | CLAUDE.md Sec 6+12 (test counts), `Start each AI/CLAUDE.md` |
+| MV rebuilt | CLAUDE.md Sec 7 (row counts), agents if schema changed |
+| New API endpoint | `specs/api-endpoints.md`, `agents/api.md` if router added |
+| New DB table/column | `specs/database-schema.md`, relevant agent spec |
+| New scoring factor | `agents/scoring.md`, `specs/scoring-system.md`, CLAUDE Sec 8 |
+| New data source loaded | `agents/etl.md`, `specs/database-schema.md` |
+| New script/file added | `PROJECT_CATALOG.md` |
+| Root .md file added/moved | `DOCUMENT_INDEX.md` |
+| MEMORY.md approaching 150 lines | Extract detail blocks to topic files, replace with pointers |
+| New failure mode | Section 9 (cross-cutting) or agent spec (domain-specific) |
+| Same gotcha in 2 sessions | Promote from napkin to canonical location (G4 rule) |
+| Monthly | Run `generate_project_metrics.py` + `check_doc_consistency.py` |
+| Quarterly | Review agent specs for stale content, archive superseded material |
+
+### MEMORY.md Budget
+Stay under 150 lines. Move detail blocks >10 lines to topic files in `memory/`.
 
 ### Document Hierarchy
 ```
 Tier 1 (auto-loaded every session):
-  CLAUDE.md (this file)     <- constitution, ~650 lines
-  MEMORY.md (auto-memory)   <- slim index, ~80 lines
+  CLAUDE.md (this file)     <- constitution, ~434 lines
+  MEMORY.md (auto-memory)   <- slim index, ~72 lines
 
 Tier 2 (domain agents, loaded on file-pattern match):
-  .claude/agents/*.md       <- 9 specialists, ~3,300 lines total
+  .claude/agents/*.md       <- 9 specialists, ~1,740 lines total
 
 Tier 3 (on-demand specs, loaded by agents or explicit request):
-  .claude/specs/*.md        <- 12 references, ~3,500 lines total
+  .claude/specs/*.md        <- 12 references, ~2,120 lines total
 
 Shared (multi-AI context for Codex/Gemini/other tools):
   Start each AI/            <- common denominator for all AI tools

@@ -41,6 +41,7 @@ osha_agg AS (
         FROM osha_violation_summary
         GROUP BY establishment_id
     ) vs ON vs.establishment_id = o.establishment_id
+    WHERE m.score_eligible = TRUE
     GROUP BY m.f7_employer_id
 ),
 osha_avgs AS (
@@ -143,6 +144,7 @@ whd_agg AS (
         MAX(wc.findings_end_date) AS latest_finding
     FROM whd_f7_matches wm
     JOIN whd_cases wc ON wc.case_id = wm.case_id
+    WHERE wm.score_eligible = TRUE
     GROUP BY wm.f7_employer_id
 ),
 union_prox AS (
@@ -169,6 +171,7 @@ financial_990 AS (
     FROM national_990_f7_matches m
     JOIN national_990_filers f ON f.id = m.n990_id
     WHERE f.total_revenue IS NOT NULL
+      AND m.score_eligible = TRUE
     GROUP BY m.f7_employer_id
 ),
 -- Form 5500: benefit plan data linked via master_employer_source_ids
@@ -200,6 +203,33 @@ ppp_size AS (
     JOIN master_employer_source_ids f7sid
         ON f7sid.master_id = pppsid.master_id AND f7sid.source_system = 'f7'
     GROUP BY f7sid.source_id
+),
+-- RPE: workforce size estimate from Revenue Per Employee ratios
+-- Geographic cascade: state > national (F7 employers have state but no county)
+rpe_size AS (
+    SELECT f990.f7_employer_id,
+           ROUND(f990.latest_revenue / rpe.rpe) AS rpe_estimated_employees
+    FROM financial_990 f990
+    JOIN mv_employer_data_sources eds ON eds.employer_id = f990.f7_employer_id
+    JOIN LATERAL (
+        SELECT r.rpe, r.geo_level FROM census_rpe_ratios r
+        WHERE r.rpe > 0
+          AND eds.naics IS NOT NULL
+          AND (r.naics_code = eds.naics
+               OR r.naics_code = LEFT(eds.naics, 4)
+               OR r.naics_code = LEFT(eds.naics, 3)
+               OR r.naics_code = LEFT(eds.naics, 2))
+          AND (
+              (r.geo_level = 'state' AND r.state = eds.state)
+              OR r.geo_level = 'national'
+          )
+        ORDER BY
+            CASE r.geo_level WHEN 'state' THEN 1 ELSE 2 END,
+            LENGTH(r.naics_code) DESC
+        LIMIT 1
+    ) rpe ON true
+    WHERE f990.latest_revenue > 0
+      AND eds.naics IS NOT NULL
 ),
 -- Similarity: bridge F7 employer_id -> master_id -> employer_comparables
 similarity_agg AS (
@@ -361,21 +391,22 @@ raw_scores AS (
         END AS score_industry_growth,
 
         CASE
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) IS NULL THEN NULL
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) < 15 THEN 0
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) IS NULL THEN NULL
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) < 15 THEN 0
             -- Sweet spot: 50-500 scales linearly 1-10
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) BETWEEN 500 AND 25000 THEN 10
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) BETWEEN 500 AND 25000 THEN 10
             -- High-end taper: 25,001-100,000 tapers from 10 down to 5
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) > 25000 THEN
-                GREATEST(5, 10 - ROUND(((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) - 25000)::numeric / 75000) * 5, 2))
-            ELSE ROUND((((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) - 15)::numeric / 485) * 10), 2)
+            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) > 25000 THEN
+                GREATEST(5, 10 - ROUND(((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) - 25000)::numeric / 75000) * 5, 2))
+            ELSE ROUND((((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) - 15)::numeric / 485) * 10), 2)
         END AS score_size,
 
-        COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported) AS company_workers,
+        COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) AS company_workers,
         CASE
             WHEN eds.company_size IS NOT NULL THEN 'company_size'
             WHEN eds.latest_unit_size IS NOT NULL THEN 'f7_unit_size'
             WHEN ppp.ppp_jobs_reported IS NOT NULL THEN 'ppp_2020'
+            WHEN rpe.rpe_estimated_employees IS NOT NULL THEN 'rpe_estimate'
             ELSE NULL
         END AS size_source,
 
@@ -445,6 +476,7 @@ raw_scores AS (
         ELSE NULL
     END AND bp.matrix_code IS NULL
     LEFT JOIN ppp_size ppp ON ppp.f7_employer_id = eds.employer_id
+    LEFT JOIN rpe_size rpe ON rpe.f7_employer_id = eds.employer_id
     LEFT JOIN similarity_agg sa ON sa.employer_id = eds.employer_id
     LEFT JOIN (
         -- Bridge F7 employer_id -> master_id -> wage outliers

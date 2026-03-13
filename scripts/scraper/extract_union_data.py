@@ -19,6 +19,14 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from db_config import get_connection
+from scripts.scraper.parse_structured import (
+    extract_from_tables,
+    extract_from_lists,
+    extract_pdf_links,
+    clean_employer_name,
+    guess_sector as _guess_sector_shared,
+    classify_page_type,
+)
 
 
 # ── Read helpers ──────────────────────────────────────────────────────────
@@ -133,13 +141,25 @@ def insert_extracted(conn, data):
         cur.execute("""
             INSERT INTO web_union_employers
                 (web_profile_id, employer_name, employer_name_clean, state, sector,
-                 source_url, extraction_method, confidence_score)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                 source_url, extraction_method, confidence_score,
+                 source_page_url, source_element, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (web_profile_id, employer_name_clean) DO UPDATE
+            SET confidence_score = GREATEST(web_union_employers.confidence_score, EXCLUDED.confidence_score),
+                extraction_method = CASE
+                    WHEN EXCLUDED.confidence_score > web_union_employers.confidence_score
+                    THEN EXCLUDED.extraction_method
+                    ELSE web_union_employers.extraction_method
+                END,
+                source_page_url = COALESCE(EXCLUDED.source_page_url, web_union_employers.source_page_url),
+                source_element = COALESCE(EXCLUDED.source_element, web_union_employers.source_element),
+                updated_at = NOW()
         """, (pid, emp['employer_name'],
               emp.get('employer_name_clean', emp['employer_name']),
               emp.get('state'), emp.get('sector'),
               source_url, emp.get('method', 'auto_extract'),
-              emp.get('confidence', 0.5)))
+              emp.get('confidence', 0.5),
+              emp.get('source_page_url'), emp.get('source_element', 'regex')))
         inserted['employers'] += 1
 
     for ctr in data.get('contracts', []):
@@ -493,6 +513,117 @@ def auto_extract_all(conn):
     print(f"  News items:         {total['news']}")
 
     return total
+
+
+# ── Tiered extraction ─────────────────────────────────────────────────────
+
+def extract_with_tiers(conn, profile_id):
+    """Run multi-tier extraction: HTML tables + lists + PDF links + legacy regex.
+
+    Returns count of employers inserted/updated.
+    """
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, union_name, state, website_url
+        FROM web_union_profiles WHERE id = %s
+    """, (profile_id,))
+    row = cur.fetchone()
+    if not row:
+        return 0
+
+    pid, name, state, website_url = row
+    total = 0
+    max_tier = 0
+
+    # Tier 1: HTML parsing from web_union_pages
+    cur.execute("""
+        SELECT id, page_url, html_raw, page_type
+        FROM web_union_pages
+        WHERE web_profile_id = %s AND html_raw IS NOT NULL
+    """, (pid,))
+    pages = cur.fetchall()
+
+    for page_id, page_url, html_raw, page_type in pages:
+        # Tables
+        for emp in extract_from_tables(html_raw):
+            n = _upsert_employer(cur, pid, emp, state, page_url, 'html_table')
+            total += n
+
+        # Lists
+        for emp in extract_from_lists(html_raw):
+            n = _upsert_employer(cur, pid, emp, state, page_url, 'html_list')
+            total += n
+
+        # PDF links
+        for pdf in extract_pdf_links(html_raw, page_url):
+            try:
+                cur.execute("""
+                    INSERT INTO web_union_pdf_links
+                        (profile_id, page_id, pdf_url, link_text, pdf_type, discovered_at)
+                    VALUES (%s, %s, %s, %s, %s, NOW())
+                    ON CONFLICT (profile_id, pdf_url) DO NOTHING
+                """, (pid, page_id, pdf['pdf_url'], pdf['link_text'], pdf['pdf_type']))
+            except Exception:
+                pass
+
+        if total > 0:
+            max_tier = max(max_tier, 2)
+
+    # Tier 2: Legacy regex on raw_text (existing auto_extract logic)
+    data = auto_extract_profile(conn, pid)
+    if data:
+        for emp in data.get('employers', []):
+            emp['source_element'] = 'regex'
+            n = _upsert_employer(cur, pid, emp, state, website_url, 'auto_extract')
+            total += n
+        if data.get('employers'):
+            max_tier = max(max_tier, 3)
+
+    # Update tier reached
+    if max_tier > 0:
+        cur.execute("""
+            UPDATE web_union_profiles
+            SET extraction_tier_reached = GREATEST(COALESCE(extraction_tier_reached, 0), %s)
+            WHERE id = %s
+        """, (max_tier, pid))
+
+    conn.commit()
+    return total
+
+
+def _upsert_employer(cur, profile_id, emp, state, source_url, method):
+    """Insert or update an employer. Returns 1 if inserted/updated, 0 otherwise."""
+    name = emp.get('employer_name_clean', emp.get('employer_name', ''))
+    cleaned = clean_employer_name(name)
+    if not cleaned:
+        return 0
+
+    sector = emp.get('sector') or _guess_sector_shared(cleaned)
+    confidence = emp.get('confidence', 0.6)
+
+    try:
+        cur.execute("""
+            INSERT INTO web_union_employers
+                (web_profile_id, employer_name, employer_name_clean, state, sector,
+                 source_url, extraction_method, confidence_score,
+                 source_page_url, source_element, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (web_profile_id, employer_name_clean) DO UPDATE
+            SET confidence_score = GREATEST(web_union_employers.confidence_score, EXCLUDED.confidence_score),
+                extraction_method = CASE
+                    WHEN EXCLUDED.confidence_score > web_union_employers.confidence_score
+                    THEN EXCLUDED.extraction_method
+                    ELSE web_union_employers.extraction_method
+                END,
+                source_page_url = COALESCE(EXCLUDED.source_page_url, web_union_employers.source_page_url),
+                source_element = COALESCE(EXCLUDED.source_element, web_union_employers.source_element),
+                updated_at = NOW()
+        """, (profile_id, cleaned, cleaned, state, sector,
+              source_url, method, confidence,
+              source_url, emp.get('source_element', method)))
+        return 1
+    except Exception:
+        return 0
 
 
 # ── Main ──────────────────────────────────────────────────────────────────

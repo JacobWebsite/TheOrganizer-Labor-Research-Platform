@@ -198,6 +198,18 @@ def ensure_tables(cur, pk_col: str) -> None:
             "CREATE INDEX IF NOT EXISTS idx_master_employers_dedup_name_state ON master_employers (canonical_name, state, {pk})"
         ).format(pk=sql.Identifier(pk_col))
     )
+    cur.execute(
+        sql.SQL(
+            "CREATE INDEX IF NOT EXISTS idx_master_employers_dedup_zip ON master_employers (zip, {pk}) "
+            "WHERE zip IS NOT NULL AND btrim(zip)<>''"
+        ).format(pk=sql.Identifier(pk_col))
+    )
+    cur.execute(
+        sql.SQL(
+            "CREATE INDEX IF NOT EXISTS idx_master_employers_dedup_city_state ON master_employers (city, state, {pk}) "
+            "WHERE city IS NOT NULL AND btrim(city)<>''"
+        ).format(pk=sql.Identifier(pk_col))
+    )
 
 
 def progress_get(cur, phase: str) -> Tuple[Optional[str], Optional[str], int, int, int]:
@@ -353,7 +365,7 @@ def merge_one(cur, pk_col: str, include_labor_org: bool, winner: Employer, loser
 
 
 def run_phase(conn, pk_col: str, include_labor_org: bool, args: argparse.Namespace, phase: str) -> Dict[str, int]:
-    phase_key = {"1": "phase_1_ein", "2": "phase_2_exact", "3": "phase_3_fuzzy"}[phase]
+    phase_key = {"1": "phase_1_ein", "2": "phase_2_exact"}[phase]
     with conn.cursor() as cur:
         c1, c2, base_g, base_m, base_r = progress_get(cur, phase_key)
     conn.commit()
@@ -409,24 +421,6 @@ def run_phase(conn, pk_col: str, include_labor_org: bool, args: argparse.Namespa
                         (args.limit or 5000,),
                     )
                 blocks = [(r[0], r[1], list(r[2])) for r in cur.fetchall()]
-            else:
-                where = (
-                    "WHERE canonical_name IS NOT NULL AND btrim(canonical_name)<>'' AND state IS NOT NULL "
-                    "AND (state::TEXT,left(canonical_name,8))>(%s,%s)"
-                    if (c1 is not None and c2 is not None)
-                    else "WHERE canonical_name IS NOT NULL AND btrim(canonical_name)<>'' AND state IS NOT NULL"
-                )
-                params = (c1, c2, args.limit or 5000) if (c1 is not None and c2 is not None) else (args.limit or 5000,)
-                cur.execute(
-                    sql.SQL(
-                        "SELECT state::TEXT, left(canonical_name,8), array_agg({pk} ORDER BY {pk}) ids FROM master_employers "
-                        + where
-                        + " GROUP BY state::TEXT,left(canonical_name,8) HAVING COUNT(*) BETWEEN 2 AND 200 "
-                        + "ORDER BY state::TEXT,left(canonical_name,8) LIMIT %s"
-                    ).format(pk=sql.Identifier(pk_col)),
-                    params,
-                )
-                blocks = [(r[0], r[1], list(r[2])) for r in cur.fetchall()]
         conn.commit()
         if not blocks:
             break
@@ -458,14 +452,6 @@ def run_phase(conn, pk_col: str, include_labor_org: bool, args: argparse.Namespa
                 elif phase == "2":
                     ok = True
                     ev = {"canonical_name": k1, "state": k2, "name_sim": round(sim, 4), "rule": "name_state_exact"}
-                else:
-                    pairs += 1
-                    ok = (
-                        sim >= args.min_name_sim
-                        and tnorm(winner.state) == tnorm(loser.state)
-                        and has_confirming_signal(winner, loser)
-                    )
-                    ev = {"state": k1, "name_block": k2, "name_sim": round(sim, 4), "rule": "name_state_fuzzy_plus_signal"}
                 if not ok:
                     continue
                 if args.verbose:
@@ -479,7 +465,7 @@ def run_phase(conn, pk_col: str, include_labor_org: bool, args: argparse.Namespa
                             include_labor_org=include_labor_org,
                             winner=winner,
                             loser=loser,
-                            phase={"1": "ein", "2": "name_state_exact", "3": "name_state_fuzzy"}[phase],
+                            phase={"1": "ein", "2": "name_state_exact"}[phase],
                             conf=min(0.99, max(0.60, sim)),
                             ev=ev,
                         )
@@ -506,6 +492,218 @@ def run_phase(conn, pk_col: str, include_labor_org: bool, args: argparse.Namespa
         "merges_executed": me - base_m,
         "records_eliminated": re - base_r,
     }
+
+
+def _run_phase3_substep(
+    conn, pk_col: str, include_labor_org: bool, args: argparse.Namespace,
+    substep: str, threshold: float,
+) -> Dict[str, int]:
+    """Run one sub-step of the Phase 3 geographic cascade.
+
+    substep: '3a' (ZIP), '3b' (city+state), '3c' (state-only fallback)
+    """
+    phase_key = f"phase_{substep}"
+    with conn.cursor() as cur:
+        c1, c2, base_g, base_m, base_r = progress_get(cur, phase_key)
+    conn.commit()
+    c1 = c1 if args.resume else None
+    c2 = c2 if args.resume else None
+    gp, me, re = base_g, base_m, base_r
+    found, pairs = 0, 0
+    start = time.time()
+
+    while True:
+        if args.max_seconds and time.time() - start >= args.max_seconds:
+            break
+        with conn.cursor() as cur:
+            set_timeouts(cur, args.statement_timeout_ms)
+            if substep == "3a":
+                # ZIP blocking: group by zip (first 5 digits)
+                if c1 is not None:
+                    cur.execute(
+                        sql.SQL(
+                            "SELECT left(zip,5), array_agg({pk} ORDER BY {pk}) ids "
+                            "FROM master_employers "
+                            "WHERE zip IS NOT NULL AND btrim(zip)<>'' "
+                            "AND canonical_name IS NOT NULL AND btrim(canonical_name)<>'' "
+                            "AND left(zip,5) > %s "
+                            "GROUP BY left(zip,5) HAVING COUNT(*) BETWEEN 2 AND 500 "
+                            "ORDER BY left(zip,5) LIMIT %s"
+                        ).format(pk=sql.Identifier(pk_col)),
+                        (c1, args.limit or 5000),
+                    )
+                else:
+                    cur.execute(
+                        sql.SQL(
+                            "SELECT left(zip,5), array_agg({pk} ORDER BY {pk}) ids "
+                            "FROM master_employers "
+                            "WHERE zip IS NOT NULL AND btrim(zip)<>'' "
+                            "AND canonical_name IS NOT NULL AND btrim(canonical_name)<>'' "
+                            "GROUP BY left(zip,5) HAVING COUNT(*) BETWEEN 2 AND 500 "
+                            "ORDER BY left(zip,5) LIMIT %s"
+                        ).format(pk=sql.Identifier(pk_col)),
+                        (args.limit or 5000,),
+                    )
+                blocks = [(r[0], None, list(r[1])) for r in cur.fetchall()]
+
+            elif substep == "3b":
+                # City+State blocking
+                if c1 is not None and c2 is not None:
+                    cur.execute(
+                        sql.SQL(
+                            "SELECT city, state::TEXT, array_agg({pk} ORDER BY {pk}) ids "
+                            "FROM master_employers "
+                            "WHERE city IS NOT NULL AND btrim(city)<>'' "
+                            "AND state IS NOT NULL "
+                            "AND canonical_name IS NOT NULL AND btrim(canonical_name)<>'' "
+                            "AND (city, state::TEXT) > (%s, %s) "
+                            "GROUP BY city, state::TEXT HAVING COUNT(*) BETWEEN 2 AND 500 "
+                            "ORDER BY city, state::TEXT LIMIT %s"
+                        ).format(pk=sql.Identifier(pk_col)),
+                        (c1, c2, args.limit or 5000),
+                    )
+                else:
+                    cur.execute(
+                        sql.SQL(
+                            "SELECT city, state::TEXT, array_agg({pk} ORDER BY {pk}) ids "
+                            "FROM master_employers "
+                            "WHERE city IS NOT NULL AND btrim(city)<>'' "
+                            "AND state IS NOT NULL "
+                            "AND canonical_name IS NOT NULL AND btrim(canonical_name)<>'' "
+                            "GROUP BY city, state::TEXT HAVING COUNT(*) BETWEEN 2 AND 500 "
+                            "ORDER BY city, state::TEXT LIMIT %s"
+                        ).format(pk=sql.Identifier(pk_col)),
+                        (args.limit or 5000,),
+                    )
+                blocks = [(r[0], r[1], list(r[2])) for r in cur.fetchall()]
+
+            else:  # 3c: state-only fallback for records missing city AND zip
+                if c1 is not None and c2 is not None:
+                    cur.execute(
+                        sql.SQL(
+                            "SELECT state::TEXT, left(canonical_name,8), array_agg({pk} ORDER BY {pk}) ids "
+                            "FROM master_employers "
+                            "WHERE state IS NOT NULL "
+                            "AND canonical_name IS NOT NULL AND btrim(canonical_name)<>'' "
+                            "AND (city IS NULL OR btrim(city)='') "
+                            "AND (zip IS NULL OR btrim(zip)='') "
+                            "AND (state::TEXT, left(canonical_name,8)) > (%s, %s) "
+                            "GROUP BY state::TEXT, left(canonical_name,8) HAVING COUNT(*) BETWEEN 2 AND 200 "
+                            "ORDER BY state::TEXT, left(canonical_name,8) LIMIT %s"
+                        ).format(pk=sql.Identifier(pk_col)),
+                        (c1, c2, args.limit or 5000),
+                    )
+                else:
+                    cur.execute(
+                        sql.SQL(
+                            "SELECT state::TEXT, left(canonical_name,8), array_agg({pk} ORDER BY {pk}) ids "
+                            "FROM master_employers "
+                            "WHERE state IS NOT NULL "
+                            "AND canonical_name IS NOT NULL AND btrim(canonical_name)<>'' "
+                            "AND (city IS NULL OR btrim(city)='') "
+                            "AND (zip IS NULL OR btrim(zip)='') "
+                            "GROUP BY state::TEXT, left(canonical_name,8) HAVING COUNT(*) BETWEEN 2 AND 200 "
+                            "ORDER BY state::TEXT, left(canonical_name,8) LIMIT %s"
+                        ).format(pk=sql.Identifier(pk_col)),
+                        (args.limit or 5000,),
+                    )
+                blocks = [(r[0], r[1], list(r[2])) for r in cur.fetchall()]
+        conn.commit()
+        if not blocks:
+            break
+
+        found += len(blocks)
+        for k1, k2, ids in blocks:
+            if args.max_seconds and time.time() - start >= args.max_seconds:
+                break
+            c1, c2 = k1, k2
+            gp += 1
+            if len(ids) < 2:
+                continue
+            with conn.cursor() as cur:
+                set_timeouts(cur, args.statement_timeout_ms)
+                rows = fetch_employers(cur, pk_col, ids, include_labor_org)
+            conn.commit()
+            if len(rows) < 2:
+                continue
+            winner = sorted(rows, key=lambda x: x.rank())[0]
+            for loser in [x for x in rows if x.mid != winner.mid]:
+                if winner.has_f7 and loser.has_f7:
+                    continue
+                sim = name_sim(winner.canonical_name, loser.canonical_name)
+                pairs += 1
+                if sim < threshold:
+                    continue
+                # Build evidence and merge rule per sub-step
+                if substep == "3a":
+                    ev = {"zip": k1, "name_sim": round(sim, 4), "rule": "zip_fuzzy"}
+                elif substep == "3b":
+                    ev = {"city": k1, "state": k2, "name_sim": round(sim, 4), "rule": "city_state_fuzzy"}
+                else:
+                    ev = {"state": k1, "name_block": k2, "name_sim": round(sim, 4), "rule": "state_only_fallback"}
+                if args.verbose:
+                    print(f"[phase{substep}] merge winner={winner.mid} loser={loser.mid} sim={sim:.3f}")
+                if not args.dry_run:
+                    with conn.cursor() as cur:
+                        set_timeouts(cur, args.statement_timeout_ms)
+                        merge_one(
+                            cur=cur,
+                            pk_col=pk_col,
+                            include_labor_org=include_labor_org,
+                            winner=winner,
+                            loser=loser,
+                            phase=f"name_geo_{substep}",
+                            conf=min(0.99, max(0.60, sim)),
+                            ev=ev,
+                        )
+                    conn.commit()
+                me += 1
+                re += 1
+                if not args.dry_run and me % args.batch_size == 0:
+                    with conn.cursor() as cur:
+                        progress_set(cur, phase_key, c1, c2, gp, me, re)
+                    conn.commit()
+            if args.limit and gp >= base_g + args.limit:
+                break
+        if args.limit and gp >= base_g + args.limit:
+            break
+
+    if not args.dry_run:
+        with conn.cursor() as cur:
+            progress_set(cur, phase_key, c1, c2, gp, me, re)
+        conn.commit()
+    return {
+        "groups_found": found,
+        "groups_processed": gp - base_g,
+        "candidate_pairs": pairs,
+        "merges_executed": me - base_m,
+        "records_eliminated": re - base_r,
+    }
+
+
+def run_phase3_cascade(
+    conn, pk_col: str, include_labor_org: bool, args: argparse.Namespace,
+) -> Dict[str, object]:
+    """Phase 3: 3-step geographic cascade replacing old name+state fuzzy."""
+    results = {}
+    for substep, threshold, label in [
+        ("3a", 0.82, "ZIP blocking"),
+        ("3b", 0.85, "City+State blocking"),
+        ("3c", 0.85, "State-only fallback"),
+    ]:
+        s = _run_phase3_substep(conn, pk_col, include_labor_org, args, substep, threshold)
+        results[substep] = s
+        print(f"  Phase {substep} ({label}, threshold={threshold}):")
+        print(f"    Groups found: {s['groups_found']:,}")
+        print(f"    Candidate pairs: {s['candidate_pairs']:,}")
+        print(f"    Merges executed: {s['merges_executed']:,}")
+        print(f"    Records eliminated: {s['records_eliminated']:,}")
+    totals = {
+        "candidate_pairs": sum(r["candidate_pairs"] for r in results.values()),
+        "merges_executed": sum(r["merges_executed"] for r in results.values()),
+        "records_eliminated": sum(r["records_eliminated"] for r in results.values()),
+    }
+    return {"substeps": results, "totals": totals}
 
 
 def run_phase4(conn, pk_col: str, args: argparse.Namespace) -> Dict[str, object]:
@@ -542,19 +740,38 @@ def run_phase4(conn, pk_col: str, args: argparse.Namespace) -> Dict[str, object]
                       GROUP BY sid.master_id
                     )
                     UPDATE master_employers m
-                    SET data_quality_score = LEAST(
-                      100,
-                      CASE
-                        WHEN COALESCE(src.source_cnt, 0) >= 5 THEN 100
-                        WHEN COALESCE(src.source_cnt, 0) = 4 THEN 80
-                        WHEN COALESCE(src.source_cnt, 0) = 3 THEN 60
-                        WHEN COALESCE(src.source_cnt, 0) = 2 THEN 40
-                        WHEN COALESCE(src.source_cnt, 0) = 1 THEN 20
-                        ELSE 0
-                      END
-                      + CASE WHEN m.ein IS NOT NULL AND btrim(m.ein) <> '' THEN 10 ELSE 0 END
-                      + CASE WHEN m.employee_count IS NOT NULL THEN 10 ELSE 0 END
-                    ),
+                    SET data_quality_score = CASE
+                      /* 81-100: 5+ sources, OR 4 sources + fully complete */
+                      WHEN COALESCE(src.source_cnt, 0) >= 5
+                        OR (COALESCE(src.source_cnt, 0) >= 4
+                            AND m.employee_count IS NOT NULL
+                            AND m.naics IS NOT NULL
+                            AND m.city IS NOT NULL AND btrim(m.city) <> ''
+                            AND m.state IS NOT NULL AND btrim(m.state) <> '')
+                        THEN 100
+                      /* 61-80: 4+ sources, OR 3 sources + fully complete */
+                      WHEN COALESCE(src.source_cnt, 0) >= 4
+                        OR (COALESCE(src.source_cnt, 0) >= 3
+                            AND m.employee_count IS NOT NULL
+                            AND m.naics IS NOT NULL
+                            AND m.city IS NOT NULL AND btrim(m.city) <> ''
+                            AND m.state IS NOT NULL AND btrim(m.state) <> '')
+                        THEN 80
+                      /* 41-60: 3+ sources, OR 2 sources + structurally useful */
+                      WHEN COALESCE(src.source_cnt, 0) >= 3
+                        OR (COALESCE(src.source_cnt, 0) >= 2
+                            AND m.city IS NOT NULL AND btrim(m.city) <> ''
+                            AND m.state IS NOT NULL AND btrim(m.state) <> ''
+                            AND (m.employee_count IS NOT NULL OR m.naics IS NOT NULL))
+                        THEN 60
+                      /* 21-40: structurally useful -- location + (emp OR naics) */
+                      WHEN m.city IS NOT NULL AND btrim(m.city) <> ''
+                        AND m.state IS NOT NULL AND btrim(m.state) <> ''
+                        AND (m.employee_count IS NOT NULL OR m.naics IS NOT NULL)
+                        THEN 40
+                      /* 0-20: sparse -- missing key structural fields */
+                      ELSE 20
+                    END,
                     updated_at = NOW()
                     FROM ids
                     LEFT JOIN src ON src.master_id = ids.master_id
@@ -647,11 +864,12 @@ def main() -> int:
             print(f"  Merges executed: {s['merges_executed']:,}")
             print(f"  Records eliminated: {s['records_eliminated']:,}")
         if "3" in phases:
-            s = run_phase(conn, pk_col, include_labor_org, args, "3")
-            print("Phase 3 (Name+State fuzzy):")
-            print(f"  Candidate pairs: {s['candidate_pairs']:,}")
-            print(f"  Merges executed: {s['merges_executed']:,}")
-            print(f"  Records eliminated: {s['records_eliminated']:,}")
+            print("Phase 3 (Geographic cascade):")
+            s3 = run_phase3_cascade(conn, pk_col, include_labor_org, args)
+            t = s3["totals"]
+            print(f"  Total candidate pairs: {t['candidate_pairs']:,}")
+            print(f"  Total merges executed: {t['merges_executed']:,}")
+            print(f"  Total records eliminated: {t['records_eliminated']:,}")
         if "4" in phases:
             s = run_phase4(conn, pk_col, args)
             print("Phase 4 (Quality scores):")

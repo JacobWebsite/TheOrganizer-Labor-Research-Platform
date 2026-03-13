@@ -51,6 +51,7 @@ from .routers import (
     research,
     target_scorecard,
     demographics,
+    campaigns,
 )
 
 app = FastAPI(
@@ -73,6 +74,14 @@ app.add_middleware(LoggingMiddleware)
 # ---------- Frontend ----------
 # Legacy organizer_v5.html archived to archive/old_frontend/.
 # React frontend served separately via Vite dev server or static build.
+
+# Serve CBA search tool as standalone page
+from fastapi.responses import FileResponse
+
+@app.get("/cba-search")
+def serve_cba_search():
+    return FileResponse(str(PROJECT_ROOT / "cba_search.html"), media_type="text/html")
+
 app.mount("/files", StaticFiles(directory=str(FILES_DIR)), name="files")
 
 
@@ -102,6 +111,7 @@ app.include_router(master.router)
 app.include_router(research.router)
 app.include_router(target_scorecard.router)
 app.include_router(demographics.router)
+app.include_router(campaigns.router)
 
 
 @app.exception_handler(psycopg2.Error)

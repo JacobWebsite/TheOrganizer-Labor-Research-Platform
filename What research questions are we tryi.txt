@@ -1,0 +1,7 @@
+What research questions are we trying to answer?
+
+1. Does this employer have a union at this location or any other location?
+	a. Who is the union that represents them?
+	b. What other employers does the union represent?
+2. What is the economic, demographic, industry, composition of the employers with unions.
+3.

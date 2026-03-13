@@ -103,6 +103,37 @@ export function useEmployerFlags(id, { enabled = true } = {}) {
   })
 }
 
+export function useEmployerOccupations(employerId) {
+  return useQuery({
+    queryKey: ['employer-occupations', employerId],
+    queryFn: () => apiClient.get(`/api/profile/employers/${employerId}/occupations`),
+    enabled: !!employerId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+export function useEmployerWorkplaceDemographics(employerId) {
+  return useQuery({
+    queryKey: ['workplace-demographics', employerId],
+    queryFn: () => apiClient.get(`/api/profile/employers/${employerId}/workplace-demographics`),
+    enabled: !!employerId,
+    staleTime: 30 * 60 * 1000,
+  })
+}
+
+export function useEmployerDemographics(state, naics) {
+  const enabled = !!state
+  const path = naics
+    ? `/api/demographics/${state}/${naics}`
+    : `/api/demographics/${state}`
+  return useQuery({
+    queryKey: ['demographics', state, naics],
+    queryFn: () => apiClient.get(path),
+    enabled,
+    staleTime: 30 * 60 * 1000,
+  })
+}
+
 export function useFlagEmployer() {
   const queryClient = useQueryClient()
   return useMutation({

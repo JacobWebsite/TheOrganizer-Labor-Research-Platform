@@ -9,6 +9,7 @@ vi.mock('@/shared/api/scorecard', () => ({
   useUnifiedScorecard: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useUnifiedScorecardStats: vi.fn(() => ({ data: null, isLoading: false })),
   useUnifiedScorecardStates: vi.fn(() => ({ data: [], isLoading: false })),
+  buildExportUrl: vi.fn(() => 'http://localhost:8001/api/scorecard/unified/export'),
 }))
 
 import { useUnifiedScorecard, useUnifiedScorecardStats } from '@/shared/api/scorecard'
@@ -163,5 +164,15 @@ describe('UnifiedScorecardPage', () => {
     })
     const { container } = renderPage()
     expect(container.innerHTML).toContain('Compound')
+  })
+
+  it('renders export CSV button', () => {
+    useUnifiedScorecard.mockReturnValue({
+      data: MOCK_DATA,
+      isLoading: false,
+      isError: false,
+    })
+    renderPage()
+    expect(screen.getByText('Export CSV')).toBeInTheDocument()
   })
 })

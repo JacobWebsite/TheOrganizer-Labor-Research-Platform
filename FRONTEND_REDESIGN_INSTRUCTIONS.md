@@ -1,3 +1,31 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Frontend Redesign — Claude Code Instructions
 
 **What this document is:** A step-by-step guide for upgrading the Labor Relations Research Platform's frontend. Each section describes what to change, why it matters, and gives Claude Code a ready-to-use prompt. Work through these in order — later steps depend on earlier ones.

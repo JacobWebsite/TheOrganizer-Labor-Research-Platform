@@ -1,0 +1,1358 @@
+{
+  "run_date": "2026-03-11",
+  "split_seed": 20260311,
+  "split_summary": {
+    "training": 10000,
+    "dev": 1525,
+    "permanent": 1000,
+    "total": 12525,
+    "overlap_check": {
+      "train_dev": 0,
+      "train_perm": 0,
+      "dev_perm": 0
+    },
+    "samples": {
+      "training": [
+        "789967",
+        "BV6797",
+        "95678",
+        "CJ5638",
+        "R50224"
+      ],
+      "dev": [
+        "B33372",
+        "AU5792",
+        "CN8261",
+        "CD7604",
+        "A58217"
+      ],
+      "permanent": [
+        "DA4049",
+        "AN3303",
+        "G12554",
+        "T00688",
+        "L43130"
+      ]
+    }
+  },
+  "winner_table": {
+    "White": {
+      "mae_by_expert": {
+        "A": 14.023297727510734,
+        "B": 12.25507318,
+        "D": 11.348201905958739,
+        "E": 16.27194298879464,
+        "F": 17.69935531469264,
+        "G": 14.54132576062865,
+        "V6-Full": 11.414033930254478
+      },
+      "winner": "D",
+      "ranked_experts": [
+        "D",
+        "V6-Full",
+        "B",
+        "A",
+        "G",
+        "E",
+        "F"
+      ],
+      "runner_up_gap": 0.06583202429573909,
+      "close_flag": true
+    },
+    "Black": {
+      "mae_by_expert": {
+        "A": 10.225235103152164,
+        "B": 8.96062619,
+        "D": 8.743908262645304,
+        "E": 9.35487589276364,
+        "F": 9.612774573253743,
+        "G": 8.503174390489624,
+        "V6-Full": 8.772611791810661
+      },
+      "winner": "G",
+      "ranked_experts": [
+        "G",
+        "D",
+        "V6-Full",
+        "B",
+        "E",
+        "F",
+        "A"
+      ],
+      "runner_up_gap": 0.24073387215567976,
+      "close_flag": false
+    },
+    "Asian": {
+      "mae_by_expert": {
+        "A": 6.000026180751911,
+        "B": 4.62552053,
+        "D": 4.410267043669494,
+        "E": 5.806612273536496,
+        "F": 6.209326358781024,
+        "G": 4.945348821277453,
+        "V6-Full": 4.442620169651272
+      },
+      "winner": "D",
+      "ranked_experts": [
+        "D",
+        "V6-Full",
+        "B",
+        "G",
+        "E",
+        "A",
+        "F"
+      ],
+      "runner_up_gap": 0.03235312598177842,
+      "close_flag": true
+    },
+    "Hispanic": {
+      "mae_by_expert": {
+        "A": 8.626627919153838,
+        "B": 7.67645,
+        "D": 8.626627919153838,
+        "E": 8.626627919153838,
+        "F": 8.626627919153838,
+        "G": 7.690186379206125,
+        "V6-Full": 7.67645
+      },
+      "winner": "B",
+      "ranked_experts": [
+        "B",
+        "V6-Full",
+        "G",
+        "A",
+        "D",
+        "E",
+        "F"
+      ],
+      "runner_up_gap": 0.0,
+      "close_flag": true
+    },
+    "Female": {
+      "mae_by_expert": {
+        "A": 14.152673578385171,
+        "B": 18.731182,
+        "D": 14.152673578385171,
+        "E": 14.152673578385171,
+        "F": 12.774524033930254,
+        "G": 13.753563368930083,
+        "V6-Full": 12.840369184592296
+      },
+      "winner": "F",
+      "ranked_experts": [
+        "F",
+        "V6-Full",
+        "G",
+        "A",
+        "D",
+        "E",
+        "B"
+      ],
+      "runner_up_gap": 0.06584515066204233,
+      "close_flag": true
+    },
+    "Two+": {
+      "mae_by_expert": {
+        "A": 2.502932244214054,
+        "B": 4.2463536699999995,
+        "D": 2.6115614200439836,
+        "E": 2.207824159597864,
+        "F": 2.1276199392606556,
+        "G": 13.112884797501511,
+        "V6-Full": 2.774151220023039
+      },
+      "winner": "F",
+      "ranked_experts": [
+        "F",
+        "E",
+        "A",
+        "D",
+        "V6-Full",
+        "B",
+        "G"
+      ],
+      "runner_up_gap": 0.0802042203372082,
+      "close_flag": true
+    },
+    "AIAN": {
+      "mae_by_expert": {
+        "A": 0.86786260341397,
+        "B": 0.68709129,
+        "D": 0.6227720180123574,
+        "E": 0.6462013928160018,
+        "F": 0.6473054455963976,
+        "G": 0.6144254986903083,
+        "V6-Full": 0.6268562153105037
+      },
+      "winner": "G",
+      "ranked_experts": [
+        "G",
+        "D",
+        "V6-Full",
+        "E",
+        "F",
+        "B",
+        "A"
+      ],
+      "runner_up_gap": 0.008346519322049106,
+      "close_flag": true
+    },
+    "NHOPI": {
+      "mae_by_expert": {
+        "A": 0.6945051837888784,
+        "B": 0.62961556,
+        "D": 0.6587621740496387,
+        "E": 0.6830343282019059,
+        "F": 0.6830408000837784,
+        "G": 0.6628527201289542,
+        "V6-Full": 0.6546853073620275
+      },
+      "winner": "B",
+      "ranked_experts": [
+        "B",
+        "V6-Full",
+        "D",
+        "G",
+        "E",
+        "F",
+        "A"
+      ],
+      "runner_up_gap": 0.025069747362027495,
+      "close_flag": true
+    }
+  },
+  "training_expert_tail": {
+    "A": {
+      "p_gt_20pp": 22.49450204209865,
+      "p_gt_30pp": 7.83328097182951,
+      "failures": 451
+    },
+    "B": {
+      "p_gt_20pp": 21.84,
+      "p_gt_30pp": 8.459999999999999,
+      "failures": 0
+    },
+    "D": {
+      "p_gt_20pp": 18.74541836841554,
+      "p_gt_30pp": 8.000837784061158,
+      "failures": 451
+    },
+    "E": {
+      "p_gt_20pp": 31.846266624777464,
+      "p_gt_30pp": 15.98073096659336,
+      "failures": 451
+    },
+    "F": {
+      "p_gt_20pp": 34.79945544036025,
+      "p_gt_30pp": 18.58833385694837,
+      "failures": 451
+    },
+    "G": {
+      "p_gt_20pp": 39.68365907717107,
+      "p_gt_30pp": 17.217408825307274,
+      "failures": 74
+    },
+    "V6-Full": {
+      "p_gt_20pp": 19.132893496701225,
+      "p_gt_30pp": 8.04272698711907,
+      "failures": 451
+    }
+  },
+  "winners_used": {
+    "White": "D",
+    "Black": "G",
+    "Asian": "D",
+    "AIAN": "G",
+    "NHOPI": "B",
+    "Two+": "F",
+    "Hispanic": "B",
+    "Female": "F"
+  },
+  "abs_median": 23.42,
+  "scorecards_precal": {
+    "all_2525": {
+      "D_solo": {
+        "metrics": {
+          "n": 2404,
+          "race_mae": 4.778998197448696,
+          "black_mae": 8.795311980033278,
+          "hisp_mae": 8.819991680532445,
+          "gender_mae": 14.16878951747088,
+          "p_gt_20pp": 19.841930116472543,
+          "p_gt_30pp": 7.820299500831947,
+          "abs_bias": 0.8653847753743761
+        },
+        "regions": {
+          "South": 5.374996190476191,
+          "West": 5.510421810699588,
+          "Northeast": 4.514816772374911,
+          "Midwest": 3.4596783625730994
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 5.906512738853503,
+          "Admin/Staffing (56)": 6.125644257703081,
+          "Finance/Insurance (52)": 3.514287011807448
+        },
+        "healthcare_south": {
+          "count": 86,
+          "p_gt_20pp": 30.23255813953488,
+          "p_gt_30pp": 12.790697674418606
+        }
+      },
+      "best_of_naive": {
+        "metrics": {
+          "n": 2525,
+          "race_mae": 4.735063881188118,
+          "black_mae": 8.591684356435644,
+          "hisp_mae": 7.437172277227723,
+          "gender_mae": 12.836170297029703,
+          "p_gt_20pp": 19.96039603960396,
+          "p_gt_30pp": 8.792079207920791,
+          "abs_bias": 1.3961045676567656
+        },
+        "regions": {
+          "South": 5.118177904761905,
+          "West": 5.653923513694055,
+          "Northeast": 4.592244171578257,
+          "Midwest": 3.611947845275182
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.721822205284552,
+          "Admin/Staffing (56)": 6.350733333333333,
+          "Finance/Insurance (52)": 3.264224527491409
+        },
+        "healthcare_south": {
+          "count": 86,
+          "p_gt_20pp": 33.72093023255814,
+          "p_gt_30pp": 19.767441860465116
+        }
+      },
+      "best_of_ipf": {
+        "metrics": {
+          "n": 2525,
+          "race_mae": 4.735063597359735,
+          "black_mae": 8.591684356435644,
+          "hisp_mae": 7.437172277227723,
+          "gender_mae": 12.83616186138614,
+          "p_gt_20pp": 19.96039603960396,
+          "p_gt_30pp": 8.792079207920791,
+          "abs_bias": 1.3961042706270625
+        },
+        "regions": {
+          "South": 5.118177428571428,
+          "West": 5.653922778891116,
+          "Northeast": 4.592243418467583,
+          "Midwest": 3.6119485462097614
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.721821392276423,
+          "Admin/Staffing (56)": 6.350735066666666,
+          "Finance/Insurance (52)": 3.2642247422680413
+        },
+        "healthcare_south": {
+          "count": 86,
+          "p_gt_20pp": 33.72093023255814,
+          "p_gt_30pp": 19.767441860465116
+        }
+      },
+      "best_of_ipf_abs": {
+        "metrics": {
+          "n": 2525,
+          "race_mae": 4.735063597359735,
+          "black_mae": 8.591684356435644,
+          "hisp_mae": 7.437172277227723,
+          "gender_mae": 12.83616186138614,
+          "p_gt_20pp": 19.96039603960396,
+          "p_gt_30pp": 8.792079207920791,
+          "abs_bias": 1.3961042706270625
+        },
+        "regions": {
+          "South": 5.118177428571428,
+          "West": 5.653922778891116,
+          "Northeast": 4.592243418467583,
+          "Midwest": 3.6119485462097614
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.721821392276423,
+          "Admin/Staffing (56)": 6.350735066666666,
+          "Finance/Insurance (52)": 3.2642247422680413
+        },
+        "healthcare_south": {
+          "count": 86,
+          "p_gt_20pp": 33.72093023255814,
+          "p_gt_30pp": 19.767441860465116
+        }
+      }
+    },
+    "dev_1525": {
+      "D_solo": {
+        "metrics": {
+          "n": 1450,
+          "race_mae": 4.776858620689655,
+          "black_mae": 8.799606896551724,
+          "hisp_mae": 8.590303448275863,
+          "gender_mae": 14.464213793103449,
+          "p_gt_20pp": 20.344827586206897,
+          "p_gt_30pp": 7.724137931034483,
+          "abs_bias": 0.8143988505747126
+        },
+        "regions": {
+          "South": 5.3330427841634735,
+          "West": 5.534024526198439,
+          "Northeast": 4.625538011695907,
+          "Midwest": 3.4001308139534885
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.138597883597884,
+          "Admin/Staffing (56)": 6.5615727699530515,
+          "Finance/Insurance (52)": 3.49021645021645
+        },
+        "healthcare_south": {
+          "count": 50,
+          "p_gt_20pp": 32.0,
+          "p_gt_30pp": 16.0
+        }
+      },
+      "best_of_naive": {
+        "metrics": {
+          "n": 1525,
+          "race_mae": 4.717599191256831,
+          "black_mae": 8.60381737704918,
+          "hisp_mae": 7.221101639344263,
+          "gender_mae": 13.117934426229507,
+          "p_gt_20pp": 19.540983606557376,
+          "p_gt_30pp": 8.327868852459016,
+          "abs_bias": 1.3073339672131148
+        },
+        "regions": {
+          "South": 5.069489272030651,
+          "West": 5.636102605863192,
+          "Northeast": 4.637453172043011,
+          "Midwest": 3.575573531951641
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.882292462311558,
+          "Admin/Staffing (56)": 6.703337061403509,
+          "Finance/Insurance (52)": 3.278054918032787
+        },
+        "healthcare_south": {
+          "count": 50,
+          "p_gt_20pp": 38.0,
+          "p_gt_30pp": 18.0
+        }
+      },
+      "best_of_ipf": {
+        "metrics": {
+          "n": 1525,
+          "race_mae": 4.717598786885246,
+          "black_mae": 8.60381731147541,
+          "hisp_mae": 7.221101639344263,
+          "gender_mae": 13.117922295081968,
+          "p_gt_20pp": 19.540983606557376,
+          "p_gt_30pp": 8.327868852459016,
+          "abs_bias": 1.3073334972677595
+        },
+        "regions": {
+          "South": 5.0694886973180076,
+          "West": 5.636101520086862,
+          "Northeast": 4.637452258064516,
+          "Midwest": 3.575574309153713
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.882291876046901,
+          "Admin/Staffing (56)": 6.7033379385964915,
+          "Finance/Insurance (52)": 3.2780543715846995
+        },
+        "healthcare_south": {
+          "count": 50,
+          "p_gt_20pp": 38.0,
+          "p_gt_30pp": 18.0
+        }
+      },
+      "best_of_ipf_abs": {
+        "metrics": {
+          "n": 1525,
+          "race_mae": 4.717598786885246,
+          "black_mae": 8.60381731147541,
+          "hisp_mae": 7.221101639344263,
+          "gender_mae": 13.117922295081968,
+          "p_gt_20pp": 19.540983606557376,
+          "p_gt_30pp": 8.327868852459016,
+          "abs_bias": 1.3073334972677595
+        },
+        "regions": {
+          "South": 5.0694886973180076,
+          "West": 5.636101520086862,
+          "Northeast": 4.637452258064516,
+          "Midwest": 3.575574309153713
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.882291876046901,
+          "Admin/Staffing (56)": 6.7033379385964915,
+          "Finance/Insurance (52)": 3.2780543715846995
+        },
+        "healthcare_south": {
+          "count": 50,
+          "p_gt_20pp": 38.0,
+          "p_gt_30pp": 18.0
+        }
+      }
+    },
+    "perm_1000": {
+      "D_solo": {
+        "metrics": {
+          "n": 954,
+          "race_mae": 4.782250174703004,
+          "black_mae": 8.788784067085954,
+          "hisp_mae": 9.16909853249476,
+          "gender_mae": 13.719769392033543,
+          "p_gt_20pp": 19.07756813417191,
+          "p_gt_30pp": 7.966457023060797,
+          "abs_bias": 0.9428791055206149
+        },
+        "regions": {
+          "South": 5.437034938621341,
+          "West": 5.472682709447415,
+          "Northeast": 4.346968085106383,
+          "Midwest": 3.550317109144543
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 5.555599999999999,
+          "Admin/Staffing (56)": 5.480833333333333,
+          "Finance/Insurance (52)": 3.555171568627451
+        },
+        "healthcare_south": {
+          "count": 36,
+          "p_gt_20pp": 27.77777777777778,
+          "p_gt_30pp": 8.333333333333332
+        }
+      },
+      "best_of_naive": {
+        "metrics": {
+          "n": 1000,
+          "race_mae": 4.761697533333333,
+          "black_mae": 8.5731815,
+          "hisp_mae": 7.76668,
+          "gender_mae": 12.40648,
+          "p_gt_20pp": 20.599999999999998,
+          "p_gt_30pp": 9.5,
+          "abs_bias": 1.5314797333333334
+        },
+        "regions": {
+          "South": 5.190176392823418,
+          "West": 5.6824184027777775,
+          "Northeast": 4.521818090452261,
+          "Midwest": 3.666793489583333
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.474275064599483,
+          "Admin/Staffing (56)": 5.803837755102041,
+          "Finance/Insurance (52)": 3.240789699074074
+        },
+        "healthcare_south": {
+          "count": 36,
+          "p_gt_20pp": 27.77777777777778,
+          "p_gt_30pp": 22.22222222222222
+        }
+      },
+      "best_of_ipf": {
+        "metrics": {
+          "n": 1000,
+          "race_mae": 4.7616974333333335,
+          "black_mae": 8.5731816,
+          "hisp_mae": 7.76668,
+          "gender_mae": 12.4064772,
+          "p_gt_20pp": 20.599999999999998,
+          "p_gt_30pp": 9.5,
+          "abs_bias": 1.5314797000000002
+        },
+        "regions": {
+          "South": 5.190176062322946,
+          "West": 5.682418229166667,
+          "Northeast": 4.521817587939698,
+          "Midwest": 3.6667940755208335
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.474273901808785,
+          "Admin/Staffing (56)": 5.80384081632653,
+          "Finance/Insurance (52)": 3.240791203703704
+        },
+        "healthcare_south": {
+          "count": 36,
+          "p_gt_20pp": 27.77777777777778,
+          "p_gt_30pp": 22.22222222222222
+        }
+      },
+      "best_of_ipf_abs": {
+        "metrics": {
+          "n": 1000,
+          "race_mae": 4.7616974333333335,
+          "black_mae": 8.5731816,
+          "hisp_mae": 7.76668,
+          "gender_mae": 12.4064772,
+          "p_gt_20pp": 20.599999999999998,
+          "p_gt_30pp": 9.5,
+          "abs_bias": 1.5314797000000002
+        },
+        "regions": {
+          "South": 5.190176062322946,
+          "West": 5.682418229166667,
+          "Northeast": 4.521817587939698,
+          "Midwest": 3.6667940755208335
+        },
+        "sectors": {
+          "Healthcare/Social (62)": 6.474273901808785,
+          "Admin/Staffing (56)": 5.80384081632653,
+          "Finance/Insurance (52)": 3.240791203703704
+        },
+        "healthcare_south": {
+          "count": 36,
+          "p_gt_20pp": 27.77777777777778,
+          "p_gt_30pp": 22.22222222222222
+        }
+      }
+    }
+  },
+  "ipf_examples": [
+    {
+      "company_code": "B33372",
+      "name": "CORPORATE HEADQUARTERS",
+      "naics_group": "Other Manufacturing",
+      "region": "Northeast",
+      "best_of_raw_race": {
+        "White": 73.5512,
+        "Black": 9.9121,
+        "Asian": 3.8869,
+        "AIAN": 0.1699,
+        "NHOPI": 0.0999,
+        "Two+": 12.3901
+      },
+      "best_of_normalized_race": {
+        "White": 73.5438,
+        "Black": 9.9111,
+        "Asian": 3.8865,
+        "AIAN": 0.1699,
+        "NHOPI": 0.0999,
+        "Two+": 12.3888
+      },
+      "best_of_gender": {
+        "Male": 60.63,
+        "Female": 39.37
+      },
+      "seed_source": "pums_metro",
+      "seed_matrix_pct": [
+        [
+          52.2873,
+          28.9546
+        ],
+        [
+          4.3696,
+          2.4197
+        ],
+        [
+          1.0683,
+          0.5916
+        ],
+        [
+          0.0386,
+          0.0214
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          6.5962,
+          3.6527
+        ]
+      ],
+      "output_matrix_pct": [
+        [
+          44.6003,
+          28.9435
+        ],
+        [
+          6.0105,
+          3.9006
+        ],
+        [
+          2.357,
+          1.5295
+        ],
+        [
+          0.103,
+          0.0669
+        ],
+        [
+          0.046,
+          0.0539
+        ],
+        [
+          7.5131,
+          4.8757
+        ]
+      ],
+      "iterations": 2,
+      "final_change": 1.251919798932286e-05,
+      "converged": true,
+      "race_sum": 100.0,
+      "gender_sum": 100.0
+    },
+    {
+      "company_code": "AU5792",
+      "name": "IMAGINE ONE TECHNOLOGY & MANAGEMENT",
+      "naics_group": "Professional/Technical (54)",
+      "region": "South",
+      "best_of_raw_race": {
+        "White": 74.34,
+        "Black": 22.7741,
+        "Asian": 3.28,
+        "AIAN": 0.1299,
+        "NHOPI": 0.1,
+        "Two+": 0.5689
+      },
+      "best_of_normalized_race": {
+        "White": 73.4637,
+        "Black": 22.5056,
+        "Asian": 3.2413,
+        "AIAN": 0.1284,
+        "NHOPI": 0.0988,
+        "Two+": 0.5622
+      },
+      "best_of_gender": {
+        "Male": 69.41,
+        "Female": 30.59
+      },
+      "seed_source": "acs_state",
+      "seed_matrix_pct": [
+        [
+          36.0026,
+          34.3974
+        ],
+        [
+          8.1824,
+          7.8176
+        ],
+        [
+          1.212,
+          1.158
+        ],
+        [
+          0.046,
+          0.044
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          5.697,
+          5.443
+        ]
+      ],
+      "output_matrix_pct": [
+        [
+          50.9919,
+          22.4718
+        ],
+        [
+          15.6214,
+          6.8842
+        ],
+        [
+          2.2498,
+          0.9915
+        ],
+        [
+          0.0891,
+          0.0393
+        ],
+        [
+          0.0676,
+          0.0312
+        ],
+        [
+          0.3902,
+          0.172
+        ]
+      ],
+      "iterations": 2,
+      "final_change": 5.630694240223318e-06,
+      "converged": true,
+      "race_sum": 100.0,
+      "gender_sum": 100.0
+    },
+    {
+      "company_code": "CN8261",
+      "name": "COAST TO COAST COMPUTER PRODUCTS",
+      "naics_group": "Retail Trade (44-45)",
+      "region": "West",
+      "best_of_raw_race": {
+        "White": 82.33,
+        "Black": 4.6686,
+        "Asian": 6.17,
+        "AIAN": 0.4999,
+        "NHOPI": 0.21,
+        "Two+": 0.8284
+      },
+      "best_of_normalized_race": {
+        "White": 86.9314,
+        "Black": 4.9295,
+        "Asian": 6.5148,
+        "AIAN": 0.5278,
+        "NHOPI": 0.2217,
+        "Two+": 0.8747
+      },
+      "best_of_gender": {
+        "Male": 45.87,
+        "Female": 54.13
+      },
+      "seed_source": "pums_metro",
+      "seed_matrix_pct": [
+        [
+          37.4487,
+          36.5313
+        ],
+        [
+          2.6829,
+          2.6171
+        ],
+        [
+          1.144,
+          1.116
+        ],
+        [
+          0.2632,
+          0.2568
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          9.0812,
+          8.8588
+        ]
+      ],
+      "output_matrix_pct": [
+        [
+          39.8767,
+          47.0548
+        ],
+        [
+          2.2612,
+          2.6683
+        ],
+        [
+          2.9884,
+          3.5264
+        ],
+        [
+          0.2421,
+          0.2857
+        ],
+        [
+          0.1003,
+          0.1214
+        ],
+        [
+          0.4012,
+          0.4735
+        ]
+      ],
+      "iterations": 2,
+      "final_change": 1.4263040984858772e-06,
+      "converged": true,
+      "race_sum": 100.0,
+      "gender_sum": 100.0
+    },
+    {
+      "company_code": "CD7604",
+      "name": "D H GRIFFIN WRECKING CO INC",
+      "naics_group": "Construction (23)",
+      "region": "South",
+      "best_of_raw_race": {
+        "White": 77.55,
+        "Black": 12.2314,
+        "Asian": 0.37,
+        "AIAN": 0.8094,
+        "NHOPI": 0.0999,
+        "Two+": 0.1496
+      },
+      "best_of_normalized_race": {
+        "White": 85.0233,
+        "Black": 13.4101,
+        "Asian": 0.4057,
+        "AIAN": 0.8874,
+        "NHOPI": 0.1095,
+        "Two+": 0.164
+      },
+      "best_of_gender": {
+        "Male": 84.15,
+        "Female": 15.85
+      },
+      "seed_source": "pums_metro",
+      "seed_matrix_pct": [
+        [
+          41.2873,
+          39.4308
+        ],
+        [
+          6.2102,
+          5.931
+        ],
+        [
+          0.0256,
+          0.0244
+        ],
+        [
+          0.1944,
+          0.1856
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          3.4325,
+          3.2782
+        ]
+      ],
+      "output_matrix_pct": [
+        [
+          71.5477,
+          13.4756
+        ],
+        [
+          11.2847,
+          2.1254
+        ],
+        [
+          0.3414,
+          0.0643
+        ],
+        [
+          0.7468,
+          0.1406
+        ],
+        [
+          0.0915,
+          0.018
+        ],
+        [
+          0.138,
+          0.026
+        ]
+      ],
+      "iterations": 2,
+      "final_change": 1.3876765424824665e-05,
+      "converged": true,
+      "race_sum": 100.0,
+      "gender_sum": 100.0
+    },
+    {
+      "company_code": "A58217",
+      "name": "FIBEROPTICS TECHNOLOGY INC",
+      "naics_group": "Metal/Machinery Mfg (331-333)",
+      "region": "Northeast",
+      "best_of_raw_race": {
+        "White": 84.979,
+        "Black": 8.4216,
+        "Asian": 0.9494,
+        "AIAN": 0.3796,
+        "NHOPI": 0.0999,
+        "Two+": 9.2145
+      },
+      "best_of_normalized_race": {
+        "White": 81.676,
+        "Black": 8.0943,
+        "Asian": 0.9125,
+        "AIAN": 0.3648,
+        "NHOPI": 0.096,
+        "Two+": 8.8563
+      },
+      "best_of_gender": {
+        "Male": 66.16,
+        "Female": 33.84
+      },
+      "seed_source": "acs_state",
+      "seed_matrix_pct": [
+        [
+          52.2907,
+          32.5693
+        ],
+        [
+          4.794,
+          2.986
+        ],
+        [
+          0.2526,
+          0.1574
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ],
+        [
+          4.2826,
+          2.6674
+        ]
+      ],
+      "output_matrix_pct": [
+        [
+          54.0792,
+          27.5969
+        ],
+        [
+          5.3594,
+          2.7349
+        ],
+        [
+          0.6042,
+          0.3083
+        ],
+        [
+          0.2005,
+          0.1643
+        ],
+        [
+          0.0528,
+          0.0432
+        ],
+        [
+          5.8639,
+          2.9924
+        ]
+      ],
+      "iterations": 2,
+      "final_change": 4.670157253428009e-05,
+      "converged": true,
+      "race_sum": 100.0,
+      "gender_sum": 100.0
+    }
+  ],
+  "abs_examples": [
+    {
+      "company_code": "AU5792",
+      "name": "IMAGINE ONE TECHNOLOGY & MANAGEMENT",
+      "naics_group": "Professional/Technical (54)",
+      "region": "South",
+      "abs_minority_share": 24.93,
+      "median_abs_minority_share": 23.42,
+      "ipf_matrix_pct": [
+        [
+          50.9919,
+          22.4718
+        ],
+        [
+          15.6214,
+          6.8842
+        ],
+        [
+          2.2498,
+          0.9915
+        ],
+        [
+          0.0891,
+          0.0393
+        ],
+        [
+          0.0676,
+          0.0312
+        ],
+        [
+          0.3902,
+          0.172
+        ]
+      ],
+      "ipf_abs_matrix_pct": [
+        [
+          50.9919,
+          22.4718
+        ],
+        [
+          15.6214,
+          6.8842
+        ],
+        [
+          2.2498,
+          0.9915
+        ],
+        [
+          0.0891,
+          0.0393
+        ],
+        [
+          0.0676,
+          0.0312
+        ],
+        [
+          0.3902,
+          0.172
+        ]
+      ]
+    },
+    {
+      "company_code": "CD7604",
+      "name": "D H GRIFFIN WRECKING CO INC",
+      "naics_group": "Construction (23)",
+      "region": "South",
+      "abs_minority_share": 35.55,
+      "median_abs_minority_share": 23.42,
+      "ipf_matrix_pct": [
+        [
+          71.5477,
+          13.4756
+        ],
+        [
+          11.2847,
+          2.1254
+        ],
+        [
+          0.3414,
+          0.0643
+        ],
+        [
+          0.7468,
+          0.1406
+        ],
+        [
+          0.0915,
+          0.018
+        ],
+        [
+          0.138,
+          0.026
+        ]
+      ],
+      "ipf_abs_matrix_pct": [
+        [
+          71.5477,
+          13.4756
+        ],
+        [
+          11.2847,
+          2.1254
+        ],
+        [
+          0.3414,
+          0.0643
+        ],
+        [
+          0.7468,
+          0.1406
+        ],
+        [
+          0.0915,
+          0.018
+        ],
+        [
+          0.138,
+          0.026
+        ]
+      ]
+    },
+    {
+      "company_code": "605339",
+      "name": "SCOTT-MCRAE AUTOMOTIVE GROUP  LLLP",
+      "naics_group": "Retail Trade (44-45)",
+      "region": "South",
+      "abs_minority_share": 31.51,
+      "median_abs_minority_share": 23.42,
+      "ipf_matrix_pct": [
+        [
+          57.2885,
+          22.028
+        ],
+        [
+          12.7547,
+          4.9043
+        ],
+        [
+          1.7222,
+          0.6622
+        ],
+        [
+          0.1543,
+          0.0593
+        ],
+        [
+          0.0808,
+          0.0317
+        ],
+        [
+          0.2268,
+          0.0872
+        ]
+      ],
+      "ipf_abs_matrix_pct": [
+        [
+          57.2885,
+          22.028
+        ],
+        [
+          12.7547,
+          4.9043
+        ],
+        [
+          1.7222,
+          0.6622
+        ],
+        [
+          0.1543,
+          0.0593
+        ],
+        [
+          0.0808,
+          0.0317
+        ],
+        [
+          0.2268,
+          0.0872
+        ]
+      ]
+    },
+    {
+      "company_code": "EA6832",
+      "name": "SPECTRUM PLASTICS GROUP",
+      "naics_group": "Chemical/Material Mfg (325-327)",
+      "region": "South",
+      "abs_minority_share": 48.43,
+      "median_abs_minority_share": 23.42,
+      "ipf_matrix_pct": [
+        [
+          39.5255,
+          19.8319
+        ],
+        [
+          24.1867,
+          12.1357
+        ],
+        [
+          2.4632,
+          1.2359
+        ],
+        [
+          0.1213,
+          0.0609
+        ],
+        [
+          0.0724,
+          0.0348
+        ],
+        [
+          0.2208,
+          0.1108
+        ]
+      ],
+      "ipf_abs_matrix_pct": [
+        [
+          39.5255,
+          19.8319
+        ],
+        [
+          24.1867,
+          12.1357
+        ],
+        [
+          2.4632,
+          1.2359
+        ],
+        [
+          0.1213,
+          0.0609
+        ],
+        [
+          0.0724,
+          0.0348
+        ],
+        [
+          0.2208,
+          0.1108
+        ]
+      ]
+    },
+    {
+      "company_code": "AD7759",
+      "name": "CAMPBELL CLINIC PC",
+      "naics_group": "Healthcare/Social (62)",
+      "region": "South",
+      "abs_minority_share": 48.45,
+      "median_abs_minority_share": 23.42,
+      "ipf_matrix_pct": [
+        [
+          10.7364,
+          54.54
+        ],
+        [
+          5.2475,
+          26.6569
+        ],
+        [
+          0.3793,
+          1.9266
+        ],
+        [
+          0.039,
+          0.198
+        ],
+        [
+          0.0225,
+          0.1093
+        ],
+        [
+          0.0238,
+          0.1207
+        ]
+      ],
+      "ipf_abs_matrix_pct": [
+        [
+          10.7364,
+          54.54
+        ],
+        [
+          5.2475,
+          26.6569
+        ],
+        [
+          0.3793,
+          1.9266
+        ],
+        [
+          0.039,
+          0.198
+        ],
+        [
+          0.0225,
+          0.1093
+        ],
+        [
+          0.0238,
+          0.1207
+        ]
+      ]
+    }
+  ],
+  "stop_gate": {
+    "baseline_d_solo_all_2525": {
+      "count": 86,
+      "p_gt_20pp": 30.23255813953488,
+      "p_gt_30pp": 12.790697674418606
+    },
+    "best_of_ipf_all_2525": {
+      "count": 86,
+      "p_gt_20pp": 33.72093023255814,
+      "p_gt_30pp": 19.767441860465116
+    },
+    "passes": false
+  },
+  "notes": [
+    "Dev holdout file name follows the prompt, but the exact leftover size is 1,525, not 1,500.",
+    "The 2D IPF fallback seed uses industry-state race proportions x county gender proportions under independence because a direct race x gender cross-tab loader is not present in the current pipeline.",
+    "With race row margins constrained to the normalized best-of race vector, IPF preserves the same race marginals as naive normalization."
+  ]
+}

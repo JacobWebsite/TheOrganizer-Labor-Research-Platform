@@ -5,7 +5,7 @@
 > **For roadmap:** See `COMPLETE_PROJECT_ROADMAP_2026_03.md` (supersedes Feb 26 roadmap).
 > **For redesign spec:** See `UNIFIED_PLATFORM_REDESIGN_SPEC.md`.
 
-**Last Updated:** 2026-03-01
+**Last Updated:** 2026-03-03
 
 ---
 
@@ -29,6 +29,7 @@ Credentials in `.env` at project root. `db_config.py` (project root, 500+ import
 | `master_employer_source_ids` | ~4.5M | (master_id, source_system, source_id) | CHECK constraint: `chk_master_source_system` has hardcoded values. |
 | `nlrb_elections` | 33,096 | case_number | **NO `state` column** -- state is in `nlrb_participants`. |
 | `nlrb_participants` | 1,906,542 | — | State IS here. |
+| `unions_master` | 26,693 | f_num (VARCHAR) | `is_likely_inactive` BOOLEAN, `parent_fnum` VARCHAR, `desig_name` codes classify level. |
 | `osha_establishments` | 1,007,217 | establishment_id | **NO violation columns** -- use `v_osha_organizing_targets` view. |
 | `whd_cases` | 363,365 | case_id | Key cols: trade_name, total_violations, backwages_amount. |
 | `sam_entities` | 826,042 | uei | **NO EIN**. NAICS 6-digit. |
@@ -99,7 +100,7 @@ All support `--refresh` for CONCURRENT refresh. Without `--refresh`: DROP CASCAD
 
 ### Unified Scorecard (F7 employers, 146K)
 - 10 factors (0-10 each): OSHA(1x), NLRB(3x), WHD(1x), Contracts(2x), Union Proximity(3x), Financial(2x), Industry Growth(2x), Size(0x), Similarity(0x)
-- Pillar formula: `weighted_score = (anger*3 + stability*3 + leverage*4) / 10`
+- Pillar formula: `weighted_score = (anger*3 + stability*0 + leverage*4) / active_weights`
 - Tiers: Priority (top 1.5%), Strong (10.5%), Promising (27.9%), Moderate (35%), Low (25%)
 
 ### Target Scorecard (non-union, 4.4M)
@@ -124,8 +125,8 @@ All support `--refresh` for CONCURRENT refresh. Without `--refresh`: DROP CASCAD
 cd "C:\Users\jakew\.local\bin\Labor Data Project_real"
 py -m uvicorn api.main:app --reload --port 8001          # API
 cd frontend && VITE_DISABLE_AUTH=true npx vite            # Frontend
-py -m pytest tests/ -x -q                                  # Backend tests (~960)
-cd frontend && npx vitest run                              # Frontend tests (~184)
+py -m pytest tests/ -x -q                                  # Backend tests (~1211)
+cd frontend && npx vitest run                              # Frontend tests (~264)
 py scripts/maintenance/generate_project_metrics.py         # Auto-metrics
 ```
 
@@ -166,8 +167,8 @@ db_config.py            # Shared DB connection (never move)
 | Document | Purpose |
 |----------|---------|
 | `PROJECT_STATE.md` | Current status, active decisions, next up |
-| `UNIFIED_ROADMAP_FINAL_2026_02_26.md` | Authoritative roadmap (Phases 0-5) |
+| `COMPLETE_PROJECT_ROADMAP_2026_03.md` | Authoritative roadmap (Phases 0-5) |
 | `UNIFIED_PLATFORM_REDESIGN_SPEC.md` | Scoring, React, UX design decisions |
 | `PIPELINE_MANIFEST.md` | Active script inventory with run order |
-| `docs/MATCHING_PIPELINE_ARCHITECTURE.md` | Full matching system reference |
-| `docs/SCORING_SYSTEM_ARCHITECTURE.md` | Full scoring system reference |
+| `docs/architecture/MATCHING_PIPELINE_ARCHITECTURE.md` | Full matching system reference |
+| `docs/architecture/SCORING_SYSTEM_ARCHITECTURE.md` | Full scoring system reference |

@@ -6,6 +6,7 @@ import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 vi.mock('@/shared/api/unions', () => ({
   useNationalUnions: vi.fn(() => ({ data: { national_unions: [] }, isLoading: false })),
   useNationalUnionDetail: vi.fn(() => ({ data: null, isLoading: false })),
+  useUnionHierarchy: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionSearch: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useUnionDetail: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useUnionMembershipHistory: vi.fn(() => ({ data: null, isLoading: false })),
@@ -20,7 +21,7 @@ vi.mock('@/shared/api/lookups', () => ({
   useNaicsSectors: vi.fn(() => ({ data: { sectors: [] } })),
 }))
 
-import { useNationalUnions, useNationalUnionDetail, useUnionSearch } from '@/shared/api/unions'
+import { useNationalUnions, useNationalUnionDetail, useUnionHierarchy, useUnionSearch } from '@/shared/api/unions'
 import { AffiliationTree } from '@/features/union-explorer/AffiliationTree'
 import { UnionsPage } from '@/features/union-explorer/UnionsPage'
 
@@ -37,6 +38,7 @@ describe('AffiliationTree', () => {
   beforeEach(() => {
     useNationalUnions.mockReturnValue({ data: { national_unions: [] }, isLoading: false })
     useNationalUnionDetail.mockReturnValue({ data: null, isLoading: false })
+    useUnionHierarchy.mockReturnValue({ data: null, isLoading: false })
     useUnionSearch.mockReturnValue({ data: null, isLoading: false, isError: false })
   })
 
@@ -50,13 +52,18 @@ describe('AffiliationTree', () => {
     expect(screen.getByText('AFSCME')).toBeInTheDocument()
   })
 
-  it('expands affiliation to show states', () => {
-    useNationalUnionDetail.mockReturnValue({
+  it('expands affiliation to show states from hierarchy', () => {
+    useUnionHierarchy.mockReturnValue({
       data: {
-        by_state: [
-          { state: 'CA', local_count: 20, total_members: 50000 },
-          { state: 'NY', local_count: 15, total_members: 40000 },
-        ],
+        affiliation: 'SEIU',
+        national: null,
+        intermediates: [],
+        unaffiliated_locals: {
+          by_state: {
+            CA: [{ f_num: '123', name: 'SEIU Local 1000', members: 50000, city: 'Sacramento', state: 'CA' }],
+            NY: [{ f_num: '456', name: 'SEIU Local 32BJ', members: 40000, city: 'New York', state: 'NY' }],
+          },
+        },
       },
       isLoading: false,
     })
@@ -69,19 +76,19 @@ describe('AffiliationTree', () => {
     expect(screen.getByText('NY')).toBeInTheDocument()
   })
 
-  it('expands state to show locals', () => {
-    useNationalUnionDetail.mockReturnValue({
+  it('expands state to show locals from hierarchy', () => {
+    useUnionHierarchy.mockReturnValue({
       data: {
-        by_state: [{ state: 'CA', local_count: 1, total_members: 5000 }],
+        affiliation: 'SEIU',
+        national: null,
+        intermediates: [],
+        unaffiliated_locals: {
+          by_state: {
+            CA: [{ f_num: '123', name: 'SEIU Local 1000', members: 5000, city: 'Sacramento', state: 'CA' }],
+          },
+        },
       },
       isLoading: false,
-    })
-    useUnionSearch.mockReturnValue({
-      data: {
-        unions: [{ f_num: '123', union_name: 'SEIU Local 1000', members: 5000, city: 'Sacramento' }],
-      },
-      isLoading: false,
-      isError: false,
     })
     const affiliations = [
       { aff_abbr: 'SEIU', name: 'Service Employees', total_members: 5000, total_locals: 1 },
@@ -95,6 +102,58 @@ describe('AffiliationTree', () => {
   it('shows empty state when no affiliations', () => {
     renderWithProviders(<AffiliationTree affiliations={[]} />)
     expect(screen.getByText('No affiliation data available')).toBeInTheDocument()
+  })
+
+  it('shows inactive label for stale locals', () => {
+    useUnionHierarchy.mockReturnValue({
+      data: {
+        affiliation: 'IBT',
+        national: null,
+        intermediates: [],
+        unaffiliated_locals: {
+          by_state: {
+            OH: [{ f_num: '999', name: 'Teamsters Local 99', members: 200, city: 'Cleveland', state: 'OH', is_likely_inactive: true }],
+          },
+        },
+      },
+      isLoading: false,
+    })
+    const affiliations = [
+      { aff_abbr: 'IBT', name: 'Teamsters', total_members: 200, total_locals: 1 },
+    ]
+    renderWithProviders(<AffiliationTree affiliations={affiliations} />)
+    fireEvent.click(screen.getByText('IBT'))
+    fireEvent.click(screen.getByText('OH'))
+    expect(screen.getByText('(Inactive)')).toBeInTheDocument()
+  })
+
+  it('renders intermediate nodes with level labels', () => {
+    useUnionHierarchy.mockReturnValue({
+      data: {
+        affiliation: 'CJA',
+        national: null,
+        intermediates: [
+          {
+            f_num: '500', name: 'Carpenters DC of Greater NY', level_code: 'DC',
+            members: 25000, city: 'New York', state: 'NY',
+            is_likely_inactive: false, locals_count: 12,
+            locals: [
+              { f_num: '501', name: 'Carpenters Local 157', members: 3000, city: 'New York', state: 'NY', is_likely_inactive: false },
+            ],
+          },
+        ],
+        unaffiliated_locals: { by_state: {} },
+      },
+      isLoading: false,
+    })
+    const affiliations = [
+      { aff_abbr: 'CJA', name: 'Carpenters', total_members: 25000, total_locals: 50 },
+    ]
+    renderWithProviders(<AffiliationTree affiliations={affiliations} />)
+    fireEvent.click(screen.getByText('CJA'))
+    expect(screen.getByText('Carpenters DC of Greater NY')).toBeInTheDocument()
+    expect(screen.getByText('(District Council)')).toBeInTheDocument()
+    expect(screen.getByText('12 locals')).toBeInTheDocument()
   })
 
   it('UnionsPage renders tree/list toggle buttons', () => {

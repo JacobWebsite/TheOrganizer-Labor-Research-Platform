@@ -453,7 +453,26 @@ def build_acs(conn):
             educ                            AS education,
             classwkr                        AS worker_class,
             SUM(weighted_count)             AS weighted_workers,
-            COUNT(*)                        AS raw_cell_count
+            COUNT(*)                        AS raw_cell_count,
+            -- Insurance rates (weighted insured / weighted total * 100)
+            CASE WHEN SUM(weighted_count) > 0
+                 THEN ROUND(SUM(weighted_hcovany::numeric) / SUM(weighted_count::numeric) * 100, 2)
+                 ELSE NULL END              AS pct_any_insurance,
+            CASE WHEN SUM(weighted_count) > 0
+                 THEN ROUND(SUM(weighted_hcovpriv::numeric) / SUM(weighted_count::numeric) * 100, 2)
+                 ELSE NULL END              AS pct_private_insurance,
+            CASE WHEN SUM(weighted_count) > 0
+                 THEN ROUND(SUM(weighted_hinscaid::numeric) / SUM(weighted_count::numeric) * 100, 2)
+                 ELSE NULL END              AS pct_medicaid,
+            CASE WHEN SUM(weighted_count) > 0
+                 THEN ROUND(SUM(weighted_hinscare::numeric) / SUM(weighted_count::numeric) * 100, 2)
+                 ELSE NULL END              AS pct_medicare,
+            CASE WHEN SUM(weighted_count) > 0
+                 THEN ROUND(SUM(weighted_hcovpub2::numeric) / SUM(weighted_count::numeric) * 100, 2)
+                 ELSE NULL END              AS pct_public_insurance,
+            CASE WHEN SUM(weighted_count) > 0
+                 THEN ROUND(SUM(weighted_hcovsub2::numeric) / SUM(weighted_count::numeric) * 100, 2)
+                 ELSE NULL END              AS pct_subsidized
         FROM newsrc_acs_occ_demo_profiles
         GROUP BY 1,2,3,4,5,6,7,8,9,10
     """, "create table")

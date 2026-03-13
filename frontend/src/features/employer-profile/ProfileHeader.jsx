@@ -82,6 +82,9 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
               <span className="inline-flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" />
                 {formatNumber(workers)} workers
+                {scorecard?.size_source === 'rpe_estimate' && (
+                  <span className="text-[10px] text-[#faf6ef]/40 ml-0.5">(RPE est.)</span>
+                )}
               </span>
             )}
             {unionName && (
@@ -122,7 +125,7 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
           {signalsPresent != null && !isUnionReference && (
             <>
               <div className={cn('text-[48px] font-editorial font-bold leading-none', hasEnforcement ? 'text-[#c23a22]' : 'text-[#faf6ef]')}>
-                {signalsPresent}/8
+                {signalsPresent}/9
               </div>
               <div className="text-[10px] uppercase tracking-widest text-[#faf6ef]/50 mt-1">Signals Detected</div>
             </>

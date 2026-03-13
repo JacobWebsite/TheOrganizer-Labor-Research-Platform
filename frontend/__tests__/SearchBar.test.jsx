@@ -27,13 +27,13 @@ describe('SearchBar', () => {
 
   it('renders input with placeholder', () => {
     renderWithProviders(<SearchBar onSearch={() => {}} />)
-    expect(screen.getByPlaceholderText('Search Employers')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Check if an employer has a union')).toBeInTheDocument()
   })
 
   it('fires search on Enter', () => {
     const onSearch = vi.fn()
     renderWithProviders(<SearchBar onSearch={onSearch} />)
-    const input = screen.getByPlaceholderText('Search Employers')
+    const input = screen.getByPlaceholderText('Check if an employer has a union')
     fireEvent.change(input, { target: { value: 'kaiser' } })
     fireEvent.submit(input.closest('form'))
     expect(onSearch).toHaveBeenCalledWith('kaiser')
@@ -50,7 +50,7 @@ describe('SearchBar', () => {
     })
 
     renderWithProviders(<SearchBar onSearch={() => {}} />)
-    const input = screen.getByPlaceholderText('Search Employers')
+    const input = screen.getByPlaceholderText('Check if an employer has a union')
     fireEvent.change(input, { target: { value: 'kai' } })
     fireEvent.focus(input)
 
@@ -60,13 +60,13 @@ describe('SearchBar', () => {
 
   it('applies hero variant styles', () => {
     renderWithProviders(<SearchBar variant="hero" onSearch={() => {}} />)
-    const input = screen.getByPlaceholderText('Search Employers')
+    const input = screen.getByPlaceholderText('Check if an employer has a union')
     expect(input.className).toContain('h-14')
   })
 
   it('applies compact variant styles', () => {
     renderWithProviders(<SearchBar variant="compact" onSearch={() => {}} />)
-    const input = screen.getByPlaceholderText('Search Employers')
+    const input = screen.getByPlaceholderText('Check if an employer has a union')
     expect(input.className).toContain('h-10')
   })
 })

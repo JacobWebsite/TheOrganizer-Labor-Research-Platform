@@ -1,0 +1,85 @@
+{
+  "winners": {
+    "White": "D",
+    "Black": "G",
+    "Asian": "D",
+    "AIAN": "G",
+    "NHOPI": "B",
+    "Two+": "F",
+    "Hispanic": "G",
+    "Female": "F"
+  },
+  "expert_maes": {
+    "A": {
+      "White": 14.421,
+      "Black": 10.3034,
+      "Asian": 5.9163,
+      "AIAN": 0.893,
+      "NHOPI": 0.6546,
+      "Two+": 2.7276,
+      "Hispanic": 8.0485,
+      "Female": 14.1949
+    },
+    "B": {
+      "White": 14.0728,
+      "Black": 9.049,
+      "Asian": 4.3746,
+      "AIAN": 0.6705,
+      "NHOPI": 0.5772,
+      "Two+": 8.3191,
+      "Hispanic": 8.3612,
+      "Female": 19.0284
+    },
+    "D": {
+      "White": 11.4669,
+      "Black": 8.7544,
+      "Asian": 4.2044,
+      "AIAN": 0.6304,
+      "NHOPI": 0.6131,
+      "Two+": 2.8473,
+      "Hispanic": 8.0485,
+      "Female": 14.1949
+    },
+    "E": {
+      "White": 15.3203,
+      "Black": 9.0636,
+      "Asian": 5.4283,
+      "AIAN": 0.6479,
+      "NHOPI": 0.6344,
+      "Two+": 2.0565,
+      "Hispanic": 8.0485,
+      "Female": 14.1949
+    },
+    "F": {
+      "White": 16.682,
+      "Black": 9.3237,
+      "Asian": 5.7872,
+      "AIAN": 0.6496,
+      "NHOPI": 0.6344,
+      "Two+": 1.9161,
+      "Hispanic": 8.0485,
+      "Female": 13.0258
+    },
+    "G": {
+      "White": 15.1123,
+      "Black": 8.4875,
+      "Asian": 4.6168,
+      "AIAN": 0.6187,
+      "NHOPI": 0.6116,
+      "Two+": 13.4305,
+      "Hispanic": 7.5204,
+      "Female": 13.9726
+    },
+    "V6": {
+      "White": 11.5377,
+      "Black": 8.7879,
+      "Asian": 4.2437,
+      "AIAN": 0.6345,
+      "NHOPI": 0.6095,
+      "Two+": 3.0037,
+      "Hispanic": 7.9017,
+      "Female": 13.0258
+    }
+  },
+  "processed": 9999
+}

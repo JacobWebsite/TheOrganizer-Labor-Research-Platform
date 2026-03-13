@@ -50,7 +50,7 @@ function RunColumn({ run, isWinner, onPickWinner, isPending }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Sections</p>
-            <p className="font-medium">{run.sections_filled != null ? `${run.sections_filled}/7` : '-'}</p>
+            <p className="font-medium">{run.sections_filled != null ? `${run.sections_filled}/10` : '-'}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Duration</p>

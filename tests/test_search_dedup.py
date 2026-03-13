@@ -115,6 +115,46 @@ def test_search_mv_unique_canonical_id(db):
     assert len(dupes) == 0, msg
 
 
+def test_search_mv_has_scorecard_columns(db):
+    """MV should have factors_available, factors_total, weighted_score, score_tier."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT attname
+        FROM pg_attribute
+        WHERE attrelid = 'mv_employer_search'::regclass
+          AND attname IN (
+              'factors_available', 'factors_total', 'weighted_score', 'score_tier'
+          )
+          AND attnum > 0
+          AND NOT attisdropped
+    """)
+    cols = {r[0] for r in cur.fetchall()}
+    expected = {'factors_available', 'factors_total', 'weighted_score', 'score_tier'}
+    assert cols == expected, f"Missing columns: {expected - cols}"
+
+
+def test_search_mv_f7_has_factors(db):
+    """F7 employers with scorecard data should have factors_available populated."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM mv_employer_search
+        WHERE source_type = 'F7' AND factors_available IS NOT NULL
+    """)
+    count = cur.fetchone()[0]
+    assert count > 0, "No F7 employers have factors_available populated"
+
+
+def test_search_mv_non_f7_factors_null(db):
+    """Non-F7 sources should have NULL factors_available."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM mv_employer_search
+        WHERE source_type != 'F7' AND factors_available IS NOT NULL
+    """)
+    count = cur.fetchone()[0]
+    assert count == 0, f"{count} non-F7 rows have non-NULL factors_available"
+
+
 def test_search_mv_grouped_have_member_count(db):
     """Grouped F7 employers should have group_member_count > 1."""
     cur = db.cursor()

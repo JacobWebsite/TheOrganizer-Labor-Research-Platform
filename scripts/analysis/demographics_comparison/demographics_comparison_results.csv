@@ -1,0 +1,181 @@
+company,method,dimension,mae,rmse,hellinger,max_error,max_error_cat,signed_AIAN,signed_Asian,signed_Black,signed_Female,signed_Hispanic,signed_Male,signed_NHOPI,signed_Not Hispanic,signed_Two+,signed_White
+CARE INITIATIVES,M1 Baseline (60/40),race,1.31,1.732,0.1053,3.54,Two+,-0.07,0.41,-1.58,,,,-0.82,,3.54,-1.46
+CARE INITIATIVES,M1 Baseline (60/40),gender,17.04,17.04,0.1583,17.04,Female,,,,-17.04,,17.04,,,,
+CARE INITIATIVES,M1 Baseline (60/40),hispanic,1.37,1.37,0.0222,1.37,Not Hispanic,,,,,1.37,,,-1.37,,
+CARE INITIATIVES,M2 Three-Layer (50/30/20),race,1.77,2.299,0.1184,4.33,Two+,-0.1,0.98,-1.26,,,,-0.82,,4.33,-3.12
+CARE INITIATIVES,M2 Three-Layer (50/30/20),gender,20.77,20.77,0.1872,20.77,Male,,,,-20.77,,20.77,,,,
+CARE INITIATIVES,M2 Three-Layer (50/30/20),hispanic,1.99,1.99,0.0315,1.99,Hispanic,,,,,1.99,,,-1.99,,
+CARE INITIATIVES,M3 IPF,race,3.33,5.0,0.188,9.98,White,-0.42,-1.26,-6.9,,,,-0.85,,-0.55,9.98
+CARE INITIATIVES,M3 IPF,gender,1.69,1.69,0.0191,1.69,Male,,,,-1.69,,1.69,,,,
+CARE INITIATIVES,M3 IPF,hispanic,3.95,3.95,0.1045,3.95,Not Hispanic,,,,,-3.95,,,3.95,,
+CARE INITIATIVES,M4 Occ-Weighted,race,1.33,1.881,0.1117,3.97,Two+,-0.07,0.03,-1.55,,,,-0.83,,3.97,-1.54
+CARE INITIATIVES,M4 Occ-Weighted,gender,13.15,13.15,0.1268,13.15,Female,,,,-13.15,,13.15,,,,
+CARE INITIATIVES,M4 Occ-Weighted,hispanic,1.25,1.25,0.0204,1.25,Hispanic,,,,,1.25,,,-1.25,,
+CARE INITIATIVES,M5 Variable-Weight,race,1.39,1.959,0.1147,4.18,Two+,-0.07,-0.16,-1.53,,,,-0.83,,4.18,-1.58
+CARE INITIATIVES,M5 Variable-Weight,gender,11.2,11.2,0.1103,11.2,Female,,,,-11.2,,11.2,,,,
+CARE INITIATIVES,M5 Variable-Weight,hispanic,1.19,1.195,0.0196,1.2,Hispanic,,,,,1.2,,,-1.19,,
+CARE INITIATIVES,M6 IPF+Occ,race,3.33,5.0,0.188,9.98,White,-0.42,-1.26,-6.9,,,,-0.85,,-0.55,9.98
+CARE INITIATIVES,M6 IPF+Occ,gender,1.69,1.69,0.0191,1.69,Male,,,,-1.69,,1.69,,,,
+CARE INITIATIVES,M6 IPF+Occ,hispanic,3.95,3.95,0.1045,3.95,Not Hispanic,,,,,-3.95,,,3.95,,
+UNITED LAUNCH ALLIANCE,M1 Baseline (60/40),race,1.54,2.467,0.0954,4.64,Two+,-0.54,-0.12,-0.03,,,,-0.1,,4.64,-3.83
+UNITED LAUNCH ALLIANCE,M1 Baseline (60/40),gender,11.49,11.49,0.0915,11.49,Male,,,,11.49,,-11.49,,,,
+UNITED LAUNCH ALLIANCE,M1 Baseline (60/40),hispanic,4.0,4.0,0.0449,4.0,Hispanic,,,,,4.0,,,-4.0,,
+UNITED LAUNCH ALLIANCE,M2 Three-Layer (50/30/20),race,2.9,4.42,0.13,8.13,White,-0.49,0.44,1.25,,,,-0.07,,7.01,-8.13
+UNITED LAUNCH ALLIANCE,M2 Three-Layer (50/30/20),gender,14.32,14.32,0.1125,14.32,Male,,,,14.32,,-14.32,,,,
+UNITED LAUNCH ALLIANCE,M2 Three-Layer (50/30/20),hispanic,5.26,5.26,0.0578,5.26,Hispanic,,,,,5.26,,,-5.26,,
+UNITED LAUNCH ALLIANCE,M3 IPF,race,3.04,4.266,0.1788,9.12,White,-1.08,-2.95,-3.88,,,,-0.17,,-1.03,9.12
+UNITED LAUNCH ALLIANCE,M3 IPF,gender,0.22,0.22,0.0019,0.22,Female,,,,0.22,,-0.22,,,,
+UNITED LAUNCH ALLIANCE,M3 IPF,hispanic,6.85,6.85,0.1083,6.85,Not Hispanic,,,,,-6.85,,,6.85,,
+UNITED LAUNCH ALLIANCE,M4 Occ-Weighted,race,1.73,2.562,0.1048,5.19,Two+,-0.61,-0.53,-0.53,,,,-0.12,,5.19,-3.39
+UNITED LAUNCH ALLIANCE,M4 Occ-Weighted,gender,8.78,8.78,0.0709,8.78,Male,,,,8.78,,-8.78,,,,
+UNITED LAUNCH ALLIANCE,M4 Occ-Weighted,hispanic,3.35,3.35,0.0381,3.35,Hispanic,,,,,3.35,,,-3.35,,
+UNITED LAUNCH ALLIANCE,M5 Variable-Weight,race,1.55,2.443,0.0914,4.37,Two+,-0.51,0.08,0.21,,,,-0.09,,4.37,-4.05
+UNITED LAUNCH ALLIANCE,M5 Variable-Weight,gender,12.84,12.84,0.1016,12.84,Male,,,,12.84,,-12.84,,,,
+UNITED LAUNCH ALLIANCE,M5 Variable-Weight,hispanic,4.33,4.33,0.0483,4.33,Hispanic,,,,,4.33,,,-4.33,,
+UNITED LAUNCH ALLIANCE,M6 IPF+Occ,race,3.04,4.266,0.1788,9.12,White,-1.08,-2.95,-3.88,,,,-0.17,,-1.03,9.12
+UNITED LAUNCH ALLIANCE,M6 IPF+Occ,gender,0.22,0.22,0.0019,0.22,Female,,,,0.22,,-0.22,,,,
+UNITED LAUNCH ALLIANCE,M6 IPF+Occ,hispanic,6.85,6.85,0.1083,6.85,Not Hispanic,,,,,-6.85,,,6.85,,
+BUTTERBALL LLC,M1 Baseline (60/40),race,1.75,2.375,0.1526,4.86,NHOPI,0.34,-0.4,1.7,,,,-4.86,,2.58,0.64
+BUTTERBALL LLC,M1 Baseline (60/40),gender,4.23,4.23,0.0302,4.23,Male,,,,4.23,,-4.23,,,,
+BUTTERBALL LLC,M1 Baseline (60/40),hispanic,9.05,9.05,0.0811,9.05,Hispanic,,,,,-9.05,,,9.05,,
+BUTTERBALL LLC,M2 Three-Layer (50/30/20),race,2.6,3.102,0.1646,4.87,NHOPI,-0.11,0.7,-2.83,,,,-4.87,,3.97,3.12
+BUTTERBALL LLC,M2 Three-Layer (50/30/20),gender,5.25,5.25,0.0375,5.25,Male,,,,5.25,,-5.25,,,,
+BUTTERBALL LLC,M2 Three-Layer (50/30/20),hispanic,9.73,9.73,0.0878,9.73,Not Hispanic,,,,,-9.73,,,9.73,,
+BUTTERBALL LLC,M3 IPF,race,4.4,6.001,0.2223,13.2,White,-2.43,-2.35,-2.01,,,,-4.9,,-1.53,13.2
+BUTTERBALL LLC,M3 IPF,gender,0.94,0.94,0.0068,0.94,Male,,,,0.94,,-0.94,,,,
+BUTTERBALL LLC,M3 IPF,hispanic,22.12,22.12,0.2613,22.12,Not Hispanic,,,,,-22.12,,,22.12,,
+BUTTERBALL LLC,M4 Occ-Weighted,race,3.01,3.505,0.1616,5.34,Black,0.69,-0.82,5.34,,,,-4.87,,3.01,-3.36
+BUTTERBALL LLC,M4 Occ-Weighted,gender,3.29,3.29,0.0236,3.29,Male,,,,3.29,,-3.29,,,,
+BUTTERBALL LLC,M4 Occ-Weighted,hispanic,7.78,7.78,0.0687,7.78,Hispanic,,,,,-7.78,,,7.78,,
+BUTTERBALL LLC,M5 Variable-Weight,race,3.61,4.707,0.1557,8.65,White,-0.38,0.46,-5.6,,,,-4.85,,1.7,8.65
+BUTTERBALL LLC,M5 Variable-Weight,gender,6.09,6.09,0.0434,6.09,Male,,,,6.09,,-6.09,,,,
+BUTTERBALL LLC,M5 Variable-Weight,hispanic,11.59,11.59,0.1071,11.59,Not Hispanic,,,,,-11.59,,,11.59,,
+BUTTERBALL LLC,M6 IPF+Occ,race,4.4,6.001,0.2223,13.2,White,-2.43,-2.35,-2.01,,,,-4.9,,-1.53,13.2
+BUTTERBALL LLC,M6 IPF+Occ,gender,0.94,0.94,0.0068,0.94,Male,,,,0.94,,-0.94,,,,
+BUTTERBALL LLC,M6 IPF+Occ,hispanic,22.12,22.12,0.2613,22.12,Not Hispanic,,,,,-22.12,,,22.12,,
+OSI INDUSTRIES LLC,M1 Baseline (60/40),race,14.25,21.683,0.316,37.23,White,-0.23,-4.34,-37.21,,,,-0.99,,5.52,37.23
+OSI INDUSTRIES LLC,M1 Baseline (60/40),gender,2.52,2.52,0.0182,2.52,Male,,,,2.52,,-2.52,,,,
+OSI INDUSTRIES LLC,M1 Baseline (60/40),hispanic,2.48,2.48,0.0192,2.48,Not Hispanic,,,,,2.48,,,-2.48,,
+OSI INDUSTRIES LLC,M2 Three-Layer (50/30/20),race,15.16,22.516,0.3434,40.18,Black,-0.14,-4.2,-40.18,,,,-0.97,,9.04,36.43
+OSI INDUSTRIES LLC,M2 Three-Layer (50/30/20),gender,3.9,3.9,0.028,3.9,Male,,,,3.9,,-3.9,,,,
+OSI INDUSTRIES LLC,M2 Three-Layer (50/30/20),hispanic,3.1,3.1,0.024,3.1,Not Hispanic,,,,,3.1,,,-3.1,,
+OSI INDUSTRIES LLC,M3 IPF,race,21.39,34.434,0.523,64.14,White,-0.55,-6.99,-54.3,,,,-1.03,,-1.3,64.14
+OSI INDUSTRIES LLC,M3 IPF,gender,3.28,3.28,0.0239,3.28,Male,,,,-3.28,,3.28,,,,
+OSI INDUSTRIES LLC,M3 IPF,hispanic,13.82,13.82,0.1206,13.82,Hispanic,,,,,-13.82,,,13.82,,
+OSI INDUSTRIES LLC,M4 Occ-Weighted,race,13.66,20.3,0.3049,34.88,Black,-0.31,-4.8,-34.88,,,,-1.0,,6.45,34.5
+OSI INDUSTRIES LLC,M4 Occ-Weighted,gender,1.35,1.35,0.0097,1.35,Male,,,,1.35,,-1.35,,,,
+OSI INDUSTRIES LLC,M4 Occ-Weighted,hispanic,3.71,3.71,0.0286,3.71,Not Hispanic,,,,,3.71,,,-3.71,,
+OSI INDUSTRIES LLC,M5 Variable-Weight,race,15.45,24.498,0.3447,42.67,White,-0.08,-3.44,-41.88,,,,-0.96,,3.66,42.67
+OSI INDUSTRIES LLC,M5 Variable-Weight,gender,4.86,4.86,0.0349,4.86,Male,,,,4.86,,-4.86,,,,
+OSI INDUSTRIES LLC,M5 Variable-Weight,hispanic,0.01,0.01,0.0001,0.01,Not Hispanic,,,,,0.01,,,-0.01,,
+OSI INDUSTRIES LLC,M6 IPF+Occ,race,21.39,34.434,0.523,64.14,White,-0.55,-6.99,-54.3,,,,-1.03,,-1.3,64.14
+OSI INDUSTRIES LLC,M6 IPF+Occ,gender,3.28,3.28,0.0239,3.28,Male,,,,-3.28,,3.28,,,,
+OSI INDUSTRIES LLC,M6 IPF+Occ,hispanic,13.82,13.82,0.1206,13.82,Hispanic,,,,,-13.82,,,13.82,,
+ESA MANAGEMENT LLC,M1 Baseline (60/40),race,9.41,14.032,0.2186,26.53,White,0.2,-5.98,-20.92,,,,-1.34,,1.5,26.53
+ESA MANAGEMENT LLC,M1 Baseline (60/40),gender,8.95,8.95,0.066,8.95,Male,,,,-8.95,,8.95,,,,
+ESA MANAGEMENT LLC,M1 Baseline (60/40),hispanic,8.15,8.15,0.0749,8.15,Hispanic,,,,,-8.15,,,8.15,,
+ESA MANAGEMENT LLC,M2 Three-Layer (50/30/20),race,8.94,12.977,0.205,23.72,White,0.04,-5.26,-20.22,,,,-1.35,,3.07,23.72
+ESA MANAGEMENT LLC,M2 Three-Layer (50/30/20),gender,10.21,10.21,0.0751,10.21,Male,,,,-10.21,,10.21,,,,
+ESA MANAGEMENT LLC,M2 Three-Layer (50/30/20),hispanic,8.0,8.0,0.0734,8.0,Not Hispanic,,,,,-8.0,,,8.0,,
+ESA MANAGEMENT LLC,M3 IPF,race,15.93,23.896,0.395,47.78,White,-1.07,-8.13,-32.42,,,,-1.38,,-4.79,47.78
+ESA MANAGEMENT LLC,M3 IPF,gender,2.75,2.75,0.0207,2.75,Male,,,,-2.75,,2.75,,,,
+ESA MANAGEMENT LLC,M3 IPF,hispanic,20.45,20.45,0.2486,20.45,Hispanic,,,,,-20.45,,,20.45,,
+ESA MANAGEMENT LLC,M4 Occ-Weighted,race,9.53,13.856,0.2246,25.93,White,0.33,-6.49,-20.74,,,,-1.35,,2.32,25.93
+ESA MANAGEMENT LLC,M4 Occ-Weighted,gender,7.27,7.27,0.0539,7.27,Male,,,,-7.27,,7.27,,,,
+ESA MANAGEMENT LLC,M4 Occ-Weighted,hispanic,7.12,7.12,0.0646,7.12,Hispanic,,,,,-7.12,,,7.12,,
+ESA MANAGEMENT LLC,M5 Variable-Weight,race,9.41,14.032,0.2186,26.53,White,0.2,-5.98,-20.92,,,,-1.34,,1.5,26.53
+ESA MANAGEMENT LLC,M5 Variable-Weight,gender,8.95,8.95,0.066,8.95,Male,,,,-8.95,,8.95,,,,
+ESA MANAGEMENT LLC,M5 Variable-Weight,hispanic,8.15,8.15,0.0749,8.15,Hispanic,,,,,-8.15,,,8.15,,
+ESA MANAGEMENT LLC,M6 IPF+Occ,race,15.93,23.896,0.395,47.78,White,-1.07,-8.13,-32.42,,,,-1.38,,-4.79,47.78
+ESA MANAGEMENT LLC,M6 IPF+Occ,gender,2.75,2.75,0.0207,2.75,Male,,,,-2.75,,2.75,,,,
+ESA MANAGEMENT LLC,M6 IPF+Occ,hispanic,20.45,20.45,0.2486,20.45,Hispanic,,,,,-20.45,,,20.45,,
+TYSON FOODS INC,M1 Baseline (60/40),race,12.06,15.087,0.3212,26.45,White,-0.3,-12.93,-19.86,,,,-3.1,,9.74,26.45
+TYSON FOODS INC,M1 Baseline (60/40),gender,4.02,4.02,0.0288,4.02,Male,,,,4.02,,-4.02,,,,
+TYSON FOODS INC,M1 Baseline (60/40),hispanic,2.54,2.54,0.0205,2.54,Not Hispanic,,,,,-2.54,,,2.54,,
+TYSON FOODS INC,M2 Three-Layer (50/30/20),race,12.54,15.553,0.3325,25.76,White,-0.35,-12.74,-21.86,,,,-2.67,,11.85,25.76
+TYSON FOODS INC,M2 Three-Layer (50/30/20),gender,5.0,5.0,0.0358,5.0,Male,,,,5.0,,-5.0,,,,
+TYSON FOODS INC,M2 Three-Layer (50/30/20),hispanic,3.69,3.69,0.03,3.69,Hispanic,,,,,-3.69,,,3.69,,
+TYSON FOODS INC,M3 IPF,race,17.36,25.781,0.4867,52.07,White,-1.37,-14.24,-32.55,,,,-3.51,,-0.41,52.07
+TYSON FOODS INC,M3 IPF,gender,0.41,0.41,0.003,0.41,Male,,,,-0.41,,0.41,,,,
+TYSON FOODS INC,M3 IPF,hispanic,19.94,19.94,0.1941,19.94,Hispanic,,,,,-19.94,,,19.94,,
+TYSON FOODS INC,M4 Occ-Weighted,race,11.71,14.265,0.3266,23.97,White,-0.38,-13.22,-18.35,,,,-3.2,,11.16,23.97
+TYSON FOODS INC,M4 Occ-Weighted,gender,3.19,3.19,0.0229,3.19,Male,,,,3.19,,-3.19,,,,
+TYSON FOODS INC,M4 Occ-Weighted,hispanic,0.87,0.87,0.0069,0.87,Not Hispanic,,,,,-0.87,,,0.87,,
+TYSON FOODS INC,M5 Variable-Weight,race,12.77,16.929,0.3182,31.41,White,-0.15,-12.37,-22.89,,,,-2.9,,6.89,31.41
+TYSON FOODS INC,M5 Variable-Weight,gender,5.66,5.66,0.0405,5.66,Male,,,,5.66,,-5.66,,,,
+TYSON FOODS INC,M5 Variable-Weight,hispanic,5.88,5.88,0.0485,5.88,Hispanic,,,,,-5.88,,,5.88,,
+TYSON FOODS INC,M6 IPF+Occ,race,17.36,25.781,0.4867,52.07,White,-1.37,-14.24,-32.55,,,,-3.51,,-0.41,52.07
+TYSON FOODS INC,M6 IPF+Occ,gender,0.41,0.41,0.003,0.41,Male,,,,-0.41,,0.41,,,,
+TYSON FOODS INC,M6 IPF+Occ,hispanic,19.94,19.94,0.1941,19.94,Hispanic,,,,,-19.94,,,19.94,,
+PRISM HOTEL PARTNERS GP,M1 Baseline (60/40),race,4.59,5.426,0.1362,9.7,White,-0.89,-5.18,-5.93,,,,-1.77,,4.08,9.7
+PRISM HOTEL PARTNERS GP,M1 Baseline (60/40),gender,2.22,2.22,0.0159,2.22,Male,,,,-2.22,,2.22,,,,
+PRISM HOTEL PARTNERS GP,M1 Baseline (60/40),hispanic,1.56,1.56,0.0113,1.56,Hispanic,,,,,1.56,,,-1.56,,
+PRISM HOTEL PARTNERS GP,M2 Three-Layer (50/30/20),race,4.52,5.106,0.1419,6.89,Two+,-0.88,-4.82,-6.09,,,,-1.77,,6.89,6.69
+PRISM HOTEL PARTNERS GP,M2 Three-Layer (50/30/20),gender,3.27,3.27,0.0234,3.27,Male,,,,-3.27,,3.27,,,,
+PRISM HOTEL PARTNERS GP,M2 Three-Layer (50/30/20),hispanic,2.32,2.32,0.0168,2.32,Hispanic,,,,,2.32,,,-2.32,,
+PRISM HOTEL PARTNERS GP,M3 IPF,race,12.05,17.03,0.3319,36.15,White,-1.37,-9.11,-17.44,,,,-1.83,,-6.4,36.15
+PRISM HOTEL PARTNERS GP,M3 IPF,gender,2.06,2.06,0.0149,2.06,Male,,,,2.06,,-2.06,,,,
+PRISM HOTEL PARTNERS GP,M3 IPF,hispanic,13.43,13.43,0.1029,13.43,Hispanic,,,,,-13.43,,,13.43,,
+PRISM HOTEL PARTNERS GP,M4 Occ-Weighted,race,4.69,5.348,0.1496,8.44,White,-0.95,-6.0,-5.34,,,,-1.78,,5.64,8.44
+PRISM HOTEL PARTNERS GP,M4 Occ-Weighted,gender,0.82,0.82,0.0059,0.82,Male,,,,-0.82,,0.82,,,,
+PRISM HOTEL PARTNERS GP,M4 Occ-Weighted,hispanic,3.94,3.94,0.0284,3.94,Hispanic,,,,,3.94,,,-3.94,,
+PRISM HOTEL PARTNERS GP,M5 Variable-Weight,race,4.59,5.426,0.1362,9.7,White,-0.89,-5.18,-5.93,,,,-1.77,,4.08,9.7
+PRISM HOTEL PARTNERS GP,M5 Variable-Weight,gender,2.22,2.22,0.0159,2.22,Male,,,,-2.22,,2.22,,,,
+PRISM HOTEL PARTNERS GP,M5 Variable-Weight,hispanic,1.56,1.56,0.0113,1.56,Hispanic,,,,,1.56,,,-1.56,,
+PRISM HOTEL PARTNERS GP,M6 IPF+Occ,race,12.05,17.03,0.3319,36.15,White,-1.37,-9.11,-17.44,,,,-1.83,,-6.4,36.15
+PRISM HOTEL PARTNERS GP,M6 IPF+Occ,gender,2.06,2.06,0.0149,2.06,Male,,,,2.06,,-2.06,,,,
+PRISM HOTEL PARTNERS GP,M6 IPF+Occ,hispanic,13.43,13.43,0.1029,13.43,Hispanic,,,,,-13.43,,,13.43,,
+ALEXANDER & BALDWIN INC,M1 Baseline (60/40),race,10.9,16.159,0.338,32.72,NHOPI,0.06,3.0,0.74,,,,-32.72,,20.31,8.6
+ALEXANDER & BALDWIN INC,M1 Baseline (60/40),gender,27.64,27.64,0.2014,27.64,Female,,,,27.64,,-27.64,,,,
+ALEXANDER & BALDWIN INC,M1 Baseline (60/40),hispanic,4.06,4.06,0.0675,4.06,Hispanic,,,,,4.06,,,-4.06,,
+ALEXANDER & BALDWIN INC,M2 Three-Layer (50/30/20),race,10.5,15.364,0.3143,31.51,NHOPI,0.06,4.09,0.96,,,,-31.51,,18.55,7.85
+ALEXANDER & BALDWIN INC,M2 Three-Layer (50/30/20),gender,26.74,26.74,0.1951,26.74,Female,,,,26.74,,-26.74,,,,
+ALEXANDER & BALDWIN INC,M2 Three-Layer (50/30/20),hispanic,4.66,4.66,0.0757,4.66,Hispanic,,,,,4.66,,,-4.66,,
+ALEXANDER & BALDWIN INC,M3 IPF,race,12.22,17.563,0.455,35.93,NHOPI,-0.16,13.16,-0.57,,,,-35.93,,19.17,4.32
+ALEXANDER & BALDWIN INC,M3 IPF,gender,30.89,30.89,0.2243,30.89,Female,,,,30.89,,-30.89,,,,
+ALEXANDER & BALDWIN INC,M3 IPF,hispanic,2.34,2.34,0.0672,2.34,Not Hispanic,,,,,-2.34,,,2.34,,
+ALEXANDER & BALDWIN INC,M4 Occ-Weighted,race,11.17,16.967,0.3588,33.52,NHOPI,0.04,1.15,0.66,,,,-33.52,,22.93,8.73
+ALEXANDER & BALDWIN INC,M4 Occ-Weighted,gender,28.18,28.18,0.2052,28.18,Female,,,,28.18,,-28.18,,,,
+ALEXANDER & BALDWIN INC,M4 Occ-Weighted,hispanic,3.78,3.78,0.0636,3.78,Hispanic,,,,,3.78,,,-3.78,,
+ALEXANDER & BALDWIN INC,M5 Variable-Weight,race,10.9,16.159,0.338,32.72,NHOPI,0.06,3.0,0.74,,,,-32.72,,20.31,8.6
+ALEXANDER & BALDWIN INC,M5 Variable-Weight,gender,27.64,27.64,0.2014,27.64,Female,,,,27.64,,-27.64,,,,
+ALEXANDER & BALDWIN INC,M5 Variable-Weight,hispanic,4.06,4.06,0.0675,4.06,Hispanic,,,,,4.06,,,-4.06,,
+ALEXANDER & BALDWIN INC,M6 IPF+Occ,race,12.22,17.563,0.455,35.93,NHOPI,-0.16,13.16,-0.57,,,,-35.93,,19.17,4.32
+ALEXANDER & BALDWIN INC,M6 IPF+Occ,gender,30.89,30.89,0.2243,30.89,Female,,,,30.89,,-30.89,,,,
+ALEXANDER & BALDWIN INC,M6 IPF+Occ,hispanic,2.34,2.34,0.0672,2.34,Not Hispanic,,,,,-2.34,,,2.34,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M1 Baseline (60/40),race,6.74,9.981,0.1679,19.6,Black,0.28,2.71,-19.6,,,,-0.6,,3.26,13.97
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M1 Baseline (60/40),gender,19.83,19.83,0.1449,19.83,Male,,,,-19.83,,19.83,,,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M1 Baseline (60/40),hispanic,14.0,14.0,0.1044,14.0,Hispanic,,,,,14.0,,,-14.0,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M2 Three-Layer (50/30/20),race,7.15,10.037,0.1836,20.85,Black,0.32,3.55,-20.85,,,,-0.59,,7.79,9.8
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M2 Three-Layer (50/30/20),gender,20.0,20.0,0.1461,20.0,Male,,,,-20.0,,20.0,,,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M2 Three-Layer (50/30/20),hispanic,15.46,15.46,0.1148,15.46,Hispanic,,,,,15.46,,,-15.46,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M3 IPF,race,15.67,23.334,0.3871,47.03,White,-0.53,-4.7,-30.27,,,,-0.75,,-10.76,47.03
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M3 IPF,gender,19.02,19.02,0.1392,19.02,Male,,,,-19.02,,19.02,,,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M3 IPF,hispanic,5.52,5.52,0.0424,5.52,Hispanic,,,,,5.52,,,-5.52,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M4 Occ-Weighted,race,6.41,9.326,0.1597,18.58,Black,0.2,1.61,-18.58,,,,-0.64,,5.42,12.01
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M4 Occ-Weighted,gender,19.52,19.52,0.1427,19.52,Male,,,,-19.52,,19.52,,,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M4 Occ-Weighted,hispanic,14.32,14.32,0.1067,14.32,Hispanic,,,,,14.32,,,-14.32,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M5 Variable-Weight,race,6.74,9.981,0.1679,19.6,Black,0.28,2.71,-19.6,,,,-0.6,,3.26,13.97
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M5 Variable-Weight,gender,19.83,19.83,0.1449,19.83,Male,,,,-19.83,,19.83,,,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M5 Variable-Weight,hispanic,14.0,14.0,0.1044,14.0,Hispanic,,,,,14.0,,,-14.0,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M6 IPF+Occ,race,15.67,23.334,0.3871,47.03,White,-0.53,-4.7,-30.27,,,,-0.75,,-10.76,47.03
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M6 IPF+Occ,gender,19.02,19.02,0.1392,19.02,Male,,,,-19.02,,19.02,,,,
+HOWROYD WRIGHT EMPLOYMENT AGENCY,M6 IPF+Occ,hispanic,5.52,5.52,0.0424,5.52,Hispanic,,,,,5.52,,,-5.52,,
+DUCOMMUN INCORPORATED,M1 Baseline (60/40),race,5.63,7.96,0.2102,14.67,Two+,-1.57,-2.91,2.22,,,,-0.18,,14.67,-12.21
+DUCOMMUN INCORPORATED,M1 Baseline (60/40),gender,10.15,10.15,0.0737,10.15,Male,,,,-10.15,,10.15,,,,
+DUCOMMUN INCORPORATED,M1 Baseline (60/40),hispanic,17.83,17.83,0.1458,17.83,Hispanic,,,,,17.83,,,-17.83,,
+DUCOMMUN INCORPORATED,M2 Three-Layer (50/30/20),race,6.13,9.386,0.2284,16.92,Two+,-1.59,-1.28,1.49,,,,-0.16,,16.92,-15.36
+DUCOMMUN INCORPORATED,M2 Three-Layer (50/30/20),gender,7.35,7.345,0.053,7.35,Male,,,,-7.34,,7.35,,,,
+DUCOMMUN INCORPORATED,M2 Three-Layer (50/30/20),hispanic,17.57,17.57,0.1439,17.57,Hispanic,,,,,17.57,,,-17.57,,
+DUCOMMUN INCORPORATED,M3 IPF,race,5.79,8.732,0.2059,17.37,White,-2.19,-11.99,-2.65,,,,-0.34,,-0.18,17.37
+DUCOMMUN INCORPORATED,M3 IPF,gender,21.01,21.01,0.1589,21.01,Female,,,,-21.01,,21.01,,,,
+DUCOMMUN INCORPORATED,M3 IPF,hispanic,5.86,5.86,0.0521,5.86,Hispanic,,,,,5.86,,,-5.86,,
+DUCOMMUN INCORPORATED,M4 Occ-Weighted,race,6.43,9.051,0.2322,16.93,Two+,-1.67,-3.92,2.36,,,,-0.22,,16.93,-13.46
+DUCOMMUN INCORPORATED,M4 Occ-Weighted,gender,12.58,12.58,0.092,12.58,Male,,,,-12.58,,12.58,,,,
+DUCOMMUN INCORPORATED,M4 Occ-Weighted,hispanic,17.34,17.34,0.1422,17.34,Hispanic,,,,,17.34,,,-17.34,,
+DUCOMMUN INCORPORATED,M5 Variable-Weight,race,5.23,7.42,0.199,13.54,Two+,-1.52,-2.4,2.15,,,,-0.16,,13.54,-11.59
+DUCOMMUN INCORPORATED,M5 Variable-Weight,gender,8.93,8.93,0.0647,8.93,Male,,,,-8.93,,8.93,,,,
+DUCOMMUN INCORPORATED,M5 Variable-Weight,hispanic,18.08,18.08,0.1476,18.08,Hispanic,,,,,18.08,,,-18.08,,
+DUCOMMUN INCORPORATED,M6 IPF+Occ,race,5.79,8.732,0.2059,17.37,White,-2.19,-11.99,-2.65,,,,-0.34,,-0.18,17.37
+DUCOMMUN INCORPORATED,M6 IPF+Occ,gender,21.01,21.01,0.1589,21.01,Female,,,,-21.01,,21.01,,,,
+DUCOMMUN INCORPORATED,M6 IPF+Occ,hispanic,5.86,5.86,0.0521,5.86,Hispanic,,,,,5.86,,,-5.86,,

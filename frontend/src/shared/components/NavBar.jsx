@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Search, Target, Users, Microscope, Settings, LogOut, BarChart3 } from 'lucide-react'
+import { Search, Target, Users, Microscope, Settings, LogOut, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/shared/stores/authStore'
 
 const NAV_ITEMS = [
-  { to: '/search', label: 'Employers', icon: Search },
+  { to: '/search', label: 'Search', icon: Search },
   { to: '/targets', label: 'Targets', icon: Target },
-  { to: '/scorecard', label: 'Scorecard', icon: BarChart3 },
   { to: '/unions', label: 'Unions', icon: Users },
   { to: '/research', label: 'Research', icon: Microscope },
+  { to: '/cbas', label: 'Contracts', icon: FileText },
 ]
 
 const ADMIN_ITEM = { to: '/settings', label: 'Settings', icon: Settings }
@@ -48,6 +48,7 @@ export function NavBar({ onOpenPalette }) {
   return (
     <nav
       data-testid="navbar"
+      data-no-print
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-transform duration-200',
         visible ? 'translate-y-0' : '-translate-y-full'

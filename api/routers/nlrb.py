@@ -446,3 +446,47 @@ def get_nlrb_patterns():
                 "by_size": [dict(r) for r in size_buckets],
                 "by_state": [dict(r) for r in states]
             }
+
+
+@router.get("/api/nlrb/docket/{case_number}")
+def get_nlrb_docket(case_number: str):
+    """Return docket entries for a single NLRB case."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT docket_entry, docket_date, document_id
+                FROM nlrb_docket
+                WHERE case_number = %s
+                ORDER BY docket_date DESC
+                LIMIT 100
+                """,
+                [case_number],
+            )
+            rows = cur.fetchall()
+
+            if not rows:
+                raise HTTPException(status_code=404, detail="No docket entries found")
+
+            dates = [r["docket_date"] for r in rows if r["docket_date"]]
+            first_date = min(dates) if dates else None
+            last_date = max(dates) if dates else None
+            duration_days = (last_date - first_date).days if first_date and last_date else None
+
+            entries = [
+                {
+                    "docket_entry": r["docket_entry"],
+                    "docket_date": str(r["docket_date"]) if r["docket_date"] else None,
+                    "document_id": r["document_id"],
+                }
+                for r in rows
+            ]
+
+            return {
+                "case_number": case_number,
+                "entries": entries,
+                "entry_count": len(entries),
+                "first_date": str(first_date) if first_date else None,
+                "last_date": str(last_date) if last_date else None,
+                "duration_days": duration_days,
+            }

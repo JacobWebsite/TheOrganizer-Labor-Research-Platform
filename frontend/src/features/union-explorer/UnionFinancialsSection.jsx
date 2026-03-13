@@ -27,7 +27,7 @@ export function UnionFinancialsSection({ trends }) {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="px-3 py-2 text-left font-medium text-muted-foreground">Year</th>
-                <th className="px-3 py-2 text-right font-medium text-muted-foreground">Members</th>
+                <th className="px-3 py-2 text-right font-medium text-muted-foreground" title="Dues-paying members (LM filings)">Members</th>
                 <th className="px-3 py-2 text-right font-medium text-muted-foreground">Assets</th>
                 <th className="px-3 py-2 text-right font-medium text-muted-foreground">Receipts</th>
               </tr>

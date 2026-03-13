@@ -249,3 +249,68 @@ class TestACSWorkforceTool:
             assert "age_distribution_pct" in data
             assert "education_pct" in data
             assert "worker_class_pct" in data
+
+
+class TestGetIndustryProfileBLS:
+    """Tests for BLS dataset integration in get_industry_profile (R3-9)."""
+
+    def test_bls_keys_present(self):
+        from scripts.research.tools import get_industry_profile
+        result = get_industry_profile("TEST", naics="72", state="NY")
+        if result["found"]:
+            assert "oes_area_wages" in result["data"]
+            assert "soii_injury_rates" in result["data"]
+            assert "jolts_turnover_rates" in result["data"]
+            assert "ncs_benefits_access" in result["data"]
+
+    def test_soii_format(self):
+        from scripts.research.tools import get_industry_profile
+        result = get_industry_profile("TEST", naics="72", state="NY")
+        if result["found"] and result["data"]["soii_injury_rates"]:
+            row = result["data"]["soii_injury_rates"][0]
+            assert "year" in row
+            assert "industry_name" in row
+            assert "case_type_text" in row
+            assert "rate" in row
+
+    def test_jolts_format(self):
+        from scripts.research.tools import get_industry_profile
+        result = get_industry_profile("TEST", naics="72", state="NY")
+        if result["found"] and result["data"]["jolts_turnover_rates"]:
+            row = result["data"]["jolts_turnover_rates"][0]
+            assert "year" in row
+            assert "period" in row
+            assert "dataelement_text" in row
+            assert "rate" in row
+
+    def test_ncs_format(self):
+        from scripts.research.tools import get_industry_profile
+        result = get_industry_profile("TEST", naics="72", state="NY")
+        if result["found"] and result["data"]["ncs_benefits_access"]:
+            row = result["data"]["ncs_benefits_access"][0]
+            assert "year" in row
+            assert "provision_text" in row
+            assert "rate" in row
+
+    def test_oes_only_with_state(self):
+        from scripts.research.tools import get_industry_profile
+        result = get_industry_profile("TEST", naics="72")
+        if result["found"]:
+            assert result["data"]["oes_area_wages"] == []
+
+    def test_oes_format_with_state(self):
+        from scripts.research.tools import get_industry_profile
+        result = get_industry_profile("TEST", naics="72", state="NY")
+        if result["found"] and result["data"]["oes_area_wages"]:
+            row = result["data"]["oes_area_wages"][0]
+            assert "occ_code" in row
+            assert "a_median" in row
+            assert "tot_emp" in row
+
+    def test_ncs_fallback_to_all_private(self):
+        from scripts.research.tools import get_industry_profile
+        # Use a rare NAICS that probably has no NCS data
+        result = get_industry_profile("TEST", naics="111998")
+        if result["found"]:
+            # Even with a rare NAICS, NCS should fall back to all-private
+            assert isinstance(result["data"]["ncs_benefits_access"], list)

@@ -227,13 +227,27 @@ def get_whd_employer_cases(employer_id: str):
             """, [name_norm, state])
             cases = cur.fetchall()
 
+            # Check if any whd matches for this employer are unverified
+            has_unverified_match = False
+            cur.execute(
+                """SELECT EXISTS(
+                    SELECT 1 FROM whd_f7_matches
+                    WHERE f7_employer_id = %s AND score_eligible = FALSE
+                ) AS e""",
+                [employer_id],
+            )
+            row = cur.fetchone()
+            if row:
+                has_unverified_match = row.get("e", False) if isinstance(row, dict) else row[0]
+
             return {
                 "employer_id": employer_id,
                 "name_normalized": name_norm,
                 "state": state,
                 "city": city,
                 "whd_summary": f7 or mergent,
-                "cases": cases
+                "cases": cases,
+                "has_unverified_match": has_unverified_match,
             }
 
 

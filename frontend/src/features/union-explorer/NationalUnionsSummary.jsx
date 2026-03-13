@@ -49,7 +49,7 @@ export function NationalUnionsSummary({ data, isLoading, onAffiliationClick }) {
       <div className="flex gap-4">
         {AFF_GROUPS.map(({ key, label, color }) => {
           const unions = grouped[key] || []
-          const members = unions.reduce((s, u) => s + (u.total_members || 0), 0)
+          const members = unions.reduce((s, u) => s + (u.nhq_members ?? u.deduplicated_members ?? u.total_members ?? 0), 0)
           const locals = unions.reduce((s, u) => s + (u.local_count || 0), 0)
           return (
             <Card key={key} className="flex-1" style={{ borderTop: `4px solid ${color}` }}>
@@ -74,7 +74,7 @@ export function NationalUnionsSummary({ data, isLoading, onAffiliationClick }) {
             <Badge variant="secondary" className="hover:bg-primary hover:text-primary-foreground transition-colors">
               {a.aff_abbr}
               <span className="ml-1 text-[10px] opacity-70">
-                {(a.total_members || 0).toLocaleString()}
+                {(a.nhq_members ?? a.deduplicated_members ?? a.total_members ?? 0).toLocaleString()}
               </span>
             </Badge>
           </button>

@@ -45,7 +45,15 @@ NEEDED_VARS = [
     "CLASSWKR",
     "OCCSOC",
     "INDNAICS",
+    # Health insurance (already in usa_00001 layout)
+    "HCOVANY",
+    "HCOVPRIV",
+    "HINSCAID",
+    "HINSCARE",
 ]
+
+# Insurance vars that may or may not be in the layout
+OPTIONAL_INSURANCE_VARS = ["HCOVPUB2", "HCOVSUB2"]
 
 
 def parse_args():
@@ -120,7 +128,13 @@ def main():
     if missing:
         raise SystemExit(f"Layout missing required vars: {missing}")
 
-    agg = defaultdict(float)
+    # Check optional insurance vars
+    optional_found = [v for v in OPTIONAL_INSURANCE_VARS if v in specs]
+    all_insurance_vars = ["HCOVANY", "HCOVPRIV", "HINSCAID", "HINSCARE"] + optional_found
+    print(f"Insurance vars found: {all_insurance_vars}")
+
+    # 7 accumulators: weighted_count + 6 insurance weighted sums
+    agg = defaultdict(lambda: [0.0] * 7)
     rows = 0
     kept = 0
 
@@ -133,6 +147,9 @@ def main():
                 continue
 
             rec = {v: parse_val(line, specs[v]) for v in NEEDED_VARS}
+            # Add optional insurance vars if present in layout
+            for ov in optional_found:
+                rec[ov] = parse_val(line, specs[ov])
             if rec["LABFORCE"] not in {"1", "2"}:
                 continue
             if rec["OCCSOC"] in {"", "000000", "0000"}:
@@ -159,7 +176,22 @@ def main():
                 rec["EDUC"],
                 rec["CLASSWKR"],
             )
-            agg[key] += w
+            # Insurance flags (code "2" = has coverage, "1" = no coverage)
+            has_any  = 1.0 if rec.get("HCOVANY") == "2" else 0.0
+            has_priv = 1.0 if rec.get("HCOVPRIV") == "2" else 0.0
+            has_caid = 1.0 if rec.get("HINSCAID") == "2" else 0.0
+            has_care = 1.0 if rec.get("HINSCARE") == "2" else 0.0
+            has_pub  = 1.0 if rec.get("HCOVPUB2", "1") == "2" else 0.0
+            has_sub  = 1.0 if rec.get("HCOVSUB2", "1") == "2" else 0.0
+
+            vals = agg[key]
+            vals[0] += w
+            vals[1] += w * has_any
+            vals[2] += w * has_priv
+            vals[3] += w * has_caid
+            vals[4] += w * has_care
+            vals[5] += w * has_pub
+            vals[6] += w * has_sub
             kept += 1
             if kept % 2_000_000 == 0:
                 print(f"processed rows={rows:,} kept={kept:,} groups={len(agg):,}")
@@ -173,9 +205,11 @@ def main():
         w.writerow([
             "sample", "year", "statefip", "met2013", "indnaics", "occsoc",
             "sex", "race", "hispan", "age_bucket", "educ", "classwkr", "weighted_count",
+            "weighted_hcovany", "weighted_hcovpriv", "weighted_hinscaid",
+            "weighted_hinscare", "weighted_hcovpub2", "weighted_hcovsub2",
         ])
-        for k, v in agg.items():
-            w.writerow([*k, round(v, 4)])
+        for k, vals in agg.items():
+            w.writerow([*k] + [round(v, 4) for v in vals])
 
     print(f"Wrote {out_csv} groups={len(agg):,}")
 
@@ -201,17 +235,32 @@ def main():
                     educ TEXT,
                     classwkr TEXT,
                     weighted_count NUMERIC,
+                    weighted_hcovany NUMERIC,
+                    weighted_hcovpriv NUMERIC,
+                    weighted_hinscaid NUMERIC,
+                    weighted_hinscare NUMERIC,
+                    weighted_hcovpub2 NUMERIC,
+                    weighted_hcovsub2 NUMERIC,
                     _loaded_at TIMESTAMP DEFAULT NOW()
                 )
                 """
             )
+            # Add columns if table already exists (idempotent)
+            for col in ["weighted_hcovany", "weighted_hcovpriv", "weighted_hinscaid",
+                         "weighted_hinscare", "weighted_hcovpub2", "weighted_hcovsub2"]:
+                cur.execute(f"""
+                    ALTER TABLE newsrc_acs_occ_demo_profiles
+                    ADD COLUMN IF NOT EXISTS {col} NUMERIC
+                """)
             cur.execute("TRUNCATE newsrc_acs_occ_demo_profiles")
             with open(out_csv, "r", encoding="utf-8", newline="") as fp:
                 cur.copy_expert(
                     """
                     COPY newsrc_acs_occ_demo_profiles
                     (sample, year, statefip, met2013, indnaics, occsoc, sex, race, hispan,
-                     age_bucket, educ, classwkr, weighted_count)
+                     age_bucket, educ, classwkr, weighted_count,
+                     weighted_hcovany, weighted_hcovpriv, weighted_hinscaid,
+                     weighted_hinscare, weighted_hcovpub2, weighted_hcovsub2)
                     FROM STDIN WITH (FORMAT csv, HEADER true)
                     """,
                     fp,

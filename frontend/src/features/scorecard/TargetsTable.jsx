@@ -58,10 +58,50 @@ function formatNumber(n) {
  * Targets table with TanStack Table: employer name, location, employees,
  * source origin, quality indicator, flag badges. Row click navigates to profile.
  */
-export function TargetsTable({ data, total, page, pages, onPageChange }) {
+export function TargetsTable({
+  data,
+  total,
+  page,
+  pages,
+  onPageChange,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectPage,
+  maxSelected = 3,
+}) {
   const navigate = useNavigate()
+  const selectedSet = new Set(selectedIds)
+  const pageIds = (data || []).map((row) => String(row.id))
+  const allSelectedOnPage = pageIds.length > 0 && pageIds.every((id) => selectedSet.has(id))
 
   const columns = useMemo(() => [
+    {
+      id: 'select',
+      header: () => (
+        <input
+          type="checkbox"
+          aria-label="Select all employers on page"
+          checked={allSelectedOnPage}
+          onChange={(e) => onToggleSelectPage?.(data || [], e.target.checked)}
+        />
+      ),
+      cell: ({ row }) => {
+        const id = `MASTER-${row.original.id}`
+        const checked = selectedSet.has(id)
+        const disabled = !checked && selectedIds.length >= maxSelected
+        return (
+          <input
+            type="checkbox"
+            aria-label={`Select ${row.original.display_name}`}
+            checked={checked}
+            disabled={disabled}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onToggleSelect?.(id, e.target.checked)}
+          />
+        )
+      },
+      size: 40,
+    },
     {
       id: 'rank',
       header: '#',
@@ -108,7 +148,7 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
             <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-semibold ${
               s >= 4 ? 'bg-[#c23a22]/10 text-[#c23a22]' : s >= 2 ? 'bg-[#c78c4e]/15 text-[#c78c4e]' : 'bg-[#d9cebb]/50 text-[#8a7e6b]'
             }`}>
-              {s}/8
+              {s}/9
             </span>
           </div>
         )
@@ -169,7 +209,7 @@ export function TargetsTable({ data, total, page, pages, onPageChange }) {
         )
       },
     },
-  ], [])
+  ], [allSelectedOnPage, data, maxSelected, onToggleSelect, onToggleSelectPage, page, selectedIds.length, selectedSet])
 
   const table = useReactTable({
     data: data || [],

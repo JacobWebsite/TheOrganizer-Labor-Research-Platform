@@ -1,0 +1,2 @@
+SOCRATA_APP_TOKEN=5ydfwlao2yzczqq03phgr5obcqzra11bigixut1a
+SOCRATA_API_KEY=2xcqkt13q8i15r5tlsb87nicq

@@ -1,0 +1,42 @@
+Task 2-2 is going to wait on full rebuild of the matching
+
+task 2-5 should be done soon, one of the next couple sessions
+
+task 2-6 means task 2-5 should be done every week
+
+task 2-11 deferred until there's only two weeks left
+
+Task 3-13 in progress, anticipate 1 more week
+
+Task 4-9 essential before we can finish research agent, which has it's own roadmap. we will have to make a roadmap to create 20 known employer gold standard dossiers
+
+Task r3-1 we can do soon
+
+Phase 5 all of these are under expanding information about states and localities. We need to add a large task of getting many state and local contracts. Going to require it's own full roadmap. And decisions need to be made about the feasibility of PERB collection.
+
+Phase 7: task 7-2 the research will be done at some point
+
+Task 7-3 investigate then decide if fixable
+
+Task 7-7 need to improve this, need to make sure unions are deduplicated and manual checks
+
+Task 8-1 we need a full roadmap for both collection and integration
+
+8-2 is almost completely separate from everything else. It's its own type of tool. But that means we should develop a full  roadmap about getting it working and treat it almost as a separate project in parallel
+
+8-3 we have a full roadmap right now. Need to review and see how useful it is. 
+
+8-4 we need to decide how useful this is and what the use cases are? Is this going in the research agent? what are the use cases
+
+8-5 need to figure out why this is important, might be useful, but also might not be
+
+8-6 figure out same time as deployment. Last feature we would integrate
+
+8-8 makes sense
+
+Also we need another full multi-AI audit of the code, of the functions, of all the documents, need to make sure we have a useable index of documents, and more. 
+
+Another long-term task is the mergent intellect files. around 1.72 million, I've pulled 400k. This provides duns and ein, and hierarchy and improves depth of many of the targets.
+
+All the open question links we should retain and match to relevant tasks.
+ 

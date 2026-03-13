@@ -301,7 +301,7 @@ def get_data_coverage():
 _UNIFIED_SEARCH_PARAMS = {
     "name", "state", "city", "metro", "sector", "naics", "aff_abbr",
     "source_type", "has_union", "min_workers", "max_workers", "score_tier",
-    "include_historical", "limit", "offset",
+    "min_factors", "include_historical", "limit", "offset",
 }
 
 
@@ -320,6 +320,7 @@ def unified_employer_search(
     min_workers: int = Query(None, ge=0),
     max_workers: int = Query(None, ge=0),
     score_tier: str = Query(None, pattern="^(Priority|Strong|Promising|Moderate|Low)$"),
+    min_factors: int = Query(None, ge=1, le=10),
     include_historical: bool = Query(False, description="Include historical (pre-2020) employers"),
     limit: int = Query(50, le=500),
     offset: int = 0
@@ -390,6 +391,9 @@ def unified_employer_search(
                     "EXISTS (SELECT 1 FROM mv_unified_scorecard usc WHERE usc.employer_id = m.canonical_id AND usc.score_tier = %s)"
                 )
                 params.append(score_tier)
+            if min_factors is not None:
+                conditions.append("m.factors_available >= %s")
+                params.append(min_factors)
 
             where_clause = " AND ".join(conditions)
 
@@ -405,6 +409,8 @@ def unified_employer_search(
                        m.has_union, m.latitude, m.longitude,
                        m.canonical_group_id, m.group_member_count,
                        m.consolidated_workers,
+                       m.factors_available, m.factors_total,
+                       m.weighted_score, m.score_tier,
                        COALESCE(f.flag_count, 0) AS flag_count
                 FROM mv_employer_search m
                 LEFT JOIN (

@@ -1,0 +1,1607 @@
+{
+  "description": "Permanent holdout (100 companies, FROZEN, never train)",
+  "seed": 99,
+  "n_companies": 100,
+  "companies": [
+    {
+      "company_code": "DA4049",
+      "name": "CHILDRENS GUILD, INC.",
+      "naics": "611110",
+      "state": "MD",
+      "zipcode": "21234",
+      "total": 530,
+      "year": 2020,
+      "county_fips": "24005",
+      "state_fips": "24",
+      "classifications": {
+        "naics_group": "Other",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "AN3303",
+      "name": "WEST TENNESSEE BANCSHARES  INC.",
+      "naics": "551112",
+      "state": "TN",
+      "zipcode": "38134",
+      "total": 106,
+      "year": 2020,
+      "county_fips": "47157",
+      "state_fips": "47",
+      "classifications": {
+        "naics_group": "Other",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "G12554",
+      "name": "INTEGER HOLDINGS CORPORATION",
+      "naics": "551114",
+      "state": "TX",
+      "zipcode": "75024",
+      "total": 3446,
+      "year": 2020,
+      "county_fips": "48085",
+      "state_fips": "48",
+      "classifications": {
+        "naics_group": "Other",
+        "region": "South",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "DW0039",
+      "name": "FINCANTIERI MARINE GROUP",
+      "naics": "336611",
+      "state": "WI",
+      "zipcode": "54143",
+      "total": 2161,
+      "year": 2020,
+      "county_fips": "55075",
+      "state_fips": "55",
+      "classifications": {
+        "naics_group": "Transport Equip Mfg (336)",
+        "region": "Midwest",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "N54533",
+      "name": "ENT CREDIT UNION",
+      "naics": "522130",
+      "state": "CO",
+      "zipcode": "80920",
+      "total": 1211,
+      "year": 2020,
+      "county_fips": "08041",
+      "state_fips": "08",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "West",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "CG1210",
+      "name": "INNER PARISH SECURITY CORP",
+      "naics": "561612",
+      "state": "LA",
+      "zipcode": "70403",
+      "total": 1337,
+      "year": 2020,
+      "county_fips": "22105",
+      "state_fips": "22",
+      "classifications": {
+        "naics_group": "Admin/Staffing (56)",
+        "region": "South",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "L32367",
+      "name": "LAKE SHORE SAVINGS BANK",
+      "naics": "522120",
+      "state": "NY",
+      "zipcode": "14048",
+      "total": 118,
+      "year": 2020,
+      "county_fips": "36013",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "T15851",
+      "name": "DIME COMMUNITY BANK",
+      "naics": "522120",
+      "state": "NY",
+      "zipcode": "11201",
+      "total": 429,
+      "year": 2020,
+      "county_fips": "36047",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "T10978",
+      "name": "COMMUNITY BANCSHARES INC",
+      "naics": "522110",
+      "state": "OH",
+      "zipcode": "45651",
+      "total": 244,
+      "year": 2020,
+      "county_fips": "39163",
+      "state_fips": "39",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "FD3166",
+      "name": "LAKE AREA BANK",
+      "naics": "522110",
+      "state": "MN",
+      "zipcode": "55110",
+      "total": 116,
+      "year": 2020,
+      "county_fips": "27123",
+      "state_fips": "27",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "HP5716",
+      "name": "TRADITION CAPITAL BANK",
+      "naics": "522110",
+      "state": "MN",
+      "zipcode": "55435",
+      "total": 99,
+      "year": 2020,
+      "county_fips": "27053",
+      "state_fips": "27",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "Midwest",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "K07040",
+      "name": "FIRST AMERICAN BANK CORPORATION",
+      "naics": "522110",
+      "state": "IL",
+      "zipcode": "60007",
+      "total": 852,
+      "year": 2020,
+      "county_fips": "17031",
+      "state_fips": "17",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "872057",
+      "name": "KERRY INC.",
+      "naics": "311999",
+      "state": "WI",
+      "zipcode": "53511",
+      "total": 5708,
+      "year": 2020,
+      "county_fips": "55105",
+      "state_fips": "55",
+      "classifications": {
+        "naics_group": "Food/Bev Manufacturing (311,312)",
+        "region": "Midwest",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "X35604",
+      "name": "CASA DEL MUNDO OFFICE DENVER HQ",
+      "naics": "621492",
+      "state": "CO",
+      "zipcode": "80202",
+      "total": 54374,
+      "year": 2020,
+      "county_fips": "08031",
+      "state_fips": "08",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "West",
+        "size": "10000+"
+      }
+    },
+    {
+      "company_code": "GT3882",
+      "name": "VISITING ANGELS OF THE SOUTHWEST CO",
+      "naics": "624120",
+      "state": "CO",
+      "zipcode": "81147",
+      "total": 172,
+      "year": 2019,
+      "county_fips": "08007",
+      "state_fips": "08",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "JJ6125",
+      "name": "EASY WAY FORMULA LLC",
+      "naics": "722511",
+      "state": "CA",
+      "zipcode": "91744",
+      "total": 337,
+      "year": 2020,
+      "county_fips": "06037",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Accommodation/Food Svc (72)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "AQ2777",
+      "name": "GILDAN YARNS",
+      "naics": "313110",
+      "state": "NC",
+      "zipcode": "28146",
+      "total": 1281,
+      "year": 2019,
+      "county_fips": "37159",
+      "state_fips": "37",
+      "classifications": {
+        "naics_group": "Other Manufacturing",
+        "region": "South",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "A12472",
+      "name": "U S AUTO GROUP LTD",
+      "naics": "441110",
+      "state": "MI",
+      "zipcode": "48009",
+      "total": 222,
+      "year": 2019,
+      "county_fips": "26125",
+      "state_fips": "26",
+      "classifications": {
+        "naics_group": "Retail Trade (44-45)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "X52239",
+      "name": "VERIFONE, INC. - SAN JOSE HQ",
+      "naics": "423420",
+      "state": "CA",
+      "zipcode": "95134",
+      "total": 697,
+      "year": 2020,
+      "county_fips": "06085",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Wholesale Trade (42)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "BL4731",
+      "name": "BOISE CASCADE COMPANY",
+      "naics": "321212",
+      "state": "ID",
+      "zipcode": "83702",
+      "total": 5838,
+      "year": 2020,
+      "county_fips": "16001",
+      "state_fips": "16",
+      "classifications": {
+        "naics_group": "Other Manufacturing",
+        "region": "West",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "M07532",
+      "name": "ENERGYUNITED ELECTRIC MEMB CORP",
+      "naics": "221122",
+      "state": "NC",
+      "zipcode": "28625",
+      "total": 211,
+      "year": 2020,
+      "county_fips": "37097",
+      "state_fips": "37",
+      "classifications": {
+        "naics_group": "Utilities (22)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "BP1622",
+      "name": "SAR HOLDINGS  INC",
+      "naics": "551114",
+      "state": "NY",
+      "zipcode": "10004",
+      "total": 3110,
+      "year": 2020,
+      "county_fips": "36061",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Other",
+        "region": "Northeast",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "JN2761",
+      "name": "OCEAN STATE INNOVATIONS",
+      "naics": "424310",
+      "state": "RI",
+      "zipcode": "2871",
+      "total": 154,
+      "year": 2020,
+      "county_fips": "44005",
+      "state_fips": "44",
+      "classifications": {
+        "naics_group": "Wholesale Trade (42)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "G03938",
+      "name": "BROOKFIELD PROPERTY REIT INC.",
+      "naics": "531390",
+      "state": "IL",
+      "zipcode": "60654",
+      "total": 1771,
+      "year": 2020,
+      "county_fips": "17031",
+      "state_fips": "17",
+      "classifications": {
+        "naics_group": "Other",
+        "region": "Midwest",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "BT2243",
+      "name": "FIRST NEBRASKA BANCS  INC",
+      "naics": "551112",
+      "state": "NE",
+      "zipcode": "69162",
+      "total": 167,
+      "year": 2020,
+      "county_fips": "31033",
+      "state_fips": "31",
+      "classifications": {
+        "naics_group": "Other",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "FR4712",
+      "name": "ENVOY AIR INC.",
+      "naics": "481111",
+      "state": "TX",
+      "zipcode": "75063",
+      "total": 16200,
+      "year": 2020,
+      "county_fips": "48113",
+      "state_fips": "48",
+      "classifications": {
+        "naics_group": "Transportation/Warehousing (48-49)",
+        "region": "South",
+        "size": "10000+"
+      }
+    },
+    {
+      "company_code": "FA5041",
+      "name": "VIGOR INDUSTRIAL",
+      "naics": "336611",
+      "state": "OR",
+      "zipcode": "97217",
+      "total": 2338,
+      "year": 2020,
+      "county_fips": "41051",
+      "state_fips": "41",
+      "classifications": {
+        "naics_group": "Transport Equip Mfg (336)",
+        "region": "West",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "X41089",
+      "name": "KILROY REALTY CORPORATION",
+      "naics": "531210",
+      "state": "CA",
+      "zipcode": "90064",
+      "total": 252,
+      "year": 2020,
+      "county_fips": "06037",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Other",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "R14299",
+      "name": "SWINERTON INCORPORATED",
+      "naics": "236220",
+      "state": "CA",
+      "zipcode": "94520",
+      "total": 4662,
+      "year": 2020,
+      "county_fips": "06013",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Construction (23)",
+        "region": "West",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "CH0063",
+      "name": "PROFESSIONAL ENGRG CONS PA",
+      "naics": "541330",
+      "state": "KS",
+      "zipcode": "67202",
+      "total": 305,
+      "year": 2020,
+      "county_fips": "20173",
+      "state_fips": "20",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "GV9761",
+      "name": "CONTINENTAL MAPPING CONSULTANTS LLC",
+      "naics": "541370",
+      "state": "WI",
+      "zipcode": "53590",
+      "total": 215,
+      "year": 2020,
+      "county_fips": "55025",
+      "state_fips": "55",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "A55612",
+      "name": "VERTICAL SCREEN INC",
+      "naics": "561611",
+      "state": "PA",
+      "zipcode": "18974",
+      "total": 691,
+      "year": 2020,
+      "county_fips": "42017",
+      "state_fips": "42",
+      "classifications": {
+        "naics_group": "Admin/Staffing (56)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "AN8735",
+      "name": "MEDIDATA SOLUTIONS INC.",
+      "naics": "518210",
+      "state": "NY",
+      "zipcode": "10014",
+      "total": 1437,
+      "year": 2020,
+      "county_fips": "36061",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Information (51)",
+        "region": "Northeast",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "DH3382",
+      "name": "VARNEY  INC",
+      "naics": "238210",
+      "state": "VA",
+      "zipcode": "24012",
+      "total": 197,
+      "year": 2020,
+      "county_fips": "51770",
+      "state_fips": "51",
+      "classifications": {
+        "naics_group": "Construction (23)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "CH0069",
+      "name": "DANNENBAUM ENGINEERING CORP",
+      "naics": "541330",
+      "state": "TX",
+      "zipcode": "77098",
+      "total": 210,
+      "year": 2020,
+      "county_fips": "48201",
+      "state_fips": "48",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "A55535",
+      "name": "NATIONAL TECHNOLOGIES ASSOCIATES IN",
+      "naics": "541330",
+      "state": "MD",
+      "zipcode": "20619",
+      "total": 211,
+      "year": 2020,
+      "county_fips": "24037",
+      "state_fips": "24",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "X10530",
+      "name": "TREND MICRO INC",
+      "naics": "541511",
+      "state": "TX",
+      "zipcode": "75062",
+      "total": 1018,
+      "year": 2020,
+      "county_fips": "48113",
+      "state_fips": "48",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "South",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "E36719",
+      "name": "CDR MAGUIRE INC",
+      "naics": "541330",
+      "state": "FL",
+      "zipcode": "33156",
+      "total": 470,
+      "year": 2020,
+      "county_fips": "12086",
+      "state_fips": "12",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "505588",
+      "name": "BARGE DESIGN SOLUTIONS",
+      "naics": "541330",
+      "state": "TN",
+      "zipcode": "37210",
+      "total": 424,
+      "year": 2020,
+      "county_fips": "47037",
+      "state_fips": "47",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "EF6382",
+      "name": "REVERE CONTROL SYSTEMS",
+      "naics": "541330",
+      "state": "AL",
+      "zipcode": "35216",
+      "total": 190,
+      "year": 2019,
+      "county_fips": "01073",
+      "state_fips": "01",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "T01574",
+      "name": "ADVANCED OFFICE ENVIRONMENT INC",
+      "naics": "442110",
+      "state": "PA",
+      "zipcode": "19355",
+      "total": 57,
+      "year": 2020,
+      "county_fips": "42029",
+      "state_fips": "42",
+      "classifications": {
+        "naics_group": "Retail Trade (44-45)",
+        "region": "Northeast",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "ET9301",
+      "name": "A.W. FARRELL & SON  INC.",
+      "naics": "238160",
+      "state": "NY",
+      "zipcode": "14048",
+      "total": 290,
+      "year": 2020,
+      "county_fips": "36013",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Construction (23)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "E13168",
+      "name": "NATIONAL CAPTIONING INST INC",
+      "naics": "512191",
+      "state": "VA",
+      "zipcode": "20151",
+      "total": 191,
+      "year": 2020,
+      "county_fips": "51059",
+      "state_fips": "51",
+      "classifications": {
+        "naics_group": "Information (51)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "JG7529",
+      "name": "HALO SERVICES INC",
+      "naics": "213112",
+      "state": "NM",
+      "zipcode": "87413",
+      "total": 268,
+      "year": 2020,
+      "county_fips": "35045",
+      "state_fips": "35",
+      "classifications": {
+        "naics_group": "Agriculture/Mining (11,21)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "AF1672",
+      "name": "USTER TECHNOLOGIES  INC.",
+      "naics": "333999",
+      "state": "TN",
+      "zipcode": "37919",
+      "total": 69,
+      "year": 2020,
+      "county_fips": "47093",
+      "state_fips": "47",
+      "classifications": {
+        "naics_group": "Metal/Machinery Mfg (331-333)",
+        "region": "South",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "HV0998",
+      "name": "SSG ADVISORS D/B/A RESONANCE",
+      "naics": "541611",
+      "state": "VT",
+      "zipcode": "5401",
+      "total": 90,
+      "year": 2020,
+      "county_fips": "50007",
+      "state_fips": "50",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "Northeast",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "118031",
+      "name": "CAHILL GORDON & REINDEL",
+      "naics": "541110",
+      "state": "NY",
+      "zipcode": "10005",
+      "total": 340,
+      "year": 2020,
+      "county_fips": "36061",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "549682",
+      "name": "MECHANICAL EQUIPMENT CO INC",
+      "naics": "423830",
+      "state": "LA",
+      "zipcode": "70471",
+      "total": 234,
+      "year": 2020,
+      "county_fips": "22103",
+      "state_fips": "22",
+      "classifications": {
+        "naics_group": "Wholesale Trade (42)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "EW3843",
+      "name": "RI PARENT INFORMATION NETWORK",
+      "naics": "624190",
+      "state": "RI",
+      "zipcode": "2888",
+      "total": 103,
+      "year": 2020,
+      "county_fips": "44003",
+      "state_fips": "44",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "BM6909",
+      "name": "COMMUNITY HEALTH ACTION OF STATEN ISLAND",
+      "naics": "624190",
+      "state": "NY",
+      "zipcode": "10301",
+      "total": 116,
+      "year": 2020,
+      "county_fips": "36085",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "HK7275",
+      "name": "ZOHO CORPORATION",
+      "naics": "518210",
+      "state": "CA",
+      "zipcode": "94588",
+      "total": 115,
+      "year": 2020,
+      "county_fips": "06001",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Information (51)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "CJ9796",
+      "name": "LUTHERAN FAMILY SERVICES OF NE  INC",
+      "naics": "624190",
+      "state": "NE",
+      "zipcode": "68102",
+      "total": 408,
+      "year": 2020,
+      "county_fips": "31055",
+      "state_fips": "31",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "HP9085",
+      "name": "ARC MINNESOTA INC, THE",
+      "naics": "624120",
+      "state": "MN",
+      "zipcode": "55114",
+      "total": 169,
+      "year": 2020,
+      "county_fips": "27123",
+      "state_fips": "27",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "FY5993",
+      "name": "TRIDENT HEALTHCARE SERVICES INC.",
+      "naics": "621610",
+      "state": "GA",
+      "zipcode": "30067",
+      "total": 124,
+      "year": 2020,
+      "county_fips": "13067",
+      "state_fips": "13",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "GJ9913",
+      "name": "FAMILY AND CHILDREN FIRST  LLC",
+      "naics": "621420",
+      "state": "GA",
+      "zipcode": "30720",
+      "total": 265,
+      "year": 2020,
+      "county_fips": "13313",
+      "state_fips": "13",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "P02193",
+      "name": "MEDICAL EDUCATION ASSISTANCE CORP",
+      "naics": "621111",
+      "state": "TN",
+      "zipcode": "37684",
+      "total": 402,
+      "year": 2020,
+      "county_fips": "47179",
+      "state_fips": "47",
+      "classifications": {
+        "naics_group": "Healthcare/Social (62)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "L34696",
+      "name": "TRUITY FEDERAL CREDIT UNION",
+      "naics": "522130",
+      "state": "OK",
+      "zipcode": "74003",
+      "total": 219,
+      "year": 2020,
+      "county_fips": "40147",
+      "state_fips": "40",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "A29547",
+      "name": "FIRST  A NATIONAL BANKING ASSOC",
+      "naics": "522110",
+      "state": "MS",
+      "zipcode": "39402",
+      "total": 784,
+      "year": 2020,
+      "county_fips": "28073",
+      "state_fips": "28",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "EJ6513",
+      "name": "NATIONAL SECURITIES CORPORATION",
+      "naics": "523110",
+      "state": "FL",
+      "zipcode": "33431",
+      "total": 308,
+      "year": 2020,
+      "county_fips": "12099",
+      "state_fips": "12",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "A07481",
+      "name": "FIRST TEXAS BANCORP INC",
+      "naics": "522110",
+      "state": "TX",
+      "zipcode": "78626",
+      "total": 195,
+      "year": 2020,
+      "county_fips": "48491",
+      "state_fips": "48",
+      "classifications": {
+        "naics_group": "Finance/Insurance (52)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "JU6349",
+      "name": "AUDIO ACOUSTICS, INC",
+      "naics": "238210",
+      "state": "MO",
+      "zipcode": "65802",
+      "total": 59,
+      "year": 2020,
+      "county_fips": "29077",
+      "state_fips": "29",
+      "classifications": {
+        "naics_group": "Construction (23)",
+        "region": "Midwest",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "EJ6942",
+      "name": "GRAND TRAVERSE INDUSTRIES",
+      "naics": "326111",
+      "state": "MI",
+      "zipcode": "49686",
+      "total": 69,
+      "year": 2020,
+      "county_fips": "26055",
+      "state_fips": "26",
+      "classifications": {
+        "naics_group": "Chemical/Material Mfg (325-327)",
+        "region": "Midwest",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "T53211",
+      "name": "PELICAN PRODUCTS INC",
+      "naics": "326199",
+      "state": "CA",
+      "zipcode": "90505",
+      "total": 1037,
+      "year": 2020,
+      "county_fips": "06037",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Chemical/Material Mfg (325-327)",
+        "region": "West",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "AB8880",
+      "name": "LSA ASSOCIATES  INC.",
+      "naics": "541620",
+      "state": "CA",
+      "zipcode": "92614",
+      "total": 213,
+      "year": 2020,
+      "county_fips": "06059",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "A55812",
+      "name": "BECKIE CASKEY",
+      "naics": "541519",
+      "state": "CA",
+      "zipcode": "95747",
+      "total": 196,
+      "year": 2020,
+      "county_fips": "06061",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "AK8470",
+      "name": "GARCIA AND ASSOCIATES",
+      "naics": "541620",
+      "state": "CA",
+      "zipcode": "94960",
+      "total": 151,
+      "year": 2019,
+      "county_fips": "06041",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Professional/Technical (54)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "T01482",
+      "name": "ADVANTEC MANUFACTURING USA  INC",
+      "naics": "332321",
+      "state": "OR",
+      "zipcode": "97444",
+      "total": 120,
+      "year": 2020,
+      "county_fips": "41015",
+      "state_fips": "41",
+      "classifications": {
+        "naics_group": "Metal/Machinery Mfg (331-333)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "FV0043",
+      "name": "EDENRED COMMUTER BENEFIT SOLUTIONS",
+      "naics": "488999",
+      "state": "MA",
+      "zipcode": "2451",
+      "total": 60,
+      "year": 2020,
+      "county_fips": "25017",
+      "state_fips": "25",
+      "classifications": {
+        "naics_group": "Transportation/Warehousing (48-49)",
+        "region": "Northeast",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "X01254",
+      "name": "DAKTRONICS INC",
+      "naics": "339950",
+      "state": "SD",
+      "zipcode": "57006",
+      "total": 1903,
+      "year": 2020,
+      "county_fips": "46011",
+      "state_fips": "46",
+      "classifications": {
+        "naics_group": "Other Manufacturing",
+        "region": "Midwest",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "841545",
+      "name": "W L S STAMPING COMPANY",
+      "naics": "332119",
+      "state": "OH",
+      "zipcode": "44104",
+      "total": 117,
+      "year": 2020,
+      "county_fips": "39035",
+      "state_fips": "39",
+      "classifications": {
+        "naics_group": "Metal/Machinery Mfg (331-333)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "525886",
+      "name": "EDAC TECHNOLOGIES LLC",
+      "naics": "332710",
+      "state": "CT",
+      "zipcode": "6410",
+      "total": 508,
+      "year": 2020,
+      "county_fips": "09140",
+      "state_fips": "09",
+      "classifications": {
+        "naics_group": "Metal/Machinery Mfg (331-333)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "A55471",
+      "name": "STEVENS MOVING & STORAGE",
+      "naics": "484210",
+      "state": "MI",
+      "zipcode": "48601",
+      "total": 70,
+      "year": 2020,
+      "county_fips": "26145",
+      "state_fips": "26",
+      "classifications": {
+        "naics_group": "Transportation/Warehousing (48-49)",
+        "region": "Midwest",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "DB6484",
+      "name": "ELECTRONIC RECYCLERS INTERNATIONAL",
+      "naics": "562119",
+      "state": "CA",
+      "zipcode": "93711",
+      "total": 386,
+      "year": 2020,
+      "county_fips": "06019",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Admin/Staffing (56)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "K12923",
+      "name": "GENTEX CORPORATION",
+      "naics": "339113",
+      "state": "PA",
+      "zipcode": "18407",
+      "total": 770,
+      "year": 2020,
+      "county_fips": "42069",
+      "state_fips": "42",
+      "classifications": {
+        "naics_group": "Other Manufacturing",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "EW8300",
+      "name": "MOUNTRAIL-WILLIAMS ELECTRIC COOP",
+      "naics": "221122",
+      "state": "ND",
+      "zipcode": "58801",
+      "total": 125,
+      "year": 2020,
+      "county_fips": "38105",
+      "state_fips": "38",
+      "classifications": {
+        "naics_group": "Utilities (22)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "FX9940",
+      "name": "LEGACY HOTEL PARTNERS",
+      "naics": "721110",
+      "state": "GA",
+      "zipcode": "30313",
+      "total": 174,
+      "year": 2020,
+      "county_fips": "13121",
+      "state_fips": "13",
+      "classifications": {
+        "naics_group": "Accommodation/Food Svc (72)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "N05439",
+      "name": "ADMIRAL BEVERAGE CORP",
+      "naics": "312111",
+      "state": "WY",
+      "zipcode": "82401",
+      "total": 2082,
+      "year": 2020,
+      "county_fips": "56043",
+      "state_fips": "56",
+      "classifications": {
+        "naics_group": "Food/Bev Manufacturing (311,312)",
+        "region": "West",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "X38766",
+      "name": "HERITAGE CRYSTAL CLEAN LLC",
+      "naics": "562112",
+      "state": "IL",
+      "zipcode": "60123",
+      "total": 1261,
+      "year": 2020,
+      "county_fips": "17089",
+      "state_fips": "17",
+      "classifications": {
+        "naics_group": "Admin/Staffing (56)",
+        "region": "Midwest",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "JV9603",
+      "name": "RADIUS AEROSPACE, INC",
+      "naics": "336411",
+      "state": "AR",
+      "zipcode": "71901",
+      "total": 707,
+      "year": 2020,
+      "county_fips": "05051",
+      "state_fips": "05",
+      "classifications": {
+        "naics_group": "Transport Equip Mfg (336)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "DG5541",
+      "name": "DATADIRECT NETWORKS INC",
+      "naics": "334112",
+      "state": "CA",
+      "zipcode": "91311",
+      "total": 485,
+      "year": 2020,
+      "county_fips": "06037",
+      "state_fips": "06",
+      "classifications": {
+        "naics_group": "Computer/Electrical Mfg (334-335)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "K06823",
+      "name": "DELL INC TX ROUND ROCK 401 DELL WAY",
+      "naics": "334112",
+      "state": "TX",
+      "zipcode": "78664",
+      "total": 42341,
+      "year": 2020,
+      "county_fips": "48491",
+      "state_fips": "48",
+      "classifications": {
+        "naics_group": "Computer/Electrical Mfg (334-335)",
+        "region": "South",
+        "size": "10000+"
+      }
+    },
+    {
+      "company_code": "N59277",
+      "name": "RINCHEM CO INC",
+      "naics": "493110",
+      "state": "NM",
+      "zipcode": "87109",
+      "total": 636,
+      "year": 2020,
+      "county_fips": "35001",
+      "state_fips": "35",
+      "classifications": {
+        "naics_group": "Transportation/Warehousing (48-49)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "860000",
+      "name": "MAPLE LEAF FARMS INC",
+      "naics": "112390",
+      "state": "IN",
+      "zipcode": "46538",
+      "total": 713,
+      "year": 2020,
+      "county_fips": "18085",
+      "state_fips": "18",
+      "classifications": {
+        "naics_group": "Agriculture/Mining (11,21)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "BP1496",
+      "name": "RING CONTAINER TECHNOLOGIES",
+      "naics": "326160",
+      "state": "TN",
+      "zipcode": "38060",
+      "total": 767,
+      "year": 2020,
+      "county_fips": "47047",
+      "state_fips": "47",
+      "classifications": {
+        "naics_group": "Chemical/Material Mfg (325-327)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "P01340",
+      "name": "CERTARA USA",
+      "naics": "325412",
+      "state": "NJ",
+      "zipcode": "8540",
+      "total": 393,
+      "year": 2020,
+      "county_fips": "34021",
+      "state_fips": "34",
+      "classifications": {
+        "naics_group": "Chemical/Material Mfg (325-327)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "731493",
+      "name": "MURPHY  OIL CORPORATION",
+      "naics": "211120",
+      "state": "AR",
+      "zipcode": "71730",
+      "total": 620,
+      "year": 2020,
+      "county_fips": "05139",
+      "state_fips": "05",
+      "classifications": {
+        "naics_group": "Agriculture/Mining (11,21)",
+        "region": "South",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "X39054",
+      "name": "ASBURY AUTOMOTIVE",
+      "naics": "441110",
+      "state": "GA",
+      "zipcode": "30097",
+      "total": 7583,
+      "year": 2020,
+      "county_fips": "13135",
+      "state_fips": "13",
+      "classifications": {
+        "naics_group": "Retail Trade (44-45)",
+        "region": "South",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "BG4472",
+      "name": "JUPITER 1 LLC",
+      "naics": "442110",
+      "state": "CO",
+      "zipcode": "80238",
+      "total": 623,
+      "year": 2020,
+      "county_fips": "08031",
+      "state_fips": "08",
+      "classifications": {
+        "naics_group": "Retail Trade (44-45)",
+        "region": "West",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "117278",
+      "name": "FLOWERS FOODS  INC.",
+      "naics": "311812",
+      "state": "GA",
+      "zipcode": "31757",
+      "total": 9054,
+      "year": 2020,
+      "county_fips": "13275",
+      "state_fips": "13",
+      "classifications": {
+        "naics_group": "Food/Bev Manufacturing (311,312)",
+        "region": "South",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "47568",
+      "name": "PREFORMED LINE PRODUCTS COMPANY",
+      "naics": "335932",
+      "state": "OH",
+      "zipcode": "44143",
+      "total": 743,
+      "year": 2020,
+      "county_fips": "39035",
+      "state_fips": "39",
+      "classifications": {
+        "naics_group": "Computer/Electrical Mfg (334-335)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "128132",
+      "name": "W W GRAINGER INC CORP",
+      "naics": "423610",
+      "state": "IL",
+      "zipcode": "60045",
+      "total": 16156,
+      "year": 2020,
+      "county_fips": "17097",
+      "state_fips": "17",
+      "classifications": {
+        "naics_group": "Wholesale Trade (42)",
+        "region": "Midwest",
+        "size": "10000+"
+      }
+    },
+    {
+      "company_code": "23300",
+      "name": "ENCYCLOPAEDIA BRITANNICA INC",
+      "naics": "519130",
+      "state": "IL",
+      "zipcode": "60654",
+      "total": 195,
+      "year": 2020,
+      "county_fips": "17031",
+      "state_fips": "17",
+      "classifications": {
+        "naics_group": "Information (51)",
+        "region": "Midwest",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "BY5824",
+      "name": "CH ENERGY GROUP  INC.",
+      "naics": "221122",
+      "state": "NY",
+      "zipcode": "12601",
+      "total": 1058,
+      "year": 2020,
+      "county_fips": "36027",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Utilities (22)",
+        "region": "Northeast",
+        "size": "1000-9999"
+      }
+    },
+    {
+      "company_code": "X11368",
+      "name": "RESTEK CORPORATION",
+      "naics": "334516",
+      "state": "PA",
+      "zipcode": "16823",
+      "total": 422,
+      "year": 2020,
+      "county_fips": "42027",
+      "state_fips": "42",
+      "classifications": {
+        "naics_group": "Computer/Electrical Mfg (334-335)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "G04752",
+      "name": "DOMINO'S PIZZA WRC",
+      "naics": "722513",
+      "state": "MI",
+      "zipcode": "48105",
+      "total": 13766,
+      "year": 2020,
+      "county_fips": "26161",
+      "state_fips": "26",
+      "classifications": {
+        "naics_group": "Accommodation/Food Svc (72)",
+        "region": "Midwest",
+        "size": "10000+"
+      }
+    },
+    {
+      "company_code": "R61568",
+      "name": "CONTINENTAL DIVIDE ELECTRIC COOPERA",
+      "naics": "221122",
+      "state": "NM",
+      "zipcode": "87020",
+      "total": 75,
+      "year": 2020,
+      "county_fips": "35006",
+      "state_fips": "35",
+      "classifications": {
+        "naics_group": "Utilities (22)",
+        "region": "West",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "AP0244",
+      "name": "KETTLE CUISINE LLC.",
+      "naics": "311991",
+      "state": "MA",
+      "zipcode": "1901",
+      "total": 641,
+      "year": 2020,
+      "county_fips": "25009",
+      "state_fips": "25",
+      "classifications": {
+        "naics_group": "Food/Bev Manufacturing (311,312)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "M53943",
+      "name": "LOURDES INDUSTRIES INC",
+      "naics": "336412",
+      "state": "NY",
+      "zipcode": "11788",
+      "total": 82,
+      "year": 2020,
+      "county_fips": "36103",
+      "state_fips": "36",
+      "classifications": {
+        "naics_group": "Transport Equip Mfg (336)",
+        "region": "Northeast",
+        "size": "1-99"
+      }
+    },
+    {
+      "company_code": "CD1365",
+      "name": "EQUINOR US HOLDING INC",
+      "naics": "211130",
+      "state": "CT",
+      "zipcode": "6902",
+      "total": 714,
+      "year": 2020,
+      "county_fips": "09190",
+      "state_fips": "09",
+      "classifications": {
+        "naics_group": "Agriculture/Mining (11,21)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    },
+    {
+      "company_code": "GD0486",
+      "name": "QSC ENTERPRISES",
+      "naics": "722511",
+      "state": "PA",
+      "zipcode": "18704",
+      "total": 213,
+      "year": 2019,
+      "county_fips": "42079",
+      "state_fips": "42",
+      "classifications": {
+        "naics_group": "Accommodation/Food Svc (72)",
+        "region": "Northeast",
+        "size": "100-999"
+      }
+    }
+  ]
+}

@@ -83,6 +83,17 @@ export function useUnionMembershipHistory(fnum, { enabled = true } = {}) {
 }
 
 /**
+ * Fetch categorized disbursement breakdown for a union.
+ */
+export function useUnionDisbursements(fnum, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['union-disbursements', fnum],
+    queryFn: () => apiClient.get(`/api/unions/${fnum}/disbursements`),
+    enabled: enabled && !!fnum,
+  })
+}
+
+/**
  * Fetch union sector lookup values.
  */
 export function useUnionSectors() {
@@ -111,6 +122,29 @@ export function useNationalUnionDetail(affAbbr, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['national-union-detail', affAbbr],
     queryFn: () => apiClient.get(`/api/unions/national/${affAbbr}`),
+    enabled: enabled && !!affAbbr,
+  })
+}
+
+/**
+ * Fetch composite health indicators for a union.
+ */
+export function useUnionHealth(fnum, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['union-health', fnum],
+    queryFn: () => apiClient.get(`/api/unions/${fnum}/health`),
+    enabled: enabled && !!fnum,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+/**
+ * Fetch union hierarchy with intermediates for an affiliation.
+ */
+export function useUnionHierarchy(affAbbr, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['union-hierarchy', affAbbr],
+    queryFn: () => apiClient.get(`/api/unions/hierarchy/${affAbbr}`),
     enabled: enabled && !!affAbbr,
   })
 }

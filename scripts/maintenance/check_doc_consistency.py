@@ -111,10 +111,12 @@ def get_live_counts(conn):
           AND attnum > 0 AND NOT attisdropped
           AND attname LIKE 'score_%%'
           AND attname NOT IN ('score_anger', 'score_stability', 'score_leverage',
-                              'score_tier', 'weighted_score', 'unified_score')
+                              'score_tier', 'score_tier_legacy', 'score_percentile',
+                              'weighted_score', 'unified_score')
     """)
     live['factor_columns'] = [r[0] for r in cur.fetchall()]
-    live['factor_count'] = len(live['factor_columns'])
+    # +1 for research (counted in factors_available via has_research, no score_ column)
+    live['factor_count'] = len(live['factor_columns']) + 1
 
     # UML rows
     try:

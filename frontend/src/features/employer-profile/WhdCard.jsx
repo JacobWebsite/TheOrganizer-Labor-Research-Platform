@@ -57,6 +57,12 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
             hasData={!!(data?.cases?.length > 0)}
           />
         )}
+        {data.has_unverified_match && (
+          <div className="flex items-center gap-2 border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">
+            <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+            Some WHD matches for this employer are unverified (low-confidence match)
+          </div>
+        )}
         {(hasChildLabor || hasRepeatViolator) && (
           <div className="flex flex-wrap gap-2">
             {hasChildLabor && (

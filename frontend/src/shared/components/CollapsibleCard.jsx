@@ -31,7 +31,7 @@ export function CollapsibleCard({ icon: Icon, title, summary, defaultOpen = fals
   const [open, toggle] = usePersistedState(storageKey, defaultOpen)
 
   return (
-    <Card>
+    <Card className="print-section">
       <CardHeader
         className="cursor-pointer select-none"
         onClick={toggle}
@@ -49,7 +49,7 @@ export function CollapsibleCard({ icon: Icon, title, summary, defaultOpen = fals
           </div>
         </div>
       </CardHeader>
-      {open && <CardContent>{children}</CardContent>}
+      {open && <CardContent data-collapsible-content>{children}</CardContent>}
     </Card>
   )
 }

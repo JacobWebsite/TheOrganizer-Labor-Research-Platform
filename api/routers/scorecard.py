@@ -1,6 +1,9 @@
 from typing import Optional
+import csv
+import io
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from ..database import get_db
 from .organizing import get_organizing_scorecard, get_scorecard_detail
@@ -311,6 +314,101 @@ def get_unified_scorecard_states():
                 ORDER BY state
             """)
             return cur.fetchall()
+
+
+EXPORT_COLUMNS = [
+    'employer_id', 'employer_name', 'city', 'state', 'naics',
+    'latest_unit_size', 'company_workers', 'size_source',
+    'score_tier', 'weighted_score', 'unified_score',
+    'score_osha', 'score_nlrb', 'score_whd', 'score_contracts',
+    'score_union_proximity', 'score_financial', 'score_size', 'score_similarity',
+    'score_anger', 'score_leverage',
+    'factors_available', 'factors_total', 'coverage_pct',
+    'has_osha', 'has_nlrb', 'has_whd', 'has_research',
+    'has_compound_enforcement', 'has_child_labor',
+    'is_whd_repeat_violator', 'has_close_election',
+    'recommended_action',
+]
+
+
+@router.get("/api/scorecard/unified/export")
+def export_unified_csv(
+    state: Optional[str] = None,
+    naics: Optional[str] = None,
+    min_score: float = Query(default=0, ge=0, le=10),
+    min_factors: int = Query(default=2, ge=1, le=8),
+    score_tier: Optional[str] = None,
+    has_osha: Optional[bool] = None,
+    has_nlrb: Optional[bool] = None,
+    has_research: Optional[bool] = None,
+    has_compound_enforcement: Optional[bool] = None,
+):
+    """Export unified scorecard as CSV with same filters as /unified endpoint."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["factors_available >= %s"]
+            params = [min_factors]
+
+            if min_score > 0:
+                conditions.append("unified_score >= %s")
+                params.append(min_score)
+            if state:
+                conditions.append("state = %s")
+                params.append(state.upper())
+            if naics:
+                conditions.append("naics LIKE %s")
+                params.append(f"{naics}%")
+            if score_tier:
+                st = score_tier.strip()
+                if st.upper() in {"TOP", "HIGH", "MEDIUM", "LOW"}:
+                    conditions.append("score_tier_legacy = %s")
+                    params.append(st.upper())
+                else:
+                    conditions.append("score_tier = %s")
+                    params.append(st.title())
+            if has_osha is True:
+                conditions.append("has_osha")
+            if has_nlrb is True:
+                conditions.append("has_nlrb")
+            if has_research is True:
+                conditions.append("has_research")
+            if has_compound_enforcement is True:
+                conditions.append("has_compound_enforcement")
+
+            where = " AND ".join(conditions)
+            params.append(10000)  # safety cap
+
+            cur.execute(f"""
+                SELECT employer_id, employer_name, city, state, naics,
+                       latest_unit_size, company_workers, size_source,
+                       score_tier, weighted_score, unified_score,
+                       score_osha, score_nlrb, score_whd, score_contracts,
+                       score_union_proximity, score_financial, score_size, score_similarity,
+                       score_anger, score_leverage,
+                       factors_available, factors_total, coverage_pct,
+                       has_osha, has_nlrb, has_whd, has_research,
+                       has_compound_enforcement, has_child_labor,
+                       is_whd_repeat_violator, has_close_election
+                FROM mv_unified_scorecard
+                WHERE {where}
+                ORDER BY weighted_score DESC NULLS LAST
+                LIMIT %s
+            """, params)
+            rows = cur.fetchall()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(EXPORT_COLUMNS)
+    for row in rows:
+        row['recommended_action'] = _compute_recommended_action(row)
+        writer.writerow([row.get(c, '') for c in EXPORT_COLUMNS])
+    buf.seek(0)
+
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=scorecard_export.csv"}
+    )
 
 
 @router.get("/api/scorecard/unified/{employer_id}")

@@ -38,7 +38,7 @@ export function SisterLocalsSection({ sisters }) {
                 <th className="px-3 py-2 text-left font-medium text-muted-foreground">Local Name</th>
                 <th className="px-3 py-2 text-left font-medium text-muted-foreground">City</th>
                 <th className="px-3 py-2 text-left font-medium text-muted-foreground">State</th>
-                <th className="px-3 py-2 text-right font-medium text-muted-foreground">Members</th>
+                <th className="px-3 py-2 text-right font-medium text-muted-foreground" title="Dues-paying members (LM filings)">Members</th>
               </tr>
             </thead>
             <tbody>

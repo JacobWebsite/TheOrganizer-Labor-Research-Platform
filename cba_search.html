@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBA Contract Search</title>
+<style>
+  :root {
+    --bg: #faf8f5;
+    --surface: #fff;
+    --border: #d5c9b1;
+    --text: #2c2416;
+    --text-muted: #6b5e4c;
+    --accent: #8b6914;
+    --accent-bg: #f5ecd7;
+    --highlight: #fff3cd;
+    --tag-bg: #e8dcc8;
+    --tag-text: #5a4a2e;
+    --blue: #1a5276;
+    --green: #1e6e3e;
+    --red: #922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    background: var(--text);
+    color: var(--bg);
+    padding: 20px 0;
+    border-bottom: 4px double var(--accent);
+  }
+  header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  header p { color: #bbb3a0; font-size: 0.9rem; margin-top: 4px; }
+
+  /* Search bar */
+  .search-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin: 24px 0 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .search-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .search-row input[type="text"] {
+    flex: 1;
+    font-family: inherit;
+    font-size: 1.05rem;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .search-row input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .search-row button {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 10px 24px;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .search-row button:hover { background: #3d3222; }
+
+  /* Filters */
+  .filters {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filters select, .filters input[type="text"] {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .filters label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 3px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .tab {
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: -2px;
+  }
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  .tab:hover { color: var(--text); }
+
+  /* Stats bar */
+  .stats {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 8px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .stats .count { font-weight: 700; color: var(--text); }
+
+  /* Results */
+  .results { margin-bottom: 40px; }
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    transition: border-color 0.15s;
+  }
+  .result-card:hover { border-color: var(--accent); }
+  .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .result-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--blue);
+  }
+  .result-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .result-meta span { margin-right: 16px; }
+  .result-text {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: #3a3020;
+    background: var(--bg);
+    padding: 10px 14px;
+    border-radius: 3px;
+    border-left: 3px solid var(--accent);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .result-text mark {
+    background: var(--highlight);
+    padding: 1px 2px;
+    border-radius: 2px;
+  }
+
+  /* Tags */
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tag {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .tag.category { background: #dce8d4; color: #2d5016; }
+  .tag.modal { background: #d4dce8; color: #163050; }
+  .tag.wage { background: #f5ddd4; color: #6e2e16; }
+  .tag.confidence { background: var(--tag-bg); }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 24px 0 40px;
+  }
+  .pagination button {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .pagination button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .pagination button:disabled { opacity: 0.4; cursor: default; }
+
+  /* Section detail modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 6px;
+    max-width: 900px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  }
+  .modal-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+  .modal-header h2 { font-size: 1.2rem; }
+  .modal-close {
+    font-size: 1.4rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px 8px;
+  }
+  .modal-body { padding: 20px 24px; }
+  .modal-body .full-text {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg);
+    padding: 16px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  .provision-list { margin-top: 16px; }
+  .provision-item {
+    padding: 10px 14px;
+    border-left: 3px solid var(--accent);
+    background: var(--bg);
+    margin-bottom: 8px;
+    border-radius: 0 3px 3px 0;
+  }
+  .provision-item .prov-cat {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* Section breadcrumb */
+  .breadcrumb {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 0.3px;
+  }
+
+  /* Compare tab styles */
+  .compare-group {
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .compare-group-header {
+    background: var(--accent-bg);
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .compare-row {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #eee;
+  }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-cell {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    border-right: 1px solid #eee;
+    min-width: 0;
+  }
+  .compare-cell:last-child { border-right: none; }
+  .compare-cell.missing {
+    background: #fdf0f0;
+    color: var(--red);
+    font-style: italic;
+    text-align: center;
+  }
+  .compare-cell .cell-employer {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .compare-selector {
+    margin-bottom: 16px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .compare-selector label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .compare-selector input[type="checkbox"] { margin-right: 4px; }
+  .compare-btn {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 6px 18px;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+  .empty { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .search-row { flex-direction: column; }
+    .filters { flex-direction: column; }
+    .result-header { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>CBA Contract Search</h1>
+    <p>Search provisions and sections across collective bargaining agreements</p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="search-box">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder='Try "Healthcare 32BJ" or "overtime Starbucks" or "grievance arbitration"...' autofocus>
+      <button onclick="doSearch()">Search</button>
+    </div>
+    <div class="filters">
+      <div class="filter-group">
+        <label>Category</label>
+        <select id="categoryFilter" onchange="doSearch()">
+          <option value="">All Categories</option>
+          <option value="childcare">Childcare</option>
+          <option value="grievance">Grievance</option>
+          <option value="healthcare">Healthcare</option>
+          <option value="job_security">Job Security</option>
+          <option value="leave">Leave</option>
+          <option value="management_rights">Management Rights</option>
+          <option value="other">Other</option>
+          <option value="pension">Pension</option>
+          <option value="scheduling">Scheduling</option>
+          <option value="seniority">Seniority</option>
+          <option value="technology">Technology</option>
+          <option value="training">Training</option>
+          <option value="union_security">Union Security</option>
+          <option value="wages">Wages</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Modal Verb</label>
+        <select id="modalFilter" onchange="doSearch()">
+          <option value="">Any</option>
+          <option value="shall">shall</option>
+          <option value="must">must</option>
+          <option value="will">will</option>
+          <option value="may">may</option>
+          <option value="shall not">shall not</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Provision Class</label>
+        <select id="provisionClassFilter" onchange="doSearch()">
+          <option value="">All Classes</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Min Confidence</label>
+        <select id="confidenceFilter" onchange="doSearch()">
+          <option value="">Any</option>
+          <option value="0.9">0.90+</option>
+          <option value="0.8">0.80+</option>
+          <option value="0.7">0.70+</option>
+          <option value="0.6">0.60+</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="provisions" onclick="switchTab('provisions')">Provisions</button>
+    <button class="tab" data-tab="sections" onclick="switchTab('sections')">Sections</button>
+    <button class="tab" data-tab="documents" onclick="switchTab('documents')">Contracts</button>
+    <button class="tab" data-tab="compare" onclick="switchTab('compare')">Compare</button>
+  </div>
+
+  <div class="stats" id="statsBar">
+    <span>Enter a search term or select a category to get started.</span>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- Section detail modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle"></h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin !== 'null' ? window.location.origin : 'http://localhost:8001';
+let currentTab = 'provisions';
+let currentPage = 1;
+
+// Parse natural language query: "Healthcare 32BJ" -> category=healthcare, q=32BJ
+function parseQuery(raw) {
+  const categories = [
+    'childcare','grievance','healthcare','job_security','leave',
+    'management_rights','other','pension','scheduling','seniority',
+    'technology','training','union_security','wages'
+  ];
+  const displayMap = {
+    'health': 'healthcare', 'medical': 'healthcare', 'dental': 'healthcare',
+    'vision': 'healthcare', 'insurance': 'healthcare',
+    'wage': 'wages', 'pay': 'wages', 'salary': 'wages', 'overtime': 'wages',
+    'cola': 'wages',
+    'grievance': 'grievance', 'arbitration': 'grievance',
+    'pension': 'pension', 'retirement': 'pension', '401k': 'pension',
+    'leave': 'leave', 'vacation': 'leave', 'sick': 'leave', 'pto': 'leave',
+    'bereavement': 'leave', 'fmla': 'leave',
+    'seniority': 'seniority', 'layoff': 'seniority', 'recall': 'seniority',
+    'scheduling': 'scheduling', 'shift': 'scheduling', 'hours': 'scheduling',
+    'training': 'training', 'apprentice': 'training', 'tuition': 'training',
+    'technology': 'technology', 'surveillance': 'technology', 'ai': 'technology',
+    'childcare': 'childcare', 'daycare': 'childcare',
+    'union_security': 'union_security', 'dues': 'union_security',
+    'job_security': 'job_security', 'just cause': 'job_security',
+    'discipline': 'job_security', 'discharge': 'job_security',
+    'management': 'management_rights',
+  };
+
+  let words = raw.trim().split(/\s+/);
+  let detectedCategory = null;
+  let remaining = [];
+
+  for (let w of words) {
+    let lower = w.toLowerCase();
+    if (categories.includes(lower)) {
+      detectedCategory = lower;
+    } else if (displayMap[lower]) {
+      detectedCategory = displayMap[lower];
+    } else {
+      remaining.push(w);
+    }
+  }
+
+  return { category: detectedCategory, text: remaining.join(' ') };
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  currentPage = 1;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  doSearch();
+}
+
+async function doSearch(page) {
+  if (page) currentPage = page;
+  else currentPage = 1;
+
+  const raw = document.getElementById('searchInput').value.trim();
+  const parsed = parseQuery(raw);
+
+  // Use dropdown if set, otherwise use parsed category
+  const catDropdown = document.getElementById('categoryFilter').value;
+  const category = catDropdown || parsed.category || '';
+  const searchText = parsed.text;
+
+  // Update dropdown to reflect parsed category
+  if (!catDropdown && parsed.category) {
+    document.getElementById('categoryFilter').value = parsed.category;
+  }
+
+  const modal = document.getElementById('modalFilter').value;
+  const minConf = document.getElementById('confidenceFilter').value;
+
+  const provClass = document.getElementById('provisionClassFilter').value;
+
+  if (currentTab === 'provisions') {
+    await searchProvisions(searchText, category, modal, minConf, provClass);
+  } else if (currentTab === 'sections') {
+    await searchSections(searchText, category);
+  } else if (currentTab === 'compare') {
+    await showCompareTab();
+  } else {
+    await searchDocuments(searchText, category);
+  }
+}
+
+async function searchProvisions(q, category, modal, minConf, provClass) {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (category) params.set('category', category);
+  if (modal) params.set('modal_verb', modal);
+  if (minConf) params.set('min_confidence', minConf);
+  if (provClass) params.set('provision_class', provClass);
+  // Try to detect employer/union from free text
+  // If the text doesn't match provisions, also try as employer/union name
+  params.set('page', currentPage);
+  params.set('limit', '25');
+
+  showLoading();
+  try {
+    let res = await fetch(`${API}/api/cba/provisions/search?${params}`);
+    let data = await res.json();
+
+    // If no results with text search, try as employer_name
+    if (data.total === 0 && q && !category) {
+      params.delete('q');
+      params.set('employer_name', q);
+      res = await fetch(`${API}/api/cba/provisions/search?${params}`);
+      const data2 = await res.json();
+      if (data2.total > 0) { data = data2; }
+      else {
+        // Try as union_name
+        params.delete('employer_name');
+        params.set('union_name', q);
+        res = await fetch(`${API}/api/cba/provisions/search?${params}`);
+        const data3 = await res.json();
+        if (data3.total > 0) data = data3;
+      }
+    }
+
+    renderStats(data.total, data.page, data.pages);
+    renderProvisions(data.results, q);
+    renderPagination(data.page, data.pages);
+  } catch(e) {
+    showError('Could not connect to API at ' + API + '. Start the backend with: py -m uvicorn api.main:app --reload --port 8001');
+  }
+}
+
+async function searchSections(q, category) {
+  const params = new URLSearchParams();
+  if (q) {
+    // Try as search text first, also as employer/union
+    params.set('q', q);
+  }
+  if (category) params.set('category', category);
+  params.set('page', currentPage);
+  params.set('limit', '25');
+
+  showLoading();
+  try {
+    let res = await fetch(`${API}/api/cba/sections/search?${params}`);
+    let data = await res.json();
+
+    if (data.total === 0 && q) {
+      params.delete('q');
+      params.set('employer_name', q);
+      res = await fetch(`${API}/api/cba/sections/search?${params}`);
+      const data2 = await res.json();
+      if (data2.total > 0) { data = data2; }
+      else {
+        params.delete('employer_name');
+        params.set('union_name', q);
+        res = await fetch(`${API}/api/cba/sections/search?${params}`);
+        const data3 = await res.json();
+        if (data3.total > 0) data = data3;
+      }
+    }
+
+    renderStats(data.total, data.page, data.pages);
+    renderSections(data.results, q);
+    renderPagination(data.page, data.pages);
+  } catch(e) {
+    showError('Could not connect to API at ' + API + '. Start the backend with: py -m uvicorn api.main:app --reload --port 8001');
+  }
+}
+
+async function searchDocuments(q, category) {
+  const params = new URLSearchParams();
+  if (q) params.set('employer', q);
+  if (category) params.set('category', category);
+  params.set('page', currentPage);
+  params.set('limit', '25');
+
+  showLoading();
+  try {
+    let res = await fetch(`${API}/api/cba/documents?${params}`);
+    let data = await res.json();
+
+    if (data.total === 0 && q) {
+      params.delete('employer');
+      params.set('union', q);
+      res = await fetch(`${API}/api/cba/documents?${params}`);
+      data = await res.json();
+    }
+
+    renderStats(data.total, data.page, data.pages);
+    renderDocuments(data.results, data.stats, q);
+    renderPagination(data.page, data.pages);
+  } catch(e) {
+    showError('Could not connect to API at ' + API + '. Start the backend with: py -m uvicorn api.main:app --reload --port 8001');
+  }
+}
+
+function showLoading() {
+  document.getElementById('results').innerHTML = '<div class="loading">Searching...</div>';
+  document.getElementById('pagination').innerHTML = '';
+}
+
+function showError(msg) {
+  document.getElementById('results').innerHTML = `<div class="empty">${esc(msg)}</div>`;
+  document.getElementById('statsBar').innerHTML = '';
+}
+
+function renderStats(total, page, pages) {
+  const start = (page - 1) * 25 + 1;
+  const end = Math.min(page * 25, total);
+  document.getElementById('statsBar').innerHTML = total > 0
+    ? `<span><span class="count">${total}</span> results found</span><span>Showing ${start}-${end}</span>`
+    : `<span>No results found. Try a different search.</span>`;
+}
+
+function renderProvisions(rows, q) {
+  if (!rows || rows.length === 0) {
+    document.getElementById('results').innerHTML = '<div class="empty">No provisions found.</div>';
+    return;
+  }
+  const html = rows.map(r => {
+    const text = highlightText(r.provision_text || '', q);
+    const cats = r.category ? `<span class="tag category">${esc(r.category)}</span>` : '';
+    const cls = r.provision_class ? `<span class="tag">${esc(r.provision_class)}</span>` : '';
+    const modal = r.modal_verb ? `<span class="tag modal">${esc(r.modal_verb)}</span>` : '';
+    const conf = r.confidence_score ? `<span class="tag confidence">${parseFloat(r.confidence_score).toFixed(0)}%</span>` : '';
+    const page = r.page_start ? `p.${r.page_start}` : '';
+    // Build section breadcrumb
+    let breadcrumb = '';
+    const parts = [];
+    if (r.parent_section_num) parts.push(esc(r.parent_section_num) + ' ' + esc(r.parent_section_title || ''));
+    if (r.section_num) parts.push(esc(r.section_num) + ' ' + esc(r.section_title || ''));
+    if (parts.length > 0) breadcrumb = `<div class="breadcrumb">${parts.join(' &gt; ')}</div>`;
+
+    return `
+      <div class="result-card">
+        <div class="result-header">
+          <div class="result-title">${esc(r.employer_name || 'Unknown')} &mdash; ${esc(r.union_name || '')}</div>
+        </div>
+        ${breadcrumb}
+        <div class="result-meta">
+          <span>CBA #${r.cba_id}</span>
+          ${page ? `<span>${page}</span>` : ''}
+          ${r.article_reference ? `<span>${esc(r.article_reference)}</span>` : ''}
+        </div>
+        <div class="result-text">${text}</div>
+        <div class="tags">${cats}${cls}${modal}${conf}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('results').innerHTML = html;
+}
+
+function renderSections(rows, q) {
+  if (!rows || rows.length === 0) {
+    document.getElementById('results').innerHTML = '<div class="empty">No sections found.</div>';
+    return;
+  }
+  const html = rows.map(r => {
+    const preview = highlightText(r.text_preview || '', q);
+    const attrs = r.attributes || {};
+    const cats = (attrs.categories_detected || []).map(c => `<span class="tag category">${esc(c)}</span>`).join('');
+    const wageTag = attrs.has_wage_table ? '<span class="tag wage">Wage Table</span>' : '';
+    const words = attrs.word_count ? `<span class="tag">${attrs.word_count} words</span>` : '';
+    const provCount = (attrs.linked_provision_ids || []).length;
+    const provTag = provCount > 0 ? `<span class="tag">${provCount} provisions</span>` : '';
+    const indent = r.section_level >= 2 ? 'margin-left: 24px;' : '';
+    const pages = r.page_start ? `p.${r.page_start}${r.page_end && r.page_end !== r.page_start ? '-' + r.page_end : ''}` : '';
+    return `
+      <div class="result-card" style="${indent} cursor:pointer;" onclick="openSection(${r.section_id})">
+        <div class="result-header">
+          <div class="result-title">${esc(r.section_num)}. ${esc(r.section_title)}</div>
+        </div>
+        <div class="result-meta">
+          <span>${esc(r.employer_name_raw || '')} &mdash; ${esc(r.union_name_raw || '')}</span>
+          <span>CBA #${r.cba_id}</span>
+          ${pages ? `<span>${pages}</span>` : ''}
+        </div>
+        <div class="result-text">${preview}${r.text_length > 500 ? '...' : ''}</div>
+        <div class="tags">${cats}${wageTag}${words}${provTag}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('results').innerHTML = html;
+}
+
+function renderDocuments(rows, stats, q) {
+  if (!rows || rows.length === 0) {
+    document.getElementById('results').innerHTML = '<div class="empty">No contracts found.</div>';
+    return;
+  }
+
+  // Stats summary
+  let statsHtml = '';
+  if (stats) {
+    statsHtml = `<div class="result-card" style="background: var(--accent-bg); border-color: var(--accent);">
+      <strong>${stats.total_contracts} contracts</strong> with <strong>${stats.total_provisions} provisions</strong> across
+      ${(stats.category_breakdown || []).length} categories.
+      <div class="tags" style="margin-top:8px;">
+        ${(stats.category_breakdown || []).map(c => `<span class="tag category">${esc(c.category)} (${c.cnt})</span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  const html = rows.map(r => {
+    const cats = (r.categories || []).map(c => `<span class="tag category">${esc(c)}</span>`).join('');
+    const dates = [r.effective_date, r.expiration_date].filter(Boolean).join(' - ');
+    return `
+      <div class="result-card" style="cursor:pointer;" onclick="filterByCba(${r.cba_id})">
+        <div class="result-header">
+          <div class="result-title">${esc(r.employer_name_raw || 'Unknown')} &mdash; ${esc(r.union_name_raw || '')}</div>
+          <span class="tag">${r.provision_count} provisions</span>
+        </div>
+        <div class="result-meta">
+          <span>CBA #${r.cba_id}</span>
+          <span>${r.page_count || '?'} pages</span>
+          ${dates ? `<span>${dates}</span>` : ''}
+          ${r.extraction_status ? `<span>${esc(r.extraction_status)}</span>` : ''}
+        </div>
+        <div class="tags">${cats}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('results').innerHTML = statsHtml + html;
+}
+
+function renderPagination(page, pages) {
+  if (pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+  let btns = '';
+  btns += `<button ${page <= 1 ? 'disabled' : ''} onclick="doSearch(${page-1})">Prev</button>`;
+  const start = Math.max(1, page - 3);
+  const end = Math.min(pages, page + 3);
+  for (let i = start; i <= end; i++) {
+    btns += `<button class="${i === page ? 'active' : ''}" onclick="doSearch(${i})">${i}</button>`;
+  }
+  btns += `<button ${page >= pages ? 'disabled' : ''} onclick="doSearch(${page+1})">Next</button>`;
+  document.getElementById('pagination').innerHTML = btns;
+}
+
+async function openSection(sectionId) {
+  const overlay = document.getElementById('modalOverlay');
+  overlay.classList.add('open');
+  document.getElementById('modalTitle').textContent = 'Loading...';
+  document.getElementById('modalBody').innerHTML = '<div class="loading">Loading section...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/cba/sections/${sectionId}`);
+    const data = await res.json();
+    const s = data.section;
+    const provs = data.provisions || [];
+
+    document.getElementById('modalTitle').textContent =
+      `${s.section_num}. ${s.section_title}`;
+
+    let provsHtml = '';
+    if (provs.length > 0) {
+      provsHtml = `<h3 style="margin:16px 0 8px; font-size:0.95rem;">Linked Provisions (${provs.length})</h3>
+        <div class="provision-list">
+          ${provs.map(p => `
+            <div class="provision-item">
+              <div class="prov-cat">${esc(p.category)} / ${esc(p.provision_class)}</div>
+              <div style="font-size:0.85rem; margin-top:4px;">${esc((p.provision_text || '').substring(0, 300))}${(p.provision_text||'').length > 300 ? '...' : ''}</div>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    const attrs = s.attributes || {};
+    const cats = (attrs.categories_detected || []).map(c => `<span class="tag category">${esc(c)}</span>`).join('');
+    const wageTag = attrs.has_wage_table ? '<span class="tag wage">Wage Table</span>' : '';
+
+    document.getElementById('modalBody').innerHTML = `
+      <div class="result-meta" style="margin-bottom:12px;">
+        <span>${esc(s.employer_name_raw || '')} &mdash; ${esc(s.union_name_raw || '')}</span>
+        <span>Pages ${s.page_start || '?'}-${s.page_end || '?'}</span>
+        <span>${attrs.word_count || '?'} words</span>
+      </div>
+      <div class="tags" style="margin-bottom:12px;">${cats}${wageTag}</div>
+      <div class="full-text">${esc(s.section_text)}</div>
+      ${provsHtml}`;
+  } catch(e) {
+    document.getElementById('modalBody').innerHTML = '<div class="empty">Error loading section.</div>';
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function filterByCba(cbaId) {
+  switchTab('provisions');
+  document.getElementById('searchInput').value = '';
+  currentPage = 1;
+  // Direct API call with cba_id filter
+  searchProvisionsByCba(cbaId);
+}
+
+async function searchProvisionsByCba(cbaId) {
+  const category = document.getElementById('categoryFilter').value;
+  const params = new URLSearchParams();
+  params.set('cba_id', cbaId);
+  if (category) params.set('category', category);
+  params.set('page', '1');
+  params.set('limit', '25');
+  params.set('sort', 'page_start');
+
+  showLoading();
+  try {
+    const res = await fetch(`${API}/api/cba/provisions/search?${params}`);
+    const data = await res.json();
+    renderStats(data.total, data.page, data.pages);
+    renderProvisions(data.results, '');
+    renderPagination(data.page, data.pages);
+  } catch(e) {
+    showError('API error');
+  }
+}
+
+function highlightText(text, query) {
+  let safe = esc(text);
+  if (!query) return safe;
+  const words = query.split(/\s+/).filter(w => w.length > 2);
+  for (const w of words) {
+    const re = new RegExp('(' + escRegex(esc(w)) + ')', 'gi');
+    safe = safe.replace(re, '<mark>$1</mark>');
+  }
+  return safe;
+}
+
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function escRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Enter key triggers search
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+// --- Compare Tab ---
+let compareContracts = []; // [{cba_id, employer_name_raw}]
+
+async function showCompareTab() {
+  document.getElementById('pagination').innerHTML = '';
+  document.getElementById('statsBar').innerHTML = '<span>Select contracts to compare side by side.</span>';
+
+  // Load available contracts
+  if (compareContracts.length === 0) {
+    try {
+      const res = await fetch(`${API}/api/cba/documents?limit=50`);
+      const data = await res.json();
+      compareContracts = (data.results || []).map(r => ({
+        cba_id: r.cba_id,
+        name: (r.employer_name_raw || 'Unknown') + ' -- ' + (r.union_name_raw || ''),
+        provision_count: r.provision_count,
+      }));
+    } catch(e) {
+      showError('Could not load contracts');
+      return;
+    }
+  }
+
+  const checks = compareContracts.map(c =>
+    `<label><input type="checkbox" class="cmp-check" value="${c.cba_id}" ${c.provision_count > 0 ? '' : 'disabled'}> CBA #${c.cba_id} (${esc(c.name)}) [${c.provision_count}]</label>`
+  ).join('');
+
+  document.getElementById('results').innerHTML = `
+    <div class="compare-selector">
+      ${checks}
+    </div>
+    <div style="margin-bottom:16px;">
+      <button class="compare-btn" onclick="runComparison()">Compare Selected</button>
+    </div>
+    <div id="compareResults"></div>`;
+}
+
+async function runComparison() {
+  const checked = [...document.querySelectorAll('.cmp-check:checked')].map(c => c.value);
+  if (checked.length < 2) {
+    document.getElementById('compareResults').innerHTML = '<div class="empty">Select at least 2 contracts to compare.</div>';
+    return;
+  }
+
+  document.getElementById('compareResults').innerHTML = '<div class="loading">Comparing...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/cba/compare?cba_ids=${checked.join(',')}`);
+    const data = await res.json();
+    renderComparison(data);
+  } catch(e) {
+    document.getElementById('compareResults').innerHTML = '<div class="empty">Error loading comparison.</div>';
+  }
+}
+
+function renderComparison(data) {
+  const docs = data.documents || [];
+  const comparison = data.comparison || {};
+  const gapAnalysis = data.gap_analysis || {};
+
+  let html = '';
+
+  // Gap analysis summary
+  html += '<div class="compare-group"><div class="compare-group-header">Gap Analysis</div>';
+  for (const doc of docs) {
+    const gap = gapAnalysis[String(doc.cba_id)] || {};
+    const missing = (gap.missing || []);
+    const covered = (gap.covered || []);
+    html += `<div style="padding:10px 16px; border-bottom:1px solid #eee;">
+      <strong>CBA #${doc.cba_id}</strong> (${esc(doc.employer_name_raw || '')}) --
+      <span style="color:var(--green);">${covered.length} covered</span>,
+      ${missing.length > 0
+        ? `<span style="color:var(--red);">${missing.length} missing: ${missing.join(', ')}</span>`
+        : '<span style="color:var(--green);">all categories covered</span>'
+      }
+    </div>`;
+  }
+  html += '</div>';
+
+  // Category x provision_class comparison
+  const categories = Object.keys(comparison).sort();
+  for (const cat of categories) {
+    const classes = comparison[cat];
+    const classNames = Object.keys(classes).sort();
+
+    html += `<div class="compare-group">
+      <div class="compare-group-header">
+        <span>${esc(cat)}</span>
+        <span style="font-weight:normal; font-size:0.8rem;">${classNames.length} provision classes</span>
+      </div>`;
+
+    for (const pclass of classNames) {
+      const entry = classes[pclass];
+      const provs = entry.provisions || [];
+      const missingFrom = entry.missing_from || [];
+
+      // Header row
+      html += `<div style="padding:6px 16px; background:#f9f6f0; font-size:0.8rem; font-weight:700; border-bottom:1px solid #eee; text-transform:uppercase; letter-spacing:0.5px;">
+        ${esc(pclass)}${missingFrom.length > 0 ? ` <span style="color:var(--red); font-weight:normal;">(missing from CBA ${missingFrom.join(', ')})</span>` : ''}
+      </div>`;
+
+      // Show provisions grouped by contract
+      html += '<div class="compare-row">';
+      for (const doc of docs) {
+        const docProvs = provs.filter(p => p.cba_id === doc.cba_id);
+        if (docProvs.length > 0) {
+          const snippets = docProvs.map(p => {
+            const txt = (p.provision_text || '').substring(0, 200);
+            const section = p.section_breadcrumb ? `<div class="breadcrumb">${esc(p.section_breadcrumb)}</div>` : '';
+            return section + `<div style="font-size:0.8rem; margin-bottom:4px;">${esc(txt)}${(p.provision_text||'').length > 200 ? '...' : ''}</div>`;
+          }).join('');
+          html += `<div class="compare-cell">
+            <div class="cell-employer">CBA #${doc.cba_id} - ${esc(doc.employer_name_raw || '')}</div>
+            ${snippets}
+          </div>`;
+        } else {
+          html += `<div class="compare-cell missing">
+            <div class="cell-employer">CBA #${doc.cba_id}</div>
+            Not found
+          </div>`;
+        }
+      }
+      html += '</div>';
+    }
+
+    html += '</div>';
+  }
+
+  document.getElementById('compareResults').innerHTML = html;
+}
+
+// --- Load provision classes for filter ---
+async function loadProvisionClasses() {
+  try {
+    const res = await fetch(`${API}/api/cba/provisions/classes`);
+    const data = await res.json();
+    const select = document.getElementById('provisionClassFilter');
+    // Group by category
+    const grouped = {};
+    for (const r of (data.results || [])) {
+      const cat = r.category || 'other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(r);
+    }
+    for (const cat of Object.keys(grouped).sort()) {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = cat;
+      for (const r of grouped[cat]) {
+        const opt = document.createElement('option');
+        opt.value = r.provision_class;
+        opt.textContent = `${r.provision_class} (${r.cnt})`;
+        optgroup.appendChild(opt);
+      }
+      select.appendChild(optgroup);
+    }
+  } catch(e) {
+    // Silently fail - dropdown just won't populate
+  }
+}
+
+// On load: show documents overview + load provision classes
+(async function() {
+  loadProvisionClasses();
+  try {
+    const res = await fetch(`${API}/api/cba/documents?limit=25`);
+    const data = await res.json();
+    if (data.total > 0) {
+      switchTab('documents');
+    }
+  } catch(e) {
+    showError('Could not connect to API at ' + API + '. Start the backend with: py -m uvicorn api.main:app --reload --port 8001');
+  }
+})();
+</script>
+
+</body>
+</html>

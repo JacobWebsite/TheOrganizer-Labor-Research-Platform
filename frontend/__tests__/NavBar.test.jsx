@@ -25,7 +25,7 @@ describe('NavBar', () => {
 
   it('renders main navigation tabs', () => {
     renderNavBar()
-    expect(screen.getByText('Employers')).toBeInTheDocument()
+    expect(screen.getByText('Search')).toBeInTheDocument()
     expect(screen.getByText('Targets')).toBeInTheDocument()
     expect(screen.getByText('Unions')).toBeInTheDocument()
   })
@@ -43,5 +43,11 @@ describe('NavBar', () => {
   it('displays the username', () => {
     renderNavBar({ username: 'jdoe', role: 'user' })
     expect(screen.getByText('jdoe')).toBeInTheDocument()
+  })
+
+  it('has data-no-print attribute for print hiding', () => {
+    const { container } = renderNavBar()
+    const nav = container.querySelector('nav')
+    expect(nav).toHaveAttribute('data-no-print')
   })
 })

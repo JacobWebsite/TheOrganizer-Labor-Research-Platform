@@ -15,13 +15,18 @@ import { PageSkeleton } from '@/shared/components/PageSkeleton'
 const SearchPage = lazy(() => import('@/features/search/SearchPage').then(m => ({ default: m.SearchPage })))
 const EmployerProfilePage = lazy(() => import('@/features/employer-profile/EmployerProfilePage').then(m => ({ default: m.EmployerProfilePage })))
 const TargetsPage = lazy(() => import('@/features/scorecard/TargetsPage').then(m => ({ default: m.TargetsPage })))
+const CompareEmployersPage = lazy(() => import('@/features/scorecard/CompareEmployersPage').then(m => ({ default: m.CompareEmployersPage })))
 const UnionsPage = lazy(() => import('@/features/union-explorer/UnionsPage').then(m => ({ default: m.UnionsPage })))
 const UnionProfilePage = lazy(() => import('@/features/union-explorer/UnionProfilePage').then(m => ({ default: m.UnionProfilePage })))
 const SettingsPage = lazy(() => import('@/features/admin/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ResearchPage = lazy(() => import('@/features/research/ResearchPage').then(m => ({ default: m.ResearchPage })))
 const ResearchResultPage = lazy(() => import('@/features/research/ResearchResultPage').then(m => ({ default: m.ResearchResultPage })))
 const CompareRunsPage = lazy(() => import('@/features/research/CompareRunsPage').then(m => ({ default: m.CompareRunsPage })))
-const UnifiedScorecardPage = lazy(() => import('@/features/scorecard/UnifiedScorecardPage').then(m => ({ default: m.UnifiedScorecardPage })))
+// UnifiedScorecardPage removed -- /scorecard now redirects to /search
+const CBADashboard = lazy(() => import('@/features/cba/CBADashboard').then(m => ({ default: m.CBADashboard })))
+const CBADetail = lazy(() => import('@/features/cba/CBADetail').then(m => ({ default: m.CBADetail })))
+const CBASearch = lazy(() => import('@/features/cba/CBASearch').then(m => ({ default: m.CBASearch })))
+const CBACompare = lazy(() => import('@/features/cba/CBACompare').then(m => ({ default: m.CBACompare })))
 
 function AuthChecker({ children }) {
   useAuthCheck()
@@ -47,13 +52,18 @@ export default function App() {
                 <Route index element={<Navigate to="/search" replace />} />
                 <Route path="search" element={<Suspense fallback={<PageSkeleton />}><SearchPage /></Suspense>} />
                 <Route path="employers/:id" element={<Suspense fallback={<PageSkeleton variant="profile" />}><EmployerProfilePage /></Suspense>} />
-                <Route path="scorecard" element={<Suspense fallback={<PageSkeleton variant="targets" />}><UnifiedScorecardPage /></Suspense>} />
+                <Route path="scorecard" element={<Navigate to="/search" replace />} />
                 <Route path="targets" element={<Suspense fallback={<PageSkeleton variant="targets" />}><TargetsPage /></Suspense>} />
+                <Route path="compare" element={<Suspense fallback={<PageSkeleton />}><CompareEmployersPage /></Suspense>} />
                 <Route path="unions" element={<Suspense fallback={<PageSkeleton variant="unions" />}><UnionsPage /></Suspense>} />
                 <Route path="unions/:fnum" element={<Suspense fallback={<PageSkeleton variant="union-profile" />}><UnionProfilePage /></Suspense>} />
                 <Route path="research" element={<Suspense fallback={<PageSkeleton variant="research" />}><ResearchPage /></Suspense>} />
                 <Route path="research/compare" element={<Suspense fallback={<PageSkeleton />}><CompareRunsPage /></Suspense>} />
                 <Route path="research/:runId" element={<Suspense fallback={<PageSkeleton variant="research-result" />}><ResearchResultPage /></Suspense>} />
+                <Route path="cbas" element={<Suspense fallback={<PageSkeleton />}><CBADashboard /></Suspense>} />
+                <Route path="cbas/search" element={<Suspense fallback={<PageSkeleton />}><CBASearch /></Suspense>} />
+                <Route path="cbas/compare" element={<Suspense fallback={<PageSkeleton />}><CBACompare /></Suspense>} />
+                <Route path="cbas/:cbaId" element={<Suspense fallback={<PageSkeleton />}><CBADetail /></Suspense>} />
                 <Route path="settings" element={<Suspense fallback={<PageSkeleton />}><SettingsPage /></Suspense>} />
               </Route>
               <Route path="*" element={<NotFound />} />

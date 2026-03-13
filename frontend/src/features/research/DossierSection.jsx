@@ -2,17 +2,20 @@ import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { FactRow } from './FactRow'
 import {
   Building2, Users, HardHat, DollarSign, Briefcase, ClipboardCheck, Database,
-  CheckCircle, XCircle,
+  CheckCircle, XCircle, MapPin, Crown, Network,
 } from 'lucide-react'
 
 const SECTION_META = {
-  identity:   { icon: Building2,      label: 'Company Identity',    defaultOpen: true },
-  labor:      { icon: Users,          label: 'Labor Relations',     defaultOpen: true },
-  workforce:  { icon: Briefcase,      label: 'Workforce',           defaultOpen: false },
-  workplace:  { icon: HardHat,        label: 'Workplace Safety',    defaultOpen: false },
-  financial:  { icon: DollarSign,     label: 'Financial',           defaultOpen: false },
-  assessment: { icon: ClipboardCheck, label: 'Overall Assessment',  defaultOpen: true },
-  sources:    { icon: Database,       label: 'Data Sources',        defaultOpen: false },
+  identity:            { icon: Building2,      label: 'Company Identity',    defaultOpen: true },
+  corporate_structure: { icon: Network,        label: 'Corporate Structure', defaultOpen: true },
+  locations:           { icon: MapPin,         label: 'Locations',           defaultOpen: false },
+  leadership:          { icon: Crown,          label: 'Leadership',          defaultOpen: false },
+  labor:               { icon: Users,          label: 'Labor Relations',     defaultOpen: true },
+  workforce:           { icon: Briefcase,      label: 'Workforce',           defaultOpen: false },
+  workplace:           { icon: HardHat,        label: 'Workplace Safety',    defaultOpen: false },
+  financial:           { icon: DollarSign,     label: 'Financial',           defaultOpen: false },
+  assessment:          { icon: ClipboardCheck, label: 'Overall Assessment',  defaultOpen: true },
+  sources:             { icon: Database,       label: 'Data Sources',        defaultOpen: false },
 }
 
 // Labels for known keys so they render nicely
@@ -35,6 +38,13 @@ const KEY_LABELS = {
   competitor_wages: 'Competitor Wage Comparison', solidarity_network: 'Solidarity Network',
   local_subsidies: 'Taxpayer Subsidies', political_donations: 'Political Donations',
   warn_notices: 'WARN Act Notices',
+  parent_company: 'Parent Company', parent_type: 'Parent Type',
+  subsidiaries: 'Subsidiaries', investors: 'Investors',
+  corporate_family: 'Corporate Family', ownership_chain: 'Ownership Chain',
+  locations: 'Known Locations', total_locations: 'Total Locations',
+  headquarters: 'Headquarters', location_states: 'States with Presence',
+  ceo: 'CEO/President', executives: 'Executive Team',
+  local_leadership: 'Local Management', board_of_directors: 'Board of Directors',
 }
 
 function labelFor(key) {

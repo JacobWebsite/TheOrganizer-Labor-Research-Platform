@@ -1,6 +1,6 @@
 {
   "category": "childcare",
-  "provision_classes": ["health_insurance"],
+  "provision_classes": ["childcare_benefit", "dcfsa", "backup_childcare"],
   "heading_signals": [
     {"pattern": "\\b(childcare|child\\s+care|dependent\\s+care|day\\s+care)\\b", "weight": 0.5}
   ],
@@ -9,21 +9,21 @@
       "name": "childcare_benefit",
       "pattern": "\\b(?:childcare|child\\s+care|day\\s+care|dependent\\s+care)\\s+(?:benefit|assistance|subsidy|allowance|reimbursement|program|fund|center)",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "childcare_benefit",
       "summary": "Childcare benefit"
     },
     {
       "name": "dcfsa",
       "pattern": "\\b(?:dependent\\s+care\\s+(?:flexible\\s+spending|FSA|assistance\\s+program|DCAP|DCFSA))\\b",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "dcfsa",
       "summary": "Dependent care spending account"
     },
     {
       "name": "backup_childcare",
       "pattern": "\\b(?:backup|emergency|on[- ]site)\\s+(?:childcare|child\\s+care|day\\s+care)\\b",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "backup_childcare",
       "summary": "Backup childcare"
     }
   ],

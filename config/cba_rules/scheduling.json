@@ -1,6 +1,6 @@
 {
   "category": "scheduling",
-  "provision_classes": ["overtime", "hours_and_scheduling"],
+  "provision_classes": ["regular_hours", "work_week", "overtime_rate", "overtime_after", "overtime_distribution", "mandatory_overtime", "call_in_pay", "schedule_posting", "shift_assignment", "rest_break", "pyramiding"],
   "heading_signals": [
     {"pattern": "\\b(hours\\s+of\\s+work|work\\s+(?:hours|schedule|week)|scheduling)\\b", "weight": 0.4},
     {"pattern": "\\b(overtime|call[- ]?(?:in|back|out))\\b", "weight": 0.35},
@@ -11,77 +11,77 @@
       "name": "regular_hours",
       "pattern": "\\b(?:regular|normal|standard)\\s+(?:work\\s*(?:day|week)|hours?)\\s+(?:shall\\s+(?:consist|be)|is|are)\\s+(?:of\\s+)?(?:\\d+|eight|forty|seven|five)",
       "confidence": 0.85,
-      "provision_class": "hours_and_scheduling",
+      "provision_class": "regular_hours",
       "summary": "Regular work hours"
     },
     {
       "name": "work_week",
       "pattern": "\\b(?:work\\s*week|work\\s*day)\\s+(?:shall\\s+)?(?:consist|begin|commence|be)\\s+(?:of\\s+)?(?:\\d+|five|six|seven|monday|sunday|saturday)",
       "confidence": 0.85,
-      "provision_class": "hours_and_scheduling",
+      "provision_class": "work_week",
       "summary": "Work week definition"
     },
     {
       "name": "overtime_rate",
       "pattern": "\\b(?:time\\s+and\\s+(?:one[- ])?half|one\\s+and\\s+one[- ]half|1\\.5|1\\s*1/2|double\\s+time|2x|twice\\s+(?:the\\s+)?(?:regular|straight[- ]time))\\b",
       "confidence": 0.90,
-      "provision_class": "overtime",
+      "provision_class": "overtime_rate",
       "summary": "Overtime rate"
     },
     {
       "name": "overtime_after",
       "pattern": "\\b(?:overtime|OT)\\s+(?:shall\\s+be\\s+)?(?:paid|compensated|earned)\\s+(?:for\\s+)?(?:all\\s+)?(?:hours?\\s+)?(?:worked\\s+)?(?:in\\s+excess\\s+of|after|beyond|over)\\s+(?:\\d+|eight|forty)",
       "confidence": 0.90,
-      "provision_class": "overtime",
+      "provision_class": "overtime_after",
       "summary": "Overtime threshold"
     },
     {
       "name": "overtime_distribution",
       "pattern": "\\b(?:overtime|OT)\\s+(?:shall\\s+be\\s+)?(?:distributed|equalized|offered|rotated|assigned)\\s+(?:equally|fairly|by\\s+seniority|among)",
       "confidence": 0.85,
-      "provision_class": "overtime",
+      "provision_class": "overtime_distribution",
       "summary": "Overtime distribution"
     },
     {
       "name": "mandatory_overtime",
       "pattern": "\\b(?:mandatory|compulsory|forced|required)\\s+overtime\\b",
       "confidence": 0.85,
-      "provision_class": "overtime",
+      "provision_class": "mandatory_overtime",
       "summary": "Mandatory overtime"
     },
     {
       "name": "call_in_pay",
       "pattern": "\\b(?:call[- ]?(?:in|back|out)|report[- ]?in|show[- ]?up)\\s+(?:pay|guarantee|minimum|premium)",
       "confidence": 0.85,
-      "provision_class": "overtime",
+      "provision_class": "call_in_pay",
       "summary": "Call-in/callback pay"
     },
     {
       "name": "schedule_posting",
       "pattern": "\\b(?:schedule|roster)\\s+(?:shall\\s+be\\s+)?(?:posted|published|distributed|provided)\\s+(?:at\\s+least\\s+)?(?:\\d+|one|two|three|four)\\s+(?:weeks?|days?)\\s+(?:in\\s+)?advance",
       "confidence": 0.85,
-      "provision_class": "hours_and_scheduling",
+      "provision_class": "schedule_posting",
       "summary": "Schedule posting requirement"
     },
     {
       "name": "shift_assignment",
       "pattern": "\\b(?:shift|tour)\\s+(?:assignment|preference|selection|bidding|rotation).*(?:seniority|volunteer|posted)",
       "confidence": 0.80,
-      "provision_class": "hours_and_scheduling",
+      "provision_class": "shift_assignment",
       "summary": "Shift assignment"
     },
     {
       "name": "rest_break",
       "pattern": "\\b(?:rest|meal|lunch|break|relief)\\s+(?:period|break|time)\\s+(?:of\\s+)?(?:\\d+|fifteen|twenty|thirty|sixty)\\s+(?:minutes?|min)",
       "confidence": 0.80,
-      "provision_class": "hours_and_scheduling",
+      "provision_class": "rest_break",
       "summary": "Rest/meal break"
     },
     {
       "name": "pyramiding",
       "pattern": "\\b(?:pyramiding|stacking|duplicat(?:ion|ing))\\s+(?:of\\s+)?(?:overtime|premium|pay)",
       "confidence": 0.85,
-      "provision_class": "overtime",
+      "provision_class": "pyramiding",
       "summary": "Anti-pyramiding clause"
     }
   ],

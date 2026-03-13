@@ -1,0 +1,421 @@
+{
+  "run_date": "2026-03-11",
+  "model": "V9.1",
+  "split_seed": 20260311,
+  "architecture": {
+    "partial_lock": {
+      "locked": {
+        "Asian": "D",
+        "AIAN": "G",
+        "NHOPI": "B",
+        "Two+": "F"
+      },
+      "free": {
+        "White": "D",
+        "Black": "G"
+      }
+    },
+    "hybrid": "D_race + industry_adaptive_hispanic + F_gender",
+    "gender": "F",
+    "hispanic": "industry+adaptive"
+  },
+  "trained_weights": {
+    "industry_weights": {
+      "Food/Bev Manufacturing (311,312)": {
+        "pums": 0.3,
+        "ipf_ind": 0.2,
+        "tract": 0.2,
+        "occ_chain": 0.3
+      },
+      "Accommodation/Food Svc (72)": {
+        "pums": 0.5,
+        "ipf_ind": 0.2,
+        "tract": 0.2,
+        "occ_chain": 0.1
+      },
+      "Construction (23)": {
+        "pums": 0.2,
+        "ipf_ind": 0.3,
+        "tract": 0.3,
+        "occ_chain": 0.0
+      },
+      "Agriculture/Mining (11,21)": {
+        "pums": 0.2,
+        "ipf_ind": 0.3,
+        "tract": 0.3,
+        "occ_chain": 0.0
+      },
+      "Transport Equip Mfg (336)": {
+        "pums": 0.1,
+        "ipf_ind": 0.0,
+        "tract": 0.6,
+        "occ_chain": 0.2
+      }
+    },
+    "tier_weights": {
+      "low": {
+        "pums": 0.4,
+        "ipf_ind": 0.3,
+        "tract": 0.4,
+        "occ_chain": 0.0
+      },
+      "medium": {
+        "pums": 0.2,
+        "ipf_ind": 0.3,
+        "tract": 0.2,
+        "occ_chain": 0.0
+      },
+      "high": {
+        "pums": 0.2,
+        "ipf_ind": 0.4,
+        "tract": 0.2,
+        "occ_chain": 0.0
+      }
+    },
+    "default_weights": {
+      "pums": 0.3,
+      "ipf_ind": 0.3,
+      "tract": 0.4
+    }
+  },
+  "calibration": {
+    "method": "region_x_industry",
+    "dampening": 0.5,
+    "n_buckets_pl": 497,
+    "n_buckets_hy": 497
+  },
+  "stop_gate": {
+    "partial_lock_passes": false,
+    "hybrid_passes": true,
+    "d_solo": {
+      "count": 86,
+      "p_gt_20pp": 30.23255813953488,
+      "p_gt_30pp": 12.790697674418606
+    },
+    "partial_lock": {
+      "count": 86,
+      "p_gt_20pp": 33.72093023255814,
+      "p_gt_30pp": 19.767441860465116
+    },
+    "hybrid": {
+      "count": 86,
+      "p_gt_20pp": 30.23255813953488,
+      "p_gt_30pp": 12.790697674418606
+    }
+  },
+  "perm_1000": {
+    "d_solo": {
+      "metrics": {
+        "n": 954,
+        "race_mae": 4.782250174703004,
+        "black_mae": 8.788784067085954,
+        "hisp_mae": 9.16909853249476,
+        "gender_mae": 13.719769392033543,
+        "p_gt_20pp": 19.07756813417191,
+        "p_gt_30pp": 7.966457023060797,
+        "abs_bias": 0.9428791055206149,
+        "race_bias": {
+          "White": 0.8734800838574427,
+          "Black": 0.07379454926624739,
+          "Asian": -2.1192767295597483,
+          "AIAN": -0.1720649895178197,
+          "NHOPI": -0.5375471698113208,
+          "Two+": 1.881111111111111
+        },
+        "hisp_bias": {
+          "Hispanic": -7.845157232704402,
+          "Not Hispanic": 7.845157232704402
+        },
+        "gender_bias": {
+          "Male": -4.010314465408805,
+          "Female": 4.010314465408805
+        }
+      },
+      "hs_tail": {
+        "count": 36,
+        "p_gt_20pp": 27.77777777777778,
+        "p_gt_30pp": 8.333333333333332
+      }
+    },
+    "partial_lock_precal": {
+      "metrics": {
+        "n": 1000,
+        "race_mae": 4.876016833333333,
+        "black_mae": 8.6532249,
+        "hisp_mae": 6.79911,
+        "gender_mae": 12.49759,
+        "p_gt_20pp": 22.5,
+        "p_gt_30pp": 10.0,
+        "abs_bias": 1.5351065000000002,
+        "race_bias": {
+          "White": 4.6054494,
+          "Black": -0.7953693000000001,
+          "Asian": -2.1228677,
+          "AIAN": -0.2214335,
+          "NHOPI": -0.4985949,
+          "Two+": -0.9669242
+        },
+        "hisp_bias": {
+          "Hispanic": -2.9627000000000003,
+          "Not Hispanic": 2.96266
+        },
+        "gender_bias": {
+          "Male": -2.64527,
+          "Female": 2.64539
+        }
+      },
+      "hs_tail": {
+        "count": 36,
+        "p_gt_20pp": 27.77777777777778,
+        "p_gt_30pp": 22.22222222222222
+      },
+      "acceptance": {
+        "race_mae": {
+          "value": 4.876016833333333,
+          "target": 4.5,
+          "pass": false
+        },
+        "hisp_mae": {
+          "value": 6.79911,
+          "target": 8.0,
+          "pass": true
+        },
+        "gender_mae": {
+          "value": 12.49759,
+          "target": 12.0,
+          "pass": false
+        },
+        "abs_bias": {
+          "value": 1.5351065000000002,
+          "target": 1.1,
+          "pass": false
+        },
+        "p_gt_20pp": {
+          "value": 22.5,
+          "target": 16.0,
+          "pass": false
+        },
+        "p_gt_30pp": {
+          "value": 10.0,
+          "target": 6.0,
+          "pass": false
+        },
+        "hs_tail": {
+          "value": 27.77777777777778,
+          "target": 15.0,
+          "pass": false
+        }
+      }
+    },
+    "partial_lock_postcal": {
+      "metrics": {
+        "n": 1000,
+        "race_mae": 4.651456283333333,
+        "black_mae": 8.228954400000001,
+        "hisp_mae": 6.6956633000000005,
+        "gender_mae": 12.49759,
+        "p_gt_20pp": 19.5,
+        "p_gt_30pp": 9.0,
+        "abs_bias": 0.8414132833333333,
+        "race_bias": {
+          "White": 2.5243761,
+          "Black": -0.5286144,
+          "Asian": -1.0914513,
+          "AIAN": -0.1439883,
+          "NHOPI": -0.2519458,
+          "Two+": -0.5081038
+        },
+        "hisp_bias": {
+          "Hispanic": -1.7636200999999998,
+          "Not Hispanic": 1.7636201
+        },
+        "gender_bias": {
+          "Male": -2.64527,
+          "Female": 2.64539
+        }
+      },
+      "hs_tail": {
+        "count": 36,
+        "p_gt_20pp": 27.77777777777778,
+        "p_gt_30pp": 13.88888888888889
+      },
+      "acceptance": {
+        "race_mae": {
+          "value": 4.651456283333333,
+          "target": 4.5,
+          "pass": false
+        },
+        "hisp_mae": {
+          "value": 6.6956633000000005,
+          "target": 8.0,
+          "pass": true
+        },
+        "gender_mae": {
+          "value": 12.49759,
+          "target": 12.0,
+          "pass": false
+        },
+        "abs_bias": {
+          "value": 0.8414132833333333,
+          "target": 1.1,
+          "pass": true
+        },
+        "p_gt_20pp": {
+          "value": 19.5,
+          "target": 16.0,
+          "pass": false
+        },
+        "p_gt_30pp": {
+          "value": 9.0,
+          "target": 6.0,
+          "pass": false
+        },
+        "hs_tail": {
+          "value": 27.77777777777778,
+          "target": 15.0,
+          "pass": false
+        }
+      }
+    },
+    "hybrid_precal": {
+      "metrics": {
+        "n": 954,
+        "race_mae": 4.782250174703004,
+        "black_mae": 8.788784067085954,
+        "hisp_mae": 6.79911,
+        "gender_mae": 12.49759,
+        "p_gt_20pp": 19.07756813417191,
+        "p_gt_30pp": 7.966457023060797,
+        "abs_bias": 0.9428791055206149,
+        "race_bias": {
+          "White": 0.8734800838574427,
+          "Black": 0.07379454926624739,
+          "Asian": -2.1192767295597483,
+          "AIAN": -0.1720649895178197,
+          "NHOPI": -0.5375471698113208,
+          "Two+": 1.881111111111111
+        },
+        "hisp_bias": {
+          "Hispanic": -2.9627000000000003,
+          "Not Hispanic": 2.96266
+        },
+        "gender_bias": {
+          "Male": -2.64527,
+          "Female": 2.64539
+        }
+      },
+      "hs_tail": {
+        "count": 36,
+        "p_gt_20pp": 27.77777777777778,
+        "p_gt_30pp": 8.333333333333332
+      },
+      "acceptance": {
+        "race_mae": {
+          "value": 4.782250174703004,
+          "target": 4.5,
+          "pass": false
+        },
+        "hisp_mae": {
+          "value": 6.79911,
+          "target": 8.0,
+          "pass": true
+        },
+        "gender_mae": {
+          "value": 12.49759,
+          "target": 12.0,
+          "pass": false
+        },
+        "abs_bias": {
+          "value": 0.9428791055206149,
+          "target": 1.1,
+          "pass": true
+        },
+        "p_gt_20pp": {
+          "value": 19.07756813417191,
+          "target": 16.0,
+          "pass": false
+        },
+        "p_gt_30pp": {
+          "value": 7.966457023060797,
+          "target": 6.0,
+          "pass": false
+        },
+        "hs_tail": {
+          "value": 27.77777777777778,
+          "target": 15.0,
+          "pass": false
+        }
+      }
+    },
+    "hybrid_postcal": {
+      "metrics": {
+        "n": 954,
+        "race_mae": 4.510498777078967,
+        "black_mae": 8.306534696016772,
+        "hisp_mae": 6.6956633000000005,
+        "gender_mae": 12.49759,
+        "p_gt_20pp": 16.771488469601678,
+        "p_gt_30pp": 7.756813417190776,
+        "abs_bias": 0.556145143256464,
+        "race_bias": {
+          "White": 0.7243459119496857,
+          "Black": -0.13218039832285117,
+          "Asian": -1.11342893081761,
+          "AIAN": -0.14938689727463314,
+          "NHOPI": -0.27334088050314465,
+          "Two+": 0.9441878406708596
+        },
+        "hisp_bias": {
+          "Hispanic": -1.7636200999999998,
+          "Not Hispanic": 1.7636201
+        },
+        "gender_bias": {
+          "Male": -2.64527,
+          "Female": 2.64539
+        }
+      },
+      "hs_tail": {
+        "count": 36,
+        "p_gt_20pp": 22.22222222222222,
+        "p_gt_30pp": 5.555555555555555
+      },
+      "acceptance": {
+        "race_mae": {
+          "value": 4.510498777078967,
+          "target": 4.5,
+          "pass": false
+        },
+        "hisp_mae": {
+          "value": 6.6956633000000005,
+          "target": 8.0,
+          "pass": true
+        },
+        "gender_mae": {
+          "value": 12.49759,
+          "target": 12.0,
+          "pass": false
+        },
+        "abs_bias": {
+          "value": 0.556145143256464,
+          "target": 1.1,
+          "pass": true
+        },
+        "p_gt_20pp": {
+          "value": 16.771488469601678,
+          "target": 16.0,
+          "pass": false
+        },
+        "p_gt_30pp": {
+          "value": 7.756813417190776,
+          "target": 6.0,
+          "pass": false
+        },
+        "hs_tail": {
+          "value": 22.22222222222222,
+          "target": 15.0,
+          "pass": false
+        }
+      }
+    }
+  }
+}

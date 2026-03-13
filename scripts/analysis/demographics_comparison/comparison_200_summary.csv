@@ -1,0 +1,193 @@
+classification_dim,bucket,method,n_companies,avg_mae_race,avg_mae_gender,avg_mae_hispanic,avg_hellinger_race,win_count
+naics_group,Accommodation/Food Svc (72),M1 Baseline (60/40),3,9.51,3.36,6.88,0.249,0
+naics_group,Accommodation/Food Svc (72),M2 Three-Layer (50/30/20),3,8.89,3.41,7.08,0.2398,3
+naics_group,Accommodation/Food Svc (72),M3 IPF,3,13.16,5.14,13.88,0.3722,0
+naics_group,Accommodation/Food Svc (72),M4 Occ-Weighted,3,10.41,3.14,7.42,0.273,0
+naics_group,Accommodation/Food Svc (72),M5 Variable-Weight,3,9.51,3.36,6.88,0.249,0
+naics_group,Accommodation/Food Svc (72),M6 IPF+Occ,3,13.16,5.14,13.88,0.3722,0
+naics_group,Admin/Staffing (56),M1 Baseline (60/40),6,7.43,22.13,15.52,0.2302,1
+naics_group,Admin/Staffing (56),M2 Three-Layer (50/30/20),6,7.83,23.41,15.71,0.2433,0
+naics_group,Admin/Staffing (56),M3 IPF,6,8.31,20.96,19.37,0.2694,3
+naics_group,Admin/Staffing (56),M4 Occ-Weighted,6,7.32,21.24,15.46,0.2307,2
+naics_group,Admin/Staffing (56),M5 Variable-Weight,6,7.43,22.13,15.52,0.2302,0
+naics_group,Admin/Staffing (56),M6 IPF+Occ,6,8.31,20.96,19.37,0.2694,0
+naics_group,"Agriculture/Mining (11,21)",M1 Baseline (60/40),3,4.29,15.3,10.59,0.1755,0
+naics_group,"Agriculture/Mining (11,21)",M2 Three-Layer (50/30/20),3,4.84,18.98,11.39,0.2039,1
+naics_group,"Agriculture/Mining (11,21)",M3 IPF,3,6.82,2.3,6.92,0.2998,0
+naics_group,"Agriculture/Mining (11,21)",M4 Occ-Weighted,3,4.38,11.76,10.15,0.1782,2
+naics_group,"Agriculture/Mining (11,21)",M5 Variable-Weight,3,4.29,15.3,10.59,0.1755,0
+naics_group,"Agriculture/Mining (11,21)",M6 IPF+Occ,3,6.82,2.3,6.92,0.2998,0
+naics_group,Chemical/Material Mfg (325-327),M1 Baseline (60/40),5,3.76,6.61,5.51,0.1811,0
+naics_group,Chemical/Material Mfg (325-327),M2 Three-Layer (50/30/20),5,3.91,6.81,5.75,0.1846,0
+naics_group,Chemical/Material Mfg (325-327),M3 IPF,5,4.83,8.69,8.47,0.2321,1
+naics_group,Chemical/Material Mfg (325-327),M4 Occ-Weighted,5,3.85,6.56,5.49,0.189,1
+naics_group,Chemical/Material Mfg (325-327),M5 Variable-Weight,5,3.72,6.63,5.52,0.1775,3
+naics_group,Chemical/Material Mfg (325-327),M6 IPF+Occ,5,4.83,8.69,8.47,0.2321,0
+naics_group,Computer/Electrical Mfg (334-335),M1 Baseline (60/40),3,7.26,8.77,19.0,0.2794,0
+naics_group,Computer/Electrical Mfg (334-335),M2 Three-Layer (50/30/20),3,7.53,10.87,20.54,0.2887,1
+naics_group,Computer/Electrical Mfg (334-335),M3 IPF,3,8.79,5.03,12.31,0.3015,0
+naics_group,Computer/Electrical Mfg (334-335),M4 Occ-Weighted,3,7.68,7.1,18.14,0.2901,0
+naics_group,Computer/Electrical Mfg (334-335),M5 Variable-Weight,3,7.05,9.6,19.43,0.2744,2
+naics_group,Computer/Electrical Mfg (334-335),M6 IPF+Occ,3,8.79,5.03,12.31,0.3015,0
+naics_group,Construction (23),M1 Baseline (60/40),11,5.26,11.24,8.58,0.2015,0
+naics_group,Construction (23),M2 Three-Layer (50/30/20),11,5.62,13.37,8.65,0.2082,1
+naics_group,Construction (23),M3 IPF,11,4.89,9.04,11.71,0.1996,5
+naics_group,Construction (23),M4 Occ-Weighted,11,4.81,9.39,8.56,0.1929,3
+naics_group,Construction (23),M5 Variable-Weight,11,6.2,17.29,8.7,0.2219,2
+naics_group,Construction (23),M6 IPF+Occ,11,4.89,9.04,11.71,0.1996,0
+naics_group,Finance/Insurance (52),M1 Baseline (60/40),48,7.62,10.59,7.47,0.232,6
+naics_group,Finance/Insurance (52),M2 Three-Layer (50/30/20),48,7.39,11.66,7.28,0.2307,23
+naics_group,Finance/Insurance (52),M3 IPF,48,9.27,8.71,7.1,0.2826,18
+naics_group,Finance/Insurance (52),M4 Occ-Weighted,48,7.97,9.51,7.59,0.2445,0
+naics_group,Finance/Insurance (52),M5 Variable-Weight,48,8.15,9.11,7.67,0.251,1
+naics_group,Finance/Insurance (52),M6 IPF+Occ,48,9.27,8.71,7.1,0.2826,0
+naics_group,"Food/Bev Manufacturing (311,312)",M1 Baseline (60/40),5,3.82,17.42,7.72,0.1488,1
+naics_group,"Food/Bev Manufacturing (311,312)",M2 Three-Layer (50/30/20),5,4.19,18.79,6.67,0.1565,0
+naics_group,"Food/Bev Manufacturing (311,312)",M3 IPF,5,5.35,14.36,11.05,0.2143,2
+naics_group,"Food/Bev Manufacturing (311,312)",M4 Occ-Weighted,5,3.94,15.9,8.58,0.156,0
+naics_group,"Food/Bev Manufacturing (311,312)",M5 Variable-Weight,5,3.64,20.5,6.0,0.1366,2
+naics_group,"Food/Bev Manufacturing (311,312)",M6 IPF+Occ,5,5.35,14.36,11.05,0.2143,0
+naics_group,Healthcare/Social (62),M1 Baseline (60/40),10,5.9,9.22,6.02,0.174,3
+naics_group,Healthcare/Social (62),M2 Three-Layer (50/30/20),10,5.97,10.15,5.94,0.1759,4
+naics_group,Healthcare/Social (62),M3 IPF,10,10.79,8.59,8.23,0.3136,1
+naics_group,Healthcare/Social (62),M4 Occ-Weighted,10,6.2,8.41,6.34,0.1835,1
+naics_group,Healthcare/Social (62),M5 Variable-Weight,10,6.45,8.13,6.51,0.1894,1
+naics_group,Healthcare/Social (62),M6 IPF+Occ,10,10.79,8.59,8.23,0.3136,0
+naics_group,Information (51),M1 Baseline (60/40),5,5.82,10.26,7.52,0.2212,2
+naics_group,Information (51),M2 Three-Layer (50/30/20),5,6.09,10.7,8.94,0.2299,2
+naics_group,Information (51),M3 IPF,5,8.94,10.16,5.15,0.3036,1
+naics_group,Information (51),M4 Occ-Weighted,5,6.03,9.96,7.02,0.2343,0
+naics_group,Information (51),M5 Variable-Weight,5,5.82,10.26,7.52,0.2212,0
+naics_group,Information (51),M6 IPF+Occ,5,8.94,10.16,5.15,0.3036,0
+naics_group,Metal/Machinery Mfg (331-333),M1 Baseline (60/40),6,2.64,15.97,5.47,0.1494,1
+naics_group,Metal/Machinery Mfg (331-333),M2 Three-Layer (50/30/20),6,3.18,18.91,4.87,0.1636,0
+naics_group,Metal/Machinery Mfg (331-333),M3 IPF,6,3.08,7.54,6.52,0.1811,3
+naics_group,Metal/Machinery Mfg (331-333),M4 Occ-Weighted,6,2.78,12.99,6.17,0.1584,1
+naics_group,Metal/Machinery Mfg (331-333),M5 Variable-Weight,6,2.58,17.45,5.18,0.1455,1
+naics_group,Metal/Machinery Mfg (331-333),M6 IPF+Occ,6,3.08,7.54,6.52,0.1811,0
+naics_group,Other,M1 Baseline (60/40),23,5.0,18.06,4.76,0.1693,7
+naics_group,Other,M2 Three-Layer (50/30/20),23,5.35,18.36,5.32,0.1827,6
+naics_group,Other,M3 IPF,23,6.92,17.99,9.04,0.2376,8
+naics_group,Other,M4 Occ-Weighted,23,5.14,17.97,4.64,0.1762,2
+naics_group,Other,M5 Variable-Weight,23,5.0,18.06,4.76,0.1693,0
+naics_group,Other,M6 IPF+Occ,23,6.92,17.99,9.04,0.2376,0
+naics_group,Other Manufacturing,M1 Baseline (60/40),5,4.49,15.98,9.08,0.1414,1
+naics_group,Other Manufacturing,M2 Three-Layer (50/30/20),5,5.0,18.53,8.97,0.1567,0
+naics_group,Other Manufacturing,M3 IPF,5,3.08,10.67,9.19,0.1676,3
+naics_group,Other Manufacturing,M4 Occ-Weighted,5,4.77,14.38,9.58,0.1487,0
+naics_group,Other Manufacturing,M5 Variable-Weight,5,4.34,17.17,8.84,0.1382,1
+naics_group,Other Manufacturing,M6 IPF+Occ,5,3.08,10.67,9.19,0.1676,0
+naics_group,Professional/Technical (54),M1 Baseline (60/40),44,5.21,12.31,4.85,0.1767,10
+naics_group,Professional/Technical (54),M2 Three-Layer (50/30/20),44,5.64,13.27,5.43,0.188,10
+naics_group,Professional/Technical (54),M3 IPF,44,5.92,10.3,5.83,0.219,18
+naics_group,Professional/Technical (54),M4 Occ-Weighted,44,5.39,11.46,4.59,0.1853,0
+naics_group,Professional/Technical (54),M5 Variable-Weight,44,5.48,11.09,4.46,0.19,6
+naics_group,Professional/Technical (54),M6 IPF+Occ,44,5.92,10.3,5.83,0.219,0
+naics_group,Retail Trade (44-45),M1 Baseline (60/40),3,7.9,10.26,8.29,0.2067,1
+naics_group,Retail Trade (44-45),M2 Three-Layer (50/30/20),3,7.91,11.34,8.41,0.2082,1
+naics_group,Retail Trade (44-45),M3 IPF,3,8.49,5.45,4.73,0.2446,1
+naics_group,Retail Trade (44-45),M4 Occ-Weighted,3,8.27,9.15,8.2,0.2152,0
+naics_group,Retail Trade (44-45),M5 Variable-Weight,3,7.9,10.26,8.29,0.2067,0
+naics_group,Retail Trade (44-45),M6 IPF+Occ,3,8.49,5.45,4.73,0.2446,0
+naics_group,Transport Equip Mfg (336),M1 Baseline (60/40),3,3.49,10.59,11.41,0.1683,0
+naics_group,Transport Equip Mfg (336),M2 Three-Layer (50/30/20),3,3.7,14.14,10.38,0.1722,1
+naics_group,Transport Equip Mfg (336),M3 IPF,3,6.56,2.12,17.83,0.247,0
+naics_group,Transport Equip Mfg (336),M4 Occ-Weighted,3,3.69,7.71,12.21,0.18,1
+naics_group,Transport Equip Mfg (336),M5 Variable-Weight,3,3.38,12.04,11.01,0.1629,1
+naics_group,Transport Equip Mfg (336),M6 IPF+Occ,3,6.56,2.12,17.83,0.247,0
+naics_group,Utilities (22),M1 Baseline (60/40),5,3.36,12.24,5.76,0.1439,1
+naics_group,Utilities (22),M2 Three-Layer (50/30/20),5,4.07,12.21,6.35,0.1626,0
+naics_group,Utilities (22),M3 IPF,5,1.96,11.35,1.52,0.1128,3
+naics_group,Utilities (22),M4 Occ-Weighted,5,3.16,11.59,5.77,0.1431,1
+naics_group,Utilities (22),M5 Variable-Weight,5,3.36,12.24,5.76,0.1439,0
+naics_group,Utilities (22),M6 IPF+Occ,5,1.96,11.35,1.52,0.1128,0
+naics_group,Wholesale Trade (42),M1 Baseline (60/40),12,4.77,12.72,8.56,0.16,1
+naics_group,Wholesale Trade (42),M2 Three-Layer (50/30/20),12,5.12,13.09,8.49,0.171,6
+naics_group,Wholesale Trade (42),M3 IPF,12,6.52,13.08,12.58,0.2503,3
+naics_group,Wholesale Trade (42),M4 Occ-Weighted,12,4.94,12.33,8.49,0.1687,2
+naics_group,Wholesale Trade (42),M5 Variable-Weight,12,4.77,12.72,8.56,0.16,0
+naics_group,Wholesale Trade (42),M6 IPF+Occ,12,6.52,13.08,12.58,0.2503,0
+size,1-99,M1 Baseline (60/40),25,6.27,12.86,6.96,0.2356,0
+size,1-99,M2 Three-Layer (50/30/20),25,6.39,14.26,7.18,0.2415,3
+size,1-99,M3 IPF,25,4.71,10.11,5.94,0.1899,15
+size,1-99,M4 Occ-Weighted,25,6.43,11.57,6.72,0.24,3
+size,1-99,M5 Variable-Weight,25,6.53,12.83,6.98,0.2439,4
+size,1-99,M6 IPF+Occ,25,4.71,10.11,5.94,0.1899,0
+size,100-999,M1 Baseline (60/40),101,5.72,13.27,6.57,0.1939,21
+size,100-999,M2 Three-Layer (50/30/20),101,5.96,14.45,6.72,0.2008,26
+size,100-999,M3 IPF,101,6.98,10.94,8.36,0.2395,40
+size,100-999,M4 Occ-Weighted,101,5.89,12.14,6.62,0.2015,7
+size,100-999,M5 Variable-Weight,101,5.96,12.73,6.5,0.2018,7
+size,100-999,M6 IPF+Occ,101,6.98,10.94,8.36,0.2395,0
+size,10000+,M1 Baseline (60/40),24,5.1,11.8,8.62,0.1649,7
+size,10000+,M2 Three-Layer (50/30/20),24,5.32,12.18,8.78,0.1759,11
+size,10000+,M3 IPF,24,8.55,12.34,10.85,0.2795,2
+size,10000+,M4 Occ-Weighted,24,5.32,11.52,8.6,0.1766,2
+size,10000+,M5 Variable-Weight,24,5.4,11.66,8.78,0.1798,2
+size,10000+,M6 IPF+Occ,24,8.55,12.34,10.85,0.2795,0
+size,1k-9999,M1 Baseline (60/40),50,5.82,11.49,7.32,0.1789,7
+size,1k-9999,M2 Three-Layer (50/30/20),50,6.01,12.57,7.58,0.1869,19
+size,1k-9999,M3 IPF,50,7.95,9.61,8.25,0.2722,13
+size,1k-9999,M4 Occ-Weighted,50,6.03,10.63,7.39,0.1887,4
+size,1k-9999,M5 Variable-Weight,50,6.08,12.04,7.14,0.1862,7
+size,1k-9999,M6 IPF+Occ,50,7.95,9.61,8.25,0.2722,0
+region,Midwest,M1 Baseline (60/40),59,3.41,14.62,5.7,0.1499,10
+region,Midwest,M2 Three-Layer (50/30/20),59,3.77,15.79,5.77,0.1599,10
+region,Midwest,M3 IPF,59,3.97,12.1,8.29,0.1863,26
+region,Midwest,M4 Occ-Weighted,59,3.5,13.67,5.62,0.1557,6
+region,Midwest,M5 Variable-Weight,59,3.49,14.69,5.47,0.1539,7
+region,Midwest,M6 IPF+Occ,59,3.97,12.1,8.29,0.1863,0
+region,Northeast,M1 Baseline (60/40),25,4.79,11.48,5.07,0.1788,4
+region,Northeast,M2 Three-Layer (50/30/20),25,5.0,12.79,5.08,0.1842,6
+region,Northeast,M3 IPF,25,6.5,9.5,5.73,0.2367,10
+region,Northeast,M4 Occ-Weighted,25,4.88,10.17,5.26,0.1859,3
+region,Northeast,M5 Variable-Weight,25,5.17,10.8,5.24,0.1922,2
+region,Northeast,M6 IPF+Occ,25,6.5,9.5,5.73,0.2367,0
+region,South,M1 Baseline (60/40),77,6.52,11.66,7.02,0.201,14
+region,South,M2 Three-Layer (50/30/20),77,6.69,12.5,7.34,0.208,26
+region,South,M3 IPF,77,7.81,10.6,8.94,0.2514,27
+region,South,M4 Occ-Weighted,77,6.71,10.88,7.08,0.2094,4
+region,South,M5 Variable-Weight,77,6.81,11.4,7.01,0.2099,6
+region,South,M6 IPF+Occ,77,7.81,10.6,8.94,0.2514,0
+region,West,M1 Baseline (60/40),39,8.34,12.11,10.45,0.2458,7
+region,West,M2 Three-Layer (50/30/20),39,8.4,13.42,10.65,0.2518,17
+region,West,M3 IPF,39,10.96,9.41,8.87,0.3331,7
+region,West,M4 Occ-Weighted,39,8.7,10.9,10.38,0.258,3
+region,West,M5 Variable-Weight,39,8.7,12.14,10.39,0.2578,5
+region,West,M6 IPF+Occ,39,10.96,9.41,8.87,0.3331,0
+minority_share,High (>50%),M1 Baseline (60/40),29,13.26,9.04,9.89,0.3319,3
+minority_share,High (>50%),M2 Three-Layer (50/30/20),29,12.7,9.85,9.54,0.3226,24
+minority_share,High (>50%),M3 IPF,29,17.91,8.54,10.01,0.4633,1
+minority_share,High (>50%),M4 Occ-Weighted,29,13.78,8.25,10.25,0.3475,1
+minority_share,High (>50%),M5 Variable-Weight,29,13.94,8.43,10.47,0.3535,0
+minority_share,High (>50%),M6 IPF+Occ,29,17.91,8.54,10.01,0.4633,0
+minority_share,Low (<25%),M1 Baseline (60/40),111,3.99,14.41,6.22,0.1662,19
+minority_share,Low (<25%),M2 Three-Layer (50/30/20),111,4.48,15.81,6.5,0.1791,6
+minority_share,Low (<25%),M3 IPF,111,3.14,11.44,6.6,0.161,65
+minority_share,Low (<25%),M4 Occ-Weighted,111,4.06,13.17,6.13,0.1715,9
+minority_share,Low (<25%),M5 Variable-Weight,111,4.12,14.32,6.03,0.1713,12
+minority_share,Low (<25%),M6 IPF+Occ,111,3.14,11.44,6.6,0.161,0
+minority_share,Medium (25-50%),M1 Baseline (60/40),60,5.35,10.96,7.23,0.1717,13
+minority_share,Medium (25-50%),M2 Three-Layer (50/30/20),60,5.4,11.61,7.49,0.1776,29
+minority_share,Medium (25-50%),M3 IPF,60,9.29,10.28,10.72,0.299,4
+minority_share,Medium (25-50%),M4 Occ-Weighted,60,5.57,10.36,7.26,0.1817,6
+minority_share,Medium (25-50%),M5 Variable-Weight,60,5.61,10.9,7.1,0.1807,8
+minority_share,Medium (25-50%),M6 IPF+Occ,60,9.29,10.28,10.72,0.299,0
+urbanicity,Rural,M1 Baseline (60/40),26,4.09,13.23,4.29,0.1843,2
+urbanicity,Rural,M2 Three-Layer (50/30/20),26,4.06,15.13,4.22,0.1834,1
+urbanicity,Rural,M3 IPF,26,1.6,9.17,3.86,0.114,21
+urbanicity,Rural,M4 Occ-Weighted,26,4.24,11.31,4.16,0.1898,1
+urbanicity,Rural,M5 Variable-Weight,26,4.5,11.96,4.42,0.1948,1
+urbanicity,Rural,M6 IPF+Occ,26,1.6,9.17,3.86,0.114,0
+urbanicity,Suburban,M1 Baseline (60/40),17,4.46,12.11,7.11,0.1835,3
+urbanicity,Suburban,M2 Three-Layer (50/30/20),17,4.73,12.99,7.08,0.1895,2
+urbanicity,Suburban,M3 IPF,17,5.56,10.6,10.38,0.2257,5
+urbanicity,Suburban,M4 Occ-Weighted,17,4.5,11.27,7.35,0.1898,4
+urbanicity,Suburban,M5 Variable-Weight,17,4.54,12.39,7.04,0.1851,3
+urbanicity,Suburban,M6 IPF+Occ,17,5.56,10.6,10.38,0.2257,0
+urbanicity,Urban,M1 Baseline (60/40),157,6.15,12.55,7.5,0.1941,30
+urbanicity,Urban,M2 Three-Layer (50/30/20),157,6.39,13.52,7.76,0.2031,56
+urbanicity,Urban,M3 IPF,157,8.21,10.93,8.85,0.2704,44
+urbanicity,Urban,M4 Occ-Weighted,157,6.36,11.71,7.51,0.2029,11
+urbanicity,Urban,M5 Variable-Weight,157,6.4,12.53,7.41,0.2031,16
+urbanicity,Urban,M6 IPF+Occ,157,8.21,10.93,8.85,0.2704,0

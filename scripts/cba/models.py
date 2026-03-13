@@ -49,6 +49,31 @@ class ArticleChunk:
 
 
 @dataclass
+class TOCEntry:
+    """A single entry parsed from a contract's Table of Contents."""
+    number: str            # "I", "XIX.3", "Side Letters"
+    title: str
+    page_number: int       # Printed page number from TOC
+    level: int             # 1=article, 2=sub-section
+    parent_number: str | None = None
+
+
+@dataclass
+class SectionRow:
+    """A decomposed section ready for DB insertion."""
+    section_num: str
+    section_title: str
+    section_level: int
+    section_text: str
+    char_start: int
+    char_end: int
+    page_start: int | None = None
+    page_end: int | None = None
+    parent_section_num: str | None = None
+    detection_method: str = "toc_parsed"
+
+
+@dataclass
 class RuleMatch:
     """A single rule-engine match against contract text."""
     provision_class: str
@@ -62,3 +87,5 @@ class RuleMatch:
     rule_name: str | None = None
     article_reference: str | None = None
     summary: str | None = None
+    context_before: str | None = None
+    context_after: str | None = None

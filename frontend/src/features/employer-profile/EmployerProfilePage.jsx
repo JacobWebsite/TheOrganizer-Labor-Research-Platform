@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { MiniStat } from '@/shared/components/MiniStat'
 import { SidebarTOC } from '@/shared/components/SidebarTOC'
-import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources, useEmployerMatches } from '@/shared/api/profile'
+import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources, useEmployerMatches, useEmployerOccupations } from '@/shared/api/profile'
 import { useTargetDetail, useTargetScorecardDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
 import { ProfileActionButtons } from './ProfileActionButtons'
@@ -22,9 +22,12 @@ import { ComparablesCard } from './ComparablesCard'
 import { GovernmentContractsCard } from './GovernmentContractsCard'
 import { WhdCard } from './WhdCard'
 import { ResearchNotesCard } from './ResearchNotesCard'
+import { CampaignOutcomeCard } from './CampaignOutcomeCard'
 import { DataProvenanceCard } from './DataProvenanceCard'
 import { ResearchInsightsCard } from './ResearchInsightsCard'
 import { WorkforceDemographicsCard } from './WorkforceDemographicsCard'
+import { NycEnforcementSection } from './NycEnforcementSection'
+import { OccupationSection } from './OccupationSection'
 
 const PROFILE_SECTIONS = [
   { id: 'scorecard', label: 'Scorecard' },
@@ -33,14 +36,17 @@ const PROFILE_SECTIONS = [
   { id: 'union', label: 'Union' },
   { id: 'financial', label: 'Financial' },
   { id: 'demographics', label: 'Demographics' },
+  { id: 'occupations', label: 'Occupations' },
   { id: 'corporate', label: 'Corporate' },
   { id: 'comparables', label: 'Comparables' },
   { id: 'nlrb', label: 'NLRB' },
   { id: 'contracts', label: 'Contracts' },
   { id: 'osha', label: 'OSHA' },
   { id: 'whd', label: 'WHD' },
+  { id: 'nyc', label: 'NYC Enforcement' },
   { id: 'crossrefs', label: 'Cross-Refs' },
   { id: 'notes', label: 'Notes' },
+  { id: 'outcomes', label: 'Outcomes' },
 ]
 
 function formatNumber(n) {
@@ -79,6 +85,9 @@ export function EmployerProfilePage() {
   const scorecardQuery = useScorecardDetail(id, { enabled: isF7 && !!data })
   const dataSourcesQuery = useEmployerDataSources(id, { enabled: isF7 && !!data })
   const matchesQuery = useEmployerMatches(id, { enabled: isF7 && !!data })
+
+  // Occupation data — F7 only, after profile loads
+  const occupationsQuery = useEmployerOccupations(isF7 ? id : null)
 
   // Master employer scorecard — must be called unconditionally (Rules of Hooks)
   const masterScorecardQuery = useTargetScorecardDetail(rawId, { enabled: isMaster && !!data })
@@ -286,14 +295,17 @@ export function EmployerProfilePage() {
       case 'union': return !!(employer.union_name || employer.latest_union_name)
       case 'financial': return !!(scorecard?.score_financial != null || scorecard?.bls_growth_pct != null || ds?.is_public)
       case 'demographics': return !!(employer?.state && (scorecard?.naics || employer?.naics))
+      case 'occupations': return !!(occupationsQuery.data?.top_occupations?.length)
       case 'corporate': return true  // fetches its own data
       case 'comparables': return true  // fetches its own data
       case 'nlrb': return true  // shows warning when no data
       case 'contracts': return !!(ds?.is_federal_contractor)
       case 'osha': return true  // shows warning when no data
       case 'whd': return true  // shows warning when no data
+      case 'nyc': return true  // shows warning when no data
       case 'crossrefs': return !!(crossRefs?.length)
       case 'notes': return true  // always show
+      case 'outcomes': return true
       default: return true
     }
   })
@@ -366,7 +378,10 @@ export function EmployerProfilePage() {
             <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} sourceAttribution={getFinancialAttribution()} />
           </div>
           <div id="demographics">
-            <WorkforceDemographicsCard state={employer?.state} naics={scorecard?.naics || employer?.naics} />
+            <WorkforceDemographicsCard state={employer?.state} naics={scorecard?.naics || employer?.naics} employerId={id} />
+          </div>
+          <div id="occupations">
+            <OccupationSection data={occupationsQuery.data} isLoading={occupationsQuery.isLoading} />
           </div>
           <div id="corporate">
             <CorporateHierarchyCard employerId={id} sourceAttribution={getCorporateAttribution()} />
@@ -375,7 +390,7 @@ export function EmployerProfilePage() {
             <ComparablesCard employerId={id} />
           </div>
           <div id="nlrb">
-            <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} scorecard={scorecard} dataSources={ds} />
+            <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} scorecard={scorecard} dataSources={ds} docket={data?.nlrb_docket} />
           </div>
           <div id="contracts">
             <GovernmentContractsCard dataSources={dataSourcesQuery.data} sourceAttribution={getAttribution('sam')} />
@@ -386,11 +401,17 @@ export function EmployerProfilePage() {
           <div id="whd">
             <WhdCard employerId={id} sourceAttribution={getAttribution('whd')} dataSources={ds} />
           </div>
+          <div id="nyc">
+            <NycEnforcementSection nycEnforcement={data.nyc_enforcement} />
+          </div>
           <div id="crossrefs">
             <CrossReferencesSection crossReferences={crossRefs} />
           </div>
           <div id="notes">
             <ResearchNotesCard employerId={id} sourceType="F7" sourceId={employer.employer_id} />
+          </div>
+          <div id="outcomes">
+            <CampaignOutcomeCard employerId={id} employerName={employer.employer_name} />
           </div>
 
           {/* Action buttons at bottom */}

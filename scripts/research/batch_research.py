@@ -53,24 +53,37 @@ def _save_checkpoint(data: dict):
 
 def get_candidates(candidate_type: str, limit: int) -> list:
     """Fetch candidate employers from the database."""
+    dedup_days = int(os.environ.get("RESEARCH_DEDUP_DAYS", "30"))
+    dedup_quality = float(os.environ.get("RESEARCH_DEDUP_MIN_QUALITY", "7.0"))
+
     conn = get_connection(cursor_factory=RealDictCursor)
     try:
         cur = conn.cursor()
         if candidate_type == "non_union":
             cur.execute("""
-                SELECT
-                    s.employer_id, s.employer_name, s.state, s.city, s.naics,
-                    s.latest_unit_size, s.weighted_score, s.factors_available,
-                    s.score_tier, s.source_count,
-                    ROUND((s.weighted_score * (8 - s.factors_available))::numeric, 2)
-                        AS research_priority
-                FROM mv_unified_scorecard s
-                WHERE NOT s.has_research
-                  AND s.factors_available < 6
-                  AND s.weighted_score IS NOT NULL
-                ORDER BY s.weighted_score * (8 - s.factors_available) DESC NULLS LAST
+                SELECT ts.master_id::TEXT AS employer_id,
+                       ts.display_name AS employer_name,
+                       ts.state, ts.city, ts.naics,
+                       ts.employee_count AS latest_unit_size,
+                       ts.signals_present AS factors_available,
+                       ts.gold_standard_tier AS score_tier,
+                       ts.source_count
+                FROM mv_target_scorecard ts
+                WHERE NOT ts.has_research
+                  AND ts.signals_present >= 2
+                  AND ts.has_enforcement
+                  AND NOT EXISTS (
+                      SELECT 1 FROM research_runs rr
+                      WHERE rr.employer_id = ts.master_id::TEXT
+                        AND rr.status = 'completed'
+                        AND rr.overall_quality_score >= %s
+                        AND rr.completed_at >= NOW() - make_interval(days => %s)
+                  )
+                ORDER BY ts.enforcement_count DESC,
+                         ts.signals_present ASC,
+                         ts.source_count DESC
                 LIMIT %s
-            """, (limit,))
+            """, (dedup_quality, dedup_days, limit))
         else:
             cur.execute("""
                 SELECT
@@ -84,10 +97,17 @@ def get_candidates(candidate_type: str, limit: int) -> list:
                 WHERE rse.id IS NULL
                   AND ds.source_count <= 2
                   AND f.latest_unit_size IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM research_runs rr
+                      WHERE rr.employer_id = f.employer_id
+                        AND rr.status = 'completed'
+                        AND rr.overall_quality_score >= %s
+                        AND rr.completed_at >= NOW() - make_interval(days => %s)
+                  )
                 ORDER BY ds.source_count ASC,
                          f.latest_unit_size DESC NULLS LAST
                 LIMIT %s
-            """, (limit,))
+            """, (dedup_quality, dedup_days, limit))
         return [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()

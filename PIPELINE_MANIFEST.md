@@ -1,5 +1,8 @@
 # Pipeline Manifest — Labor Relations Research Platform
 
+> **Superseded by [`PROJECT_CATALOG.md`](PROJECT_CATALOG.md)** for comprehensive file inventory.
+> Retained for pipeline run-order reference only.
+
 **Last updated:** 2026-02-25
 **Active scripts:** 135 (down from 530+ before reorganization)
 

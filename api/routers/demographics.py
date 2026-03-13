@@ -156,10 +156,19 @@ async def get_industry_demographics(state: str, naics: str):
         naics4 = naics[:4]
 
         result = _build_demographics(cur, state_fips, naics4)
+        fallback_level = None
         if not result:
             # Try broader NAICS (2-digit) if 4-digit has no data
             naics2 = naics[:2]
             result = _build_demographics(cur, state_fips, naics2)
+            if result:
+                fallback_level = "naics2"
+
+        if not result:
+            # Final fallback: state-wide demographics
+            result = _build_demographics(cur, state_fips)
+            if result:
+                fallback_level = "state"
 
         if not result:
             raise HTTPException(
@@ -168,18 +177,28 @@ async def get_industry_demographics(state: str, naics: str):
             )
 
         # Get NAICS description if available
-        cur.execute(
-            "SELECT title FROM bls_industry_occupation_matrix WHERE matrix_code = %s LIMIT 1",
-            (naics4 + "00",),
-        )
+        naics_desc = None
+        cur.execute("""
+            SELECT naics_title FROM naics_codes_reference
+            WHERE naics_code = %s LIMIT 1
+        """, (naics4,))
         naics_row = cur.fetchone()
-        naics_desc = naics_row["title"] if naics_row else None
+        if naics_row:
+            naics_desc = naics_row["naics_title"].rstrip("T")
+
+        label = f"Industry baseline for NAICS {naics} in {state.upper()}"
+        if fallback_level == "naics2":
+            label = f"Industry baseline for NAICS {naics[:2]} (2-digit) in {state.upper()}"
+        elif fallback_level == "state":
+            label = f"State-wide workforce baseline for {state.upper()}"
+            naics_desc = None
 
         return {
             "state": state.upper(),
             "naics": naics,
             "naics_description": naics_desc,
-            "label": f"Industry baseline for NAICS {naics} in {state.upper()}",
+            "fallback_level": fallback_level,
+            "label": label,
             **result,
         }
     finally:

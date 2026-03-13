@@ -17,7 +17,7 @@ const PAGE_SIZE = 25
 export function SearchPage() {
   const { filters, page, hasActiveSearch, setFilter, clearFilter, clearAll, setPage } = useSearchState()
 
-  useEffect(() => { document.title = 'Search - The Organizer' }, [])
+  useEffect(() => { document.title = 'Union Employer Search - The Organizer' }, [])
 
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('search-view-mode') || 'table' } catch { return 'table' }
@@ -49,7 +49,7 @@ export function SearchPage() {
   if (!hasActiveSearch) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
-        <h1 className="font-editorial text-4xl font-bold tracking-tight mb-2">Employer Search</h1>
+        <h1 className="font-editorial text-4xl font-bold tracking-tight mb-2">Union Employer Search</h1>
         <p className="text-muted-foreground mb-8 text-center max-w-md">
           Search across 100,000+ employers from NLRB elections, LM filings, and more.
         </p>

@@ -84,7 +84,7 @@ export function SearchBar({ variant = 'compact', initialValue = '', onSearch }) 
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Search Employers"
+            placeholder="Check if an employer has a union"
             value={value}
             onChange={(e) => {
               setValue(e.target.value)

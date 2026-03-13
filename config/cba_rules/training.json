@@ -1,6 +1,6 @@
 {
   "category": "training",
-  "provision_classes": ["wages_base_pay"],
+  "provision_classes": ["training_program", "tuition_reimbursement", "certification_pay", "apprentice_ratio", "training_time_paid"],
   "heading_signals": [
     {"pattern": "\\b(training|apprentice|education|tuition|professional\\s+development)\\b", "weight": 0.4},
     {"pattern": "\\b(certification|license|continuing\\s+education)\\b", "weight": 0.3}
@@ -10,35 +10,35 @@
       "name": "training_program",
       "pattern": "(?:employee|employees|worker|workers|staff|personnel)\\s+(?:shall|will|must|may|are\\s+required)?\\s*(?:to\\s+)?(?:attend|complete|participate\\s+in|undergo).*\\b(?:training|instruction)\\b|\\b(?:instruction\\s+or\\s+training|training\\s+(?:program|course)\\s+(?:for|required|provided\\s+to)\\s+(?:employee|worker))",
       "confidence": 0.80,
-      "provision_class": "wages_base_pay",
+      "provision_class": "training_program",
       "summary": "Training program"
     },
     {
       "name": "tuition_reimbursement",
       "pattern": "\\b(?:tuition|educational)\\s+(?:reimbursement|assistance|aid|benefit|allowance|waiver)\\b",
       "confidence": 0.85,
-      "provision_class": "wages_base_pay",
+      "provision_class": "tuition_reimbursement",
       "summary": "Tuition reimbursement"
     },
     {
       "name": "certification_pay",
       "pattern": "\\b(?:certification|license|credential)\\s+(?:pay|differential|premium|reimbursement|renewal)\\b",
       "confidence": 0.80,
-      "provision_class": "wages_base_pay",
+      "provision_class": "certification_pay",
       "summary": "Certification pay/reimbursement"
     },
     {
       "name": "apprentice_ratio",
       "pattern": "\\b(?:apprentice|trainee)\\s+(?:to\\s+)?(?:journeyman|journey\\s*worker)\\s+ratio\\b",
       "confidence": 0.85,
-      "provision_class": "wages_base_pay",
+      "provision_class": "apprentice_ratio",
       "summary": "Apprentice ratio"
     },
     {
       "name": "training_time_paid",
       "pattern": "\\b(?:training|in-service)\\s+(?:time|hours?)\\s+(?:shall\\s+be\\s+)?(?:paid|compensated|on\\s+(?:company|employer)\\s+time)",
       "confidence": 0.80,
-      "provision_class": "wages_base_pay",
+      "provision_class": "training_time_paid",
       "summary": "Paid training time"
     }
   ],

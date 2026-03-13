@@ -247,6 +247,136 @@ def get_document_text(cba_id: int) -> str | None:
             return row[0] if row else None
 
 
+def link_employer(employer_name: str) -> str | None:
+    """Attempt to match employer_name_raw to master_employers/f7_employers_deduped.
+
+    Returns employer_id if found, None otherwise.
+    """
+    if not employer_name:
+        return None
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Try exact match first (case-insensitive)
+            cur.execute(
+                """SELECT employer_id FROM f7_employers_deduped
+                   WHERE UPPER(TRIM(employer_name)) = UPPER(TRIM(%s))
+                   LIMIT 1""",
+                [employer_name],
+            )
+            row = cur.fetchone()
+            if row:
+                return row[0]
+
+            # Try ILIKE partial match
+            cur.execute(
+                """SELECT employer_id FROM f7_employers_deduped
+                   WHERE employer_name ILIKE %s
+                   ORDER BY LENGTH(employer_name)
+                   LIMIT 1""",
+                [f"%{employer_name}%"],
+            )
+            row = cur.fetchone()
+            if row:
+                return row[0]
+
+            # Try master_employers
+            cur.execute(
+                """SELECT master_id FROM master_employers
+                   WHERE UPPER(TRIM(display_name)) = UPPER(TRIM(%s))
+                   LIMIT 1""",
+                [employer_name],
+            )
+            row = cur.fetchone()
+            # master_id is not employer_id, but we can check if there's a link
+            if row:
+                cur.execute(
+                    """SELECT source_id FROM master_employer_source_ids
+                       WHERE master_id = %s AND source_system = 'f7'
+                       LIMIT 1""",
+                    [row[0]],
+                )
+                src = cur.fetchone()
+                if src:
+                    return src[0]
+
+    return None
+
+
+def link_union(union_name: str) -> str | None:
+    """Attempt to match union_name_raw to unions_master.
+
+    Returns f_num if found, None otherwise.
+    """
+    if not union_name:
+        return None
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Try exact match (case-insensitive)
+            cur.execute(
+                """SELECT f_num FROM unions_master
+                   WHERE UPPER(TRIM(union_name)) = UPPER(TRIM(%s))
+                   LIMIT 1""",
+                [union_name],
+            )
+            row = cur.fetchone()
+            if row:
+                return row[0]
+
+            # Try ILIKE partial match
+            cur.execute(
+                """SELECT f_num FROM unions_master
+                   WHERE union_name ILIKE %s
+                   ORDER BY LENGTH(union_name)
+                   LIMIT 1""",
+                [f"%{union_name}%"],
+            )
+            row = cur.fetchone()
+            if row:
+                return row[0]
+
+            # Try abbreviation match
+            cur.execute(
+                """SELECT f_num FROM unions_master
+                   WHERE aff_abbr ILIKE %s
+                   LIMIT 1""",
+                [f"%{union_name}%"],
+            )
+            row = cur.fetchone()
+            if row:
+                return row[0]
+
+    return None
+
+
+def link_entities(cba_id: int, employer_name: str | None = None, union_name: str | None = None) -> tuple[str | None, str | None]:
+    """Attempt entity linking for a CBA document. Updates DB if matches found.
+
+    Returns (employer_id, f_num).
+    """
+    employer_id = link_employer(employer_name) if employer_name else None
+    f_num = link_union(union_name) if union_name else None
+
+    if employer_id or f_num:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                updates = []
+                params = []
+                if employer_id:
+                    updates.append("employer_id = %s")
+                    params.append(employer_id)
+                if f_num:
+                    updates.append("f_num = %s")
+                    params.append(f_num)
+                params.append(cba_id)
+                cur.execute(
+                    f"UPDATE cba_documents SET {', '.join(updates)}, updated_at = NOW() WHERE cba_id = %s",
+                    params,
+                )
+                conn.commit()
+
+    return employer_id, f_num
+
+
 def update_document_metadata(cba_id: int, meta: ContractMetadata) -> None:
     """Update cba_documents with extracted metadata."""
     with get_connection() as conn:

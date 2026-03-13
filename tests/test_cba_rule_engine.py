@@ -22,6 +22,7 @@ from scripts.cba.rule_engine import (
     match_all_chunks,
     match_chunk,
     match_text_all_categories,
+    populate_context,
     score_heading,
 )
 
@@ -71,10 +72,10 @@ class TestSentenceContext:
         result = _extract_sentence_context(text, 21, 60)
         assert "employer shall provide" in result
 
-    def test_caps_at_600(self):
-        text = "A" * 800
-        result = _extract_sentence_context(text, 0, 800)
-        assert len(result) <= 600
+    def test_caps_at_1500(self):
+        text = "A" * 2000
+        result = _extract_sentence_context(text, 0, 2000)
+        assert len(result) <= 1500
 
 
 class TestHeadingScoring:
@@ -109,7 +110,7 @@ class TestChunkMatching:
         )
         matches = match_chunk(chunk, rules)
         assert len(matches) > 0
-        assert any(m.provision_class == "health_insurance" for m in matches)
+        assert any(m.provision_class == "employer_premium" for m in matches)
 
     def test_wages_match(self):
         rules = load_category_rules("wages")
@@ -122,7 +123,7 @@ class TestChunkMatching:
         )
         matches = match_chunk(chunk, rules)
         assert len(matches) > 0
-        assert any(m.provision_class == "wages_base_pay" for m in matches)
+        assert any(m.provision_class == "base_wage_rate" for m in matches)
 
     def test_grievance_match(self):
         rules = load_category_rules("grievance")
@@ -175,7 +176,7 @@ class TestChunkMatching:
         )
         matches = match_chunk(chunk, rules)
         assert len(matches) > 0
-        assert any(m.provision_class == "overtime" for m in matches)
+        assert any(m.provision_class == "overtime_rate" for m in matches)
 
     def test_pension_match(self):
         rules = load_category_rules("pension")
@@ -188,7 +189,7 @@ class TestChunkMatching:
         )
         matches = match_chunk(chunk, rules)
         assert len(matches) > 0
-        assert any(m.provision_class == "retirement_pension" for m in matches)
+        assert any(m.provision_class in ("pension_contribution", "contribution_rate") for m in matches)
 
     def test_leave_match(self):
         rules = load_category_rules("leave")
@@ -203,7 +204,7 @@ class TestChunkMatching:
         )
         matches = match_chunk(chunk, rules)
         assert len(matches) >= 2
-        assert any(m.provision_class == "paid_leave" for m in matches)
+        assert any(m.provision_class in ("vacation_days", "sick_leave", "personal_days", "bereavement") for m in matches)
 
 
 class TestDeduplication:
@@ -596,10 +597,10 @@ class TestFix9ContextWindow:
     """Fix 9: Context window capture (~100 chars before and after)."""
 
     def test_context_before_and_after(self):
-        full_text = "A" * 200 + "MATCHED PROVISION TEXT HERE" + "B" * 200
-        before, after = extract_context_window(full_text, 200, 226)
-        assert len(before) <= 110
-        assert len(after) <= 110
+        full_text = "A" * 600 + "MATCHED PROVISION TEXT HERE" + "B" * 600
+        before, after = extract_context_window(full_text, 600, 626)
+        assert len(before) <= 510
+        assert len(after) <= 510
         assert "A" in before
         assert "B" in after
 
@@ -615,3 +616,26 @@ class TestFix9ContextWindow:
         before, after = extract_context_window(full_text, start, len(full_text))
         assert len(before) > 0
         assert after == ""
+
+
+class TestPopulateContext:
+    """Test populate_context fills context_before and context_after on matches."""
+
+    def test_populates_context_fields(self):
+        full_text = "Before text here. " + "MATCHED PROVISION" + " After text here."
+        matches = [
+            RuleMatch(
+                provision_class="test", category="test",
+                matched_text="MATCHED PROVISION",
+                char_start=18, char_end=35,
+                confidence=0.85, rule_name="test_rule",
+            ),
+        ]
+        populate_context(matches, full_text)
+        assert matches[0].context_before is not None
+        assert matches[0].context_after is not None
+        assert "Before" in matches[0].context_before
+        assert "After" in matches[0].context_after
+
+    def test_empty_matches_no_error(self):
+        populate_context([], "some text")  # Should not raise

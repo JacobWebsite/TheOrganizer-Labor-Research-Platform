@@ -1,6 +1,6 @@
 {
   "category": "healthcare",
-  "provision_classes": ["health_insurance"],
+  "provision_classes": ["employer_premium", "employee_contribution", "coverage_tiers", "hmo_ppo", "copay_deductible", "dental_vision", "prescription_drug", "opt_out_waiver", "retiree_health", "health_fund", "waiting_period"],
   "heading_signals": [
     {"pattern": "\\b(health|medical|insurance|benefits|welfare|dental|vision|prescription)\\b", "weight": 0.3},
     {"pattern": "\\b(health\\s+(and|&)\\s+welfare)\\b", "weight": 0.4},
@@ -12,77 +12,77 @@
       "name": "employer_premium",
       "pattern": "(?:employer|company|management)\\s+(?:shall|will|agrees?\\s+to)\\s+(?:pay|contribute|provide|maintain).*(?:premium|health|medical|insurance|coverage)",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "employer_premium",
       "summary": "Employer health insurance contribution"
     },
     {
       "name": "employee_contribution",
       "pattern": "(?:employee|worker|member)\\s+(?:shall|will|must)?\\s*(?:contribute|pay|share).*(?:premium|cost|health|medical|insurance)",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "employee_contribution",
       "summary": "Employee health insurance contribution"
     },
     {
       "name": "coverage_tiers",
       "pattern": "(?:individual|single|employee[- ]only|family|employee\\s*\\+\\s*(?:spouse|child|dependent))(?=.{0,100}(?:plan|coverage|premium|enrollment|tier|dependent|deductible|copay|coinsurance|HMO|PPO|health\\s+fund|benefit\\s+fund|medical|dental|vision|prescription))",
       "confidence": 0.75,
-      "provision_class": "health_insurance",
+      "provision_class": "coverage_tiers",
       "summary": "Health coverage tier definition"
     },
     {
       "name": "hmo_ppo",
       "pattern": "\\b(?:HMO|PPO|EPO|high[- ]deductible|HDHP|preferred\\s+provider)\\b",
       "confidence": 0.80,
-      "provision_class": "health_insurance",
+      "provision_class": "hmo_ppo",
       "summary": "Health plan type"
     },
     {
       "name": "copay_deductible",
       "pattern": "\\b(?:co-?pay|copayment|deductible|out[- ]of[- ]pocket|coinsurance)\\b.*\\$\\d+",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "copay_deductible",
       "summary": "Copay/deductible amount"
     },
     {
       "name": "dental_vision",
       "pattern": "\\b(?:dental|vision|optical|orthodonti[ca])\\s+(?:plan|coverage|benefit|insurance|care)",
       "confidence": 0.80,
-      "provision_class": "health_insurance",
+      "provision_class": "dental_vision",
       "summary": "Dental/vision coverage"
     },
     {
       "name": "prescription_drug",
       "pattern": "\\b(?:prescription|drug|pharmacy|formulary|rx|pharmaceutical)\\s+(?:plan|coverage|benefit|card|co-?pay)",
       "confidence": 0.80,
-      "provision_class": "health_insurance",
+      "provision_class": "prescription_drug",
       "summary": "Prescription drug coverage"
     },
     {
       "name": "opt_out_waiver",
       "pattern": "(?:opt[- ]out|waiver|decline|buyout|cash\\s+in\\s+lieu).*(?:health|medical|insurance|coverage|benefit)",
       "confidence": 0.80,
-      "provision_class": "health_insurance",
+      "provision_class": "opt_out_waiver",
       "summary": "Health insurance opt-out/waiver"
     },
     {
       "name": "retiree_health",
       "pattern": "\\b(?:retir(?:ee|ement)|post[- ]employment)\\s+(?:health|medical|insurance|benefit|coverage)",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "retiree_health",
       "summary": "Retiree health benefits"
     },
     {
       "name": "health_fund",
       "pattern": "(?:health|welfare|benefit)\\s+(?:fund|trust|plan).*(?:\\$[\\d,.]+|per\\s+hour|per\\s+month|per\\s+capita)",
       "confidence": 0.85,
-      "provision_class": "health_insurance",
+      "provision_class": "health_fund",
       "summary": "Health fund contribution"
     },
     {
       "name": "waiting_period",
       "pattern": "(?:waiting|eligibility)\\s+period.*(?:health|medical|insurance|coverage|benefit|day|month)",
       "confidence": 0.75,
-      "provision_class": "health_insurance",
+      "provision_class": "waiting_period",
       "summary": "Health insurance waiting period"
     }
   ],

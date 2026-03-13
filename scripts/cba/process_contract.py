@@ -21,17 +21,150 @@ from scripts.cba.models import PageSpan
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Process a CBA contract through the full pipeline")
-    parser.add_argument("--pdf", required=True, help="Path to PDF file")
-    parser.add_argument("--employer", required=True, help="Employer name")
-    parser.add_argument("--union", required=True, help="Union name")
+    parser.add_argument("--pdf", required=False, help="Path to PDF file (required unless --reprocess)")
+    parser.add_argument("--employer", required=False, help="Employer name (required unless --reprocess)")
+    parser.add_argument("--union", required=False, help="Union name (required unless --reprocess)")
     parser.add_argument("--source", default="Local Archive", help="Source name")
     parser.add_argument("--effective-date", default=None, help="Effective date (YYYY-MM-DD)")
     parser.add_argument("--expiration-date", default=None, help="Expiration date (YYYY-MM-DD)")
     parser.add_argument("--categories", default=None, help="Comma-separated categories (default: all)")
     parser.add_argument("--dry-run", action="store_true", help="Don't insert provisions (dry-run mode)")
     parser.add_argument("--min-confidence", type=float, default=0.50, help="Minimum confidence threshold")
+    parser.add_argument("--reprocess", type=int, default=None, metavar="CBA_ID",
+                        help="Re-process an existing cba_id (deletes old provisions, re-runs pipeline)")
     parser.add_argument("--verbose", action="store_true", help="Print detailed output")
     args = parser.parse_args()
+
+    # --- Validate required args for non-reprocess mode ---
+    if not args.reprocess and (not args.pdf or not args.employer or not args.union):
+        parser.error("--pdf, --employer, and --union are required unless --reprocess is used")
+
+    # --- Reprocess mode ---
+    if args.reprocess:
+        cba_id = args.reprocess
+        print(f"Re-processing cba_id={cba_id}")
+        from db_config import get_connection as _gc
+        with _gc() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT full_text, page_count, employer_name_raw, union_name_raw, file_path FROM cba_documents WHERE cba_id = %s", [cba_id])
+                row = cur.fetchone()
+                if not row:
+                    print(f"ERROR: cba_id={cba_id} not found")
+                    sys.exit(1)
+                full_text, page_count, emp_name, union_name_raw, file_path = row
+
+                # Delete old provisions
+                cur.execute("DELETE FROM cba_provisions WHERE cba_id = %s", [cba_id])
+                deleted = cur.rowcount
+                print(f"  Deleted {deleted} old provisions")
+
+                # Reset status
+                cur.execute(
+                    "UPDATE cba_documents SET extraction_status = 'pending', extraction_method = 'rule_engine', updated_at = NOW() WHERE cba_id = %s",
+                    [cba_id],
+                )
+                conn.commit()
+
+        from scripts.cba.models import DocumentText
+
+        if full_text:
+            # Reconstruct DocumentText from stored text
+            chars_per_page = len(full_text) // max(page_count or 1, 1)
+            spans = []
+            for i in range(page_count or 1):
+                spans.append(PageSpan(
+                    page_number=i + 1,
+                    char_start=i * chars_per_page,
+                    char_end=min((i + 1) * chars_per_page, len(full_text)),
+                ))
+            if spans:
+                spans[-1] = PageSpan(page_number=len(spans), char_start=spans[-1].char_start, char_end=len(full_text))
+            doc = DocumentText(text=full_text, page_count=page_count or 1, spans=spans)
+            print(f"  Using existing text: {len(full_text):,} chars, {page_count} pages")
+        else:
+            # No full_text stored -- re-extract from PDF
+            pdf_path = Path(file_path) if file_path else None
+            if not pdf_path or not pdf_path.exists():
+                print(f"ERROR: No full_text and PDF not found at: {file_path}")
+                sys.exit(1)
+            print(f"  No stored text -- re-extracting from PDF: {pdf_path.name}")
+            _s1 = importlib.import_module("scripts.cba.01_extract_text")
+            doc, ext_method = _s1.load_pdf_text_with_ocr(pdf_path)
+            print(f"  Extracted: {len(doc.text):,} chars, {doc.page_count} pages, method={ext_method}")
+            # Store the extracted text and update metadata
+            file_hash = _s1.compute_file_hash(pdf_path)
+            with _gc() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE cba_documents SET full_text = %s, page_count = %s, file_hash = %s, extraction_method = %s, updated_at = NOW() WHERE cba_id = %s",
+                        [doc.text, doc.page_count, file_hash, ext_method, cba_id],
+                    )
+                    conn.commit()
+
+        # Override args for downstream
+        args.employer = emp_name or args.employer
+        args.union = union_name_raw or args.union
+
+        # Step 2: Extract parties
+        print("\n" + "=" * 60)
+        print("STEP 2: Extracting party/date metadata")
+        print("=" * 60)
+        _s2 = importlib.import_module("scripts.cba.02_extract_parties")
+        meta = _s2.extract_parties_from_text(doc.text)
+        print(f"  Employer:   {meta.employer_name or '(not found)'}")
+        print(f"  Union:      {meta.union_name or '(not found)'}")
+        _s2.update_document_metadata(cba_id, meta)
+
+        # Entity linking
+        employer_id, f_num = _s2.link_entities(cba_id, args.employer, args.union)
+        print(f"  Linked employer_id: {employer_id or '(no match)'}")
+        print(f"  Linked f_num:       {f_num or '(no match)'}")
+
+        # Step 3: Find articles
+        print("\n" + "=" * 60)
+        print("STEP 3: Finding article/section structure")
+        print("=" * 60)
+        _s3 = importlib.import_module("scripts.cba.03_find_articles")
+        chunks = _s3.find_articles(doc.text, doc.spans)
+        print(f"  Found {len(chunks)} headings")
+        _s3.save_structure(cba_id, chunks)
+
+        # Step 4: Tag provisions
+        print("\n" + "=" * 60)
+        print("STEP 4: Tagging provisions with rule engine")
+        print("=" * 60)
+        from scripts.cba.rule_engine import match_text_all_categories, populate_context
+        _s4 = importlib.import_module("scripts.cba.04_tag_category")
+        from collections import Counter
+
+        categories = args.categories.split(",") if args.categories else None
+        matches = match_text_all_categories(chunks, categories, min_confidence=args.min_confidence)
+        populate_context(matches, doc.text)
+        print(f"  Found {len(matches)} provisions")
+
+        cat_counts = Counter(m.category for m in matches)
+        print("\n  By category:")
+        for cat, cnt in cat_counts.most_common():
+            print(f"    {cat}: {cnt}")
+
+        if not args.dry_run:
+            inserted = _s4.insert_provisions(cba_id, matches, doc.spans)
+            with _gc() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE cba_documents SET extraction_status = 'completed', updated_at = NOW() WHERE cba_id = %s",
+                        [cba_id],
+                    )
+                    conn.commit()
+            print(f"\n  Inserted {inserted} provisions")
+        else:
+            print("\n  --- DRY RUN: no provisions inserted ---")
+
+        print("\n" + "=" * 60)
+        print("REPROCESS COMPLETE")
+        print(f"  cba_id={cba_id}, provisions={len(matches)}, categories={len(cat_counts)}")
+        print("=" * 60)
+        return
 
     pdf_path = Path(args.pdf).resolve()
     if not pdf_path.exists():
@@ -73,8 +206,8 @@ def main() -> None:
     print("=" * 60)
 
     _s2 = importlib.import_module("scripts.cba.02_extract_parties")
-    extract_parties_from_text, update_document_metadata = (
-        _s2.extract_parties_from_text, _s2.update_document_metadata
+    extract_parties_from_text, update_document_metadata, link_entities = (
+        _s2.extract_parties_from_text, _s2.update_document_metadata, _s2.link_entities
     )
 
     meta = extract_parties_from_text(doc.text)
@@ -86,6 +219,11 @@ def main() -> None:
     print(f"  State:      {meta.state or '(not found)'}")
     print(f"  City:       {meta.city or '(not found)'}")
     update_document_metadata(cba_id, meta)
+
+    # Entity linking
+    employer_id, f_num = link_entities(cba_id, args.employer, args.union)
+    print(f"  Linked employer_id: {employer_id or '(no match)'}")
+    print(f"  Linked f_num:       {f_num or '(no match)'}")
 
     # --- Step 3: Find Articles ---
     print("\n" + "=" * 60)
@@ -116,13 +254,14 @@ def main() -> None:
     print("STEP 4: Tagging provisions with rule engine")
     print("=" * 60)
 
-    from scripts.cba.rule_engine import match_text_all_categories
+    from scripts.cba.rule_engine import match_text_all_categories, populate_context
     _s4 = importlib.import_module("scripts.cba.04_tag_category")
     insert_provisions = _s4.insert_provisions
     from collections import Counter
 
     categories = args.categories.split(",") if args.categories else None
     matches = match_text_all_categories(chunks, categories, min_confidence=args.min_confidence)
+    populate_context(matches, doc.text)
     print(f"  Found {len(matches)} provisions")
 
     # Summary

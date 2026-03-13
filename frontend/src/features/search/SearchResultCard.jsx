@@ -48,6 +48,20 @@ export function SearchResultCard({ employer }) {
               <Users className="h-3 w-3" /> {formatNumber(workers)} workers
             </span>
           )}
+          {employer.source_type === 'F7' && employer.factors_available != null && (() => {
+            const f = employer.factors_available
+            const t = employer.factors_total || 10
+            const cls = f >= 5
+              ? 'bg-[#1a6b5a]/20 text-[#1a6b5a]'
+              : f >= 3
+                ? 'bg-[#c78c4e]/20 text-[#c78c4e]'
+                : 'bg-amber-100 text-amber-800 border border-amber-300'
+            return (
+              <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
+                {f}/{t} factors
+              </span>
+            )
+          })()}
         </div>
         {employer.union_name && (
           <div className="text-xs text-muted-foreground truncate">

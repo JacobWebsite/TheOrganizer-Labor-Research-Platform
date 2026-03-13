@@ -522,6 +522,23 @@ def grade_and_save(run_id: int, conn=None) -> dict:
         conn.commit()
 
         _log.info("Run %d graded: overall=%.2f (%s)", run_id, result["overall"], dimensions)
+
+        # Cross-validate research findings against DB
+        try:
+            cur2 = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
+            cur2.execute("SELECT employer_id FROM research_runs WHERE id = %s", (run_id,))
+            run_row = cur2.fetchone()
+            emp_id = run_row.get("employer_id") if run_row else None
+            if emp_id:
+                xval = cross_validate_against_db(run_id, emp_id, conn=conn)
+                if xval.get("match_rate") is not None:
+                    _log.info(
+                        "Run %d cross-validation: rate=%.2f, discrepancies=%d",
+                        run_id, xval["match_rate"], len(xval["discrepancies"]),
+                    )
+        except Exception as exc:
+            _log.debug("Cross-validation for run %d failed: %s", run_id, exc)
+
         return result
     finally:
         if close_conn:
@@ -862,6 +879,198 @@ def compute_research_enhancements(run_id: int, conn=None) -> Optional[int]:
     finally:
         if close_conn:
             conn.close()
+
+
+def cross_validate_against_db(run_id: int, employer_id: str, conn=None) -> dict:
+    """Compare research findings against actual DB records.
+
+    Checks OSHA violations, NLRB elections, WHD cases found by research vs
+    what's actually in the database for the same employer. Returns match_rate
+    and a list of discrepancies.
+
+    Parameters
+    ----------
+    run_id : int
+        Research run ID
+    employer_id : str
+        F7 employer ID (or master_id as text)
+    conn : psycopg2 connection, optional
+
+    Returns
+    -------
+    dict with keys:
+        match_rate : float (0.0-1.0)
+        discrepancies : list of dicts
+        comparisons_made : int
+    """
+    close_conn = False
+    if conn is None:
+        conn = get_connection(cursor_factory=RealDictCursor)
+        close_conn = True
+
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor) if not close_conn else conn.cursor()
+
+        # Load research findings
+        cur.execute(
+            "SELECT * FROM research_score_enhancements WHERE run_id = %s",
+            (run_id,),
+        )
+        enhancements = cur.fetchone()
+        if not enhancements:
+            return {"match_rate": None, "discrepancies": [], "comparisons_made": 0}
+
+        discrepancies = []
+        matches = 0
+        comparisons = 0
+
+        # --- OSHA violations ---
+        research_osha = enhancements.get("osha_violations_found")
+        if research_osha is not None:
+            cur.execute(
+                "SELECT COALESCE(SUM(vs.total_violations), 0) AS db_violations "
+                "FROM osha_f7_matches m "
+                "JOIN osha_establishments oe ON oe.establishment_id = m.establishment_id "
+                "LEFT JOIN ("
+                "  SELECT establishment_id, SUM(violation_count) AS total_violations "
+                "  FROM osha_violation_summary GROUP BY establishment_id"
+                ") vs ON vs.establishment_id = oe.establishment_id "
+                "WHERE m.f7_employer_id = %s",
+                (employer_id,),
+            )
+            row = cur.fetchone()
+            db_osha = int(row["db_violations"]) if row else 0
+            comparisons += 1
+            r_val = int(research_osha)
+            if _values_match(r_val, db_osha):
+                matches += 1
+            else:
+                discrepancies.append({
+                    "field": "osha_violations",
+                    "research_value": r_val,
+                    "db_value": db_osha,
+                })
+
+        # --- NLRB elections ---
+        research_nlrb = enhancements.get("nlrb_elections_found")
+        if research_nlrb is not None:
+            cur.execute(
+                "SELECT COUNT(*) AS db_elections "
+                "FROM nlrb_elections e "
+                "JOIN nlrb_participants p ON p.case_number = e.case_number "
+                "WHERE p.matched_employer_id = %s AND p.participant_type = 'Employer'",
+                (employer_id,),
+            )
+            row = cur.fetchone()
+            db_nlrb = int(row["db_elections"]) if row else 0
+            comparisons += 1
+            r_val = int(research_nlrb)
+            if _values_match(r_val, db_nlrb):
+                matches += 1
+            else:
+                discrepancies.append({
+                    "field": "nlrb_elections",
+                    "research_value": r_val,
+                    "db_value": db_nlrb,
+                })
+
+        # --- WHD cases ---
+        research_whd = enhancements.get("whd_cases_found")
+        if research_whd is not None:
+            cur.execute(
+                "SELECT COUNT(*) AS db_cases "
+                "FROM whd_f7_matches WHERE f7_employer_id = %s",
+                (employer_id,),
+            )
+            row = cur.fetchone()
+            db_whd = int(row["db_cases"]) if row else 0
+            comparisons += 1
+            r_val = int(research_whd)
+            if _values_match(r_val, db_whd):
+                matches += 1
+            else:
+                discrepancies.append({
+                    "field": "whd_cases",
+                    "research_value": r_val,
+                    "db_value": db_whd,
+                })
+
+        # --- Employee count ---
+        research_emp = enhancements.get("employee_count_found")
+        if research_emp is not None:
+            cur.execute(
+                "SELECT latest_unit_size FROM f7_employers_deduped WHERE employer_id = %s",
+                (employer_id,),
+            )
+            row = cur.fetchone()
+            db_emp = int(row["latest_unit_size"]) if row and row.get("latest_unit_size") else None
+            if db_emp is not None:
+                comparisons += 1
+                r_val = int(research_emp)
+                if _values_match(r_val, db_emp, ratio_tolerance=2.0):
+                    matches += 1
+                else:
+                    discrepancies.append({
+                        "field": "employee_count",
+                        "research_value": r_val,
+                        "db_value": db_emp,
+                    })
+
+        match_rate = round(matches / comparisons, 2) if comparisons > 0 else None
+
+        # Store results
+        _ensure_cross_validation_columns(conn)
+        cur.execute(
+            "UPDATE research_score_enhancements "
+            "SET cross_validation_rate = %s, cross_validation_discrepancies = %s "
+            "WHERE run_id = %s",
+            (match_rate, json.dumps(discrepancies), run_id),
+        )
+        conn.commit()
+
+        return {
+            "match_rate": match_rate,
+            "discrepancies": discrepancies,
+            "comparisons_made": comparisons,
+        }
+
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def _values_match(research_val, db_val, ratio_tolerance=None):
+    """Check if two values match within tolerance.
+
+    For counts: exact match (both 0, or both > 0).
+    For amounts: within ratio_tolerance (default: exact for counts, 2x for amounts).
+    """
+    if research_val == 0 and db_val == 0:
+        return True
+    if research_val == 0 or db_val == 0:
+        return False
+    if ratio_tolerance:
+        ratio = max(research_val, db_val) / max(min(research_val, db_val), 1)
+        return ratio <= ratio_tolerance
+    # For counts: both positive = match (research may report different scope)
+    return (research_val > 0) == (db_val > 0)
+
+
+def _ensure_cross_validation_columns(conn):
+    """Add cross-validation columns if they don't exist (idempotent)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'research_score_enhancements' "
+            "AND column_name = 'cross_validation_rate'"
+        )
+        if not cur.fetchone():
+            cur.execute(
+                "ALTER TABLE research_score_enhancements "
+                "ADD COLUMN cross_validation_rate NUMERIC(3,2), "
+                "ADD COLUMN cross_validation_discrepancies JSONB"
+            )
+            conn.commit()
 
 
 def _extract_int(val: Any) -> Optional[int]:

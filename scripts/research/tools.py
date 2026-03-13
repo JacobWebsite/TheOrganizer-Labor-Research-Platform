@@ -600,6 +600,91 @@ def search_nlrb(
 
 
 # ---------------------------------------------------------------------------
+# TOOL 2b: search_nlrb_docket
+# ---------------------------------------------------------------------------
+
+
+def search_nlrb_docket(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search NLRB docket entries for procedural activity on an employer's cases."""
+    source = "database:nlrb_docket"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        # Find case numbers linked to employer
+        case_numbers: set[str] = set()
+
+        if employer_id:
+            cur.execute("""
+                SELECT DISTINCT case_number FROM nlrb_participants
+                WHERE matched_employer_id = %s AND participant_type = 'Employer'
+            """, (employer_id,))
+            case_numbers.update(r["case_number"] for r in cur.fetchall())
+
+        if not case_numbers:
+            name_clause, name_params = _name_like_clause("UPPER(participant_name)", company_name)
+            cur.execute(f"""
+                SELECT DISTINCT case_number FROM nlrb_participants
+                WHERE {name_clause} AND participant_type = 'Employer'
+                LIMIT 200
+            """, name_params)
+            filtered = _filter_by_name_similarity(cur.fetchall(), company_name, "case_number")
+            case_numbers.update(r["case_number"] for r in filtered)
+
+        if not case_numbers:
+            conn.close()
+            return {"found": False, "source": source,
+                    "summary": "No NLRB cases found for this employer.", "data": {}}
+
+        case_list = list(case_numbers)
+
+        # Query docket entries
+        cur.execute("""
+            SELECT d.case_number,
+                   MIN(d.docket_date) AS first_activity,
+                   MAX(d.docket_date) AS last_activity,
+                   COUNT(*) AS entry_count,
+                   MAX(d.docket_date) >= CURRENT_DATE - INTERVAL '90 days' AS is_recent
+            FROM nlrb_docket d
+            WHERE d.case_number = ANY(%s)
+            GROUP BY d.case_number
+            ORDER BY MAX(d.docket_date) DESC NULLS LAST
+        """, (case_list,))
+        rows = _safe_list(cur.fetchall())
+
+        conn.close()
+
+        if not rows:
+            return {"found": False, "source": source,
+                    "summary": "No docket entries found for this employer's NLRB cases.", "data": {}}
+
+        total_entries = sum(r.get("entry_count", 0) for r in rows)
+        cases_with_recent = sum(1 for r in rows if r.get("is_recent"))
+
+        data = {
+            "cases_with_docket": len(rows),
+            "total_entries": total_entries,
+            "has_recent_activity": cases_with_recent > 0,
+            "cases_with_recent_activity": cases_with_recent,
+            "case_summaries": rows[:20],
+        }
+
+        parts = [f"{len(rows)} case(s) with docket data, {total_entries} total entries"]
+        if cases_with_recent > 0:
+            parts.append(f"{cases_with_recent} case(s) with activity in last 90 days")
+
+        return {"found": True, "source": source, "summary": ". ".join(parts) + ".", "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
 # TOOL 3: search_whd
 # ---------------------------------------------------------------------------
 
@@ -1111,6 +1196,28 @@ def get_industry_profile(
         conn = _conn()
         cur = conn.cursor()
 
+        # NAICS hierarchy
+        naics_hierarchy = []
+        for length in [2, 3, 4, 5, 6]:
+            prefix = naics[:length]
+            if len(prefix) < length:
+                break
+            cur.execute("""
+                SELECT naics_code, naics_title, code_level
+                FROM naics_codes_reference
+                WHERE naics_code = %s LIMIT 1
+            """, (prefix,))
+            row = cur.fetchone()
+            if row:
+                title = row["naics_title"]
+                if title and title.endswith("T") and row["code_level"] < 6:
+                    title = title[:-1]
+                naics_hierarchy.append({
+                    "code": row["naics_code"],
+                    "title": title,
+                    "level": row["code_level"],
+                })
+
         # Map NAICS to BLS industry code
         cur.execute("""
             SELECT bls_industry_code, match_type
@@ -1242,19 +1349,106 @@ def get_industry_profile(
                     cbp_local = _safe_dict(cbp_local)
                     break
 
+        # --- OES Area Wages (state-specific wage percentiles) ---
+        oes_wages = []
+        if state and occupations:
+            occ_codes = [o["occupation_code"] for o in occupations if o.get("occupation_code")]
+            if occ_codes:
+                cur.execute("""
+                    SELECT occ_code, occ_title, tot_emp, a_median, a_pct10, a_pct25,
+                           a_pct75, a_pct90, h_median, loc_quotient
+                    FROM mv_oes_area_wages
+                    WHERE occ_code = ANY(%s) AND prim_state = %s
+                    ORDER BY tot_emp DESC NULLS LAST
+                """, (occ_codes, state.upper()))
+                oes_wages = _safe_list(cur.fetchall())
+
+        # --- SOII Injury Rates ---
+        soii_rates = []
+        for prefix_len in [len(naics), 4, 3, 2]:
+            code = naics[:prefix_len].ljust(6, '0')
+            cur.execute("""
+                SELECT year, industry_name, case_type_text, rate
+                FROM mv_soii_industry_rates
+                WHERE industry_code = %s AND data_type_code = '3'
+                ORDER BY year DESC, case_type_code
+                LIMIT 15
+            """, (code,))
+            soii_rates = _safe_list(cur.fetchall())
+            if soii_rates:
+                break
+
+        # --- JOLTS Turnover Rates ---
+        jolts_rates = []
+        for prefix_len in [len(naics), 4, 3, 2]:
+            code = naics[:prefix_len].ljust(6, '0')
+            cur.execute("""
+                SELECT year, period, dataelement_text, rate
+                FROM mv_jolts_industry_rates
+                WHERE industry_code = %s
+                ORDER BY year DESC, period DESC
+                LIMIT 30
+            """, (code,))
+            jolts_rates = _safe_list(cur.fetchall())
+            if jolts_rates:
+                break
+
+        # --- NCS Benefits Access ---
+        ncs_benefits = []
+        for prefix_len in [len(naics), 4, 3, 2]:
+            code = naics[:prefix_len].ljust(6, '0')
+            cur.execute("""
+                SELECT year, provision_text, rate
+                FROM mv_ncs_benefits_access
+                WHERE industry_code = %s
+                  AND ownership_code = '2'
+                  AND datatype_code = '01'
+                  AND subcell_code = '00'
+                  AND provision_code IN ('014','015','016','018')
+                ORDER BY year DESC, provision_code
+                LIMIT 20
+            """, (code,))
+            ncs_benefits = _safe_list(cur.fetchall())
+            if ncs_benefits:
+                break
+        # Fallback to all private industry
+        if not ncs_benefits:
+            cur.execute("""
+                SELECT year, provision_text, rate
+                FROM mv_ncs_benefits_access
+                WHERE industry_code = '000000'
+                  AND ownership_code = '2'
+                  AND datatype_code = '01'
+                  AND subcell_code = '00'
+                  AND provision_code IN ('014','015','016','018')
+                ORDER BY year DESC, provision_code
+                LIMIT 20
+            """)
+            ncs_benefits = _safe_list(cur.fetchall())
+
         conn.close()
 
         data = {
             "naics_code": naics,
             "bls_industry_code": bls_code,
+            "naics_hierarchy": naics_hierarchy,
             "top_occupations": occupations,
             "pay_ranges": pay_ranges,
             "national_density": national_density,
             "state_density": state_density,
             "cbp_local_context": cbp_local,
+            "oes_area_wages": oes_wages,
+            "soii_injury_rates": soii_rates,
+            "jolts_turnover_rates": jolts_rates,
+            "ncs_benefits_access": ncs_benefits,
         }
 
-        summary = f"Industry {bls_code} ({national_density['industry_name'] if national_density else 'N/A'}). "
+        if naics_hierarchy:
+            hierarchy_str = " > ".join(f"{h['title']} ({h['code']})" for h in naics_hierarchy)
+            summary = f"NAICS hierarchy: {hierarchy_str}. "
+        else:
+            summary = ""
+        summary += f"Industry {bls_code} ({national_density['industry_name'] if national_density else 'N/A'}). "
         if occupations:
             top3 = ", ".join(f"{o['occupation_title']} ({o['percent_of_industry']}%)" for o in occupations[:3])
             summary += f"Top occupations: {top3}. "
@@ -1267,6 +1461,19 @@ def get_industry_profile(
             summary += f" State ({state}) estimated density: {state_density['estimated_density']}%."
         if cbp_local:
             summary += f" CBP local ({state}): {cbp_local.get('establishment_count', 0):,} establishments, {cbp_local.get('employment', 0):,} employees, avg ${cbp_local.get('avg_weekly_wage', 0):,.0f}/week."
+        if soii_rates:
+            latest_injury = next((r for r in soii_rates if 'total' in (r.get('case_type_text') or '').lower()), soii_rates[0])
+            summary += f" SOII injury rate ({latest_injury.get('year', '?')}): {latest_injury.get('rate', '?')}."
+        if jolts_rates:
+            quit_rate = next((r for r in jolts_rates if 'quit' in (r.get('dataelement_text') or '').lower()), None)
+            if quit_rate:
+                summary += f" JOLTS quit rate ({quit_rate.get('year', '?')} {quit_rate.get('period', '')}): {quit_rate.get('rate', '?')}%."
+        if ncs_benefits:
+            medical = next((r for r in ncs_benefits if 'medical' in (r.get('provision_text') or '').lower()), None)
+            if medical:
+                summary += f" NCS medical care access: {medical.get('rate', '?')}%."
+        if oes_wages:
+            summary += f" OES: {len(oes_wages)} occupations with state wage data."
 
         return {"found": True, "source": source, "summary": summary, "data": data}
 
@@ -3442,6 +3649,882 @@ def compare_employer_wages(
 
 
 # ---------------------------------------------------------------------------
+# TOOL: search_nyc_enforcement
+# ---------------------------------------------------------------------------
+
+def search_nyc_enforcement(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search NYC/NYS enforcement tables for wage theft, debarment, and local labor law violations."""
+    source = "database:nyc_enforcement"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        name_clause, name_params = _name_like_clause("employer_name_normalized", company_name)
+
+        # Debarment list (210 rows)
+        cur.execute(f"""
+            SELECT 'debarment' AS source_type, employer_name, prosecuting_agency,
+                   debarment_start_date, debarment_end_date,
+                   NULL::numeric AS amount, NULL::integer AS num_claimants
+            FROM nyc_debarment_list
+            WHERE {name_clause}
+        """, name_params)
+        debarment_rows = cur.fetchall()
+
+        # Local labor laws (568 rows)
+        cur.execute(f"""
+            SELECT 'local_labor_law' AS source_type, employer_name, NULL AS prosecuting_agency,
+                   closed_date AS debarment_start_date, NULL::date AS debarment_end_date,
+                   total_recovered AS amount, covered_workers AS num_claimants
+            FROM nyc_local_labor_laws
+            WHERE {name_clause}
+        """, name_params)
+        local_rows = cur.fetchall()
+
+        # NYS wage theft (3,281 rows)
+        cur.execute(f"""
+            SELECT 'wage_theft_nys' AS source_type, employer_name, NULL AS prosecuting_agency,
+                   NULL::date AS debarment_start_date, NULL::date AS debarment_end_date,
+                   wages_owed AS amount, num_claimants
+            FROM nyc_wage_theft_nys
+            WHERE {name_clause}
+        """, name_params)
+        wage_rows = cur.fetchall()
+
+        conn.close()
+
+        all_rows = debarment_rows + local_rows + wage_rows
+
+        # Filter by name similarity
+        all_rows = _filter_by_name_similarity(all_rows, company_name, "employer_name")
+        rows = _safe_list(all_rows)
+
+        if not rows:
+            return {"found": False, "source": source,
+                    "summary": "No NYC/NYS enforcement records found for this employer.",
+                    "data": {}}
+
+        # Aggregate stats
+        debarments = [r for r in rows if r["source_type"] == "debarment"]
+        local_laws = [r for r in rows if r["source_type"] == "local_labor_law"]
+        wage_theft = [r for r in rows if r["source_type"] == "wage_theft_nys"]
+
+        from datetime import date as _date
+        is_debarred = any(
+            (not r.get("debarment_end_date") or r["debarment_end_date"] >= _date.today())
+            for r in debarments
+        )
+        total_wages_owed = sum(float(r.get("amount") or 0) for r in wage_theft)
+        total_recovered = sum(float(r.get("amount") or 0) for r in local_laws)
+
+        data = {
+            "record_count": len(rows),
+            "debarment_count": len(debarments),
+            "local_law_count": len(local_laws),
+            "wage_theft_count": len(wage_theft),
+            "is_debarred": is_debarred,
+            "total_wages_owed": total_wages_owed,
+            "total_recovered": total_recovered,
+            "records": rows[:20],
+        }
+
+        summary = f"{len(rows)} NYC/NYS enforcement record(s). "
+        if is_debarred:
+            summary += "CURRENTLY DEBARRED. "
+        if debarments:
+            summary += f"{len(debarments)} debarment(s). "
+        if local_laws:
+            summary += f"{len(local_laws)} local labor law violation(s), ${total_recovered:,.0f} recovered. "
+        if wage_theft:
+            summary += f"{len(wage_theft)} NYS wage theft case(s), ${total_wages_owed:,.0f} owed."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_local_union_density
+# ---------------------------------------------------------------------------
+
+def search_local_union_density(
+    company_name: str,
+    *,
+    state: str,
+    naics: Optional[str] = None,
+    city: Optional[str] = None,
+    zip_code: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Get local union density context: F7 union counts, top unions, recent NLRB elections, and BLS state density."""
+    source = "database:union_density"
+    try:
+        if not state or len(state) != 2:
+            return {"found": False, "source": source,
+                    "summary": "State (2-letter code) is required.",
+                    "data": {}}
+
+        state = state.upper()
+        conn = _conn()
+        cur = conn.cursor()
+
+        naics_2 = naics[:2] if naics and len(naics) >= 2 else None
+
+        # 1. F7 union counts in state (optionally filtered by 2-digit NAICS)
+        naics_clause = ""
+        params: list = [state]
+        if naics_2:
+            naics_clause = "AND LEFT(e.naics, 2) = %s"
+            params.append(naics_2)
+
+        cur.execute(f"""
+            SELECT COUNT(DISTINCT e.employer_id) AS employer_count,
+                   COUNT(DISTINCT r.union_file_number) AS union_count,
+                   COALESCE(SUM(r.bargaining_unit_size), 0) AS total_bu_workers
+            FROM f7_employers_deduped e
+            JOIN f7_union_employer_relations r ON r.employer_id = e.employer_id
+            WHERE e.state = %s {naics_clause}
+        """, params)
+        f7_stats = cur.fetchone()
+        f7_summary = {
+            "unionized_employers": f7_stats["employer_count"],
+            "distinct_unions": f7_stats["union_count"],
+            "total_bu_workers": int(f7_stats["total_bu_workers"]),
+        }
+
+        # 2. Top 10 unions in state/industry
+        params2: list = [state]
+        naics_clause2 = ""
+        if naics_2:
+            naics_clause2 = "AND LEFT(e.naics, 2) = %s"
+            params2.append(naics_2)
+
+        cur.execute(f"""
+            SELECT u.f_num, u.union_name,
+                   COUNT(DISTINCT r.employer_id) AS employer_count,
+                   COALESCE(SUM(r.bargaining_unit_size), 0) AS total_workers
+            FROM f7_union_employer_relations r
+            JOIN f7_employers_deduped e ON e.employer_id = r.employer_id
+            JOIN unions_master u ON u.f_num = r.union_file_number::text
+            WHERE e.state = %s {naics_clause2}
+            GROUP BY u.f_num, u.union_name
+            ORDER BY employer_count DESC
+            LIMIT 10
+        """, params2)
+        top_unions = _safe_list(cur.fetchall())
+
+        # 3. Recent NLRB elections (3 years) in state
+        cur.execute("""
+            SELECT ne.case_number, ne.election_date, ne.union_won,
+                   ne.eligible_voters, p.participant_name
+            FROM nlrb_elections ne
+            JOIN nlrb_participants p ON p.case_number = ne.case_number
+            WHERE p.participant_type = 'Employer'
+              AND p.state = %s
+              AND ne.election_date >= CURRENT_DATE - INTERVAL '3 years'
+            ORDER BY ne.election_date DESC
+            LIMIT 20
+        """, (state,))
+        recent_elections = _safe_list(cur.fetchall())
+        elections_won = sum(1 for e in recent_elections if e.get("union_won"))
+        elections_total = len(recent_elections)
+
+        # 4. BLS state density benchmark
+        cur.execute("""
+            SELECT union_density_pct, represented_density_pct, year,
+                   total_employed_thousands, union_members_thousands
+            FROM bls_state_density
+            WHERE state = %s
+            ORDER BY year DESC LIMIT 1
+        """, (state,))
+        bls_row = cur.fetchone()
+        bls_density = _safe_dict(bls_row) if bls_row else None
+
+        conn.close()
+
+        data = {
+            "state": state,
+            "naics_filter": naics_2,
+            "f7_stats": f7_summary,
+            "top_unions": top_unions,
+            "recent_elections": recent_elections,
+            "elections_summary": {
+                "total": elections_total,
+                "union_won": elections_won,
+                "win_rate": round(elections_won / elections_total * 100, 1) if elections_total else None,
+            },
+            "bls_state_density": bls_density,
+        }
+
+        industry_label = f" (NAICS {naics_2}xx)" if naics_2 else ""
+        summary = f"Union density in {state}{industry_label}: "
+        summary += f"{f7_summary['unionized_employers']} unionized employers, "
+        summary += f"{f7_summary['distinct_unions']} distinct unions, "
+        summary += f"{f7_summary['total_bu_workers']:,} BU workers. "
+        if top_unions:
+            top3 = ", ".join(u["union_name"] for u in top_unions[:3])
+            summary += f"Top unions: {top3}. "
+        if elections_total:
+            summary += f"Recent elections (3yr): {elections_total} found, {elections_won} union wins"
+            if data["elections_summary"]["win_rate"] is not None:
+                summary += f" ({data['elections_summary']['win_rate']}%)"
+            summary += ". "
+        if bls_density:
+            summary += f"BLS state density ({bls_density.get('year', '?')}): {bls_density.get('union_density_pct', '?')}%."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_corporate_structure
+# ---------------------------------------------------------------------------
+
+def search_corporate_structure(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Build corporate family tree from crosswalk, GLEIF, CorpWatch, and SEC data."""
+    source = "database:corporate_structure"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        parent_info = None
+        subsidiaries = []
+        siblings = []
+        crosswalk_row = None
+
+        # 1. Check crosswalk for SEC/GLEIF/CorpWatch links
+        if employer_id:
+            cur.execute("""
+                SELECT * FROM corporate_identifier_crosswalk
+                WHERE f7_employer_id = %s
+                LIMIT 1
+            """, (employer_id,))
+            crosswalk_row = cur.fetchone()
+
+        if not crosswalk_row:
+            name_clause, name_params = _name_like_clause("UPPER(canonical_name)", company_name)
+            cur.execute(f"""
+                SELECT * FROM corporate_identifier_crosswalk
+                WHERE {name_clause}
+                LIMIT 1
+            """, name_params)
+            crosswalk_row = cur.fetchone()
+
+        crosswalk_data = _safe_dict(crosswalk_row) if crosswalk_row else {}
+
+        # 2. GLEIF parent/child lookup
+        gleif_parents = []
+        gleif_children = []
+        if crosswalk_data.get("gleif_lei"):
+            cur.execute("""
+                SELECT id FROM gleif_us_entities WHERE lei = %s LIMIT 1
+            """, (crosswalk_data["gleif_lei"],))
+            ge = cur.fetchone()
+            if ge:
+                eid = ge["id"]
+                cur.execute("""
+                    SELECT p.entity_name, p.lei, l.interest_level
+                    FROM gleif_ownership_links l
+                    JOIN gleif_us_entities p ON p.id = l.parent_entity_id
+                    WHERE l.child_entity_id = %s
+                """, (eid,))
+                gleif_parents = _safe_list(cur.fetchall())
+                cur.execute("""
+                    SELECT c.entity_name, c.lei, l.interest_level
+                    FROM gleif_ownership_links l
+                    JOIN gleif_us_entities c ON c.id = l.child_entity_id
+                    WHERE l.parent_entity_id = %s
+                    ORDER BY c.entity_name
+                    LIMIT 50
+                """, (eid,))
+                gleif_children = _safe_list(cur.fetchall())
+
+        # 3. CorpWatch parent/subsidiary lookup
+        cw_parents = []
+        cw_children = []
+        cw_id = crosswalk_data.get("corpwatch_id")
+        if not cw_id:
+            # Try name match in corpwatch_companies
+            name_clause, name_params = _name_like_clause("UPPER(company_name)", company_name)
+            cur.execute(f"""
+                SELECT cw_id, company_name, top_parent_id, num_children
+                FROM corpwatch_companies
+                WHERE {name_clause} AND is_us = true
+                LIMIT 5
+            """, name_params)
+            cw_matches = cur.fetchall()
+            cw_matches = _filter_by_name_similarity(cw_matches, company_name, "company_name")
+            if cw_matches:
+                cw_id = cw_matches[0]["cw_id"]
+
+        if cw_id:
+            # Parent: find rows where this entity is the child (target)
+            cur.execute("""
+                SELECT p.cw_id, p.company_name, p.sic_code, p.industry_name
+                FROM corpwatch_relationships r
+                JOIN corpwatch_companies p ON p.cw_id = r.source_cw_id
+                WHERE r.target_cw_id = %s
+                ORDER BY r.year DESC
+                LIMIT 5
+            """, (cw_id,))
+            cw_parents = _safe_list(cur.fetchall())
+
+            # Children: find rows where this entity is the parent (source)
+            cur.execute("""
+                SELECT c.cw_id, c.company_name, c.sic_code, c.industry_name
+                FROM corpwatch_relationships r
+                JOIN corpwatch_companies c ON c.cw_id = r.target_cw_id
+                WHERE r.source_cw_id = %s
+                ORDER BY c.company_name
+                LIMIT 50
+            """, (cw_id,))
+            cw_children = _safe_list(cur.fetchall())
+
+            # Top parent chain
+            cur.execute("""
+                SELECT cw_id, company_name, top_parent_id
+                FROM corpwatch_companies WHERE cw_id = %s
+            """, (cw_id,))
+            cw_self = cur.fetchone()
+            if cw_self and cw_self["top_parent_id"] and cw_self["top_parent_id"] != cw_id:
+                cur.execute("""
+                    SELECT cw_id, company_name, num_children
+                    FROM corpwatch_companies WHERE cw_id = %s
+                """, (cw_self["top_parent_id"],))
+                top = cur.fetchone()
+                if top:
+                    parent_info = {
+                        "name": top["company_name"],
+                        "source": "corpwatch",
+                        "subsidiaries_count": top["num_children"],
+                    }
+
+        # 4. SEC data for public companies
+        sec_info = None
+        if crosswalk_data.get("sec_cik"):
+            cur.execute("""
+                SELECT company_name, ticker, exchange, sic_code, sic_description,
+                       entity_type, state_of_incorporation, is_public
+                FROM sec_companies WHERE cik = %s LIMIT 1
+            """, (crosswalk_data["sec_cik"],))
+            sec_row = cur.fetchone()
+            if sec_row:
+                sec_info = _safe_dict(sec_row)
+
+        # 5. Solidarity network -- unionized siblings in same corporate family
+        solidarity_siblings = []
+        corp_family_id = crosswalk_data.get("corporate_family_id")
+        if corp_family_id:
+            cur.execute("""
+                SELECT c.canonical_name, c.f7_employer_id, c.state
+                FROM corporate_identifier_crosswalk c
+                WHERE c.corporate_family_id = %s
+                  AND c.f7_employer_id IS NOT NULL
+                  AND c.f7_employer_id != %s
+                LIMIT 20
+            """, (corp_family_id, employer_id or ""))
+            solidarity_siblings = _safe_list(cur.fetchall())
+
+        conn.close()
+
+        # Merge parents from all sources
+        if not parent_info and gleif_parents:
+            parent_info = {
+                "name": gleif_parents[0]["entity_name"],
+                "source": "gleif",
+                "lei": gleif_parents[0].get("lei"),
+            }
+        if not parent_info and cw_parents:
+            parent_info = {
+                "name": cw_parents[0]["company_name"],
+                "source": "corpwatch",
+            }
+
+        # Merge subsidiaries
+        seen = set()
+        for c in gleif_children:
+            n = c["entity_name"]
+            if n not in seen:
+                subsidiaries.append({"name": n, "source": "gleif"})
+                seen.add(n)
+        for c in cw_children:
+            n = c["company_name"]
+            if n not in seen:
+                subsidiaries.append({"name": n, "source": "corpwatch"})
+                seen.add(n)
+
+        is_public = crosswalk_data.get("is_public", False) or (sec_info or {}).get("is_public", False)
+        parent_type = "public" if is_public else "private"
+        if sec_info and sec_info.get("entity_type"):
+            parent_type = sec_info["entity_type"]
+
+        data = {
+            "crosswalk": crosswalk_data if crosswalk_data else None,
+            "parent": parent_info,
+            "parent_type": parent_type,
+            "subsidiaries": subsidiaries[:50],
+            "subsidiaries_count": len(subsidiaries),
+            "solidarity_siblings": solidarity_siblings,
+            "sec_info": sec_info,
+            "is_public": is_public,
+            "ticker": crosswalk_data.get("ticker") or (sec_info or {}).get("ticker"),
+            "ein": crosswalk_data.get("ein"),
+        }
+
+        summary = ""
+        if parent_info:
+            summary += f"Parent company: {parent_info['name']} (via {parent_info['source']}). "
+        else:
+            summary += "No parent company identified (appears independent). "
+        if subsidiaries:
+            top3 = ", ".join(s["name"] for s in subsidiaries[:3])
+            summary += f"{len(subsidiaries)} subsidiaries found (e.g. {top3}). "
+        if solidarity_siblings:
+            summary += f"{len(solidarity_siblings)} unionized sibling(s) in corporate family. "
+        if sec_info:
+            summary += f"SEC: {sec_info.get('ticker', 'N/A')} on {sec_info.get('exchange', 'N/A')}. "
+        if is_public:
+            summary += "Publicly traded. "
+
+        return {"found": bool(crosswalk_data or parent_info or subsidiaries), "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_employer_locations
+# ---------------------------------------------------------------------------
+
+def search_employer_locations(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Discover employer locations from OSHA establishments, SAM entities, and match data."""
+    source = "database:employer_locations"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        locations = []
+
+        # 1. OSHA establishments -- richest location data
+        name_clause, name_params = _name_like_clause("UPPER(estab_name)", company_name)
+        state_filter = ""
+        if state:
+            state_filter = "AND site_state = %s"
+            name_params.append(state.upper())
+
+        cur.execute(f"""
+            SELECT estab_name, site_address, site_city, site_state, site_zip,
+                   naics_code, employee_count, total_inspections,
+                   first_inspection_date, last_inspection_date
+            FROM osha_establishments
+            WHERE {name_clause} {state_filter}
+            ORDER BY total_inspections DESC
+            LIMIT 100
+        """, name_params)
+        osha_rows = cur.fetchall()
+        osha_rows = _filter_by_name_similarity(osha_rows, company_name, "estab_name", threshold=0.55)
+
+        for row in osha_rows:
+            r = _safe_dict(row)
+            key = f"{r.get('site_city','')}-{r.get('site_state','')}-{r.get('site_zip','')}"
+            locations.append({
+                "address": r.get("site_address"),
+                "city": r.get("site_city"),
+                "state": r.get("site_state"),
+                "zip": r.get("site_zip"),
+                "source": "osha",
+                "employee_count": r.get("employee_count"),
+                "inspections": r.get("total_inspections"),
+                "naics": r.get("naics_code"),
+                "_dedup_key": key,
+            })
+
+        # 2. SAM entities
+        name_clause2, name_params2 = _name_like_clause("UPPER(legal_business_name)", company_name)
+        cur.execute(f"""
+            SELECT legal_business_name, physical_city, physical_state, physical_zip,
+                   entity_structure
+            FROM sam_entities
+            WHERE {name_clause2}
+            LIMIT 50
+        """, name_params2)
+        sam_rows = cur.fetchall()
+        sam_rows = _filter_by_name_similarity(sam_rows, company_name, "legal_business_name", threshold=0.55)
+
+        for row in sam_rows:
+            r = _safe_dict(row)
+            key = f"{r.get('physical_city','')}-{r.get('physical_state','')}-{r.get('physical_zip','')}"
+            locations.append({
+                "city": r.get("physical_city"),
+                "state": r.get("physical_state"),
+                "zip": r.get("physical_zip"),
+                "source": "sam",
+                "entity_structure": r.get("entity_structure"),
+                "_dedup_key": key,
+            })
+
+        # 3. F7 employer records (via match data)
+        if employer_id:
+            cur.execute("""
+                SELECT e.site_city, e.site_state, e.site_zip
+                FROM osha_f7_matches m
+                JOIN osha_establishments e ON e.establishment_id = m.osha_establishment_id
+                WHERE m.f7_employer_id = %s AND m.status = 'active'
+            """, (employer_id,))
+            for row in cur.fetchall():
+                r = _safe_dict(row)
+                key = f"{r.get('site_city','')}-{r.get('site_state','')}-{r.get('site_zip','')}"
+                locations.append({
+                    "city": r.get("site_city"),
+                    "state": r.get("site_state"),
+                    "zip": r.get("site_zip"),
+                    "source": "osha_match",
+                    "_dedup_key": key,
+                })
+
+        conn.close()
+
+        # Deduplicate by city-state-zip
+        seen_keys = set()
+        deduped = []
+        for loc in locations:
+            key = loc.pop("_dedup_key", "")
+            if key and key in seen_keys:
+                continue
+            if key:
+                seen_keys.add(key)
+            deduped.append(loc)
+
+        # Group by state
+        by_state = {}
+        for loc in deduped:
+            st = loc.get("state") or "Unknown"
+            by_state.setdefault(st, []).append(loc)
+
+        data = {
+            "locations": deduped[:50],
+            "total_locations": len(deduped),
+            "states": sorted(by_state.keys()),
+            "state_counts": {k: len(v) for k, v in sorted(by_state.items())},
+        }
+
+        if not deduped:
+            return {"found": False, "source": source,
+                    "summary": "No establishment locations found for this employer.",
+                    "data": data}
+
+        summary = f"{len(deduped)} location(s) across {len(by_state)} state(s). "
+        top_states = sorted(by_state.items(), key=lambda x: len(x[1]), reverse=True)[:3]
+        state_str = ", ".join(f"{st} ({len(locs)})" for st, locs in top_states)
+        summary += f"Top states: {state_str}. "
+        osha_count = sum(1 for l in deduped if l.get("source") == "osha")
+        if osha_count:
+            summary += f"{osha_count} from OSHA establishment records."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_leadership
+# ---------------------------------------------------------------------------
+
+def search_leadership(
+    company_name: str,
+    *,
+    employer_id: Optional[str] = None,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Extract leadership/management info from SEC, CorpWatch, crosswalk, and web search."""
+    source = "database:leadership"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        officers = []
+        sec_executives = []
+        ceo_name = None
+
+        # 1. Check crosswalk for SEC link
+        crosswalk_row = None
+        if employer_id:
+            cur.execute("""
+                SELECT sec_cik, canonical_name, ticker, is_public
+                FROM corporate_identifier_crosswalk
+                WHERE f7_employer_id = %s LIMIT 1
+            """, (employer_id,))
+            crosswalk_row = cur.fetchone()
+
+        if not crosswalk_row:
+            name_clause, name_params = _name_like_clause("UPPER(canonical_name)", company_name)
+            cur.execute(f"""
+                SELECT sec_cik, canonical_name, ticker, is_public
+                FROM corporate_identifier_crosswalk
+                WHERE {name_clause} LIMIT 1
+            """, name_params)
+            crosswalk_row = cur.fetchone()
+
+        xw = _safe_dict(crosswalk_row) if crosswalk_row else {}
+        is_public = xw.get("is_public", False)
+
+        # 2. SEC company info for public companies
+        if xw.get("sec_cik"):
+            cur.execute("""
+                SELECT company_name, entity_type, sic_description,
+                       state_of_incorporation, state, city
+                FROM sec_companies WHERE cik = %s LIMIT 1
+            """, (xw["sec_cik"],))
+            sec_co = cur.fetchone()
+            if sec_co:
+                sec_co = _safe_dict(sec_co)
+
+        # 3. Use Gemini with Google Search grounding for leadership extraction
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if api_key:
+            try:
+                from google import genai
+                from google.genai import types
+
+                client = genai.Client(api_key=api_key)
+                state_hint = f" in {state}" if state else ""
+                prompt = (
+                    f'Find the current leadership team for "{company_name}"{state_hint}. '
+                    "Search for CEO/President, CFO, COO, and other C-suite executives. "
+                    "Also find local/site management if this is a specific facility. "
+                    'Return a JSON object: {{"ceo": "Name, Title", "executives": ["Name, Title", ...], '
+                    '"board_members": ["Name", ...], "source_urls": ["..."]}}. '
+                    "If no leadership info found, respond with NONE."
+                )
+
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=prompt)],
+                    )],
+                    config=types.GenerateContentConfig(
+                        tools=[types.Tool(google_search=types.GoogleSearch())],
+                        max_output_tokens=1024,
+                        temperature=0.0,
+                    ),
+                )
+
+                candidate = response.candidates[0] if response.candidates else None
+                text = candidate.content.parts[0].text.strip() if candidate else ""
+                if text and text.upper() != "NONE":
+                    data_parsed = None
+                    m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+                    if m:
+                        try:
+                            data_parsed = json.loads(_fix_json_escapes(m.group(1).strip()))
+                        except Exception:
+                            pass
+                    if not data_parsed:
+                        try:
+                            data_parsed = json.loads(_fix_json_escapes(text))
+                        except Exception:
+                            pass
+
+                    if data_parsed and isinstance(data_parsed, dict):
+                        ceo_name = data_parsed.get("ceo")
+                        sec_executives = data_parsed.get("executives", [])
+                        officers = data_parsed.get("board_members", [])
+            except Exception as web_exc:
+                _log.warning("Leadership web search failed: %s", web_exc)
+
+        conn.close()
+
+        data = {
+            "ceo": ceo_name,
+            "executives": sec_executives,
+            "board_members": officers,
+            "is_public": is_public,
+            "ticker": xw.get("ticker"),
+        }
+
+        has_data = bool(ceo_name or sec_executives or officers)
+        if not has_data:
+            return {"found": False, "source": source,
+                    "summary": "No leadership information found.",
+                    "data": data}
+
+        summary = ""
+        if ceo_name:
+            summary += f"CEO/President: {ceo_name}. "
+        if sec_executives:
+            summary += f"{len(sec_executives)} executive(s): {', '.join(str(e) for e in sec_executives[:3])}. "
+        if officers:
+            summary += f"{len(officers)} board member(s). "
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# TOOL: search_state_enforcement
+# ---------------------------------------------------------------------------
+
+def search_state_enforcement(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    employer_id: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search state/local enforcement data beyond federal OSHA/WHD. Covers debarment, wage theft, and local labor laws."""
+    source = "database:state_enforcement"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        records = []
+
+        # 1. NYC debarment list (210 rows -- small, full scan OK)
+        name_clause, name_params = _name_like_clause("UPPER(employer_name_normalized)", company_name)
+        cur.execute(f"""
+            SELECT employer_name_normalized AS employer_name,
+                   'debarment' AS record_type,
+                   debarment_start_date, debarment_end_date,
+                   prosecuting_agency AS agency
+            FROM nyc_debarment_list
+            WHERE {name_clause}
+        """, name_params)
+        debar_rows = _filter_by_name_similarity(cur.fetchall(), company_name, "employer_name")
+        for r in _safe_list(debar_rows):
+            r["source"] = "nyc_debarment"
+            records.append(r)
+
+        # 2. Use Gemini with Google Search for state-specific enforcement
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        web_records = []
+        if api_key and state:
+            try:
+                from google import genai
+                from google.genai import types
+
+                client = genai.Client(api_key=api_key)
+                prompt = (
+                    f'Search for state and local labor law violations, wage theft cases, '
+                    f'and enforcement actions against "{company_name}" in {state}. '
+                    f'Check state OSHA plans, state department of labor, state attorney general actions, '
+                    f'and local enforcement. '
+                    f'Return a JSON object: {{"violations": [{{"type": "...", "agency": "...", '
+                    f'"date": "...", "penalty": "...", "description": "..."}}], '
+                    f'"state_contracts": [{{"agency": "...", "amount": "...", "description": "..."}}]}}. '
+                    f'If nothing found, respond with NONE.'
+                )
+
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=prompt)],
+                    )],
+                    config=types.GenerateContentConfig(
+                        tools=[types.Tool(google_search=types.GoogleSearch())],
+                        max_output_tokens=1024,
+                        temperature=0.0,
+                    ),
+                )
+
+                candidate = response.candidates[0] if response.candidates else None
+                text = candidate.content.parts[0].text.strip() if candidate else ""
+                if text and text.upper() != "NONE":
+                    data_parsed = None
+                    m = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
+                    if m:
+                        try:
+                            data_parsed = json.loads(_fix_json_escapes(m.group(1).strip()))
+                        except Exception:
+                            pass
+                    if not data_parsed:
+                        try:
+                            data_parsed = json.loads(_fix_json_escapes(text))
+                        except Exception:
+                            pass
+
+                    if data_parsed and isinstance(data_parsed, dict):
+                        for v in data_parsed.get("violations", []):
+                            if isinstance(v, dict):
+                                v["source"] = f"web:{state}_enforcement"
+                                v["record_type"] = v.get("type", "state_violation")
+                                web_records.append(v)
+                        for c in data_parsed.get("state_contracts", []):
+                            if isinstance(c, dict):
+                                c["source"] = f"web:{state}_contracts"
+                                c["record_type"] = "state_contract"
+                                web_records.append(c)
+            except Exception as web_exc:
+                _log.warning("State enforcement web search failed: %s", web_exc)
+
+        records.extend(web_records)
+        conn.close()
+
+        data = {
+            "records": records[:30],
+            "record_count": len(records),
+            "debarment_count": sum(1 for r in records if r.get("record_type") == "debarment"),
+            "violation_count": sum(1 for r in records if "violation" in (r.get("record_type") or "")),
+            "contract_count": sum(1 for r in records if r.get("record_type") == "state_contract"),
+            "sources_checked": ["nyc_debarment"] + ([f"{state}_web_search"] if state else []),
+        }
+
+        if not records:
+            return {"found": False, "source": source,
+                    "summary": f"No state/local enforcement records found{' in ' + state if state else ''}.",
+                    "data": data}
+
+        from datetime import date as _date
+        today_str = _date.today().isoformat()
+        is_debarred = any(
+            r.get("record_type") == "debarment"
+            and (not r.get("debarment_end_date") or str(r["debarment_end_date"]) >= today_str)
+            for r in records
+        )
+
+        summary = f"{len(records)} state/local record(s). "
+        if is_debarred:
+            summary += "CURRENTLY DEBARRED. "
+        if data["debarment_count"]:
+            summary += f"{data['debarment_count']} debarment(s). "
+        if data["violation_count"]:
+            summary += f"{data['violation_count']} state/local violation(s). "
+        if data["contract_count"]:
+            summary += f"{data['contract_count']} state/local contract(s) found. "
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
 # Maps tool names (used in Claude API tool definitions) to callables.
@@ -3450,6 +4533,7 @@ def compare_employer_wages(
 TOOL_REGISTRY: dict[str, callable] = {
     "search_osha": search_osha,
     "search_nlrb": search_nlrb,
+    "search_nlrb_docket": search_nlrb_docket,
     "search_whd": search_whd,
     "search_sec": search_sec,
     "search_sam": search_sam,
@@ -3477,6 +4561,12 @@ TOOL_REGISTRY: dict[str, callable] = {
     "search_abs_demographics": search_abs_demographics,
     "search_acs_workforce": search_acs_workforce,
     "compare_employer_wages": compare_employer_wages,
+    "search_nyc_enforcement": search_nyc_enforcement,
+    "search_local_union_density": search_local_union_density,
+    "search_corporate_structure": search_corporate_structure,
+    "search_employer_locations": search_employer_locations,
+    "search_leadership": search_leadership,
+    "search_state_enforcement": search_state_enforcement,
 }
 
 
@@ -3509,6 +4599,18 @@ TOOL_DEFINITIONS = [
                 "company_name": {"type": "string", "description": "Company name to search for"},
                 "employer_id": {"type": "string", "description": "F7 employer_id if known"},
                 "state": {"type": "string", "description": "2-letter state code to narrow search"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_nlrb_docket",
+        "description": "Search NLRB docket entries for procedural activity on an employer's cases. Returns per-case docket summaries with entry counts, date ranges, and recent activity flags (last 90 days).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "employer_id": {"type": "string", "description": "F7 employer_id if known"},
             },
             "required": ["company_name"],
         },
@@ -3861,6 +4963,86 @@ TOOL_DEFINITIONS = [
                 "known_wage": {"type": "number", "description": "Known annual wage for this employer (from WHD, 990, or research). If provided, a ratio against local avg is computed."},
             },
             "required": ["company_name", "state", "naics"],
+        },
+    },
+    {
+        "name": "search_nyc_enforcement",
+        "description": "Search NYC/NYS enforcement tables for wage theft, debarment, and local labor law violations. Covers NYS wage theft cases, NYC debarment list, and NYC local labor law enforcement actions. Small tables searched by name matching.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "employer_id": {"type": "string", "description": "F7 employer_id if known"},
+                "state": {"type": "string", "description": "2-letter state code (mainly NY)"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_local_union_density",
+        "description": "Get local union density context for a state and optional industry. Returns F7 unionized employer counts, top unions, recent NLRB elections (3yr), and BLS state density benchmark. Useful for assessing organizing climate.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name (for context)"},
+                "state": {"type": "string", "description": "2-letter state code. Required."},
+                "naics": {"type": "string", "description": "NAICS code (first 2 digits used for industry filter)"},
+                "city": {"type": "string", "description": "City name (for context)"},
+                "zip_code": {"type": "string", "description": "ZIP code (for context)"},
+            },
+            "required": ["company_name", "state"],
+        },
+    },
+    {
+        "name": "search_corporate_structure",
+        "description": "Build corporate family tree from crosswalk, GLEIF ownership, CorpWatch hierarchy, and SEC data. Returns parent company, subsidiaries, unionized siblings, and public/private status. Use for 'Who owns this company?'",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "employer_id": {"type": "string", "description": "F7 employer_id if known"},
+                "state": {"type": "string", "description": "2-letter state code"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_employer_locations",
+        "description": "Discover employer locations from OSHA establishment records, SAM entities, and match data. Returns addresses, employee counts, and state-level grouping. Use for 'Does this employer have other locations?'",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "employer_id": {"type": "string", "description": "F7 employer_id if known"},
+                "state": {"type": "string", "description": "2-letter state code to narrow search"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_leadership",
+        "description": "Extract leadership and management info from SEC, crosswalk, and web search. Returns CEO, executives, board members. Use for 'Who runs this company?'",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "employer_id": {"type": "string", "description": "F7 employer_id if known"},
+                "state": {"type": "string", "description": "2-letter state code"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_state_enforcement",
+        "description": "Search state and local enforcement records beyond federal OSHA/WHD. Covers NYC debarment, state labor violations, state OSHA plans, and state/local contracts via web search. Use for 'Are there state-level violations?'",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for"},
+                "employer_id": {"type": "string", "description": "F7 employer_id if known"},
+                "state": {"type": "string", "description": "2-letter state code. Recommended for targeted results."},
+            },
+            "required": ["company_name"],
         },
     },
 ]

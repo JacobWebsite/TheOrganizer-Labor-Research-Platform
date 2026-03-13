@@ -27,6 +27,7 @@ from scripts.cba.rule_engine import (
     load_category_rules,
     match_all_chunks,
     match_text_all_categories,
+    populate_context,
 )
 
 _article_mod = importlib.import_module("scripts.cba.03_find_articles")
@@ -101,16 +102,19 @@ def insert_provisions(cba_id: int, matches, spans: list[PageSpan]) -> int:
                         summary, page_start, page_end, char_start, char_end,
                         modal_verb, legal_weight, confidence_score,
                         model_version, is_human_verified,
-                        extraction_method, rule_name, article_reference
+                        extraction_method, rule_name, article_reference,
+                        context_before, context_after
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            'rule_engine', FALSE, 'rule_engine', %s, %s)
+                            'rule_engine', FALSE, 'rule_engine', %s, %s, %s, %s)
                     """,
                     [
                         cba_id, m.category, m.provision_class, m.matched_text,
                         m.summary, page_start, page_end, m.char_start, m.char_end,
                         m.modal_verb, m.legal_weight, m.confidence,
                         m.rule_name, m.article_reference,
+                        getattr(m, 'context_before', None),
+                        getattr(m, 'context_after', None),
                     ],
                 )
                 inserted += 1
@@ -159,6 +163,9 @@ def main() -> None:
         # Apply TOC/Index filter for single-category runs too
         working_chunks = filter_toc_index_chunks(chunks, total_pages)
         matches = match_all_chunks(working_chunks, rules, min_confidence=args.min_confidence)
+
+    # Populate context windows from full document text
+    populate_context(matches, text)
 
     print(f"  Found {len(matches)} provisions")
 

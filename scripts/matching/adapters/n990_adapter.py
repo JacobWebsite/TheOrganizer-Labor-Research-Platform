@@ -83,8 +83,8 @@ def write_legacy(conn, matches):
     # Two overlapping unique constraints: PK(f7_employer_id, ein) + UNIQUE(n990_id).
     # Use DO NOTHING here; rebuild_legacy_tables.py produces the correct final state from UML.
     sql = """
-        INSERT INTO national_990_f7_matches (n990_id, ein, f7_employer_id, match_method, match_confidence, match_source)
-        VALUES (%s, %s, %s, %s, %s, 'DETERMINISTIC_V2')
+        INSERT INTO national_990_f7_matches (n990_id, ein, f7_employer_id, match_method, match_confidence, match_source, score_eligible)
+        VALUES (%s, %s, %s, %s, %s, 'DETERMINISTIC_V2', %s)
         ON CONFLICT DO NOTHING
     """
     # Deduplicate by (f7_employer_id, ein) to avoid within-batch conflicts
@@ -95,7 +95,9 @@ def write_legacy(conn, matches):
         key = (m["target_id"], ein)
         if key not in seen:
             seen.add(key)
-            rows.append((m["source_id"], ein, m["target_id"], m["method"], m["score"]))
+            method_up = m["method"].upper()
+            eligible = m["score"] >= 0.85 or method_up in ("EIN_EXACT", "CROSSWALK", "CIK_BRIDGE")
+            rows.append((m["source_id"], ein, m["target_id"], method_up, m["score"], eligible))
     with conn.cursor() as cur:
         execute_batch(cur, sql, rows, page_size=1000)
     conn.commit()

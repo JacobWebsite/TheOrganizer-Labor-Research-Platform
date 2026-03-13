@@ -101,7 +101,7 @@ export function DossierHeader({ status, onRunAgain, onUsefulnessChange }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Sections</p>
-            <p className="text-sm font-medium">{status?.sections_filled != null ? `${status.sections_filled}/7` : (isInProgress ? '...' : '-')}</p>
+            <p className="text-sm font-medium">{status?.sections_filled != null ? `${status.sections_filled}/10` : (isInProgress ? '...' : '-')}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Tools Called</p>

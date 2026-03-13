@@ -436,7 +436,7 @@ class TestResearchCandidatesAPI:
         assert data["type"] == "non_union"
         for c in data["candidates"]:
             assert "employer_id" in c
-            assert "research_priority" in c
+            assert "factors_available" in c
 
     def test_union_reference_candidates(self, client):
         r = client.get("/api/research/candidates?type=union_reference&limit=10")

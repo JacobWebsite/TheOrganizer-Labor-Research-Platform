@@ -1,6 +1,6 @@
 {
   "category": "pension",
-  "provision_classes": ["retirement_pension"],
+  "provision_classes": ["pension_contribution", "contribution_rate", "vesting", "retirement_eligibility", "defined_benefit", "401k_match", "pension_fund"],
   "heading_signals": [
     {"pattern": "\\b(pension|retirement|annuity|401[kK]|403[bB]|defined\\s+(?:benefit|contribution))\\b", "weight": 0.4},
     {"pattern": "\\bretirement\\s+(?:plan|benefit|fund|savings)\\b", "weight": 0.4}
@@ -10,49 +10,49 @@
       "name": "pension_contribution",
       "pattern": "(?:employer|company)\\s+(?:shall|will|agrees?\\s+to)\\s+(?:contribute|pay|remit).*(?:pension|retirement|annuity|401[kK]|fund)",
       "confidence": 0.90,
-      "provision_class": "retirement_pension",
+      "provision_class": "pension_contribution",
       "summary": "Pension contribution"
     },
     {
       "name": "contribution_rate",
       "pattern": "(?:pension|retirement|annuity|fund).*(?:contribution|rate)\\s+(?:of\\s+)?(?:\\$[\\d,.]+|\\d+(?:\\.\\d+)?\\s*(?:%|percent))\\s*(?:per\\s+hour|of\\s+(?:pay|earnings|salary))?",
       "confidence": 0.90,
-      "provision_class": "retirement_pension",
+      "provision_class": "contribution_rate",
       "summary": "Pension contribution rate"
     },
     {
       "name": "vesting",
       "pattern": "\\b(?:vest(?:ing|ed)?|vested)\\s+(?:after|upon|following)\\s+(?:\\d+|five|ten)\\s+(?:years?|months?)\\s+(?:of\\s+)?(?:service|employment|credited)",
       "confidence": 0.85,
-      "provision_class": "retirement_pension",
+      "provision_class": "vesting",
       "summary": "Vesting schedule"
     },
     {
       "name": "retirement_eligibility",
       "pattern": "(?:eligible|entitled)\\s+(?:for|to)\\s+(?:retirement|pension)\\s+(?:benefits?)?\\s*(?:upon|at|after|when)\\s+(?:age\\s+\\d+|\\d+\\s+years)",
       "confidence": 0.85,
-      "provision_class": "retirement_pension",
+      "provision_class": "retirement_eligibility",
       "summary": "Retirement eligibility"
     },
     {
       "name": "defined_benefit",
       "pattern": "\\b(?:defined\\s+benefit|pension\\s+formula|benefit\\s+(?:formula|accrual|multiplier))\\b",
       "confidence": 0.85,
-      "provision_class": "retirement_pension",
+      "provision_class": "defined_benefit",
       "summary": "Defined benefit plan"
     },
     {
       "name": "401k_match",
       "pattern": "\\b(?:401[kK]|403[bB]|457|thrift|savings)\\s+(?:plan|match|contribution)",
       "confidence": 0.85,
-      "provision_class": "retirement_pension",
+      "provision_class": "401k_match",
       "summary": "Defined contribution plan"
     },
     {
       "name": "pension_fund",
       "pattern": "(?:pension|retirement|annuity)\\s+(?:fund|trust|plan)\\s+(?:established|maintained|administered)",
       "confidence": 0.80,
-      "provision_class": "retirement_pension",
+      "provision_class": "pension_fund",
       "summary": "Pension fund/trust"
     }
   ],

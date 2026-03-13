@@ -183,6 +183,35 @@ financial_form5500 AS (
         ON f5sid.source_system = 'form5500' AND f5sid.source_id = f.sponsor_ein
     GROUP BY f5sid.master_id
 ),
+-- RPE: workforce size estimate from Revenue Per Employee ratios
+-- Geographic cascade: county > state > national (targets have zip + state)
+rpe_size AS (
+    SELECT f990.master_id,
+           ROUND(f990.latest_revenue / rpe.rpe) AS rpe_estimated_employees
+    FROM financial_990 f990
+    JOIN mv_target_data_sources tds2 ON tds2.master_id = f990.master_id
+    LEFT JOIN zip_county_crosswalk zcc ON zcc.zip_code = LEFT(tds2.zip, 5)
+    JOIN LATERAL (
+        SELECT r.rpe, r.geo_level FROM census_rpe_ratios r
+        WHERE r.rpe > 0
+          AND tds2.naics IS NOT NULL
+          AND (r.naics_code = tds2.naics
+               OR r.naics_code = LEFT(tds2.naics, 4)
+               OR r.naics_code = LEFT(tds2.naics, 3)
+               OR r.naics_code = LEFT(tds2.naics, 2))
+          AND (
+              (r.geo_level = 'county' AND r.county_fips = zcc.county_fips)
+              OR (r.geo_level = 'state' AND r.state = tds2.state)
+              OR r.geo_level = 'national'
+          )
+        ORDER BY
+            CASE r.geo_level WHEN 'county' THEN 1 WHEN 'state' THEN 2 ELSE 3 END,
+            LENGTH(r.naics_code) DESC
+        LIMIT 1
+    ) rpe ON true
+    WHERE f990.latest_revenue > 0
+      AND tds2.naics IS NOT NULL
+),
 -- BLS industry projections
 bls_proj AS (
     SELECT matrix_code, employment_change_pct
@@ -210,35 +239,71 @@ similarity_agg AS (
     JOIN master_employers me ON me.master_id = ec.comparable_employer_id
     GROUP BY ec.employer_id
 ),
--- Research enhancement bridge: link research_score_enhancements to master_ids via F7 source IDs
+-- Research enhancement bridge: link research_score_enhancements to master_ids
+-- Path 1: via F7 source IDs (union reference research)
+-- Path 2: direct master_id match (non-union target research)
 research_bridge AS (
-    SELECT DISTINCT ON (mesi.master_id)
-        mesi.master_id,
-        rse.run_id AS research_run_id,
-        rse.run_quality AS research_quality,
-        rse.score_osha AS rse_score_osha,
-        rse.score_nlrb AS rse_score_nlrb,
-        rse.score_whd AS rse_score_whd,
-        rse.score_contracts AS rse_score_contracts,
-        rse.score_financial AS rse_score_financial,
-        rse.score_size AS rse_score_size,
-        rse.score_anger AS rse_score_anger,
-        rse.score_stability AS rse_score_stability,
-        rse.recommended_approach,
-        rse.financial_trend,
-        rse.source_contradictions,
-        rse.campaign_strengths,
-        rse.campaign_challenges,
-        rse.employee_count_found,
-        rse.revenue_found,
-        rse.turnover_rate_found,
-        rse.sentiment_score_found,
-        rse.revenue_per_employee_found,
-        rse.confidence_avg AS research_confidence
-    FROM master_employer_source_ids mesi
-    JOIN research_score_enhancements rse ON rse.employer_id = mesi.source_id
-    WHERE mesi.source_system = 'f7'
-    ORDER BY mesi.master_id, rse.run_quality DESC NULLS LAST
+    SELECT DISTINCT ON (master_id) *
+    FROM (
+        -- Path 1: Existing F7 source ID bridge (union reference)
+        SELECT
+            mesi.master_id,
+            rse.run_id AS research_run_id,
+            rse.run_quality AS research_quality,
+            rse.score_osha AS rse_score_osha,
+            rse.score_nlrb AS rse_score_nlrb,
+            rse.score_whd AS rse_score_whd,
+            rse.score_contracts AS rse_score_contracts,
+            rse.score_financial AS rse_score_financial,
+            rse.score_size AS rse_score_size,
+            rse.score_anger AS rse_score_anger,
+            rse.score_stability AS rse_score_stability,
+            rse.recommended_approach,
+            rse.financial_trend,
+            rse.source_contradictions,
+            rse.campaign_strengths,
+            rse.campaign_challenges,
+            rse.employee_count_found,
+            rse.revenue_found,
+            rse.turnover_rate_found,
+            rse.sentiment_score_found,
+            rse.revenue_per_employee_found,
+            rse.confidence_avg AS research_confidence
+        FROM master_employer_source_ids mesi
+        JOIN research_score_enhancements rse ON rse.employer_id = mesi.source_id
+        WHERE mesi.source_system = 'f7'
+
+        UNION ALL
+
+        -- Path 2: Direct master_id bridge (non-union targets researched directly)
+        SELECT
+            rse.employer_id::BIGINT AS master_id,
+            rse.run_id AS research_run_id,
+            rse.run_quality AS research_quality,
+            rse.score_osha AS rse_score_osha,
+            rse.score_nlrb AS rse_score_nlrb,
+            rse.score_whd AS rse_score_whd,
+            rse.score_contracts AS rse_score_contracts,
+            rse.score_financial AS rse_score_financial,
+            rse.score_size AS rse_score_size,
+            rse.score_anger AS rse_score_anger,
+            rse.score_stability AS rse_score_stability,
+            rse.recommended_approach,
+            rse.financial_trend,
+            rse.source_contradictions,
+            rse.campaign_strengths,
+            rse.campaign_challenges,
+            rse.employee_count_found,
+            rse.revenue_found,
+            rse.turnover_rate_found,
+            rse.sentiment_score_found,
+            rse.revenue_per_employee_found,
+            rse.confidence_avg AS research_confidence
+        FROM research_score_enhancements rse
+        WHERE rse.is_union_reference = FALSE
+          AND rse.employer_id ~ '^[0-9]+$'
+    ) combined
+    ORDER BY master_id, research_quality DESC NULLS LAST
 ),
 -- Raw signal computation
 raw_signals AS (
@@ -427,14 +492,21 @@ raw_signals AS (
 
         -- SIGNAL: Size (0-10, weight=0, filter dimension only)
         CASE
-            WHEN tds.employee_count IS NULL THEN NULL
-            WHEN tds.employee_count < 15 THEN 0
-            WHEN tds.employee_count BETWEEN 500 AND 25000 THEN 10
+            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) IS NULL THEN NULL
+            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) < 15 THEN 0
+            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) BETWEEN 500 AND 25000 THEN 10
             -- High-end taper: 25,001-100,000 tapers from 10 down to 5
-            WHEN tds.employee_count > 25000 THEN
-                GREATEST(5, 10 - ROUND(((tds.employee_count - 25000)::numeric / 75000) * 5, 2))
-            ELSE ROUND((((tds.employee_count - 15)::numeric / 485) * 10), 2)
+            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) > 25000 THEN
+                GREATEST(5, 10 - ROUND(((COALESCE(tds.employee_count, rpe.rpe_estimated_employees) - 25000)::numeric / 75000) * 5, 2))
+            ELSE ROUND((((COALESCE(tds.employee_count, rpe.rpe_estimated_employees) - 15)::numeric / 485) * 10), 2)
         END AS signal_size,
+
+        COALESCE(tds.employee_count, rpe.rpe_estimated_employees) AS effective_employee_count,
+        CASE
+            WHEN tds.employee_count IS NOT NULL THEN 'direct'
+            WHEN rpe.rpe_estimated_employees IS NOT NULL THEN 'rpe_estimate'
+            ELSE NULL
+        END AS employee_count_source,
 
         -- SIGNAL: Similarity (0-10) -- peer comparison via Gower distance to unionized employers
         CASE
@@ -554,6 +626,7 @@ raw_signals AS (
         WHEN '92' THEN 'PUBLIC_ADMIN'
         ELSE NULL
     END
+    LEFT JOIN rpe_size rpe ON rpe.master_id = tds.master_id
     LEFT JOIN similarity_agg sa ON sa.master_id = tds.master_id
     LEFT JOIN employer_wage_outliers ewo ON ewo.master_id = tds.master_id
     LEFT JOIN financial_990 f990 ON f990.master_id = tds.master_id

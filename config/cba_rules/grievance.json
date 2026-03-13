@@ -1,6 +1,6 @@
 {
   "category": "grievance",
-  "provision_classes": ["grievance_and_arbitration"],
+  "provision_classes": ["grievance_definition", "grievance_steps", "time_limits", "arbitration_right", "arbitrator_selection", "arbitrator_authority", "grievance_filing", "union_right_grieve"],
   "heading_signals": [
     {"pattern": "\\b(grievance|arbitration|dispute\\s+resolution|complaint\\s+procedure)\\b", "weight": 0.4},
     {"pattern": "\\bgrievance\\s+(?:and|&)\\s+arbitration\\b", "weight": 0.5}
@@ -10,56 +10,56 @@
       "name": "grievance_definition",
       "pattern": "\\bgrievance\\b.*(?:shall\\s+(?:mean|be\\s+defined)|is\\s+(?:defined|any)\\s+(?:as|dispute|complaint|difference|allegation))",
       "confidence": 0.90,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "grievance_definition",
       "summary": "Grievance definition"
     },
     {
       "name": "grievance_steps",
       "pattern": "\\b(?:step|stage)\\s+(?:one|two|three|four|five|1|2|3|4|5)\\b.*\\bgriev",
       "confidence": 0.85,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "grievance_steps",
       "summary": "Grievance step"
     },
     {
       "name": "time_limits",
       "pattern": "\\b(?:within|no\\s+later\\s+than|not\\s+(?:to\\s+)?exceed)\\s+(?:\\d+|five|ten|fifteen|twenty|thirty)\\s+(?:calendar|working|business)?\\s*days?.*(?:griev|arbitrat|filing|submit)",
       "confidence": 0.85,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "time_limits",
       "summary": "Grievance time limit"
     },
     {
       "name": "arbitration_right",
       "pattern": "(?:shall\\s+be|may\\s+be|is)\\s+(?:submitted|referred|appealed)\\s+to\\s+(?:binding\\s+)?arbitration",
       "confidence": 0.90,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "arbitration_right",
       "summary": "Right to arbitration"
     },
     {
       "name": "arbitrator_selection",
       "pattern": "\\b(?:arbitrator|neutral|impartial)\\s+(?:shall\\s+be\\s+)?(?:selected|chosen|appointed|designated).*(?:AAA|FMCS|American\\s+Arbitration|Federal\\s+Mediation)",
       "confidence": 0.90,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "arbitrator_selection",
       "summary": "Arbitrator selection process"
     },
     {
       "name": "arbitrator_authority",
       "pattern": "(?:arbitrator|neutral).*(?:shall\\s+(?:not\\s+)?have\\s+(?:the\\s+)?(?:authority|power|jurisdiction)|decision.*(?:final\\s+and\\s+binding|binding\\s+on\\s+(?:both|the)\\s+parties))",
       "confidence": 0.85,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "arbitrator_authority",
       "summary": "Arbitrator authority"
     },
     {
       "name": "grievance_filing",
       "pattern": "\\bgrievance\\s+(?:shall|must|may)\\s+be\\s+(?:filed|presented|submitted|initiated)\\s+(?:in\\s+writing)?",
       "confidence": 0.85,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "grievance_filing",
       "summary": "Grievance filing procedure"
     },
     {
       "name": "union_right_grieve",
       "pattern": "\\b(?:union|local|organization)\\s+(?:shall\\s+have\\s+the\\s+right|may)\\s+(?:to\\s+)?(?:file|submit|present|process)\\s+(?:a\\s+)?grievance",
       "confidence": 0.85,
-      "provision_class": "grievance_and_arbitration",
+      "provision_class": "union_right_grieve",
       "summary": "Union right to file grievance"
     }
   ],
