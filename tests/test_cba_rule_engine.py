@@ -5,8 +5,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.cba.models import ArticleChunk, RuleMatch
-from scripts.cba.rule_engine import (
+from scripts.cba.rule_engine import (  # noqa: F401
     CategoryRules,
+    HeadingExclusion,
     HeadingSignal,
     NegativePattern,
     TextPattern,
@@ -14,6 +15,8 @@ from scripts.cba.rule_engine import (
     _deduplicate_matches,
     _extract_modal,
     _extract_sentence_context,
+    _heading_excluded,
+    _should_merge,
     extract_context_window,
     filter_toc_index_chunks,
     is_toc_or_index_text,
@@ -72,10 +75,10 @@ class TestSentenceContext:
         result = _extract_sentence_context(text, 21, 60)
         assert "employer shall provide" in result
 
-    def test_caps_at_1500(self):
-        text = "A" * 2000
-        result = _extract_sentence_context(text, 0, 2000)
-        assert len(result) <= 1500
+    def test_caps_at_2000(self):
+        text = "A" * 3000
+        result = _extract_sentence_context(text, 0, 3000)
+        assert len(result) <= 2000
 
 
 class TestHeadingScoring:
@@ -276,7 +279,10 @@ class TestMatchAllChunks:
         assert rules is not None
         chunks = [
             _make_chunk(
-                "ARTICLE 10 - WAGES\n\nBase hourly rate shall be $20.00.",
+                "ARTICLE 10 - WAGES\n\n"
+                "The base hourly rate shall be $20.00 per hour effective January 1, 2025. "
+                "Employees in the bargaining unit shall receive a wage increase of 3% "
+                "on January 1, 2026 as specified in the attached wage schedule.",
                 title="WAGES", number="10"
             ),
             _make_chunk(
@@ -639,3 +645,160 @@ class TestPopulateContext:
 
     def test_empty_matches_no_error(self):
         populate_context([], "some text")  # Should not raise
+
+
+class TestHeadingExclusion:
+    """Heading exclusions block a category entirely when heading matches."""
+
+    def test_scheduling_excluded_in_grievance_section(self):
+        rules = load_category_rules("scheduling")
+        assert rules is not None
+        chunk = _make_chunk(
+            "ARTICLE 25 - GRIEVANCE AND ARBITRATION\n\n"
+            "If the grievance is sustained, the employee shall be paid at time "
+            "and one-half for all hours improperly denied. The arbitrator shall "
+            "determine the appropriate remedy.",
+            title="GRIEVANCE AND ARBITRATION"
+        )
+        matches = match_chunk(chunk, rules)
+        assert len(matches) == 0, "overtime_rate should not match in grievance section"
+
+    def test_scheduling_excluded_by_parent_title(self):
+        rules = load_category_rules("scheduling")
+        assert rules is not None
+        chunk = ArticleChunk(
+            number="3", title="Late Payment Penalties", level=2,
+            text=(
+                "Section 3 - Late Payment\n\n"
+                "If the employer fails to pay within 30 days, the penalty "
+                "shall be time and one-half the amount owed for all hours "
+                "worked during the period of non-payment."
+            ),
+            char_start=0, char_end=200,
+            parent_number="25",
+            parent_title="ARTICLE XXV - Enforcement of Articles (the Funds)",
+        )
+        matches = match_chunk(chunk, rules)
+        assert len(matches) == 0, "overtime_rate should not match under Enforcement heading"
+
+    def test_scheduling_matches_in_hours_section(self):
+        rules = load_category_rules("scheduling")
+        assert rules is not None
+        chunk = _make_chunk(
+            "ARTICLE 12 - HOURS OF WORK\n\n"
+            "Overtime shall be paid at time and one-half for all hours worked "
+            "in excess of eight hours per day or forty hours per week.",
+            title="HOURS OF WORK"
+        )
+        matches = match_chunk(chunk, rules)
+        assert any(m.provision_class == "overtime_rate" for m in matches)
+
+    def test_management_rights_excluded_in_discipline_section(self):
+        rules = load_category_rules("management_rights")
+        assert rules is not None
+        chunk = _make_chunk(
+            "ARTICLE 7 - DISCHARGE AND DISCIPLINE\n\n"
+            "The Employer retains the right to discipline or discharge "
+            "employees for just cause.",
+            title="DISCHARGE AND DISCIPLINE"
+        )
+        matches = match_chunk(chunk, rules)
+        assert len(matches) == 0, "management_rights should not match in discipline section"
+
+    def test_heading_excluded_helper(self):
+        rules = CategoryRules(
+            category="test",
+            provision_classes=[],
+            heading_signals=[],
+            text_patterns=[],
+            negative_patterns=[],
+            heading_exclusions=[
+                HeadingExclusion(pattern=r"\bgrievance\b", note="test"),
+            ],
+        )
+        assert _heading_excluded("Grievance Procedure", None, rules) is True
+        assert _heading_excluded("Wages", None, rules) is False
+        assert _heading_excluded("Section 3", "Grievance and Arbitration", rules) is True
+        assert _heading_excluded(None, None, rules) is False
+
+    def test_empty_exclusions_never_block(self):
+        rules = load_category_rules("grievance")
+        assert rules is not None
+        assert _heading_excluded("Anything at all", None, rules) is False
+
+    def test_all_rules_parse_heading_exclusions(self):
+        """Verify heading_exclusions field parses without errors for all categories."""
+        rules = load_all_rules()
+        for r in rules:
+            for he in r.heading_exclusions:
+                he.compiled()  # Should not raise
+
+
+class TestHeadingAffinityPenalty:
+    """Zero-affinity heading imposes a -0.15 penalty instead of +0.10 boost."""
+
+    def test_overtime_in_unrelated_section_lower_confidence(self):
+        rules = load_category_rules("scheduling")
+        assert rules is not None
+        # Use a heading that doesn't trigger exclusion but has zero affinity
+        chunk = _make_chunk(
+            "ARTICLE 22 - SENIORITY\n\n"
+            "Overtime shall be paid at time and one-half for all hours worked "
+            "in excess of eight hours per day or forty hours per week. "
+            "Distribution of overtime opportunities shall be by seniority.",
+            title="SENIORITY"
+        )
+        matches = match_chunk(chunk, rules)
+        ot = [m for m in matches if m.provision_class == "overtime_rate"]
+        if ot:
+            # Base confidence 0.90 - 0.15 penalty = 0.75
+            assert ot[0].confidence <= 0.76, f"Expected <=0.76, got {ot[0].confidence}"
+
+    def test_overtime_in_hours_section_boosted(self):
+        rules = load_category_rules("scheduling")
+        assert rules is not None
+        chunk = _make_chunk(
+            "ARTICLE 12 - HOURS OF WORK AND OVERTIME\n\n"
+            "Overtime shall be paid at time and one-half for all hours worked "
+            "in excess of eight hours per day or forty hours per week.",
+            title="HOURS OF WORK AND OVERTIME"
+        )
+        matches = match_chunk(chunk, rules)
+        ot = [m for m in matches if m.provision_class == "overtime_rate"]
+        assert len(ot) > 0
+        # heading_score >= 0.5 -> +0.05 boost -> 0.95
+        assert ot[0].confidence >= 0.90
+
+
+class TestFragmentMerging:
+    """Fragment merge-up prevents mid-sentence splits."""
+
+    def test_lowercase_start_merged(self):
+        assert _should_merge(
+            "The employer shall provide",
+            "health insurance for all employees."
+        ) is True
+
+    def test_conjunction_start_merged(self):
+        assert _should_merge(
+            "Overtime shall be paid at time and a half.",
+            "and double time on Sundays."
+        ) is True
+
+    def test_uppercase_new_paragraph_not_merged(self):
+        assert _should_merge(
+            "This is a complete sentence.",
+            "The Union shall have the right to file grievances on behalf of any employee in the unit."
+        ) is False
+
+    def test_heading_not_merged(self):
+        assert _should_merge(
+            "Some prior text here.",
+            "ARTICLE 12 - HOURS OF WORK"
+        ) is False
+
+    def test_section_prefix_not_merged(self):
+        assert _should_merge(
+            "End of prior section.",
+            "Section 3. The employer shall..."
+        ) is False

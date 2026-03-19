@@ -43,5 +43,6 @@
       "summary": "AI/algorithmic provisions"
     }
   ],
-  "negative_patterns": []
+  "negative_patterns": [],
+  "heading_exclusions": []
 }

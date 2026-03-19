@@ -1,6 +1,6 @@
 # Document Index
 
-> Last updated: 2026-03-12
+> Last updated: 2026-03-17
 > Status key: **ACTIVE** (in use) | **REFERENCE** (useful background) | **ARCHIVE** (superseded, will move to `archive/`)
 
 ---
@@ -14,7 +14,8 @@
 ## Core Project Documents
 | File | Status | Purpose |
 |------|--------|---------|
-| `COMPLETE_PROJECT_ROADMAP_2026_03.md` | ACTIVE | Authoritative roadmap (62 tasks, 36 open questions) |
+| `CONSOLIDATED_ROADMAP_2026_03_13.md` | ACTIVE | Consolidated roadmap (53 items, 9 priority tiers — supersedes all prior roadmaps) |
+| `COMPREHENSIVE_PROJECT_AUDIT_2026_03_13.md` | ACTIVE | Full 7-agent audit with 71 verification markers, live DB stats, crosscheck consensus |
 | `docs/DEMOGRAPHICS_METHODOLOGY_COMPARISON.md` | REFERENCE | Initial 200-company comparison (6 methods). Superseded by V5. |
 | `scripts/analysis/demographics_comparison/V5_COMPLETE_RESULTS.md` | ACTIVE | V5 complete results: 30 methods, 997 training + 208 holdout, Gate v1 pipeline |
 | `scripts/analysis/demographics_comparison/V5_FINAL_REPORT.md` | ACTIVE | V5 final validation summary (acceptance criteria) |
@@ -30,6 +31,7 @@
 | `scripts/analysis/demographics_comparison/gen_v10_error_report.py` | ACTIVE | V10 error distribution by sector, region, tier, confidence |
 | `scripts/analysis/demographics_comparison/V10_ERROR_DISTRIBUTION.md` | ACTIVE | V10 full error analysis report with per-dimension breakdowns |
 | `scripts/analysis/demographics_comparison/test_v11_signals.py` | ACTIVE | V11 signal testing: education-weighted demographics + SimplyAnalytics gender (neither improved over V10) |
+| `scripts/analysis/demographics_comparison/run_v11_kfold.py` | ACTIVE | V11 K-fold CV: Bayesian shrinkage + per-tier dampening, 5-fold on all 12,525 EEO-1 companies |
 | `V10_CLAUDE_CODE_PROMPT.md` | REFERENCE | V10 implementation specification (6 phases, acceptance criteria) |
 | `docs/UNION_WEB_SCRAPER.md` | ACTIVE | Consolidated scraper docs (pipeline, schema, extraction, expansion) |
 | `README.md` | ACTIVE | Project overview |
@@ -37,7 +39,7 @@
 | `PROJECT_CATALOG.md` | ACTIVE | Comprehensive file catalog (~755 code files, all sections) |
 | `PIPELINE_MANIFEST.md` | REFERENCE | Script inventory with run order (superseded by PROJECT_CATALOG) |
 | `PLATFORM_HELP_COPY.md` | ACTIVE | UI help text for frontend |
-| `RESEARCH_AGENT_ROADMAP.md` | ACTIVE | Active research agent task list |
+| `RESEARCH_AGENT_ROADMAP.md` | ARCHIVE | Absorbed into consolidated roadmap (archived to `archive/old_roadmaps/`) |
 | `FRONTEND_REDESIGN_INSTRUCTIONS.md` | ACTIVE | Aged Broadsheet design reference |
 | `CBA_DATABASE_BUILD_PLAN.md` | ACTIVE | Active CBA pipeline work |
 | `CBA_PROVISION_TAXONOMY.md` | ACTIVE | Active CBA taxonomy |
@@ -48,8 +50,10 @@
 ## Superseded Roadmaps
 | File | Status | Superseded By |
 |------|--------|---------------|
-| `MASTER_ROADMAP_2026_02_23.md` | ARCHIVE | `COMPLETE_PROJECT_ROADMAP_2026_03.md` |
-| `UNIFIED_ROADMAP_FINAL_2026_02_26.md` | ARCHIVE | `COMPLETE_PROJECT_ROADMAP_2026_03.md` |
+| `COMPLETE_PROJECT_ROADMAP_2026_03.md` | ARCHIVE | `CONSOLIDATED_ROADMAP_2026_03_13.md` |
+| `UNION_SCRAPER_UPGRADE_ROADMAP.md` | ARCHIVE | `CONSOLIDATED_ROADMAP_2026_03_13.md` |
+| `MASTER_ROADMAP_2026_02_23.md` | ARCHIVE | `CONSOLIDATED_ROADMAP_2026_03_13.md` |
+| `UNIFIED_ROADMAP_FINAL_2026_02_26.md` | ARCHIVE | `CONSOLIDATED_ROADMAP_2026_03_13.md` |
 | `SCORECARD_REVISION.md` | ARCHIVE | Scoring spec in agents/scoring.md |
 | `SCORING_SPECIFICATION.md` | ARCHIVE | Scoring spec in agents/scoring.md |
 | `DATA_SOURCE_EXPANSION_PLAN.md` | ARCHIVE | Absorbed into March roadmap |
@@ -107,7 +111,7 @@
 ## SEC EDGAR Scripts & Data
 | File | Status | Purpose |
 |------|--------|---------|
-| `SEC_FINANCIAL_DATA_ROADMAP.md` | ACTIVE | SEC financial data integration roadmap: 7 phases, API/research/frontend/employee counts/Mergent/exec comp |
+| `SEC_FINANCIAL_DATA_ROADMAP.md` | ARCHIVE | Absorbed into consolidated roadmap (archived to `archive/old_roadmaps/`) |
 | `scripts/etl/load_sec_xbrl.py` | ACTIVE | XBRL ETL: companyfacts.zip -> sec_xbrl_financials (249K records, 14.6K companies) |
 | `scripts/etl/load_sec_edgar.py` | ACTIVE | SEC submissions.zip -> sec_companies (517K companies) |
 | `scripts/etl/sec_edgar_full_index.py` | ACTIVE | Full index ETL with UPSERT support |
@@ -129,6 +133,8 @@
 | `sql/schema/cba_sections_migration.sql` | ACTIVE | Migration for cba_sections + cba_page_images tables |
 | `tests/test_cba_toc_parser.py` | ACTIVE | 27 tests for TOC parser |
 | `tests/test_cba_section_splitter.py` | ACTIVE | 20 tests for section splitter |
+| `frontend/src/features/cba/CBAReview.jsx` | ACTIVE | Rule review UI: approve/reject/correct provisions, rule sidebar, stats view, "other" category with required notes |
+| `scripts/cba/reprocess_all.py` | ACTIVE | Batch reprocessor: deletes + re-inserts provisions for all/single contracts. `--dry-run`, `--cba-id N` |
 
 ## CBA & Gemini Prompts
 | File | Status | Purpose |
@@ -137,6 +143,22 @@
 | `GEMINI_CBA_UNIFIED_PROMPT.md` | ARCHIVE | CBA Gemini unified prompt |
 | `GEMINI_CBA_UNIFIED_PROMPT_POINTER.md` | ARCHIVE | CBA prompt pointer |
 | `GEMINI_RESEARCH_HANDOFF.md` | ARCHIVE | Research handoff to Gemini |
+
+## Auto-Generated Reports
+| File | Status | Purpose |
+|------|--------|---------|
+| `docs/PROJECT_METRICS.md` | ACTIVE | Auto-generated DB stats, MV freshness, score distribution, script counts |
+| `docs/PLATFORM_STATUS.md` | ACTIVE | Auto-generated platform status summary |
+
+## Company Enrichment (Free Company Dataset)
+| File | Status | Purpose |
+|------|--------|---------|
+| `match_companies_full.py` | ACTIVE | Full 2.48M company matching pipeline (V2 normalizer, tiered matching) |
+| `apply_company_matches.py` | ACTIVE | Apply matched data to master_employers (6 new columns + employee_count fill) |
+| `test_match_v2.py` | ACTIVE | V2 normalizer test + comparison vs V1 (5K sample) |
+| `test_match_v2_audit.py` | ACTIVE | Match quality audit (short names, city mismatches, multiplicity) |
+| `company_matches.json` | ACTIVE | 298,757 match results (153MB NDJSON) |
+| `free_company_dataset_us_complete.json` | ACTIVE | 2,483,571 US companies with all fields (733MB, from People Data Labs) |
 
 ## Misc & Analysis
 | File | Status | Purpose |

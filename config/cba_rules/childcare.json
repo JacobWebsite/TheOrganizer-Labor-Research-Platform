@@ -7,7 +7,7 @@
   "text_patterns": [
     {
       "name": "childcare_benefit",
-      "pattern": "\\b(?:childcare|child\\s+care|day\\s+care|dependent\\s+care)\\s+(?:benefit|assistance|subsidy|allowance|reimbursement|program|fund|center)",
+      "pattern": "\\b(?:childcare|child\\s+care|day\\s+care|dependent\\s+care)\\s+(?:benefit|assistance|subsidy|allowance|reimbursement|program|fund|center)\\b.{10,}",
       "confidence": 0.85,
       "provision_class": "childcare_benefit",
       "summary": "Childcare benefit"
@@ -27,5 +27,10 @@
       "summary": "Backup childcare"
     }
   ],
-  "negative_patterns": []
+  "negative_patterns": [
+    {"pattern": "\\bbulletin\\s+board\\b", "note": "Bulletin board section mentioning childcare incidentally"},
+    {"pattern": "\\bvisitation\\b", "note": "Union visitation, not childcare provision"},
+    {"pattern": "\\btemporary\\s+employee", "note": "Temporary employee provisions, not childcare"}
+  ],
+  "heading_exclusions": []
 }

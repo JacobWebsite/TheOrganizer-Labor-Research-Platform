@@ -38,5 +38,9 @@
   ],
   "negative_patterns": [
     {"pattern": "\\bunion.*right\\b", "note": "Union rights, not management"}
+  ],
+  "heading_exclusions": [
+    {"pattern": "\\b(discharge|discipline|disciplinary|dismissal)\\b", "note": "should be job_security"},
+    {"pattern": "\\b(just\\s+cause|progressive\\s+discipline)\\b", "note": "discipline standards are job_security"}
   ]
 }

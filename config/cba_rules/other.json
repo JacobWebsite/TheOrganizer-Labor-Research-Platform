@@ -23,8 +23,8 @@
     },
     {
       "name": "successorship",
-      "pattern": "\\b(?:successor|assign|merge|acquir|sale\\s+of\\s+(?:business|company))\\b.*(?:binding|obligations?|agreement|continue|assume)",
-      "confidence": 0.80,
+      "pattern": "\\b(?:successor(?:s|ship)?|assign(?:s|ee|ment))\\b.{0,80}(?:(?:shall\\s+be\\s+)?bound\\s+by|binding\\s+(?:on|upon)|assume\\s+(?:the\\s+)?obligation|sale\\s+of\\s+(?:the\\s+)?(?:business|company|operations?))",
+      "confidence": 0.85,
       "provision_class": "successorship",
       "summary": "Successorship clause"
     },
@@ -44,18 +44,22 @@
     },
     {
       "name": "safety_health",
-      "pattern": "\\b(?:safety|health\\s+and\\s+safety|occupational\\s+safety|OSHA)\\b.*(?:comply|provide|maintain|equipment|training|committee|report)",
+      "pattern": "\\b(?:safety\\s+and\\s+health|health\\s+and\\s+safety|occupational\\s+safety|OSHA)\\b.*(?:comply|provide|maintain|equipment|training|committee|report)",
       "confidence": 0.75,
       "provision_class": "safety_health",
       "summary": "Safety and health provisions"
     },
     {
       "name": "uniforms_tools",
-      "pattern": "\\b(?:uniform|tool|equipment|protective\\s+(?:clothing|equipment|gear)|PPE)\\b.*(?:provide|furnish|reimburse|allowance|employer\\s+(?:shall|will))",
-      "confidence": 0.75,
+      "pattern": "\\b(?:uniform(?:s|\\s+allowance)|protective\\s+(?:clothing|equipment|gear)|PPE)\\b.*(?:provide|furnish|reimburse|allowance|employer\\s+(?:shall|will)|launder|maintain)",
+      "confidence": 0.80,
       "provision_class": "uniforms_tools",
       "summary": "Uniforms/tools/equipment"
     }
   ],
-  "negative_patterns": []
+  "negative_patterns": [
+    {"pattern": "\\bsubcontract", "note": "Subcontracting, not uniforms/tools"},
+    {"pattern": "\\bdiagnostic\\b.*\\bmedical\\s+services\\b", "note": "Medical services, not equipment"}
+  ],
+  "heading_exclusions": []
 }

@@ -46,5 +46,6 @@
     {"pattern": "\\bTraining\\s+Fund\\b(?!.{0,40}(?:attend|complete|participate|program\\s+for\\s+employee))", "note": "Fix 4: Training Fund as a fund name, not a training provision"},
     {"pattern": "\\bUnion\\s+shall\\s+provide\\s+training\\b.*\\bto\\s+the\\s+Employer\\b", "note": "Fix 4: Union training employers, not employee training"},
     {"pattern": "\\bPension,?\\s+Health,?.*Training\\s+Fund\\s+contributions\\b", "note": "Fix 4: Fund listing, not training provision"}
-  ]
+  ],
+  "heading_exclusions": []
 }

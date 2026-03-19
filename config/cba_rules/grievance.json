@@ -65,5 +65,6 @@
   ],
   "negative_patterns": [
     {"pattern": "\\bgrievance\\s+(?:shall\\s+not\\s+be\\s+filed|does\\s+not\\s+apply)\\s+(?:for|to|regarding)\\s+(?:discharge|termination|probation)", "note": "Exclusion from grievance process"}
-  ]
+  ],
+  "heading_exclusions": []
 }

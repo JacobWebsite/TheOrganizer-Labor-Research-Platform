@@ -1,15 +1,10 @@
 # PROJECT_STATE.md — Labor Relations Research Platform
 
-> **Document Purpose:** Shared context for all AI tools (Claude Code, Codex, Gemini). Current status, active decisions, and what to work on next. For technical details, see `CLAUDE.md` in this directory. For the roadmap, see `COMPLETE_PROJECT_ROADMAP_2026_03.md` (59 tasks, 34 open questions — supersedes the Feb 26 roadmap). For redesign decisions, see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`.
+> **Document Purpose:** Shared context for all AI tools (Claude Code, Codex, Gemini). Current status, active decisions, and what to work on next. For technical details, see `CLAUDE.md` in this directory. For the roadmap, see `CONSOLIDATED_ROADMAP_2026_03_13.md` (53 items, 9 priority tiers — supersedes all prior roadmaps). For redesign decisions, see `UNIFIED_PLATFORM_REDESIGN_SPEC.md`.
 >
-> **Detailed Sub-Roadmaps (in-depth plans for major workstreams):**
-> - **Research Agent:** `RESEARCH_AGENT_ROADMAP.md` — 5 phases (R0-R5): cross-run memory, human feedback, industry synthesis, outcome tracking, deep intelligence (RAG/specialization)
-> - **Union Web Scraper:** `UNION_SCRAPER_UPGRADE_ROADMAP.md` — 9 phases: 4-tier extraction (WordPress API → HTML parser → PDF cataloger → sitemap discovery) + Gemini fallback
-> - **SEC EDGAR + Mergent:** `SEC_FINANCIAL_DATA_ROADMAP.md` — 7 phases: XBRL ETL (done), API integration, research agent, frontend, employee counts, Mergent full load, exec comp
-> - **CBA Database Scaling:** Needs roadmap (Task 8-2)
-> - **State PERB Pilot:** Needs roadmap (Task 5-3)
+> **Note:** All sub-roadmaps (Research Agent, SEC, Union Scraper, CBA) have been absorbed into the consolidated roadmap. Old roadmaps archived to `archive/old_roadmaps/`.
 
-**Last updated:** 2026-03-12
+**Last updated:** 2026-03-19
 
 ---
 
@@ -28,17 +23,18 @@ The platform helps organizers identify and evaluate non-union employers as organ
 
 ---
 
-## Current Status (2026-03-12)
+## Current Status (2026-03-17)
 
 | Component | Status |
 |-----------|--------|
-| V11 Signal Testing | **TESTED, NO IMPROVEMENT** — Education-weighted demographics (77% coverage) and SimplyAnalytics county-industry gender (100% coverage) both tested. Neither improved over V10. Education signal is industry-level (already captured). SA gender too coarse (13 sectors). Next candidate: tract-level education as geographic modifier. |
+| V11 K-Fold Validation | **DONE** — 5-fold CV on all 12,525 EEO-1 companies. V10 NOT overfit: OOS Race MAE 4.290 vs in-sample 4.269 (+0.021pp gap). Bayesian shrinkage + per-tier dampening. Abs Bias improved 0.152->0.114. Predictions: `v11_kfold_predictions.json`. |
+| V11 Signal Testing | **TESTED, NO IMPROVEMENT** — All signals failed (education, SimplyAnalytics, tract, size, occupation, QCEW wages). |
 | V10 Demographics | **DONE** — Gender MAE 10.550 (best ever, replicated on sealed holdout). Hispanic calibration enabled but didn't replicate. Confidence tiers (GREEN/YELLOW/RED). See `V10_ERROR_DISTRIBUTION.md`. |
 | SEC XBRL Financials (Phase 1) | **DONE** — `sec_xbrl_financials` loaded: 249K records, 14.6K companies. Revenue/NI/Assets/Liabilities/Cash/Debt. Employee counts useless (0.1%). ~490 union-linked. Next: API integration. |
 | V9.2 Demographics | **SUPERSEDED by V10** — 7/7 on perm holdout. D+A race blend, d=0.85/0.05/0.5. |
 | V9.1 Demographics (Hybrid) | **DONE** — 5/7 acceptance criteria pass. D race + industry+adaptive Hispanic + F gender + 3-dim calibration. P>20pp and P>30pp fail (census-based ceiling). |
 | V5 Demographics (Gate v1) | **DONE** — 4-run pipeline: PUMS metro, Expert A/B/D, Gate v1 routing, OOF calibration. All 5 acceptance criteria pass on 208 fresh holdout. API integrated. |
-| CBA Tool (Phases 1-4 + Decomp) | **DONE** — batch processing, OCR, frontend module, progressive decomposition (scripts 05-09), standalone search UI (`/cba-search`), 132 CBA tests |
+| CBA Tool (Rule Review + OPDR Scale) | **IN PROGRESS** — Rule review UI with approve/reject/correct + "other" category. Heading-first classification: heading exclusions gate + affinity penalty (-0.15 for zero-affinity) + fragment merge-up. 24 contracts reprocessed: 874 -> 842 provisions (-3.7% FP reduction). 4,790 PDFs available (~53% scanned). Next: Jacob review round, iterative exclusion tuning. |
 | Batch: Union Quality + Export + NLRB Sync | **DONE** — Tasks 7-4, 7-1, 6-1, 6-2, 5-1 (see below) |
 | Phase R2: Improved HITL Review UX | **DONE** — run usefulness, flag-only review, A/B comparison, section review, active learning prompts |
 | Phase R1: Research Agent Learning Loop | **DONE** — contradiction detection, human fact review, learning propagation |
@@ -46,27 +42,27 @@ The platform helps organizers identify and evaluate non-union employers as organ
 | Phase 4: Target Scorecard | **DONE** — 4.4M non-union targets scored |
 | Phase 3: Strategic Enrichment (A+B+C+D) | **DONE** — research quality, similarity, wage outliers, demographics |
 | Phase 0-1: Trust Foundations | **DONE** — scoring fixes, NLRB ULP, momentum |
-| Backend tests | **1260 pass**, 0 failures, 3 skipped |
-| Frontend tests | **264 pass**, 0 failures (1 pre-existing SettingsPage) |
+| Backend tests | **1283 pass**, 0 failures, 4 skipped |
+| Frontend tests | **~240 pass**, 0 failures |
 
 ### Key Data Counts
 
 | Table/MV | Rows |
 |----------|------|
 | f7_employers_deduped | 146,863 (67K post-2020 + 79K historical) |
-| master_employers | ~4.4M (post-dedup) |
+| master_employers | ~4.5M (296K enriched with website/founded/LinkedIn/industry/size from free_company_dataset) |
 | mv_unified_scorecard | 146,863 |
 | mv_target_scorecard | 4,386,205 |
 | mv_employer_search | 107,321 |
 | unified_match_log | ~2.2M |
-| corporate_identifier_crosswalk | 17,111 |
+| corporate_identifier_crosswalk | 25,113 |
 | unions_master | 26,693 (6,053 flagged inactive) |
-| cba_documents | 4 (all rule-engine-extracted) |
-| cba_provisions | 267 (14-category taxonomy) |
-| cba_sections | 62 (32BJ decomposed, 98.1% text coverage) |
+| cba_documents | 24 (4 original + 20 OPDR batch) |
+| cba_provisions | 842 (57 provision_classes, 14 categories) — reprocessed 2026-03-19 with heading-first classification |
+| cba_sections | 216 (all 4 contracts decomposed, 98-99% text coverage) |
 | pums_metro_demographics | 6,538 (metro x 2-digit NAICS) |
 | bds_hc_estimated_benchmarks | 630 (sector/state bracket estimates) |
-| sec_xbrl_financials | 249,437 (14,638 companies, FY 2003-2025) |
+| sec_xbrl_financials | 249,396 (14,638 companies, FY 1990-2026 — 41 bad date rows cleaned) |
 
 ---
 
@@ -97,16 +93,15 @@ The platform helps organizers identify and evaluate non-union employers as organ
 
 ---
 
-## Next Phase: Independent Roadmap Creation
+## Next Phase: Consolidated Roadmap
 
-The remaining large tasks are largely independent workstreams. The next phase involves creating detailed, standalone roadmaps for each (similar to `RESEARCH_AGENT_ROADMAP.md` and `UNION_SCRAPER_UPGRADE_ROADMAP.md`). Priority order:
+All remaining work is tracked in `CONSOLIDATED_ROADMAP_2026_03_13.md` (53 items across 9 priority tiers). Priority order:
 
-1. **SEC EDGAR + Mergent Full Load** (Task 8-1) — **Phase 1 DONE.** Full roadmap: `SEC_FINANCIAL_DATA_ROADMAP.md` (7 phases). Next: Phase 2 (API integration) + Phase 6 (Mergent full load) in parallel. ~12-15h for Phases 2-4 (make it visible). Mergent 1.75M employer bulk load for size/revenue/NAICS coverage.
-2. **CBA Database Scaling** (Task 8-2) — Pipeline exists (4 contracts), needs sourcing strategy + batch processing plan to reach 5,000+.
-3. **State PERB Pilot** (Task 5-3) — NY/CA/OH public sector data. Unlocks 5.4M public sector union members currently invisible.
-4. **Union Web Scraper Expansion** (Task 8-3) — Extend AFSCME prototype to SEIU, Teamsters, UFCW, IBEW.
-
-Each roadmap should be self-contained with phases, schema changes, scripts, validation checks, and success criteria — so any AI tool or human can execute independently.
+1. **P0 — Security** (3 items): Credential rotation, ~~JWT hardening~~ DONE, off-site backup
+2. **P1 — Score Integrity** (4 items): Fix Leverage weights, run Gower similarity, add data_refresh_log, ~~fix SEC dates~~ DONE
+3. **P2 — Product Correctness** (5 items): ~~Frontend empty states~~ DONE, ~~failing test~~ DONE, doc consistency, ~~CLAUDE.md counts~~ DONE, ~~run metrics~~ DONE
+4. **P3 — Research/Demographics** (3 items): Blended demographics, research accuracy benchmark, age demographics (NEW)
+5. **P4-P8** — SEC phases, research evolution, union quality, new data sources, long-term projects
 
 ---
 
@@ -203,14 +198,56 @@ Coverage on target scorecard:
 - OSHA severity not weighted (willful vs other treated equally)
 - Child labor + repeat violator flags unused
 - Close election flag missing (5,356 elections lost by <=5 votes)
-- NLRB docket data unused (2M rows)
-- Union disbursement data unused (216K rows)
+- ~~NLRB docket data unused (2M rows)~~ **CORRECTED 2026-03-17: actively used in profile.py `_get_nlrb_docket_summary()`**
+- Union disbursement data unused (216K rows) — ar_disbursements_emp_off confirmed dormant; ar_disbursements_total IS active
 
 ---
 
 ## Session History
 
 Historical session updates (Feb 2026) archived to `archive/docs/session_history_2026_03.md`. See git log for change-by-change details.
+
+### 2026-03-18: Vault Wikilink Cleanup
+- Fixed ~52 ghost nodes in Obsidian graph view: added aliases to 15 notes (28 total aliases), fixed 13 broken links across 10 files, excluded `.claude/`/`.ruff_cache/`/`memory/` from Obsidian indexing via `app.json` `userIgnoreFilters`
+- Backtick-escaped `[[wikilinks]]` in CLAUDE.md, removed folder-name links in 4 READMEs
+- Deleted 2 empty files: `EEO-1 FOIA Data.md` (Enforcement folder), `LM Financial Data.md` (vault root)
+- 31 vault files modified, no code/database changes
+
+### 2026-03-19: CBA Heading-First Classification + Fragment Fix
+- Implemented heading exclusions (new mechanism): 5 categories with active exclusions block matching when chunk/parent heading matches grievance/enforcement/fund/discipline/safety patterns
+- Heading affinity penalty replaces flat +0.10 boost: >= 0.5 -> +0.05, >= 0.3 -> 0.0, 0.0 -> -0.15 penalty (drops overtime_rate from 0.90 to 0.75 in unrelated sections)
+- Fragment merge-up in `_split_paragraphs()`: lowercase/conjunction starts merge into previous paragraph, min length 15 -> 80
+- Parent title propagation: level-2 chunks inherit parent article title for exclusion checking
+- New `scripts/cba/reprocess_all.py` batch reprocessor with `--dry-run` and `--cba-id N`
+- Reprocessed all 24 contracts live: 874 -> 842 provisions (-32, -3.7%)
+- Added "other" category option in review correction panel with required notes field
+- 12 new tests (69 rule engine total, 201 CBA total, all passing)
+
+### 2026-03-19: Vault Cleanup and Obsidian Path Fix
+- Diagnosed Obsidian empty vault: `obsidian.json` pointed to wrong path (`Labor Data Terminal_real` with space vs `LaborDataTerminal_real` with underscore)
+- Rescued orphaned work log entry from wrong vault folder
+- Moved SEC XBRL Financials note from `Not Yet Acquired/` to `Corporate Identity and Hierarchy/` (Phase 1 done)
+- Marked 6 Open Problems as resolved: Docker JWT, SEC dates, frontend test, no-data cards, data freshness tracking, weak password
+- Deleted stray empty `Data Sources.md` at vault root
+- All 113 vault notes have real content -- no thin/stub notes found
+
+### 2026-03-18: P0-2 + P1-3 + P2-1 Quick Fixes (Evening)
+- **P0-2 Docker JWT**: `docker-compose.yml` fail-fast on missing LABOR_JWT_SECRET (was silent default `dev-only-change-me`)
+- **P1-3 SEC XBRL Dates**: Date validation (1990-current year) + rejection tracking + `--cleanup-only` flag in `load_sec_xbrl.py`. Ran cleanup: 0 bad rows (already clean from 2026-03-16).
+- **P2-1 Frontend Cards**: `FinancialDataCard.jsx` and `GovernmentContractsCard.jsx` show amber warning cards instead of returning null. 271 frontend tests pass.
+- All 3 tasks run in parallel via domain-specialized agents.
+
+### 2026-03-18: Insights Review & CLAUDE.md Refinements
+- Reviewed /insights usage report (196 sessions, 330h, 1,463 messages)
+- All 6 suggested CLAUDE.md additions already present — added 3 minor detail gaps (matview verify query, taskkill/netstat commands, dotenv restart note)
+- Obsidian MCP removed from workflow; all vault operations now via direct filesystem tools
+- Obsidian cross-linking workflow saved to memory (proactive wikilink + reciprocal link pattern)
+
+### 2026-03-17: Obsidian Verified Data Source Notes
+- Created 6 verified notes in Obsidian vault (`Data Sources/Core Union Reference/`) with DB-verified row counts, schemas, integration status
+- Tables verified: f7_employers_deduped, f7_employers, f7_union_employer_relations, unions_master, nlrb_elections, nlrb_participants, nlrb_cases, nlrb_docket, nlrb_allegations, nlrb_filings, lm_data, ar_disbursements_emp_off, epi_union_membership
+- **Corrections**: nlrb_docket actively used (not unused), EPI has zero active integration (not partial), F-7 orphan rate 0% confirmed (reverse FK direction)
+- Fixed Obsidian MCP: global install replaces slow `npx.cmd` cold starts
 
 ### 2026-03-12: SEC XBRL Phase 1 ETL
 
@@ -223,6 +260,19 @@ Historical session updates (Feb 2026) archived to `archive/docs/session_history_
 - Spot-checked Walmart ($681B rev), Amazon ($717B), HCA ($75.6B), Starbucks ($37.2B) — all correct.
 - Also evaluated DERA quarterly flat files (`2025q4.zip`) — easier for COPY but missing DEI tags. companyfacts.zip preferred.
 - **Next**: Wire into API employer profiles (Phase 4), investigate employee count extraction from 10-K text.
+
+### 2026-03-12: CBA Cross-Contract Comparison (7-Phase Plan)
+
+- **Phase 1: Provision class expansion** — Fixed category leak bugs (training/technology/childcare/other mapped to wrong categories). Expanded 14 JSON configs so each pattern gets its own provision_class (name == provision_class). Result: 57 distinct provision_classes (up from ~12).
+- **Phase 2: Section decomposition** — Ran decomposition pipeline on all 4 contracts. CBA 21: 84 sections (99.8%), CBA 22: 44 (98.5%), CBA 23: 26 (98.5%), CBA 26: 62 (98.1%). Fixed `section_num` VARCHAR(20) -> VARCHAR(100).
+- **Phase 3: Provision-section linkage** — Added `section_id` FK + `extracted_values` JSONB to `cba_provisions`. `10_link_provisions_sections.py` linked 231/231 (100%) provisions. Recreated `v_cba_provision_search` with section breadcrumb joins.
+- **Phase 4: Coverage audit** — `audit_coverage.py` with text coverage, section coverage, category/provision_class matrices, confidence histograms, gap analysis per contract.
+- **Phase 5: Value extraction** — `11_extract_values.py` extracts dollar amounts, percentages, day counts, time periods via regex. 18/231 (7.8%) provisions have structured values.
+- **Phase 6: Comparison API** — `/api/cba/compare` rewritten with provision_class grouping + gap analysis. New `/api/cba/provisions/compare-values`. Graceful degradation via `_check_section_cols()` / `_check_extracted_values()`.
+- **Phase 7: Search UI** — Added Compare tab (4th tab), provision_class dropdown with optgroup, section breadcrumbs on results.
+- **Re-processed all 4 contracts**: 231 provisions (was 267), 57 provision classes (was ~12).
+- **Tests:** 1260 passed, 0 failures, 3 skipped.
+- **New files:** `10_link_provisions_sections.py`, `11_extract_values.py`, `audit_coverage.py`, `sql/schema/cba_comparison_migration.sql`.
 
 ### 2026-03-12: CBA Progressive Decomposition + Search UI
 

@@ -44,8 +44,8 @@
     },
     {
       "name": "holiday_pay",
-      "pattern": "\\bholiday\\s+(?:pay|premium|rate|compensation)\\b",
-      "confidence": 0.80,
+      "pattern": "\\bholiday\\s+(?:pay|premium|rate|compensation)\\b.{5,}(?:shall|will|paid|receive|entitled|time\\s+and\\s+(?:a\\s+)?half|double|straight|regular\\s+rate|\\$\\d)",
+      "confidence": 0.85,
       "provision_class": "holiday_pay",
       "summary": "Holiday pay"
     },
@@ -58,10 +58,10 @@
     },
     {
       "name": "fmla",
-      "pattern": "\\b(?:FMLA|Family\\s+(?:and\\s+)?Medical\\s+Leave\\s+Act)\\b",
+      "pattern": "\\b(?:FMLA|Family\\s+(?:and\\s+)?Medical\\s+Leave\\s+Act)\\b.{5,}(?:shall|will|entitled|eligible|provide|request|granted|twelve|12|unpaid|qualifying|serious\\s+health)",
       "confidence": 0.85,
       "provision_class": "fmla",
-      "summary": "FMLA reference"
+      "summary": "FMLA provision"
     },
     {
       "name": "parental_leave",
@@ -79,7 +79,7 @@
     },
     {
       "name": "jury_duty",
-      "pattern": "\\b(?:jury\\s+duty|jury\\s+service|court\\s+(?:leave|appearance|duty))\\b(?!.{0,5}(?:,|\\bor\\b).{0,60}(?:group\\s+life|insurance|vacation))",
+      "pattern": "\\b(?:jury\\s+duty|jury\\s+service)\\b.{5,}(?:shall|will|paid|receive|regular\\s+(?:pay|rate|wages)|difference|excuse|absent|day|serve|summon|proof)",
       "confidence": 0.85,
       "provision_class": "jury_duty",
       "summary": "Jury duty leave"
@@ -94,6 +94,10 @@
   ],
   "negative_patterns": [
     {"pattern": "\\bleave\\s+(?:of|the)\\s+(?:premises|building|work\\s+area)\\b", "note": "Physical leaving, not time off"},
-    {"pattern": "(?:wages|hours|sick\\s+pay|vacations?|holidays?|insurance|relief\\s+periods?),?\\s*(?:,|and)?\\s*jury\\s+duty,?\\s*(?:,|or|and)?\\s*(?:group\\s+life|insurance|sick\\s+pay|vacations?|holidays?)", "note": "Fix 5: jury duty in a list of many labor topics = maintenance of standards, not leave"}
+    {"pattern": "(?:wages|hours|sick\\s+pay|vacations?|holidays?|insurance|relief\\s+periods?),?\\s*(?:,|and)?\\s*(?:jury\\s+duty|holiday\\s+pay|FMLA),?\\s*(?:,|or|and)?\\s*(?:group\\s+life|insurance|sick\\s+pay|vacations?|holidays?)", "note": "Topic in a list of many items = maintenance of standards clause, not standalone leave provision"},
+    {"pattern": "\\d{1,3}(?:,\\s*\\d{1,3}){2,}", "note": "Index page numbers like '61, 69, 70'"}
+  ],
+  "heading_exclusions": [
+    {"pattern": "\\b(enforcement|penalty|penalties|fine)\\b", "note": "enforcement sections"}
   ]
 }

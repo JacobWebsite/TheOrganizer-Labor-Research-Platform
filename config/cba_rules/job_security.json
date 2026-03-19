@@ -97,5 +97,6 @@
     {"pattern": "\\bgood\\s+cause\\b(?=.{0,60}(?:waive|waiver|extend|extension|deadline|time\\s+limit|bypass|notice))", "note": "Fix 3: procedural good-cause, not discipline"},
     {"pattern": "\\bgood\\s+cause\\s+shown\\b(?!.{0,60}(?:discharge|discipline|termination|terminate|dismiss))", "note": "Fix 3: good cause shown in procedural context"},
     {"pattern": "(?:arbitrat(?:or|ion))(?=.{0,40}\\bgood\\s+cause\\b)(?!.{0,60}(?:discharge|discipline|termination))", "note": "Fix 3: arbitrator extending for good cause"}
-  ]
+  ],
+  "heading_exclusions": []
 }

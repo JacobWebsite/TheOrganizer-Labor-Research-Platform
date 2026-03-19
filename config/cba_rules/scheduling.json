@@ -85,5 +85,11 @@
       "summary": "Anti-pyramiding clause"
     }
   ],
-  "negative_patterns": []
+  "negative_patterns": [],
+  "heading_exclusions": [
+    {"pattern": "\\b(grievance|arbitration|dispute)\\b", "note": "penalty clauses"},
+    {"pattern": "\\b(enforcement|penalty|penalties|fine)\\b", "note": "fund enforcement"},
+    {"pattern": "\\b(holiday|holidays)\\b", "note": "holiday pay is leave, not scheduling"},
+    {"pattern": "\\b(fund|trust|contribution)\\b", "note": "fund contribution sections"}
+  ]
 }

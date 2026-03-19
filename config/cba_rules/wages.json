@@ -58,8 +58,8 @@
     },
     {
       "name": "lead_pay",
-      "pattern": "\\b(?:lead|charge|acting|temporary\\s+(?:lead|supervisor))\\s+(?:pay|premium|differential|rate)",
-      "confidence": 0.80,
+      "pattern": "\\b(?:lead\\s+(?:worker|person|employee|technician|operator|mechanic)|charge\\s+(?:nurse|person|worker)|acting\\s+(?:supervisor|foreman|lead))\\s+(?:pay|premium|differential|rate|compensation)",
+      "confidence": 0.85,
       "provision_class": "lead_pay",
       "summary": "Lead/charge pay"
     },
@@ -81,5 +81,9 @@
   "negative_patterns": [
     {"pattern": "\\b(?:pension|retirement|annuity)\\s+contribution", "note": "Retirement, not wages"},
     {"pattern": "\\bhealth\\s+(?:insurance|premium|fund)\\s+contribution", "note": "Healthcare, not wages"}
+  ],
+  "heading_exclusions": [
+    {"pattern": "\\b(pension|retirement|annuity|401[kK])\\b", "note": "pension sections"},
+    {"pattern": "\\b(grievance|arbitration|dispute)\\b", "note": "grievance penalty clauses"}
   ]
 }

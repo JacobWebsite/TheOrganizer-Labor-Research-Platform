@@ -56,5 +56,6 @@
       "summary": "Probationary seniority"
     }
   ],
-  "negative_patterns": []
+  "negative_patterns": [],
+  "heading_exclusions": []
 }

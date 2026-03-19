@@ -12,7 +12,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -23,7 +22,6 @@ import importlib
 
 from scripts.cba.rule_engine import (
     filter_toc_index_chunks,
-    load_all_rules,
     load_category_rules,
     match_all_chunks,
     match_text_all_categories,
@@ -68,9 +66,20 @@ def get_chunks_and_spans(cba_id: int) -> tuple[list[ArticleChunk], list[PageSpan
             # Reconstruct chunks from structure_json
             chunks = []
             if structure_json:
+                # Build a lookup of article titles by number for parent_title propagation
+                article_titles: dict[str, str] = {}
+                for item in structure_json:
+                    if item.get("level", 1) == 1 and item.get("title"):
+                        article_titles[item["number"]] = item["title"]
+
                 for item in structure_json:
                     cs = item["char_start"]
                     ce = item["char_end"]
+                    # Propagate parent article title to level-2+ chunks
+                    parent_title = None
+                    parent_num = item.get("parent_number")
+                    if parent_num and parent_num in article_titles:
+                        parent_title = article_titles[parent_num]
                     chunks.append(ArticleChunk(
                         number=item["number"],
                         title=item.get("title", ""),
@@ -80,7 +89,8 @@ def get_chunks_and_spans(cba_id: int) -> tuple[list[ArticleChunk], list[PageSpan
                         char_end=ce,
                         page_start=item.get("page_start"),
                         page_end=item.get("page_end"),
-                        parent_number=item.get("parent_number"),
+                        parent_number=parent_num,
+                        parent_title=parent_title,
                     ))
 
             return chunks, spans, text

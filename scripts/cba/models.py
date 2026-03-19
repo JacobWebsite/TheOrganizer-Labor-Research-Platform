@@ -45,6 +45,7 @@ class ArticleChunk:
     page_start: int | None = None
     page_end: int | None = None
     parent_number: str | None = None  # parent article number for sections
+    parent_title: str | None = None  # parent article title for heading exclusion checks
     children: list[ArticleChunk] = field(default_factory=list)
 
 

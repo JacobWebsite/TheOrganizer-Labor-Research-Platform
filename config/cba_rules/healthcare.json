@@ -24,8 +24,8 @@
     },
     {
       "name": "coverage_tiers",
-      "pattern": "(?:individual|single|employee[- ]only|family|employee\\s*\\+\\s*(?:spouse|child|dependent))(?=.{0,100}(?:plan|coverage|premium|enrollment|tier|dependent|deductible|copay|coinsurance|HMO|PPO|health\\s+fund|benefit\\s+fund|medical|dental|vision|prescription))",
-      "confidence": 0.75,
+      "pattern": "(?:individual|single|employee[- ]only|family|employee\\s*\\+\\s*(?:spouse|child|dependent))\\s+(?:plan|coverage|premium|enrollment|tier|rate)\\b",
+      "confidence": 0.80,
       "provision_class": "coverage_tiers",
       "summary": "Health coverage tier definition"
     },
@@ -80,8 +80,8 @@
     },
     {
       "name": "waiting_period",
-      "pattern": "(?:waiting|eligibility)\\s+period.*(?:health|medical|insurance|coverage|benefit|day|month)",
-      "confidence": 0.75,
+      "pattern": "(?:waiting|eligibility)\\s+period.{5,80}(?:health|medical|insurance|coverage|benefit|enroll|eligible).{5,}(?:day|month|week|\\d+)",
+      "confidence": 0.80,
       "provision_class": "waiting_period",
       "summary": "Health insurance waiting period"
     }
@@ -92,5 +92,9 @@
     {"pattern": "\\bindividual\\b(?=.{0,50}(?:attorney|locker|arbitration|claim|settle|negotiate|superintendent|plaintiff|protocol|death))(?!.{0,50}(?:plan|coverage|premium|tier|enrollment))", "note": "Fix 2: individual in non-health context"},
     {"pattern": "\\bfamily\\s+leave\\b", "note": "Fix 2: family leave is leave, not health tier"},
     {"pattern": "\\bdeath\\s+in\\s+(?:the\\s+)?family\\b", "note": "Fix 2: bereavement, not health tier"}
+  ],
+  "heading_exclusions": [
+    {"pattern": "\\b(safety\\s+and\\s+health|health\\s+and\\s+safety|occupational\\s+safety|OSHA)\\b", "note": "safety sections, not insurance"},
+    {"pattern": "\\b(safety\\s+committee|safety\\s+program)\\b", "note": "safety program sections"}
   ]
 }

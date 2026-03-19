@@ -59,5 +59,6 @@
   ],
   "negative_patterns": [
     {"pattern": "\\b(?:national\\s+)?security\\s+(?:clearance|background|screening)\\b", "note": "Security screening, not union security"}
-  ]
+  ],
+  "heading_exclusions": []
 }

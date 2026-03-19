@@ -58,5 +58,6 @@
   ],
   "negative_patterns": [
     {"pattern": "\\bretirement\\s+(?:party|gift|reception)\\b", "note": "Social event, not pension"}
-  ]
+  ],
+  "heading_exclusions": []
 }

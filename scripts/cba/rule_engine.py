@@ -9,7 +9,6 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from scripts.cba.models import ArticleChunk, RuleMatch
 
@@ -31,11 +30,15 @@ MODAL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Fix 1: TOC/Index detection — dotted-line pattern signature
-TOC_INDEX_RE = re.compile(r"\.{4,}|·{4,}|\.\s*\.\s*\.\s*\.|\bSubject\s+Page\b")
+# Fix 1: TOC/Index detection — dotted-line pattern + index-style entries
+TOC_INDEX_RE = re.compile(
+    r"\.{4,}|·{4,}|\.\s*\.\s*\.\s*\."       # dotted leaders
+    r"|\bSubject\s+Page\b"                     # explicit TOC header
+    r"|(?:\w[\w\s]{2,30}\s+\d{1,3}(?:,\s*\d{1,3}){2,})"  # "Topic 12, 34, 56" index entries
+)
 # Fraction of total pages to skip at start (TOC) and end (Index)
 TOC_PAGE_FRACTION = 0.05
-INDEX_PAGE_FRACTION = 0.03
+INDEX_PAGE_FRACTION = 0.05  # increased from 0.03 — last 5% is almost always index
 
 
 @dataclass
@@ -78,12 +81,26 @@ class NegativePattern:
 
 
 @dataclass
+class HeadingExclusion:
+    """When a chunk's heading (or parent article heading) matches, block this category entirely."""
+    pattern: str
+    note: str = ""
+    _compiled: re.Pattern | None = field(default=None, repr=False, compare=False)
+
+    def compiled(self) -> re.Pattern:
+        if self._compiled is None:
+            self._compiled = re.compile(self.pattern, re.IGNORECASE)
+        return self._compiled
+
+
+@dataclass
 class CategoryRules:
     category: str
     provision_classes: list[str]
     heading_signals: list[HeadingSignal]
     text_patterns: list[TextPattern]
     negative_patterns: list[NegativePattern]
+    heading_exclusions: list[HeadingExclusion] = field(default_factory=list)
 
 
 def is_toc_or_index_text(text: str) -> bool:
@@ -101,12 +118,14 @@ def filter_toc_index_chunks(
     """
     filtered = []
     for chunk in chunks:
-        # Page-range filter: skip first ~5% and last ~3% of pages
         if total_pages and chunk.page_start is not None:
             toc_cutoff = max(int(total_pages * TOC_PAGE_FRACTION), 2)
             index_cutoff = total_pages - max(int(total_pages * INDEX_PAGE_FRACTION), 1)
+            # Last 2 pages are almost always index — drop unconditionally
+            if chunk.page_start >= total_pages - 1:
+                continue
+            # Pages in TOC/index range: drop if any index-like content detected
             if chunk.page_start <= toc_cutoff or chunk.page_start >= index_cutoff:
-                # Also check content — some early/late pages are real content
                 if is_toc_or_index_text(chunk.text):
                     continue
         # Content-based filter: skip any chunk whose text has TOC signatures
@@ -164,6 +183,10 @@ def _parse_rule_file(path: Path) -> CategoryRules | None:
             NegativePattern(pattern=n["pattern"], note=n.get("note", ""))
             for n in data.get("negative_patterns", [])
         ],
+        heading_exclusions=[
+            HeadingExclusion(pattern=h["pattern"], note=h.get("note", ""))
+            for h in data.get("heading_exclusions", [])
+        ],
     )
 
 
@@ -178,6 +201,26 @@ def score_heading(title: str, rules: CategoryRules) -> float:
     return min(total, 1.0)
 
 
+def _heading_excluded(
+    title: str | None,
+    parent_title: str | None,
+    rules: CategoryRules,
+) -> bool:
+    """Check if a chunk's heading (or parent article heading) triggers an exclusion.
+
+    When excluded, the entire category is blocked from matching in this chunk.
+    """
+    if not rules.heading_exclusions:
+        return False
+    for excl in rules.heading_exclusions:
+        compiled = excl.compiled()
+        if title and compiled.search(title):
+            return True
+        if parent_title and compiled.search(parent_title):
+            return True
+    return False
+
+
 def match_chunk(
     chunk: ArticleChunk,
     rules: CategoryRules,
@@ -186,12 +229,30 @@ def match_chunk(
 ) -> list[RuleMatch]:
     """Run a category's rules against a single text chunk.
 
-    Two-pass matching:
-    1. Score the heading for topic relevance (heading_boost)
-    2. Scan text for pattern matches, boosting confidence if heading matched
+    Three-pass matching:
+    1. Check heading exclusions -- if excluded, return [] immediately
+    2. Score the heading for topic relevance (affinity adjustment)
+    3. Scan text for pattern matches, adjusting confidence based on heading affinity
     """
+    # Pass 1: Heading exclusion gate
+    if _heading_excluded(chunk.title, getattr(chunk, 'parent_title', None), rules):
+        return []
+
+    # Pass 2: Heading affinity scoring
     heading_score = score_heading(chunk.title, rules)
-    heading_boost = 0.10 if heading_score >= 0.3 else 0.0
+    # Also check parent title for heading affinity
+    parent_title = getattr(chunk, 'parent_title', None)
+    if parent_title:
+        parent_heading_score = score_heading(parent_title, rules)
+        heading_score = max(heading_score, parent_heading_score)
+
+    # Heading affinity adjustment (replaces flat +0.10 boost)
+    if heading_score >= 0.5:
+        heading_adjust = 0.05   # Strong heading match confirms topic
+    elif heading_score >= 0.3:
+        heading_adjust = 0.0    # Weak match -- neutral
+    else:
+        heading_adjust = -0.15  # Zero affinity -- likely cross-category FP
 
     # Split chunk text into paragraphs (double newline or 2+ blank lines)
     paragraphs = _split_paragraphs(chunk.text)
@@ -207,20 +268,20 @@ def match_chunk(
             if not m:
                 continue
 
-            # Extract the matching sentence/context
-            matched_text = _extract_sentence_context(para_text, m.start(), m.end())
-            if not matched_text or len(matched_text) < 10:
+            # Use the full paragraph as the matched text
+            matched_text = para_text.strip()
+            if not matched_text or len(matched_text) < 80:
                 continue
 
-            abs_start = chunk.char_start + para_offset + m.start()
-            abs_end = abs_start + len(matched_text)
+            # Cap at 3000 chars
+            if len(matched_text) > 3000:
+                matched_text = matched_text[:2997] + "..."
 
-            # Compute confidence
-            raw_confidence = tp.confidence + heading_boost
-            # Extra boost if heading strongly matches
-            if heading_score >= 0.5:
-                raw_confidence += 0.05
-            confidence = min(raw_confidence, 0.99)
+            abs_start = chunk.char_start + para_offset
+            abs_end = abs_start + len(para_text)
+
+            # Compute confidence with heading affinity
+            confidence = min(tp.confidence + heading_adjust, 0.99)
 
             if confidence < min_confidence:
                 continue
@@ -287,21 +348,72 @@ def match_text_all_categories(
     return all_matches
 
 
+_MERGE_CONJUNCTIONS = re.compile(
+    r"^(?:and|or|but|provided|except|however|furthermore|moreover|additionally|including)\b",
+    re.IGNORECASE,
+)
+
+
+def _should_merge(prev_text: str, curr_text: str) -> bool:
+    """Decide whether curr_text is a fragment that should merge into prev_text.
+
+    Merge when:
+    - Current starts with lowercase (continuation of prior sentence)
+    - Current starts with a conjunction (and, or, but, provided, except, however)
+    - Previous ends without sentence-terminal punctuation and current starts with
+      non-heading text (no Article/Section prefix)
+    """
+    if not prev_text or not curr_text:
+        return False
+    first_char = curr_text[0]
+    # Starts lowercase -> continuation fragment
+    if first_char.islower():
+        return True
+    # Starts with a conjunction
+    if _MERGE_CONJUNCTIONS.match(curr_text):
+        return True
+    # Previous lacks terminal punctuation and current isn't a heading
+    if prev_text[-1] not in ".!?;:" and not re.match(
+        r"^(?:ARTICLE|SECTION|Art\.|Sec\.)\s", curr_text
+    ):
+        if first_char.isupper() and not curr_text[:1].isnumeric():
+            # Could be a real new paragraph -- only merge if short
+            return len(curr_text) < 120
+    return False
+
+
 def _split_paragraphs(text: str) -> list[tuple[str, int]]:
-    """Split text into paragraphs with their offsets within the text."""
-    paragraphs: list[tuple[str, int]] = []
-    # Split on double newlines or lines that are mostly whitespace
+    """Split text into paragraphs with their offsets, merging fragments.
+
+    Fragments (mid-sentence breaks from PDF soft wraps) are merged into the
+    preceding paragraph to avoid returning incomplete provisions.
+    """
+    # Step 1: split on double newlines
     parts = re.split(r"\n\s*\n", text)
+
+    # Step 2: locate each part and collect raw segments
+    raw: list[tuple[str, int]] = []
     offset = 0
     for part in parts:
         stripped = part.strip()
-        if stripped and len(stripped) >= 15:
-            # Find the actual position in the original text
-            idx = text.find(part, offset)
-            if idx >= 0:
-                paragraphs.append((stripped, idx))
-                offset = idx + len(part)
-    return paragraphs
+        if not stripped:
+            continue
+        idx = text.find(part, offset)
+        if idx >= 0:
+            raw.append((stripped, idx))
+            offset = idx + len(part)
+
+    # Step 3: merge fragments into previous paragraph
+    merged: list[tuple[str, int]] = []
+    for seg_text, seg_offset in raw:
+        if merged and _should_merge(merged[-1][0], seg_text):
+            prev_text, prev_offset = merged[-1]
+            merged[-1] = (prev_text + " " + seg_text, prev_offset)
+        else:
+            merged.append((seg_text, seg_offset))
+
+    # Step 4: filter by minimum length (80 chars -- match_chunk already rejects <80)
+    return [(t, o) for t, o in merged if len(t) >= 80]
 
 
 def _is_negative(text: str, rules: CategoryRules) -> bool:
@@ -313,42 +425,65 @@ def _is_negative(text: str, rules: CategoryRules) -> bool:
 
 
 def _extract_sentence_context(text: str, match_start: int, match_end: int) -> str:
-    """Extract the sentence containing the match, with some context.
+    """Extract the provision text containing the match with enough context.
 
-    Fix 7: If the last sentence is incomplete (no terminal punctuation), extend up
-    to 200 additional characters to find a sentence boundary.
+    Strategy: capture the sentence containing the match, then expand in both
+    directions until we have at least MIN_PROVISION_CHARS of text. This prevents
+    returning useless fragments like "There shall be paid the following:"
+    without the actual details that follow.
     """
-    # Find sentence boundaries
-    sentence_ends = [m.end() for m in re.finditer(r"[.!?;:]\s+", text)]
-    sentence_ends.append(len(text))
+    MIN_PROVISION_CHARS = 150
 
-    # Find start of sentence containing match
-    sent_start = 0
-    for end in sentence_ends:
-        if end > match_start:
+    # Find sentence boundaries (periods, colons, semicolons followed by whitespace)
+    boundaries = [0]
+    for m in re.finditer(r"[.!?;]\s+", text):
+        boundaries.append(m.end())
+    # Colons that introduce lists/details should NOT be boundaries -- they start
+    # the substantive content we want to capture. Only treat colon as boundary
+    # if followed by a capital letter (new sentence) not a list/number.
+    for m in re.finditer(r":\s+(?=[A-Z])", text):
+        boundaries.append(m.end())
+    boundaries.append(len(text))
+    boundaries = sorted(set(boundaries))
+
+    # Find which boundary segment contains the match
+    seg_start_idx = 0
+    for i, b in enumerate(boundaries):
+        if b > match_start:
             break
-        sent_start = end
-
-    # Find end of sentence containing match
-    sent_end = len(text)
-    for end in sentence_ends:
-        if end >= match_end:
-            sent_end = end
+        seg_start_idx = i
+    seg_end_idx = len(boundaries) - 1
+    for i, b in enumerate(boundaries):
+        if b >= match_end:
+            seg_end_idx = i
             break
 
+    sent_start = boundaries[seg_start_idx]
+    sent_end = boundaries[seg_end_idx]
     result = text[sent_start:sent_end].strip()
 
-    # Fix 7: Check if text ends mid-sentence and extend if possible
+    # Expand forward if too short -- the details usually follow the match
+    while len(result) < MIN_PROVISION_CHARS and seg_end_idx < len(boundaries) - 1:
+        seg_end_idx += 1
+        sent_end = boundaries[seg_end_idx]
+        result = text[sent_start:sent_end].strip()
+
+    # Expand backward if still too short
+    while len(result) < MIN_PROVISION_CHARS and seg_start_idx > 0:
+        seg_start_idx -= 1
+        sent_start = boundaries[seg_start_idx]
+        result = text[sent_start:sent_end].strip()
+
+    # If text ends mid-sentence, extend to find a boundary
     if result and result[-1] not in ".!?;:":
-        # Look for a sentence boundary in the next 200 chars beyond sent_end
-        continuation = text[sent_end:sent_end + 200]
-        boundary = re.search(r"[.!?;:]\s", continuation)
+        continuation = text[sent_end:sent_end + 300]
+        boundary = re.search(r"[.!?;]\s", continuation)
         if boundary:
             result = text[sent_start:sent_end + boundary.end()].strip()
 
-    # Cap at 1500 chars (capture full clause, not just one sentence)
-    if len(result) > 1500:
-        result = result[:1497] + "..."
+    # Cap at 2000 chars
+    if len(result) > 2000:
+        result = result[:1997] + "..."
     return result
 
 
