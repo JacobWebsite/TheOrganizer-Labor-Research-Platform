@@ -30,11 +30,31 @@ from db_config import get_connection
 DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def load_edges(csv_paths):
+def load_reject_list(path):
+    """Load the hierarchy_filter CSV produced by analyze_validation_results.py.
+    Returns a set of lowercase parent_candidate_name strings that should be
+    excluded from the hierarchy (clusters with >30% UNRELATED/BROKEN verdicts
+    from the Haiku validation batch)."""
+    if not path or not os.path.exists(path):
+        return set()
+    rejects = set()
+    with open(path, 'r', encoding='utf-8') as f:
+        for r in csv.DictReader(f):
+            name = (r.get('parent_candidate_name') or '').strip().lower()
+            if name:
+                rejects.add(name)
+    return rejects
+
+
+def load_edges(csv_paths, reject_parents=None):
     """Read edges from one or more hierarchy_edges CSV files. Dedupe on
-    (rule, child_master_id, parent_master_id_or_cluster_name)."""
+    (rule, child_master_id, parent_master_id_or_cluster_name). If
+    reject_parents is provided, H4 edges with a matching parent_candidate_name
+    (case-folded) are skipped."""
+    reject_parents = reject_parents or set()
     seen = set()
     rows = []
+    skipped_reject = 0
     for path in csv_paths:
         if not os.path.exists(path):
             print(f'SKIP (not found): {path}')
@@ -45,9 +65,14 @@ def load_edges(csv_paths):
                 rule = (r.get('rule') or '').strip()
                 if not rule:
                     continue
+                # Reject filter: skip H4 edges whose parent is on the reject list
+                if rule == 'H4' and reject_parents:
+                    pname = (r.get('parent_candidate_name') or '').strip().lower()
+                    if pname in reject_parents:
+                        skipped_reject += 1
+                        continue
                 # Build dedup key
                 if rule == 'H4':
-                    # sibling pair — dedup by (rule, sorted(child_ids))
                     m1 = int(r['master_id_1']) if r.get('master_id_1') else None
                     m2 = int(r['master_id_2']) if r.get('master_id_2') else None
                     if m1 is None or m2 is None:
@@ -65,6 +90,9 @@ def load_edges(csv_paths):
                     continue
                 seen.add(key)
                 rows.append(r)
+    if reject_parents:
+        print(f'  filtered {skipped_reject:,} H4 edges via reject list '
+              f'({len(reject_parents)} parent clusters)')
     return rows
 
 
@@ -137,14 +165,22 @@ def main():
                     help='required with --apply for safety')
     ap.add_argument('--source', default='rule_engine_v1',
                     help='source label for inserted rows')
+    ap.add_argument('--reject-parents', default=None,
+                    help='path to hierarchy_filter CSV (excludes H4 edges with '
+                         'parent_candidate_name on the reject list)')
     args = ap.parse_args()
 
     if args.apply and not args.yes:
         print('ERROR: --apply requires --yes')
         return 1
 
+    reject_parents = load_reject_list(args.reject_parents)
+    if reject_parents:
+        print(f'Loaded {len(reject_parents)} rejected parent clusters '
+              f'from {args.reject_parents}')
+
     print(f'Reading {len(args.csv)} edge file(s)...')
-    edges = load_edges(args.csv)
+    edges = load_edges(args.csv, reject_parents=reject_parents)
     print(f'  {len(edges):,} unique edges loaded')
 
     insert_rows, cluster_count = build_insert_rows(edges)

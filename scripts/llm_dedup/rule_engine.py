@@ -272,16 +272,76 @@ class Classification:
     expected_precision: float  # from validation on 31,532 Haiku-labeled pairs
 
 
+def is_person_name_cluster(p):
+    """Detect pairs that look like reversed person names (LASTNAME FirstInit
+    / LASTNAME OtherInit) -- these get falsely clustered as siblings under a
+    shared last+first prefix. From 2026-04-21 Haiku validation: 'williams
+    james', 'jones william', 'smith david' etc. produced 100% UNRELATED
+    verdicts because they are different people.
+
+    Heuristic: both canonical names match the pattern
+      <word> <word> <single-letter-or-period>
+    and the first two tokens are identical. That's the false-sibling shape.
+    """
+    a, b = _name_pair(p)
+    na = normalize_punct_only(a); nb = normalize_punct_only(b)
+    if not na or not nb:
+        return False
+    t1 = na.split(); t2 = nb.split()
+    # Require exactly 3 tokens each, with the 3rd being a single letter
+    if len(t1) != 3 or len(t2) != 3:
+        return False
+    if len(t1[2]) > 2 or len(t2[2]) > 2:
+        return False
+    # Require first two tokens to match exactly (the spurious "parent" prefix)
+    if t1[0] != t2[0] or t1[1] != t2[1]:
+        return False
+    # The 3rd tokens must differ (otherwise it's a genuine dup)
+    if t1[2] == t2[2]:
+        return False
+    return True
+
+
+def has_ein_conflict(p):
+    """True when both records have an EIN and the EINs differ. Derived from
+    raw ein fields (ein_1/ein_2) or from pre-computed ein_conflict score."""
+    if p.get('ein_conflict'):
+        return True
+    e1 = (p.get('ein_1') or '').strip()
+    e2 = (p.get('ein_2') or '').strip()
+    return bool(e1 and e2 and e1 != e2)
+
+
 def classify_pair_v2(p) -> Classification:
-    # H4 runs first as a short-circuit -- any pair differing only by a
+    # Person-name demoter: pairs like "WILLIAMS JAMES K" vs "WILLIAMS JAMES P"
+    # are different people, never the same entity and never siblings.
+    # Catches the 2026-04-21 validation finding where H4 was falsely clustering
+    # these under a shared "lastname firstname" parent candidate.
+    if is_person_name_cluster(p):
+        return Classification('tier_series_demoted', 'person_name_block',
+                              'NOT_MERGE', 1.00)
+
+    # H4 runs next as a short-circuit -- any pair differing only by a
     # trailing series/numeric is NEVER a true duplicate (100% precision).
     if h4_series_anti_dup(p):
         return Classification('tier_series_demoted', 'H4', 'NOT_MERGE', 1.00)
 
+    # EIN conflict veto: if both records have different EINs, no rule can
+    # produce a DUPLICATE verdict (R1 from the validation prompt). Catches
+    # the 2026-04-21 finding that H2+H6 was ignoring ein_conflict and
+    # producing 60 false Tier B merges out of 5,013 firings (~1.2% leak).
+    # Exception: H11 acronym match is still valid because acronym collisions
+    # across EINs are extremely rare and usually the EIN field is bad data.
+    ein_conflict = has_ein_conflict(p)
+
     # Tier A: >=96% precision combinations -- safe to auto-merge.
     if h2_legal_form_agnostic(p) and h3_cross_src_zip_name(p):
+        if ein_conflict:
+            return Classification('tier_C_review', 'H2+H3_ein_veto', 'REVIEW', 0.70)
         return Classification('tier_A_auto_merge', 'H2+H3', 'DUPLICATE_HIGH', 0.96)
     if h6_space_collapse_zip(p) and h3_cross_src_zip_name(p):
+        if ein_conflict:
+            return Classification('tier_C_review', 'H6+H3_ein_veto', 'REVIEW', 0.70)
         return Classification('tier_A_auto_merge', 'H6+H3', 'DUPLICATE_HIGH', 0.96)
     if h11_acronym_match(p):
         return Classification('tier_A_auto_merge', 'H11', 'DUPLICATE_HIGH', 1.00)
@@ -292,6 +352,8 @@ def classify_pair_v2(p) -> Classification:
     # drop to ~65-70% precision once those cases are removed, so they go
     # to Tier C (review queue) instead.
     if h2_legal_form_agnostic(p) and h6_space_collapse_zip(p):
+        if ein_conflict:
+            return Classification('tier_C_review', 'H2+H6_ein_veto', 'REVIEW', 0.70)
         return Classification('tier_B_high_conf', 'H2+H6', 'DUPLICATE_MED', 0.91)
 
     # Tier C: 50-90% precision -- review queue.
@@ -323,7 +385,11 @@ def pair_from_candidate(c) -> dict:
         'source_2': c.get('source_2'),
         'zip_1': c.get('zip_1'),
         'zip_2': c.get('zip_2'),
+        'ein_1': c.get('ein_1'),
+        'ein_2': c.get('ein_2'),
         'name_standard_sim': s.get('name_standard_sim', 0),
         'name_aggressive_sim': s.get('name_aggressive_sim', 0),
         'zip5_match': s.get('zip5_match', 0),
+        'ein_match': s.get('ein_match', 0),
+        'ein_conflict': s.get('ein_conflict', 0),
     }
