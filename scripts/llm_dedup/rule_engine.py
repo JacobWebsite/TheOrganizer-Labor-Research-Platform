@@ -260,6 +260,125 @@ def h12_activity_suffix(p):
 
 
 # ---------------------------------------------------------------------------
+# H13-H17: rules added 2026-04-21 based on the 39K Haiku validation batch.
+#
+# Each catches a DUP pattern that the pre-2026-04-21 engine left in Tier C.
+# Expected additional volume at national scale (all 50 states):
+#   H13 (EIN match alone)          ~3,300 merges
+#   H14 (H3 + H1 combo)              ~400 merges
+#   H15 (DBA-stripped name match)  ~1,800 merges
+#   H16 (source diverse + address) ~3,100 merges
+# Total: ~8,600 additional merges beyond the existing rule engine.
+# ---------------------------------------------------------------------------
+
+def h13_ein_match_alone(p):
+    """Both records share the same EIN (federal tax ID). EIN is per-legal-entity
+    by IRS rule, so an exact EIN match is the single strongest DUP signal we
+    have -- stronger than any name-based rule.
+
+    Precision guard: require name_standard_sim >= 0.5 so that data-quality
+    fallback EINs (e.g., a shared '000000000' or entity-level shared group
+    EIN for related nonprofits) don't cause false merges on totally
+    different names.
+
+    Identified 41 DUPs in the 2026-04-21 18-state validation sample that our
+    prior rule set left in Tier C review with the ein_match flag set.
+    """
+    # Prefer the pre-computed score; fall back to raw ein fields
+    has_match = bool(p.get('ein_match'))
+    if not has_match:
+        e1 = (p.get('ein_1') or '').strip()
+        e2 = (p.get('ein_2') or '').strip()
+        has_match = bool(e1 and e2 and e1 == e2)
+    if not has_match:
+        return False
+    # Name similarity floor: 0.5 catches minor variants and abbreviations,
+    # rejects wildly-different names that happen to share a fallback EIN.
+    max_sim = max(p.get('name_standard_sim', 0) or 0,
+                  p.get('name_aggressive_sim', 0) or 0)
+    return max_sim >= 0.5
+
+
+def h14_cross_src_punct_invariant(p):
+    """H3 (cross-source, same ZIP, similar names) + H1 (punctuation-invariant
+    exact match). The cross-source corroboration + exact name after
+    punctuation strip is strong evidence of DUPLICATE at Tier B precision.
+
+    Identified 6 of 7 DUPs (85.7% precision) in the 2026-04-21 Tier C bucket.
+    """
+    return h3_cross_src_zip_name(p) and h1_punct_invariant(p)
+
+
+DBA_CLEANUP_RE = re.compile(
+    r'\s+(?:d[\./]?b[\./]?a|doing\s+business\s+as|dba\b|aka|fka|formerly)\s+.+$',
+    re.IGNORECASE,
+)
+
+
+def _strip_dba(name: str) -> str:
+    """Strip a trailing 'DBA ...' / 'd/b/a ...' / 'aka ...' / 'fka ...'
+    clause from a name. Preserves everything before the DBA marker."""
+    if not name:
+        return ''
+    return DBA_CLEANUP_RE.sub('', name).strip()
+
+
+def h15_dba_alias_match(p):
+    """One record has a 'DBA X' / 'd/b/a X' / 'aka X' suffix and the other
+    doesn't, but the pre-DBA name is identical. Example:
+      'SF MARKETS, LLC' vs 'SF MARKETS, LLC DBA SPROUTS FARMERS MARKET'
+    -> strip DBA -> both become 'SF MARKETS, LLC' -> DUP.
+
+    Requires same ZIP to guard against unrelated businesses coincidentally
+    sharing a DBA prefix.
+
+    Identified 23 DUPs in the 2026-04-21 Tier C bucket with dba_alias signal.
+    """
+    if p.get('zip5_match', 0) < 1.0:
+        return False
+    a = p.get('canonical_name_1') or p.get('display_name_1') or ''
+    b = p.get('canonical_name_2') or p.get('display_name_2') or ''
+    a_stripped = _strip_dba(a)
+    b_stripped = _strip_dba(b)
+    # Only fire if DBA stripping actually CHANGED at least one name --
+    # otherwise we'd double-count H2 matches.
+    if a_stripped == a and b_stripped == b:
+        return False
+    na = normalize_all(a_stripped)
+    nb = normalize_all(b_stripped)
+    return bool(na) and bool(nb) and len(na) >= 4 and na == nb
+
+
+def h16_source_diverse_address(p):
+    """Strong DUPLICATE signal: two different source systems (independent
+    data captures) that agree on name AFTER punctuation strip AND agree on
+    full address (same city + same ZIP). When sources don't coordinate but
+    produce the same name at the same address, it's the strongest positive
+    corroboration we have short of matching EINs.
+
+    Tighter than H3 (which requires only ZIP), so earns Tier A.
+
+    Identified 39 DUPs in the 2026-04-21 Tier C bucket with
+    source_diversity_agree signal; this rule + the city-match guard gets us
+    most of them with Tier A precision.
+    """
+    s1 = (p.get('source_1') or '').strip().lower()
+    s2 = (p.get('source_2') or '').strip().lower()
+    if not s1 or not s2 or s1 == s2:
+        return False
+    if p.get('zip5_match', 0) < 1.0:
+        return False
+    c1 = (p.get('city_1') or '').strip().lower()
+    c2 = (p.get('city_2') or '').strip().lower()
+    if not c1 or not c2 or c1 != c2:
+        return False
+    # Punctuation-invariant name match as the name floor
+    if not h1_punct_invariant(p):
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Tier engine
 # ---------------------------------------------------------------------------
 
@@ -335,6 +454,28 @@ def classify_pair_v2(p) -> Classification:
     ein_conflict = has_ein_conflict(p)
 
     # Tier A: >=96% precision combinations -- safe to auto-merge.
+    #
+    # H13 (EIN match alone with name floor) runs FIRST in Tier A because EIN
+    # is the strongest single DUP signal we have. If EIN match fires but
+    # ein_conflict is somehow also set (shouldn't happen), the ein_conflict
+    # veto above already blocked us.
+    if h13_ein_match_alone(p):
+        return Classification('tier_A_auto_merge', 'H13', 'DUPLICATE_HIGH', 0.97)
+
+    # H16 (source diverse + full address + name match) also Tier A -- the
+    # source-diversity + city+zip+name combo is tighter than H3 alone.
+    if h16_source_diverse_address(p):
+        if ein_conflict:
+            return Classification('tier_C_review', 'H16_ein_veto', 'REVIEW', 0.70)
+        return Classification('tier_A_auto_merge', 'H16', 'DUPLICATE_HIGH', 0.96)
+
+    # H15 (DBA-stripped name match + zip match) also Tier A -- DBA aliases
+    # are extremely specific to a single legal entity.
+    if h15_dba_alias_match(p):
+        if ein_conflict:
+            return Classification('tier_C_review', 'H15_ein_veto', 'REVIEW', 0.70)
+        return Classification('tier_A_auto_merge', 'H15', 'DUPLICATE_HIGH', 0.98)
+
     if h2_legal_form_agnostic(p) and h3_cross_src_zip_name(p):
         if ein_conflict:
             return Classification('tier_C_review', 'H2+H3_ein_veto', 'REVIEW', 0.70)
@@ -355,6 +496,13 @@ def classify_pair_v2(p) -> Classification:
         if ein_conflict:
             return Classification('tier_C_review', 'H2+H6_ein_veto', 'REVIEW', 0.70)
         return Classification('tier_B_high_conf', 'H2+H6', 'DUPLICATE_MED', 0.91)
+
+    # H14 (H3 cross-source + H1 punctuation-invariant) also Tier B.
+    # Validated at 85.7% precision in 2026-04-21 Tier C residual.
+    if h14_cross_src_punct_invariant(p):
+        if ein_conflict:
+            return Classification('tier_C_review', 'H14_ein_veto', 'REVIEW', 0.70)
+        return Classification('tier_B_high_conf', 'H14', 'DUPLICATE_MED', 0.86)
 
     # Tier C: 50-90% precision -- review queue.
     fired = []
@@ -387,6 +535,8 @@ def pair_from_candidate(c) -> dict:
         'zip_2': c.get('zip_2'),
         'ein_1': c.get('ein_1'),
         'ein_2': c.get('ein_2'),
+        'city_1': c.get('city_1'),
+        'city_2': c.get('city_2'),
         'name_standard_sim': s.get('name_standard_sim', 0),
         'name_aggressive_sim': s.get('name_aggressive_sim', 0),
         'zip5_match': s.get('zip5_match', 0),
