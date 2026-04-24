@@ -221,7 +221,7 @@ def test_no_null_primary_keys(db):
             failures.append(f"{table}.{pk_col}: {null_count} NULLs")
 
     assert len(failures) == 0, (
-        f"NULL primary keys found:\n" + "\n".join(failures)
+        "NULL primary keys found:\n" + "\n".join(failures)
     )
 
 
@@ -323,19 +323,21 @@ def test_employer_comparables_populated(db):
     """)
     assert bad_dist == 0, f"Found {bad_dist} rows with distance outside [0,1]"
 
-    # No orphan employer_ids
+    # No orphan employer_ids — since the 2026-04-01 Gower overhaul, the comparables
+    # universe is `mv_employer_features.employer_id` (= master_employers.master_id cast
+    # to bigint), not the pre-overhaul `mergent_employers.id`.
     orphans = query_one(db, """
         SELECT COUNT(*) FROM employer_comparables ec
-        LEFT JOIN mergent_employers me ON me.id = ec.employer_id
-        WHERE me.id IS NULL
+        LEFT JOIN mv_employer_features mvef ON mvef.employer_id = ec.employer_id
+        WHERE mvef.employer_id IS NULL
     """)
     assert orphans == 0, f"Found {orphans} orphan employer_ids in comparables"
 
     # No orphan comparable_employer_ids
     orphans2 = query_one(db, """
         SELECT COUNT(*) FROM employer_comparables ec
-        LEFT JOIN mergent_employers me ON me.id = ec.comparable_employer_id
-        WHERE me.id IS NULL
+        LEFT JOIN mv_employer_features mvef ON mvef.employer_id = ec.comparable_employer_id
+        WHERE mvef.employer_id IS NULL
     """)
     assert orphans2 == 0, f"Found {orphans2} orphan comparable_employer_ids"
 

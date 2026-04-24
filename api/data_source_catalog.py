@@ -1,6 +1,6 @@
 """Canonical data source inventory for the Labor Relations Research Platform."""
 
-DATA_SOURCE_INVENTORY_LAST_UPDATED = "2026-03-04"
+DATA_SOURCE_INVENTORY_LAST_UPDATED = "2026-04-24"
 
 DATA_SOURCE_GROUPS = [
     {
@@ -53,6 +53,11 @@ DATA_SOURCE_GROUPS = [
         "title": "Specialized / Regional",
         "order": 10,
     },
+    {
+        "group_id": "state_local_contracts",
+        "title": "State & Local Contracts (3-State Beta)",
+        "order": 11,
+    },
 ]
 
 # Notes:
@@ -67,7 +72,8 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~146,863 employers (67,500 current + 79,000 historical)",
         "description": "Comprehensive registry of union-employer bargaining relationships.",
         "count_query": "SELECT COUNT(*) FROM f7_employers_deduped",
-        "date_query": None,
+        # latest_notice_date is TEXT; filter to valid YYYY-MM-DD values before cast.
+        "date_query": "SELECT MIN(CASE WHEN latest_notice_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN latest_notice_date::date END), MAX(CASE WHEN latest_notice_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN latest_notice_date::date END) FROM f7_employers_deduped",
         "freshness_notes": "FMCS / DOL F-7 employer-union relationships",
     },
     {
@@ -144,7 +150,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~2,000 series + ~370,000 data points",
         "description": "Hires, quits, openings, and separations by industry.",
         "count_query": "SELECT (SELECT COUNT(*) FROM bls_jolts_series) + (SELECT COUNT(*) FROM bls_jolts_data)",
-        "date_query": None,
+        "date_query": "SELECT make_date(MIN(year), 1, 1), make_date(MAX(year), 12, 31) FROM bls_jolts_data WHERE year IS NOT NULL",
         "freshness_notes": "BLS JOLTS labor turnover",
     },
     {
@@ -155,7 +161,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~100,000 series + ~768,000 data points",
         "description": "Benefit access rates by industry and worker segment.",
         "count_query": "SELECT (SELECT COUNT(*) FROM bls_ncs_series) + (SELECT COUNT(*) FROM bls_ncs_data)",
-        "date_query": None,
+        "date_query": "SELECT make_date(MIN(year), 1, 1), make_date(MAX(year), 12, 31) FROM bls_ncs_data WHERE year IS NOT NULL",
         "freshness_notes": "BLS NCS benefits access",
     },
     {
@@ -193,14 +199,14 @@ DATA_SOURCE_ENTRIES = [
     },
     {
         "source_name": "sec_edgar",
-        "display_name": "SEC EDGAR Companies",
+        "display_name": "SEC EDGAR Companies & Financials",
         "group_id": "corporate_identity_hierarchy",
-        "tables": ["sec_companies"],
-        "record_count_note": "~517,000 companies",
-        "description": "Public-company identifiers and filing-derived attributes.",
-        "count_query": "SELECT COUNT(*) FROM sec_companies",
-        "date_query": None,
-        "freshness_notes": "SEC EDGAR company registry",
+        "tables": ["sec_companies", "sec_xbrl_financials"],
+        "record_count_note": "~517,000 companies, ~249,000 annual financial records",
+        "description": "Public-company identifiers and XBRL-derived annual financials (revenue, net income, assets, liabilities, cash, debt).",
+        "count_query": "SELECT (SELECT COUNT(*) FROM sec_companies) + (SELECT COUNT(*) FROM sec_xbrl_financials)",
+        "date_query": "SELECT MAX(fiscal_year_end) FROM sec_xbrl_financials",
+        "freshness_notes": "SEC EDGAR company registry + XBRL bulk companyfacts",
     },
     {
         "source_name": "gleif_ownership",
@@ -221,7 +227,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~1.4M companies + ~3.5M relationships",
         "description": "Historical and deep corporate parent-subsidiary structure.",
         "count_query": "SELECT (SELECT COUNT(*) FROM corpwatch_companies) + (SELECT COUNT(*) FROM corpwatch_relationships)",
-        "date_query": None,
+        "date_query": "SELECT make_date(MIN(min_year), 1, 1), make_date(MAX(max_year), 12, 31) FROM corpwatch_companies",
         "freshness_notes": "CorpWatch company and relationship graph",
     },
     {
@@ -232,7 +238,8 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~56,000 enriched companies",
         "description": "Private-company enrichment including revenue and employee counts.",
         "count_query": "SELECT COUNT(*) FROM mergent_employers",
-        "date_query": None,
+        # mergent_financials.year is INT; build Dec-31 date for range.
+        "date_query": "SELECT make_date(MIN(year), 12, 31), make_date(MAX(year), 12, 31) FROM mergent_financials WHERE year IS NOT NULL",
         "freshness_notes": "Mergent enriched employer profiles",
     },
     {
@@ -254,7 +261,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~826,000 entities",
         "description": "Federal contractor registration and entity attributes.",
         "count_query": "SELECT COUNT(*) FROM sam_entities",
-        "date_query": None,
+        "date_query": "SELECT MIN(last_update_date)::date, MAX(last_update_date)::date FROM sam_entities WHERE last_update_date IS NOT NULL",
         "freshness_notes": "SAM entity registry",
     },
     {
@@ -265,7 +272,8 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~94,000 recipients",
         "description": "Federal contract dollars by recipient and year.",
         "count_query": "SELECT COUNT(*) FROM cur_usaspending_recipient_rollup",
-        "date_query": None,
+        # earliest_fy / latest_fy are already scalars; treat fiscal year as ending Dec 31.
+        "date_query": "SELECT make_date(MIN(earliest_fy), 12, 31), make_date(MAX(latest_fy), 12, 31) FROM cur_usaspending_recipient_rollup WHERE latest_fy IS NOT NULL",
         "freshness_notes": "Federal obligations by contractor recipient",
     },
     {
@@ -276,7 +284,8 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~587,000 filers + ~1M deduped + ~20,000 F-7 matches",
         "description": "IRS nonprofit financial and leadership filings.",
         "count_query": "SELECT (SELECT COUNT(*) FROM national_990_filers) + (SELECT COUNT(*) FROM employers_990_deduped) + (SELECT COUNT(*) FROM national_990_f7_matches)",
-        "date_query": None,
+        # tax_year is INT; treat as Dec-31 of that year for range.
+        "date_query": "SELECT make_date(MIN(tax_year), 12, 31), make_date(MAX(tax_year), 12, 31) FROM national_990_filers WHERE tax_year IS NOT NULL",
         "freshness_notes": "IRS Form 990 and match outputs",
     },
     {
@@ -287,7 +296,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~300,000 tax-exempt organizations",
         "description": "Tax-exempt classification and ruling metadata.",
         "count_query": "SELECT COUNT(*) FROM irs_bmf",
-        "date_query": None,
+        "date_query": "SELECT MIN(ruling_date), MAX(ruling_date) FROM irs_bmf WHERE ruling_date BETWEEN '1950-01-01' AND CURRENT_DATE",
         "freshness_notes": "IRS BMF organization registry",
     },
     {
@@ -298,7 +307,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~259,000 sponsors",
         "description": "Employer retirement and health plan sponsor rollups.",
         "count_query": "SELECT COUNT(*) FROM cur_form5500_sponsor_rollup",
-        "date_query": None,
+        "date_query": "SELECT make_date(MIN(earliest_plan_year) FILTER (WHERE earliest_plan_year BETWEEN 1974 AND 2100), 1, 1), make_date(MAX(latest_plan_year) FILTER (WHERE latest_plan_year BETWEEN 1974 AND EXTRACT(YEAR FROM CURRENT_DATE)::int + 1), 12, 31) FROM cur_form5500_sponsor_rollup",
         "freshness_notes": "Form 5500 sponsor-level rollups",
     },
     {
@@ -309,7 +318,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~9.5M borrowers",
         "description": "PPP loan and forgiveness records with reported jobs.",
         "count_query": "SELECT COUNT(*) FROM cur_ppp_employer_rollup",
-        "date_query": None,
+        "date_query": "SELECT MIN(earliest_date_approved), MAX(latest_date_approved) FROM cur_ppp_employer_rollup WHERE latest_date_approved IS NOT NULL",
         "freshness_notes": "PPP employer rollup",
     },
     {
@@ -331,7 +340,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~1.5M rows",
         "description": "County x industry establishment and employment counts.",
         "count_query": "SELECT COUNT(*) FROM cur_cbp_geo_naics",
-        "date_query": None,
+        "date_query": "SELECT make_date(MIN(data_year::int), 1, 1), make_date(MAX(data_year::int), 12, 31) FROM cur_cbp_geo_naics WHERE data_year ~ '^[0-9]{4}$'",
         "freshness_notes": "Census County Business Patterns",
     },
     {
@@ -353,7 +362,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~112,000 rows",
         "description": "Ownership diversity indicators by state and industry.",
         "count_query": "SELECT COUNT(*) FROM cur_abs_geo_naics",
-        "date_query": None,
+        "date_query": "SELECT make_date(MIN(vintage::int), 1, 1), make_date(MAX(vintage::int), 12, 31) FROM cur_abs_geo_naics WHERE vintage ~ '^[0-9]{4}$'",
         "freshness_notes": "Census ABS firm demographics",
     },
     {
@@ -364,7 +373,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "Ratios by industry and geography",
         "description": "Economic Census revenue-to-employment benchmark ratios.",
         "count_query": "SELECT COUNT(*) FROM census_rpe_ratios",
-        "date_query": None,
+        "date_query": "SELECT make_date(MIN(year), 1, 1), make_date(MAX(year), 12, 31) FROM census_rpe_ratios WHERE year IS NOT NULL",
         "freshness_notes": "Economic Census revenue-per-employee ratios",
     },
     {
@@ -463,7 +472,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "Contract texts plus 14 provision categories",
         "description": "Collective bargaining agreement texts and extracted clauses.",
         "count_query": "SELECT (SELECT COUNT(*) FROM cba_documents) + (SELECT COUNT(*) FROM cba_provisions) + (SELECT COUNT(*) FROM cba_categories)",
-        "date_query": None,
+        "date_query": "SELECT MIN(effective_date), MAX(expiration_date) FILTER (WHERE expiration_date < '2100-01-01') FROM cba_documents",
         "freshness_notes": "CBA corpus and provision extraction",
     },
     {
@@ -474,7 +483,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "24 parent unions, 1,520 locals, 7,987 employers, 438 units",
         "description": "Public-sector union structures and bargaining units.",
         "count_query": "SELECT (SELECT COUNT(*) FROM ps_parent_unions) + (SELECT COUNT(*) FROM ps_union_locals) + (SELECT COUNT(*) FROM ps_employers) + (SELECT COUNT(*) FROM ps_bargaining_units)",
-        "date_query": None,
+        "date_query": "SELECT MIN(contract_start), MAX(contract_end) FILTER (WHERE contract_end < '2100-01-01') FROM ps_bargaining_units",
         "freshness_notes": "Public-sector union and employer datasets",
     },
     {
@@ -496,8 +505,67 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~800 records",
         "description": "Union website intelligence for qualitative context.",
         "count_query": "SELECT (SELECT COUNT(*) FROM web_union_profiles) + (SELECT COUNT(*) FROM web_union_employers) + (SELECT COUNT(*) FROM web_union_news)",
-        "date_query": None,
+        "date_query": "SELECT MIN(last_scraped)::date, MAX(last_scraped)::date FROM web_union_profiles WHERE last_scraped IS NOT NULL",
         "freshness_notes": "Scraped union profiles, employers, and news",
+    },
+    # --- State/local contracts beta (NY/VA/OH) --------------------------------
+    # Added 2026-04-24. See Research/2026-04-24 - State Local Contracts Pilot Plan Weeks 1-3.md
+    # $ amounts in these sources are unreliable (NY ABO reports $1.2 quadrillion in
+    # aggregate due to typos; NYC Awards has $97T typos). source_count is the
+    # primary tier signal for score_contracts; $ values are only shown in UI with caps.
+    {
+        "source_name": "ny_state_local_contracts",
+        "display_name": "New York State/Local Contracts",
+        "group_id": "state_local_contracts",
+        "tables": ["state_contracts_ny_abo"],
+        "record_count_note": "~305,876 rows (NY Authorities Budget Office: 4 datasets — procurement, payments, real property, personal services)",
+        "description": "NY Authorities Budget Office contracts and payments across ~500 state and local authorities.",
+        "count_query": "SELECT COUNT(*) FROM state_contracts_ny_abo",
+        "date_query": "SELECT MIN(award_date), MAX(award_date) FROM state_contracts_ny_abo WHERE award_date IS NOT NULL",
+        "freshness_notes": "NY ABO procurement, payments, real property, personal services",
+    },
+    {
+        "source_name": "nyc_contracts_and_vendors",
+        "display_name": "NYC Contracts, Awards & Vendors",
+        "group_id": "state_local_contracts",
+        "tables": [
+            "state_contracts_nyc_contracts",
+            "state_contracts_nyc_awards",
+            "state_contracts_nyc_transactions",
+            "state_contracts_nyc_passport_vendors",
+        ],
+        "record_count_note": "~46,701 contracts (prime+sub) + ~50,306 awards + ~200,000 transactions + ~39,243 PASSPort vendors",
+        "description": "NYC Checkbook contracts (prime and sub-vendor), awards, transactions, and PASSPort vendor registry. Includes MWBE flags.",
+        "count_query": "SELECT (SELECT COUNT(*) FROM state_contracts_nyc_contracts) + (SELECT COUNT(*) FROM state_contracts_nyc_awards) + (SELECT COUNT(*) FROM state_contracts_nyc_transactions) + (SELECT COUNT(*) FROM state_contracts_nyc_passport_vendors)",
+        "date_query": "SELECT MIN(d), MAX(x) FROM (SELECT MIN(award_date) AS d, MAX(award_date) AS x FROM state_contracts_nyc_contracts UNION ALL SELECT MIN(award_date), MAX(award_date) FROM state_contracts_nyc_awards UNION ALL SELECT MIN(award_date), MAX(award_date) FROM state_contracts_nyc_transactions UNION ALL SELECT MIN(award_date), MAX(award_date) FROM state_contracts_nyc_passport_vendors) q WHERE d IS NOT NULL",
+        "freshness_notes": "NYC Checkbook + PASSPort (manual browser download; see NYC_CHECKBOOK_DOWNLOAD.md)",
+    },
+    {
+        "source_name": "va_state_local_contracts",
+        "display_name": "Virginia State/Local Contracts",
+        "group_id": "state_local_contracts",
+        "tables": ["state_contracts_va_eva", "state_contracts_va_richmond"],
+        "record_count_note": "~1,344,221 eVA rows + ~1,361 Richmond contracts",
+        "description": "Virginia eVA statewide procurement + Richmond municipal contracts.",
+        "count_query": "SELECT (SELECT COUNT(*) FROM state_contracts_va_eva) + (SELECT COUNT(*) FROM state_contracts_va_richmond)",
+        "date_query": "SELECT MIN(d), MAX(x) FROM (SELECT MIN(award_date) AS d, MAX(award_date) AS x FROM state_contracts_va_eva UNION ALL SELECT MIN(award_date), MAX(award_date) FROM state_contracts_va_richmond) q WHERE d IS NOT NULL",
+        "freshness_notes": "VA eVA statewide + City of Richmond",
+    },
+    {
+        "source_name": "oh_state_local_contracts",
+        "display_name": "Ohio State/Local Contracts",
+        "group_id": "state_local_contracts",
+        "tables": [
+            "state_contracts_oh_checkbook",
+            "state_contracts_oh_cincinnati",
+            "state_contracts_oh_columbus_vendors",
+            "state_contracts_oh_columbus_invoices",
+        ],
+        "record_count_note": "~2.8M OH Checkbook + ~1.2M Cincinnati payments + ~239,983 Columbus vendors + ~44,952 Columbus invoices",
+        "description": "Ohio statewide Checkbook + Cincinnati and Columbus municipal data.",
+        "count_query": "SELECT (SELECT COUNT(*) FROM state_contracts_oh_checkbook) + (SELECT COUNT(*) FROM state_contracts_oh_cincinnati) + (SELECT COUNT(*) FROM state_contracts_oh_columbus_vendors) + (SELECT COUNT(*) FROM state_contracts_oh_columbus_invoices)",
+        "date_query": "SELECT MIN(d), MAX(x) FROM (SELECT MIN(award_date) AS d, MAX(award_date) AS x FROM state_contracts_oh_checkbook UNION ALL SELECT MIN(award_date), MAX(award_date) FROM state_contracts_oh_cincinnati UNION ALL SELECT MIN(award_date), MAX(award_date) FROM state_contracts_oh_columbus_vendors UNION ALL SELECT MIN(award_date), MAX(award_date) FROM state_contracts_oh_columbus_invoices) q WHERE d IS NOT NULL",
+        "freshness_notes": "OH statewide Checkbook + Cincinnati + Columbus",
     },
 ]
 
