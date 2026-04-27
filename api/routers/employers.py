@@ -1003,17 +1003,77 @@ def get_similar_employers(
 
 @router.get("/api/employers/{employer_id}/data-sources")
 def get_employer_data_sources(employer_id: str):
-    """Get data source availability and corporate crosswalk for one employer."""
+    """Get data source availability for one employer.
+
+    Accepts F7 hex IDs (queries mv_employer_data_sources directly) AND integer
+    master IDs (with or without MASTER- prefix; mv_employer_data_sources is
+    F7-keyed, so the master path synthesizes a response from
+    mv_target_scorecard + state_local_contracts_master_matches). R7-15 fix.
+    """
+    is_master = False
+    if employer_id.startswith("MASTER-"):
+        employer_id = employer_id[len("MASTER-"):]
+        is_master = True
+    elif employer_id.isdigit():
+        # All-numeric IDs are master_ids; F7 IDs are 32-char hex. Catches calls
+        # like /api/employers/12345/data-sources without the prefix.
+        is_master = True
+
     with get_db() as conn:
         with conn.cursor() as cur:
+            if not is_master:
+                # F7 path (original behavior).
+                cur.execute("""
+                    SELECT * FROM mv_employer_data_sources
+                    WHERE employer_id = %s
+                """, [employer_id])
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="Employer not found")
+                return dict(row)
+
+            # Master path -- synthesize. mv_target_scorecard is master-keyed and
+            # has the has_* flags + is_federal_contractor; state-local fields come
+            # from state_local_contracts_master_matches.
+            try:
+                master_id_int = int(employer_id)
+            except ValueError:
+                raise HTTPException(status_code=404, detail="Master ID must be integer")
             cur.execute("""
-                SELECT * FROM mv_employer_data_sources
-                WHERE employer_id = %s
-            """, [employer_id])
+                SELECT master_id, canonical_name AS employer_name, state, naics,
+                       has_osha, has_nlrb, has_whd, has_sam, has_990,
+                       has_sec, has_mergent, has_research,
+                       source_count, is_federal_contractor
+                FROM mv_target_scorecard
+                WHERE master_id = %s
+            """, [master_id_int])
             row = cur.fetchone()
             if not row:
-                raise HTTPException(status_code=404, detail="Employer not found")
-            return dict(row)
+                raise HTTPException(status_code=404, detail="Master employer not found")
+            result = dict(row)
+            # Synthesize fields the frontend expects but that mv_target_scorecard
+            # doesn't carry. None for unknown so the JSX falls through gracefully.
+            result["employer_id"] = f"MASTER-{master_id_int}"
+            result["federal_obligations"] = None
+            result["federal_contract_count"] = None
+
+            # Augment with state/local contract data (Tier A/B only).
+            cur.execute("""
+                SELECT contract_row_count, source_count AS state_local_source_count
+                FROM state_local_contracts_master_matches
+                WHERE master_id = %s
+                  AND match_tier IN ('tier_A_auto_merge', 'tier_B_high_conf')
+                LIMIT 1
+            """, [master_id_int])
+            sl = cur.fetchone()
+            result["is_state_local_contractor"] = bool(sl)
+            result["state_local_contract_count"] = (
+                sl["contract_row_count"] if sl else 0
+            )
+            result["state_local_source_count"] = (
+                sl["state_local_source_count"] if sl else 0
+            )
+            return result
 
 
 @router.get("/api/employers/{employer_id}/osha")

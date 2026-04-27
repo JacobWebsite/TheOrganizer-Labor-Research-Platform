@@ -231,15 +231,39 @@ rpe_size AS (
     WHERE f990.latest_revenue > 0
       AND eds.naics IS NOT NULL
 ),
+-- Mergent company-level employee count (via crosswalk DUNS)
+mergent_emp AS (
+    SELECT cw.f7_employer_id,
+           MAX(me.employees_all_sites) AS mergent_employees
+    FROM corporate_identifier_crosswalk cw
+    JOIN mergent_employers me ON me.duns = cw.mergent_duns
+    WHERE me.employees_all_sites IS NOT NULL
+      AND me.employees_all_sites > 0
+      AND cw.f7_employer_id IS NOT NULL
+    GROUP BY cw.f7_employer_id
+),
+-- SEC XBRL company-level employee count (latest filing via crosswalk CIK)
+sec_emp AS (
+    SELECT cw.f7_employer_id,
+           (ARRAY_AGG(x.employee_count ORDER BY x.fiscal_year_end DESC))[1] AS sec_employees
+    FROM corporate_identifier_crosswalk cw
+    JOIN sec_xbrl_financials x ON x.cik = cw.sec_cik
+    WHERE x.employee_count IS NOT NULL
+      AND x.employee_count > 0
+      AND cw.f7_employer_id IS NOT NULL
+    GROUP BY cw.f7_employer_id
+),
 -- Similarity: bridge F7 employer_id -> master_id -> employer_comparables
 similarity_agg AS (
     SELECT
         mesi.source_id AS employer_id,
-        COUNT(*) FILTER (WHERE me.is_union) AS unionized_comparable_count,
+        COUNT(*) FILTER (WHERE ec.comparable_type = 'union') AS unionized_comparable_count,
+        COUNT(*) FILTER (WHERE ec.comparable_type = 'non_union') AS non_union_comparable_count,
+        MIN(ec.gower_distance) FILTER (WHERE ec.comparable_type = 'union')::numeric AS best_union_distance,
+        MIN(ec.gower_distance) FILTER (WHERE ec.comparable_type = 'non_union')::numeric AS best_non_union_distance,
         MIN(ec.gower_distance)::numeric AS best_distance
     FROM master_employer_source_ids mesi
     JOIN employer_comparables ec ON ec.employer_id = mesi.master_id
-    JOIN master_employers me ON me.master_id = ec.comparable_employer_id
     WHERE mesi.source_system = 'f7'
     GROUP BY mesi.source_id
 ),
@@ -360,16 +384,36 @@ raw_scores AS (
                 )
         END AS score_whd,
 
+        -- score_contracts: best of federal-tier (by $ obligations) and state/local-tier
+        -- (by source_count, since state/local $ amounts are unreliable due to ABO multi-year
+        -- filing rows being summed). Returns NULL only if neither contractor flag set.
         CASE
-            WHEN eds.is_federal_contractor AND COALESCE(eds.federal_obligations, 0) > 0 THEN
+            WHEN NOT COALESCE(eds.is_federal_contractor, FALSE)
+                 AND NOT COALESCE(eds.is_state_local_contractor, FALSE) THEN NULL
+            ELSE GREATEST(
+                -- Federal tier (existing logic)
                 CASE
-                    WHEN eds.federal_obligations >= 100000000 THEN 10
-                    WHEN eds.federal_obligations >= 10000000 THEN 8
-                    WHEN eds.federal_obligations >= 1000000 THEN 6
-                    WHEN eds.federal_obligations >= 100000 THEN 4
-                    ELSE 2
+                    WHEN eds.is_federal_contractor AND COALESCE(eds.federal_obligations, 0) > 0 THEN
+                        CASE
+                            WHEN eds.federal_obligations >= 100000000 THEN 10
+                            WHEN eds.federal_obligations >= 10000000 THEN 8
+                            WHEN eds.federal_obligations >= 1000000 THEN 6
+                            WHEN eds.federal_obligations >= 100000 THEN 4
+                            ELSE 2
+                        END
+                    WHEN eds.is_federal_contractor THEN 1
+                    ELSE 0
+                END,
+                -- State/local tier (by source diversity: 1-source = single signal,
+                -- 4+ sources = consistently a public-money recipient across NY/VA/OH)
+                CASE
+                    WHEN eds.is_state_local_contractor AND COALESCE(eds.state_local_source_count, 0) >= 4 THEN 8
+                    WHEN eds.is_state_local_contractor AND eds.state_local_source_count = 3 THEN 6
+                    WHEN eds.is_state_local_contractor AND eds.state_local_source_count = 2 THEN 5
+                    WHEN eds.is_state_local_contractor THEN 3
+                    ELSE 0
                 END
-            WHEN eds.is_federal_contractor THEN 1
+            )
         END AS score_contracts,
 
         CASE
@@ -391,27 +435,30 @@ raw_scores AS (
         END AS score_industry_growth,
 
         CASE
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) IS NULL THEN NULL
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) < 15 THEN 0
+            WHEN COALESCE(mge.mergent_employees, sece.sec_employees, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees, eds.company_size, eds.latest_unit_size) IS NULL THEN NULL
+            WHEN COALESCE(mge.mergent_employees, sece.sec_employees, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees, eds.company_size, eds.latest_unit_size) < 15 THEN 0
             -- Sweet spot: 50-500 scales linearly 1-10
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) BETWEEN 500 AND 25000 THEN 10
+            WHEN COALESCE(mge.mergent_employees, sece.sec_employees, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees, eds.company_size, eds.latest_unit_size) BETWEEN 500 AND 25000 THEN 10
             -- High-end taper: 25,001-100,000 tapers from 10 down to 5
-            WHEN COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) > 25000 THEN
-                GREATEST(5, 10 - ROUND(((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) - 25000)::numeric / 75000) * 5, 2))
-            ELSE ROUND((((COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) - 15)::numeric / 485) * 10), 2)
+            WHEN COALESCE(mge.mergent_employees, sece.sec_employees, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees, eds.company_size, eds.latest_unit_size) > 25000 THEN
+                GREATEST(5, 10 - ROUND(((COALESCE(mge.mergent_employees, sece.sec_employees, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees, eds.company_size, eds.latest_unit_size) - 25000)::numeric / 75000) * 5, 2))
+            ELSE ROUND((((COALESCE(mge.mergent_employees, sece.sec_employees, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees, eds.company_size, eds.latest_unit_size) - 15)::numeric / 485) * 10), 2)
         END AS score_size,
 
-        COALESCE(eds.company_size, eds.latest_unit_size, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) AS company_workers,
+        COALESCE(mge.mergent_employees, sece.sec_employees, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees, eds.company_size, eds.latest_unit_size) AS company_workers,
         CASE
-            WHEN eds.company_size IS NOT NULL THEN 'company_size'
-            WHEN eds.latest_unit_size IS NOT NULL THEN 'f7_unit_size'
+            WHEN mge.mergent_employees IS NOT NULL THEN 'mergent_company'
+            WHEN sece.sec_employees IS NOT NULL THEN 'sec_10k'
             WHEN ppp.ppp_jobs_reported IS NOT NULL THEN 'ppp_2020'
             WHEN rpe.rpe_estimated_employees IS NOT NULL THEN 'rpe_estimate'
+            WHEN eds.company_size IS NOT NULL THEN 'f7_group_consolidated'
+            WHEN eds.latest_unit_size IS NOT NULL THEN 'f7_unit_size'
             ELSE NULL
         END AS size_source,
 
         sa.unionized_comparable_count,
         sa.best_distance,
+        sa.best_union_distance,
 
         oa.estab_count AS osha_estab_count,
         oa.total_violations AS osha_total_violations,
@@ -452,13 +499,7 @@ raw_scores AS (
         ff5.f5500_participants,
         ff5.f5500_plan_count,
         ff5.f5500_has_pension,
-        ff5.f5500_has_welfare,
-
-        ewo.wage_outlier_score,
-        ewo.is_low_wage_outlier,
-        ewo.wage_ratio,
-        ewo.employer_annual_pay,
-        ewo.qcew_avg_annual_pay
+        ff5.f5500_has_welfare
     FROM mv_employer_data_sources eds
     LEFT JOIN osha_agg oa ON oa.f7_employer_id = eds.employer_id
     LEFT JOIN osha_avgs oa4 ON oa4.naics_prefix = LEFT(COALESCE(oa.osha_naics, eds.naics), 4)
@@ -477,36 +518,22 @@ raw_scores AS (
     END AND bp.matrix_code IS NULL
     LEFT JOIN ppp_size ppp ON ppp.f7_employer_id = eds.employer_id
     LEFT JOIN rpe_size rpe ON rpe.f7_employer_id = eds.employer_id
+    LEFT JOIN mergent_emp mge ON mge.f7_employer_id = eds.employer_id
+    LEFT JOIN sec_emp sece ON sece.f7_employer_id = eds.employer_id
     LEFT JOIN similarity_agg sa ON sa.employer_id = eds.employer_id
-    LEFT JOIN (
-        -- Bridge F7 employer_id -> master_id -> wage outliers
-        SELECT mesi.source_id AS f7_employer_id,
-               ewo.wage_outlier_score, ewo.is_low_wage_outlier,
-               ewo.wage_ratio, ewo.employer_annual_pay, ewo.qcew_avg_annual_pay
-        FROM master_employer_source_ids mesi
-        JOIN employer_wage_outliers ewo ON ewo.master_id = mesi.master_id
-        WHERE mesi.source_system = 'f7'
-    ) ewo ON ewo.f7_employer_id = eds.employer_id
     LEFT JOIN financial_990 f990 ON f990.f7_employer_id = eds.employer_id
     LEFT JOIN financial_form5500 ff5 ON ff5.f7_employer_id = eds.employer_id
 ),
 scored AS (
     SELECT
         rs.*,
+        -- Distance-based: closer to nearest already-unionized peer = higher score.
+        -- Linear scaled to observed max distance of 0.40 (real range is [0, 0.39]).
         CASE
-            WHEN rs.unionized_comparable_count IS NULL THEN NULL
-            ELSE LEAST(
-                10,
-                CASE rs.unionized_comparable_count
-                    WHEN 5 THEN 10
-                    WHEN 4 THEN 8
-                    WHEN 3 THEN 6
-                    WHEN 2 THEN 4
-                    WHEN 1 THEN 2
-                    ELSE 0
-                END
-                + CASE WHEN rs.best_distance IS NOT NULL AND rs.best_distance < 0.15 THEN 1 ELSE 0 END
-            )
+            WHEN rs.best_union_distance IS NULL THEN NULL
+            ELSE GREATEST(0, LEAST(10,
+                ROUND((10.0 * (1 - rs.best_union_distance / 0.40))::numeric, 1)
+            ))
         END AS score_similarity,
         -- score_financial: 990 nonprofit health + Form 5500 benefit plans + public company signal
         -- Uses GREATEST of 990-based and Form 5500-based scores
@@ -607,6 +634,7 @@ strategic_pillars AS (
                     + COALESCE(s.enh_score_whd * 3, 0)
                     + COALESCE(
                         CASE
+                            WHEN s.nlrb_ulp_count IS NULL THEN NULL
                             WHEN s.nlrb_ulp_count = 0 THEN NULL
                             WHEN s.nlrb_ulp_count = 1 THEN 4
                             WHEN s.nlrb_ulp_count BETWEEN 2 AND 3 THEN 6
@@ -624,17 +652,11 @@ strategic_pillars AS (
             END
         ) AS score_anger,
 
-        -- PILLAR 2: STABILITY (Winnability)
-        -- Weight zeroed (Task 1-2): kept for reference/display but excluded from weighted_score
-        -- No more fake 5.0 baseline: NULL when no real data
-        COALESCE(
-            s.rse_score_stability,
-            CASE
-                WHEN s.turnover_rate_found IS NOT NULL THEN (10 - s.turnover_rate_found)
-                WHEN s.wage_outlier_score IS NOT NULL THEN (10 - s.wage_outlier_score)
-                ELSE NULL
-            END
-        ) AS score_stability,
+        -- STABILITY PILLAR REMOVED (D13 decision 2026-04-03): demoted to flags.
+        -- Underlying data (rse_score_stability, turnover_rate_found)
+        -- still available as passthrough columns for filtering/display.
+        -- wage_outlier_score removed entirely (D16 decision 2026-04-11).
+        NULL::numeric AS score_stability,
 
         -- PILLAR 3: LEVERAGE (Power)
         -- Dynamic denominator: only counts sub-factors that have data
@@ -644,23 +666,20 @@ strategic_pillars AS (
                OR s.enh_score_contracts IS NOT NULL
                OR s.enh_score_financial IS NOT NULL
                OR s.score_industry_growth IS NOT NULL
-               OR s.enh_score_size IS NOT NULL
         THEN LEAST(10,
             (
-                COALESCE(s.score_union_proximity * 25, 0)
-                + COALESCE(s.score_similarity * 10, 0)
-                + COALESCE(s.enh_score_contracts * 20, 0)
-                + COALESCE(s.enh_score_financial * 20, 0)
+                COALESCE(s.score_union_proximity * 10, 0)
+                + COALESCE(s.score_similarity * 15, 0)
+                + COALESCE(s.enh_score_contracts * 25, 0)
+                + COALESCE(s.enh_score_financial * 25, 0)
                 + COALESCE(s.score_industry_growth * 10, 0)
-                + COALESCE(s.enh_score_size * 15, 0)
                 + CASE WHEN s.revenue_per_employee_found > 500000 THEN 10 ELSE 0 END
             )::numeric / NULLIF(
-                CASE WHEN s.score_union_proximity IS NOT NULL THEN 25 ELSE 0 END
-                + CASE WHEN s.score_similarity IS NOT NULL THEN 10 ELSE 0 END
-                + CASE WHEN s.enh_score_contracts IS NOT NULL THEN 20 ELSE 0 END
-                + CASE WHEN s.enh_score_financial IS NOT NULL THEN 20 ELSE 0 END
-                + CASE WHEN s.score_industry_growth IS NOT NULL THEN 10 ELSE 0 END
-                + CASE WHEN s.enh_score_size IS NOT NULL THEN 15 ELSE 0 END,
+                CASE WHEN s.score_union_proximity IS NOT NULL THEN 10 ELSE 0 END
+                + CASE WHEN s.score_similarity IS NOT NULL THEN 15 ELSE 0 END
+                + CASE WHEN s.enh_score_contracts IS NOT NULL THEN 25 ELSE 0 END
+                + CASE WHEN s.enh_score_financial IS NOT NULL THEN 25 ELSE 0 END
+                + CASE WHEN s.score_industry_growth IS NOT NULL THEN 10 ELSE 0 END,
                 0
             )
         )
@@ -693,16 +712,59 @@ weighted AS (
             + CASE WHEN s.has_research THEN 1 ELSE 0 END
         ) AS factors_available,
         10 AS factors_total,
-        ROUND(
-            (
-                COALESCE(s.score_anger * 3, 0)
-                + COALESCE(s.score_leverage * 4, 0)
-            )::numeric / NULLIF(
-                CASE WHEN s.score_anger IS NOT NULL THEN 3 ELSE 0 END
-                + CASE WHEN s.score_leverage IS NOT NULL THEN 4 ELSE 0 END,
-                0
+        -- Direct evidence: employer-specific records (OSHA/NLRB/WHD inspections, SAM contracts, 990/5500 filings)
+        (
+            CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_contracts IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_financial IS NOT NULL THEN 1 ELSE 0 END
+        ) AS direct_factors_available,
+        -- Indirect/modeled: derived from metadata + general data (no employer-specific records required)
+        (
+            CASE WHEN s.score_union_proximity IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_industry_growth IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_size IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN s.score_similarity IS NOT NULL THEN 1 ELSE 0 END
+        ) AS indirect_factors_available,
+        -- R7-18 (2026-04-27): Cap weighted_score at 7.0 for thin-data rows
+        -- (factors_available < 3 AND direct_factors_available = 0). Without
+        -- this cap, 96.7% of Promising perfect-10s are single-factor
+        -- union_proximity-only rows -- a modeled signal alone shouldn't
+        -- produce a 10/10 score for an employer we have no direct evidence on.
+        LEAST(
+            ROUND(
+                (
+                    COALESCE(s.score_anger * 3, 0)
+                    + COALESCE(s.score_leverage * 4, 0)
+                )::numeric / NULLIF(
+                    CASE WHEN s.score_anger IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN s.score_leverage IS NOT NULL THEN 4 ELSE 0 END,
+                    0
+                ),
+                2
             ),
-            2
+            CASE WHEN (
+                CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_contracts IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_union_proximity IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_industry_growth IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_financial IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_size IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_similarity IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.has_research THEN 1 ELSE 0 END
+            ) < 3 AND (
+                CASE WHEN s.score_osha IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_nlrb IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_whd IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_contracts IS NOT NULL THEN 1 ELSE 0 END
+                + CASE WHEN s.score_financial IS NOT NULL THEN 1 ELSE 0 END
+            ) = 0
+            THEN 7.0::numeric
+            ELSE 10.0::numeric
+            END
         ) AS weighted_score,
         -- Keep original weighted score for comparison
         ROUND(
@@ -738,6 +800,10 @@ ranked AS (
         w.*,
         w.weighted_score AS unified_score,
         ROUND(100.0 * w.factors_available::numeric / 10, 1) AS coverage_pct,
+        -- Scorable coverage: only direct employer-specific evidence (0-5 factors).
+        -- Preferred over coverage_pct for trust -- indirect factors (similarity,
+        -- size, proximity, industry growth) don't require records on this employer.
+        ROUND(100.0 * w.direct_factors_available::numeric / 5, 1) AS scorable_coverage_pct,
         PERCENT_RANK() OVER (ORDER BY w.weighted_score ASC NULLS FIRST) AS score_percentile
     FROM weighted w
 )
@@ -760,10 +826,20 @@ SELECT
     CASE WHEN r.whd_child_labor THEN TRUE ELSE FALSE END AS has_child_labor,
     CASE WHEN r.whd_repeat_violator THEN TRUE ELSE FALSE END AS is_whd_repeat_violator,
     CASE WHEN r.nlrb_close_election_count > 0 THEN TRUE ELSE FALSE END AS has_close_election,
+    -- Thin-data flag: score is high but zero direct employer-specific evidence.
+    -- Catches employers scoring high on modeled signals (similarity/size/proximity/growth)
+    -- with no OSHA/NLRB/WHD/contracts/financial records on this specific employer.
+    CASE WHEN r.weighted_score >= 6.0 AND r.direct_factors_available = 0
+        THEN TRUE ELSE FALSE
+    END AS has_thin_data,
     CASE
-        -- Guardrail: min 3 factors for Priority AND Strong (D3)
-        WHEN r.score_percentile >= 0.97 AND r.factors_available >= 3 THEN 'Priority'
-        WHEN r.score_percentile >= 0.85 AND r.factors_available >= 3 THEN 'Strong'
+        -- Guardrail: min 3 factors for Priority AND Strong (D3) +
+        -- Task #38: Priority and Strong also require >=1 direct factor
+        -- (OSHA/NLRB/WHD/contracts/financial). Thin-data rows (0 direct
+        -- factors) cap at Promising no matter how high modeled signals push
+        -- their percentile.
+        WHEN r.score_percentile >= 0.97 AND r.factors_available >= 3 AND r.direct_factors_available >= 1 THEN 'Priority'
+        WHEN r.score_percentile >= 0.85 AND r.factors_available >= 3 AND r.direct_factors_available >= 1 THEN 'Strong'
         WHEN r.score_percentile >= 0.85 THEN 'Promising'
         WHEN r.score_percentile >= 0.60 THEN 'Promising'
         WHEN r.score_percentile >= 0.25 THEN 'Moderate'
