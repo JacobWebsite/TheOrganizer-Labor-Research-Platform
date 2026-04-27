@@ -84,7 +84,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~33,000 elections, ~478,000 cases, ~1.9M participants, ~716,000 allegations, ~2M docket entries",
         "description": "Election outcomes, ULP activity, participants, and procedural history.",
         "count_query": "SELECT (SELECT COUNT(*) FROM nlrb_elections) + (SELECT COUNT(*) FROM nlrb_cases) + (SELECT COUNT(*) FROM nlrb_participants) + (SELECT COUNT(*) FROM nlrb_allegations) + (SELECT COUNT(*) FROM nlrb_docket)",
-        "date_query": "SELECT MIN(d), MAX(d) FROM (SELECT MIN(election_date) AS d, MAX(election_date) AS x FROM nlrb_elections UNION ALL SELECT MIN(earliest_date), MAX(latest_date) FROM nlrb_cases) q",
+        "date_query": "SELECT MIN(d), MAX(x) FROM (SELECT MIN(election_date) AS d, MAX(election_date) AS x FROM nlrb_elections UNION ALL SELECT MIN(earliest_date) AS d, MAX(latest_date) AS x FROM nlrb_cases) q",
         "freshness_notes": "NLRB elections, cases, and allegations",
     },
     {

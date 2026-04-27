@@ -12,7 +12,7 @@ Usage in routers:
     def admin_endpoint(user=Depends(require_admin)):
         ...
 """
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 
 from .config import ALLOW_INSECURE_ADMIN, JWT_SECRET
 
@@ -41,8 +41,11 @@ def require_admin(request: Request) -> dict:
     if not JWT_SECRET:
         if ALLOW_INSECURE_ADMIN:
             return {"username": "dev", "role": "admin"}
+        # 403 Forbidden, not 503 -- the service is up; the caller is
+        # forbidden from this admin endpoint while DISABLE_AUTH=true.
+        # 503 implies "service unavailable" which is misleading here.
         raise HTTPException(
-            status_code=503,
+            status_code=403,
             detail="Admin endpoints are disabled while DISABLE_AUTH=true. "
                    "Set ALLOW_INSECURE_ADMIN=true for local development only.",
         )
