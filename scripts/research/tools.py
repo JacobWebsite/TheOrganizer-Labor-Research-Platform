@@ -22,12 +22,10 @@ import logging
 import re
 import sys
 import os
-import traceback
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 
-import psycopg2
 from psycopg2.extras import RealDictCursor
 
 # Allow imports from project root
@@ -74,6 +72,47 @@ def _error_result(source: str, err: Exception) -> dict:
         "summary": f"Error: {err}",
         "data": {},
         "error": str(err),
+    }
+
+
+# ---------------------------------------------------------------------------
+# External API Rate Limiters
+# ---------------------------------------------------------------------------
+
+import threading
+import time as _time_mod
+
+class _RateLimiter:
+    """Simple thread-safe token bucket rate limiter."""
+    def __init__(self, max_per_minute: int, name: str):
+        self._lock = threading.Lock()
+        self._name = name
+        self._interval = 60.0 / max_per_minute
+        self._last_call = 0.0
+        self._total_calls = 0
+
+    def wait(self):
+        with self._lock:
+            now = _time_mod.time()
+            wait_time = self._interval - (now - self._last_call)
+            if wait_time > 0:
+                _log.debug("Rate limiter [%s]: waiting %.1fs", self._name, wait_time)
+                _time_mod.sleep(wait_time)
+            self._last_call = _time_mod.time()
+            self._total_calls += 1
+
+    @property
+    def total_calls(self) -> int:
+        return self._total_calls
+
+_brave_limiter = _RateLimiter(max_per_minute=60, name="brave")
+_ce_limiter = _RateLimiter(max_per_minute=200, name="company_enrich")
+
+def get_api_call_stats() -> dict:
+    """Return external API call counts for monitoring."""
+    return {
+        "brave_search_calls": _brave_limiter.total_calls,
+        "company_enrich_calls": _ce_limiter.total_calls,
     }
 
 
@@ -868,6 +907,17 @@ def search_sec(
 
         row = _safe_dict(row)
 
+        # Fetch XBRL financial data
+        fin_rows = []
+        if row.get("cik"):
+            cur.execute("""
+                SELECT fiscal_year_end, revenue, net_income, total_assets,
+                       total_liabilities, cash, long_term_debt, employee_count
+                FROM sec_xbrl_financials WHERE cik = %s
+                ORDER BY fiscal_year_end DESC LIMIT 5
+            """, (row["cik"],))
+            fin_rows = _safe_list(cur.fetchall())
+
         # Check crosswalk for federal contractor info
         crosswalk_data = None
         if row.get("cik"):
@@ -898,10 +948,53 @@ def search_sec(
             data["federal_contractor"] = crosswalk_data.get("is_federal_contractor")
             data["federal_obligations"] = crosswalk_data.get("federal_obligations")
 
+        if fin_rows:
+            latest_fin = fin_rows[0]
+            financials = {
+                "latest_fiscal_year": latest_fin.get("fiscal_year_end"),
+                "revenue": latest_fin.get("revenue"),
+                "net_income": latest_fin.get("net_income"),
+                "total_assets": latest_fin.get("total_assets"),
+                "total_liabilities": latest_fin.get("total_liabilities"),
+                "cash": latest_fin.get("cash"),
+                "long_term_debt": latest_fin.get("long_term_debt"),
+                "employee_count": latest_fin.get("employee_count"),
+            }
+            # Revenue growth YoY
+            if len(fin_rows) >= 2:
+                curr_rev = latest_fin.get("revenue")
+                prev_rev = fin_rows[1].get("revenue")
+                if curr_rev and prev_rev and prev_rev != 0:
+                    financials["revenue_growth_pct"] = round(
+                        float((curr_rev - prev_rev) / abs(prev_rev) * 100), 1
+                    )
+            financials["trend"] = [
+                {"year": r.get("fiscal_year_end"), "revenue": r.get("revenue")}
+                for r in fin_rows
+            ]
+            data["financials"] = financials
+
         summary = f"SEC: {data['company_name']}"
         if data.get("ticker"):
             summary += f" ({data['ticker']}:{data.get('exchange', '?')})"
         summary += f". SIC {data.get('sic_code', 'N/A')}: {data.get('sic_description', 'N/A')}."
+
+        if data.get("financials"):
+            rev = data["financials"].get("revenue")
+            if rev:
+                if rev >= 1e9:
+                    summary += f" Revenue: ${rev/1e9:.1f}B."
+                elif rev >= 1e6:
+                    summary += f" Revenue: ${rev/1e6:.1f}M."
+            ni = data["financials"].get("net_income")
+            if ni is not None:
+                if abs(ni) >= 1e9:
+                    summary += f" Net income: ${ni/1e9:.1f}B."
+                elif abs(ni) >= 1e6:
+                    summary += f" Net income: ${ni/1e6:.1f}M."
+            emp = data["financials"].get("employee_count")
+            if emp:
+                summary += f" Employees: {emp:,}."
 
         return {"found": True, "source": source, "summary": summary, "data": data}
 
@@ -1803,7 +1896,7 @@ def _google_search_url(
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        
+
         context = f"Company: \"{company_name}\""
         if state:
             context += f", Location: {state}"
@@ -1817,7 +1910,7 @@ def _google_search_url(
             "otherwise the parent site. If you cannot find a definitive site, respond with NONE.\n"
             "Example: 'Xerox' -> https://www.xerox.com"
         )
-        
+
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[types.Content(
@@ -1891,12 +1984,22 @@ async def _scrape_pages(base_url: str) -> dict:
         headless=True,
         user_agent="LaborResearchPlatform/1.0 (Academic Research; contact: jakewartel@gmail.com)",
     )
+    # Cookie consent dismissal -- clicks common accept/agree buttons after page load
+    _cookie_js = (
+        '(function(){var s=["[id*=accept]","[class*=accept]","[id*=consent]",'
+        '"[class*=consent]","[id*=agree]","[class*=agree]",'
+        '"button[aria-label*=accept]","button[aria-label*=Allow]"];'
+        'for(var i=0;i<s.length;i++){var e=document.querySelectorAll(s[i]);'
+        'for(var j=0;j<e.length;j++){if(e[j].tagName==="BUTTON"||e[j].tagName==="A")'
+        '{e[j].click();return;}}}})()'
+    )
     run_cfg = CrawlerRunConfig(
         page_timeout=15000,
         wait_until="domcontentloaded",
         cache_mode=CacheMode.BYPASS,
         check_robots_txt=True,
         verbose=False,
+        js_code=_cookie_js,
     )
 
     result_data = {
@@ -2220,7 +2323,7 @@ def get_workforce_demographics(
             "48": {"race_white": 65, "race_black": 18, "gender_male": 75, "avg_age": 45}, # Transport
             "31": {"race_white": 72, "race_black": 10, "gender_male": 70, "avg_age": 44}, # Manufacturing
         }
-        
+
         naics_2 = naics[:2]
         baseline = _PROFILES.get(naics_2)
         is_generic_fallback = baseline is None
@@ -2249,7 +2352,7 @@ def get_workforce_demographics(
         }
 
         summary = f"INDUSTRY BASELINE demographics (NAICS {naics_2}): {baseline['race_white']}% White, {baseline['race_black']}% Black, {baseline['gender_male']}% Male. Avg age: {baseline['avg_age']}. NOTE: These are industry averages, not company-specific."
-        
+
         return {
             "found": True,
             "source": source,
@@ -2356,7 +2459,7 @@ def search_political_donations(
 ) -> dict:
     """Search for political donations from the company and its top executives using FEC API and Google grounding."""
     source = "api:fec_and_google"
-    fec_api_key = "JFdTNkK4BgdicVMGniycY8ISrW4ESwgcjCDNpIu9"
+    fec_api_key = os.environ.get("FEC_API_KEY", "")
 
     try:
         import requests
@@ -2460,7 +2563,7 @@ def search_local_demographics(
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        
+
         prompt = (
             f"Provide current demographic data for {city}, {state}. "
             "Include population size, racial/ethnic breakdown (White, Black, Hispanic, Asian, etc.), median household income, and poverty rate. "
@@ -2468,7 +2571,7 @@ def search_local_demographics(
             "Return a JSON object with: {'city': '...', 'population': '...', 'race_ethnicity': {'White': 'X%', ...}, 'median_income': '...', 'top_industries': ['...', '...', '...']}. "
             "If no data found, respond with NONE."
         )
-        
+
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[types.Content(
@@ -2481,7 +2584,7 @@ def search_local_demographics(
                 temperature=0.0,
             ),
         )
-        
+
         candidate = response.candidates[0] if response.candidates else None
         text = candidate.content.parts[0].text.strip()
         if not text or text.upper() == "NONE":
@@ -2662,7 +2765,7 @@ def search_sos_filings(
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        
+
         prompt = (
             f"Find official corporate filing information for \"{company_name}\" in {state}. "
             "Search for the Secretary of State (SOS) record. "
@@ -2671,7 +2774,7 @@ def search_sos_filings(
             "Return a JSON object with: {'registered_agent': '...', 'officers': ['...', '...'], 'filing_url': '...', 'entity_status': '...', 'summary': '...'}. "
             "If no filings found, respond with NONE."
         )
-        
+
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[types.Content(
@@ -2684,7 +2787,7 @@ def search_sos_filings(
                 temperature=0.0,
             ),
         )
-        
+
         candidate = response.candidates[0] if response.candidates else None
         text = candidate.content.parts[0].text.strip()
         if not text or text.upper() == "NONE":
@@ -2741,7 +2844,7 @@ def compare_industry_wages(
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        
+
         prompt = (
             f"Compare wages for \"{company_name}\" against 3-4 direct local competitors in the \"{industry}\" sector in {city}, {state}. "
             "Search current job postings (Indeed, Glassdoor, ZipRecruiter) for typical starting wages. "
@@ -2750,7 +2853,7 @@ def compare_industry_wages(
             "Return a JSON object with: {'market_position': 'Below/At/Above Average', 'target_wages': '$X/hr', 'competitors': [{'name': '...', 'wage': '$Y/hr'}], 'summary': '...'}. "
             "If no comparison data found, respond with NONE."
         )
-        
+
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[types.Content(
@@ -2763,7 +2866,7 @@ def compare_industry_wages(
                 temperature=0.0,
             ),
         )
-        
+
         candidate = response.candidates[0] if response.candidates else None
         text = candidate.content.parts[0].text.strip()
         if not text or text.upper() == "NONE":
@@ -2841,7 +2944,7 @@ def search_solidarity_network(
             return {"found": False, "source": source, "summary": "No corporate parent found in GLEIF.", "data": {"lei": lei}}
 
         parent_id = parent_row["parent_entity_id"]
-        
+
         # Get parent name for summary
         cur.execute("SELECT entity_name, lei FROM gleif_us_entities WHERE id = %s", (parent_id,))
         parent_info = cur.fetchone()
@@ -2911,7 +3014,7 @@ def search_local_subsidies(
         from google.genai import types
 
         client = genai.Client(api_key=api_key)
-        
+
         prompt = (
             f"Search for public subsidies, tax abatements, or economic development grants received by \"{company_name}\" in {city}, {state}. "
             "Check sources like Good Jobs First (Subsidy Tracker), local IDA (Industrial Development Agency) records, and news reports. "
@@ -2920,7 +3023,7 @@ def search_local_subsidies(
             "Return a JSON object with: {'total_subsidy_value': '$X,XXX', 'subsidy_types': ['...', '...'], 'recent_awards': [{'year': '...', 'amount': '...', 'type': '...'}], 'summary': '...'}. "
             "If no data found, respond with NONE."
         )
-        
+
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[types.Content(
@@ -2933,7 +3036,7 @@ def search_local_subsidies(
                 temperature=0.0,
             ),
         )
-        
+
         candidate = response.candidates[0] if response.candidates else None
         text = candidate.content.parts[0].text.strip()
         if not text or text.upper() == "NONE":
@@ -3276,7 +3379,7 @@ def search_lodes_workforce(
 
         if not rows:
             return {"found": False, "source": source,
-                    "summary": f"No LODES workforce data found.",
+                    "summary": "No LODES workforce data found.",
                     "data": {}}
 
         row = rows[0]
@@ -4524,6 +4627,569 @@ def search_state_enforcement(
         return _error_result(source, exc)
 
 
+def search_company_enrich(
+    company_name: str,
+    *,
+    domain: Optional[str] = None,
+    linkedin_url: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Enrich company identity via CompanyEnrich.com API (30M+ companies)."""
+    source = "api:company_enrich"
+    try:
+        import requests
+        api_key = os.environ.get("COMPANY_ENRICH_API_KEY")
+        if not api_key:
+            return {"found": False, "source": source, "summary": "No COMPANY_ENRICH_API_KEY configured.", "data": {}, "error": "missing_key"}
+
+        _ce_limiter.wait()
+        base = "https://api.companyenrich.com"
+        headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+
+        # Prefer domain-based lookup (higher accuracy)
+        if domain:
+            # Strip protocol if present
+            d = domain.replace("https://", "").replace("http://", "").split("/")[0].lower()
+            resp = requests.get(f"{base}/companies/enrich", params={"domain": d}, headers=headers, timeout=15)
+        else:
+            # Fall back to name-based lookup
+            body = {"name": company_name}
+            if linkedin_url:
+                body["linkedinUrl"] = linkedin_url
+            resp = requests.post(f"{base}/companies/enrich", json=body, headers=headers, timeout=15)
+
+        if resp.status_code == 404:
+            return {"found": False, "source": source, "summary": f"CompanyEnrich: No match for '{company_name}'.", "data": {}}
+        if resp.status_code == 429:
+            _log.warning("CompanyEnrich rate limited (429)")
+            return {"found": False, "source": source, "summary": "CompanyEnrich: Rate limited. Try again later.", "data": {}, "error": "rate_limited"}
+        resp.raise_for_status()
+        co = resp.json()
+
+        # R7-16 (2026-04-27): Identity grafting guard. CompanyEnrich's name-based
+        # lookup occasionally returns a different entity than queried (e.g.
+        # "Crouse Hospital" -> "Children's National Hospital"). When the lookup
+        # was domain-based (line 4653) we trust the result; when name-based
+        # (line 4659) we run a composite fuzzy check before accepting.
+        #
+        # The composite: reject only when ALL THREE strategies say it's a bad
+        # match. Single strategies fail on legitimate edge cases:
+        #   - token_sort_ratio penalizes substring matches ("Starbucks" vs
+        #     "Starbucks Coffee Company" = 55% even though clearly the same).
+        #   - partial_ratio is too permissive on shared prefixes ("Cleveland
+        #     Clinic" vs "Cleveland-Cliffs" = 83%).
+        #   - token_set_ratio rewards subset overlap ("the kroger" vs "kroger
+        #     company" = 75% legitimate).
+        # Combined: partial<80 AND token_sort<65 AND token_set<75 catches the
+        # Crouse case (75/57/70) without false-rejecting Walmart/Starbucks/
+        # Apple/Kroger/AT&T.
+        returned_name = (co.get("name") or "").strip()
+        if not domain and returned_name:
+            try:
+                from rapidfuzz import fuzz
+                qn = company_name.lower()
+                rn = returned_name.lower()
+                sim_partial = fuzz.partial_ratio(qn, rn)
+                sim_sort = fuzz.token_sort_ratio(qn, rn)
+                sim_set = fuzz.token_set_ratio(qn, rn)
+                if sim_partial < 80 and sim_sort < 65 and sim_set < 75:
+                    _log.warning(
+                        "CompanyEnrich identity mismatch: query=%r, returned=%r, partial=%d sort=%d set=%d",
+                        company_name, returned_name, sim_partial, sim_sort, sim_set,
+                    )
+                    return {
+                        "found": False,
+                        "source": source,
+                        "summary": (
+                            f"CompanyEnrich: Identity mismatch (queried '{company_name}', "
+                            f"returned '{returned_name}'; similarity partial={sim_partial}% "
+                            f"sort={sim_sort}% set={sim_set}%, all below thresholds). "
+                            f"Rejected to prevent identity grafting."
+                        ),
+                        "data": {},
+                        "error": "name_mismatch",
+                    }
+            except ImportError:
+                pass  # rapidfuzz missing; skip guard rather than crash
+
+        # Extract structured data
+        location = co.get("location") or {}
+        socials = co.get("socials") or {}
+        financial = co.get("financial") or {}
+        data = {
+            "company_name": co.get("name"),
+            "domain": co.get("domain"),
+            "website": co.get("website") or co.get("domain"),
+            "company_type": co.get("type"),
+            "industry": co.get("industry"),
+            "industries": co.get("industries", []),
+            "naics_codes": co.get("naics_codes", []),
+            "employee_range": co.get("employees"),
+            "revenue_range": co.get("revenue"),
+            "founded_year": co.get("founded_year"),
+            "location_country": location.get("country"),
+            "location_state": location.get("state"),
+            "location_city": location.get("city"),
+            "linkedin_url": socials.get("linkedin"),
+            "twitter_url": socials.get("twitter"),
+            "facebook_url": socials.get("facebook"),
+            "stock_symbol": financial.get("stockSymbol"),
+            "categories": co.get("categories", []),
+            "keywords": co.get("keywords", []),
+            "technologies": co.get("technologies", []),
+        }
+
+        # Build summary
+        parts = [f"CompanyEnrich: {data['company_name'] or company_name}"]
+        if data["employee_range"]:
+            parts.append(f"{data['employee_range']} employees")
+        if data["revenue_range"]:
+            parts.append(f"Revenue: {data['revenue_range']}")
+        if data["industry"]:
+            parts.append(f"Industry: {data['industry']}")
+        if data["founded_year"]:
+            parts.append(f"Founded: {data['founded_year']}")
+        if data["website"]:
+            parts.append(f"Website: {data['website']}")
+        summary = ". ".join(parts) + "."
+
+        return {"found": True, "source": source, "summary": summary, "data": data}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+def search_brave_web(
+    query: str,
+    *,
+    company_name: Optional[str] = None,
+    count: int = 10,
+    **_kw,
+) -> dict:
+    """Search the web using Brave Search API. Returns structured results."""
+    source = "api:brave_search"
+    try:
+        import requests
+        api_key = os.environ.get("BRAVE_SEARCH_API_KEY")
+        if not api_key:
+            return {"found": False, "source": source, "summary": "No BRAVE_SEARCH_API_KEY configured.", "data": {}, "error": "missing_key"}
+
+        _brave_limiter.wait()
+        resp = requests.get(
+            "https://api.search.brave.com/res/v1/web/search",
+            params={"q": query, "count": min(count, 20), "result_filter": "web", "safesearch": "off"},
+            headers={"X-Subscription-Token": api_key, "Accept": "application/json"},
+            timeout=10,
+        )
+
+        if resp.status_code == 429:
+            _log.warning("Brave Search rate limited (429)")
+            return {"found": False, "source": source, "summary": "Brave Search: Rate limited.", "data": {}, "error": "rate_limited"}
+        resp.raise_for_status()
+        body = resp.json()
+
+        web_results = body.get("web", {}).get("results", [])
+        if not web_results:
+            return {"found": False, "source": source, "summary": f"Brave Search: No results for '{query}'.", "data": {"query": query, "result_count": 0, "results": []}}
+
+        results = []
+        for r in web_results[:count]:
+            results.append({
+                "url": r.get("url", ""),
+                "title": r.get("title", ""),
+                "description": r.get("description", ""),
+                "age": r.get("age", ""),
+            })
+
+        top_titles = ", ".join(r["title"] for r in results[:3] if r["title"])
+        summary = f"Brave Search: {len(results)} result(s) for '{query}'. Top: {top_titles}"
+
+        return {"found": True, "source": source, "summary": summary, "data": {"query": query, "result_count": len(results), "results": results}}
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# LinkedIn Company Scraping (R-15)
+# ---------------------------------------------------------------------------
+
+def search_linkedin_company(company_name: str, linkedin_url: str = None, **_kw) -> dict:
+    """Scrape a company's LinkedIn page for structured data using linkedin_scraper."""
+    source = "linkedin"
+    if not linkedin_url:
+        return {"found": False, "source": source, "summary": "No LinkedIn URL provided", "data": {}}
+
+    li_cookie = os.environ.get("LINKEDIN_LI_AT")
+    li_email = os.environ.get("LINKEDIN_EMAIL")
+    li_password = os.environ.get("LINKEDIN_PASSWORD")
+
+    if not li_cookie and not (li_email and li_password):
+        return {"found": False, "source": source, "summary": "No LinkedIn credentials configured (set LINKEDIN_LI_AT or LINKEDIN_EMAIL+LINKEDIN_PASSWORD)", "data": {}}
+
+    try:
+        import asyncio as _aio
+        from linkedin_scraper import Linkedin
+
+        async def _scrape():
+            async with Linkedin(headless=True) as li:
+                if li_cookie:
+                    await li.login_with_cookie(li_cookie)
+                else:
+                    await li.login_with_credentials(li_email, li_password)
+                return await li.get_company(linkedin_url)
+
+        company = _aio.run(_scrape())
+
+        data = {}
+        if company.name:
+            data["name"] = company.name
+        if company.industry:
+            data["industry"] = company.industry
+        if company.company_size:
+            data["company_size"] = company.company_size
+        if company.headcount:
+            data["headcount"] = company.headcount
+        if company.headquarters:
+            data["headquarters"] = company.headquarters
+        if company.website:
+            data["website"] = company.website
+        if company.founded:
+            data["founded"] = company.founded
+        if company.company_type:
+            data["company_type"] = company.company_type
+        if company.specialties:
+            data["specialties"] = company.specialties
+        if company.about_us:
+            data["about"] = company.about_us[:500]
+        if company.employees:
+            data["employee_sample"] = [
+                {"name": e.name, "title": e.designation}
+                for e in company.employees[:20]
+            ]
+        if company.affiliated_companies:
+            data["affiliated_companies"] = [c.name for c in company.affiliated_companies]
+
+        has_data = bool(data)
+        summary_parts = [f"LinkedIn: {data.get('name', company_name)}"]
+        if data.get("industry"):
+            summary_parts.append(data["industry"])
+        if data.get("company_size"):
+            summary_parts.append(f"{data['company_size']} employees")
+        if data.get("headquarters"):
+            summary_parts.append(data["headquarters"])
+
+        return {
+            "found": has_data,
+            "source": source,
+            "summary": ", ".join(summary_parts),
+            "data": data,
+        }
+    except Exception as exc:
+        return {"found": False, "source": source, "summary": f"LinkedIn scrape failed: {str(exc)[:200]}", "data": {}, "error": str(exc)[:200]}
+
+
+# ---------------------------------------------------------------------------
+# Union Website Profiles (structured scraper data, 2026-04-19/21)
+# ---------------------------------------------------------------------------
+# Looks up union locals whose websites mention this employer. Replaces the
+# dropped union-website site-restricted web queries with deterministic data
+# from `web_union_profiles` (2,189 rows across 7 parent unions -- SEIU,
+# AFSCME, IBT, CWA, IBEW, USW, APWU) and `web_union_employers` (2,241 rows
+# extracted from union contract/news/about pages via the 2026-04-19/21
+# scraper work).
+
+def search_union_web_profiles(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    employer_id: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Look up structured union-local web-profile rows that mention this employer.
+
+    Searches `web_union_employers` by name (using the same fuzzy-LIKE pattern
+    as other DB tools) and joins back to `web_union_profiles` to return
+    human-readable info about the union locals: parent union, local number,
+    state, website, officers, and any extracted snippet from contract / news /
+    about pages that mentions this employer.
+
+    Useful for answering:
+    - "Is any union representing workers at this employer (per union-side
+      evidence on their own websites)?"
+    - "Which union locals publish contracts, news, or organizing-campaign
+      material about this employer?"
+
+    Returns the usual research-agent tool shape
+    (`{found, source, summary, data, error}`). When nothing matches, returns
+    `{found: False, ...}` without erroring.
+    """
+    source = "database:web_union_profiles"
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+
+        # Step 1 -- find matching employer mentions in web_union_employers
+        name_clause, name_params = _name_like_clause("UPPER(employer_name_clean)", company_name)
+        if state:
+            cur.execute(f"""
+                SELECT id, web_profile_id, employer_name, employer_name_clean,
+                       state, sector, source_url, extraction_method,
+                       confidence_score, source_element
+                FROM web_union_employers
+                WHERE {name_clause}
+                  AND UPPER(COALESCE(state, '')) = UPPER(%s)
+                LIMIT 100
+            """, (*name_params, state))
+        else:
+            cur.execute(f"""
+                SELECT id, web_profile_id, employer_name, employer_name_clean,
+                       state, sector, source_url, extraction_method,
+                       confidence_score, source_element
+                FROM web_union_employers
+                WHERE {name_clause}
+                LIMIT 100
+            """, name_params)
+        raw_mentions = cur.fetchall()
+
+        # RapidFuzz filter to drop false-positive substring matches
+        mentions = _filter_by_name_similarity(raw_mentions, company_name, "employer_name_clean")
+
+        if not mentions:
+            conn.close()
+            return {
+                "found": False,
+                "source": source,
+                "summary": "No union-website mentions of this employer found in web_union_employers.",
+                "data": {"mentions": [], "locals": []},
+            }
+
+        # Step 2 -- join back to web_union_profiles for the 1..N distinct locals
+        profile_ids = sorted({m["web_profile_id"] for m in mentions if m["web_profile_id"]})
+        locals_data: list[dict] = []
+        if profile_ids:
+            cur.execute("""
+                SELECT id, f_num, union_name, parent_union, local_number,
+                       state, website_url, officers, address, phone, email,
+                       source_directory_url
+                FROM web_union_profiles
+                WHERE id = ANY(%s)
+                ORDER BY parent_union, local_number
+            """, (profile_ids,))
+            locals_data = [dict(r) for r in cur.fetchall()]
+
+        # Index locals by id for quick lookup
+        locals_by_id = {loc["id"]: loc for loc in locals_data}
+
+        # Build per-mention enriched records
+        enriched_mentions = []
+        for m in mentions:
+            loc = locals_by_id.get(m["web_profile_id"])
+            enriched_mentions.append({
+                "employer_name": m["employer_name"],
+                "state": m["state"],
+                "source_url": m["source_url"],
+                "source_element": m["source_element"],
+                "extraction_method": m["extraction_method"],
+                "confidence": float(m["confidence_score"] or 0),
+                "union_local": {
+                    "parent_union": loc["parent_union"] if loc else None,
+                    "local_number": loc["local_number"] if loc else None,
+                    "state": loc["state"] if loc else None,
+                    "website_url": loc["website_url"] if loc else None,
+                    "f_num": loc["f_num"] if loc else None,
+                } if loc else None,
+            })
+
+        # Build summary
+        n_mentions = len(enriched_mentions)
+        n_locals = len(locals_data)
+        parent_unions = sorted({
+            loc["parent_union"] for loc in locals_data if loc.get("parent_union")
+        })
+        states_covered = sorted({
+            loc["state"] for loc in locals_data if loc.get("state")
+        })
+
+        parts = [
+            f"{n_mentions} union-website mention(s) across {n_locals} local(s).",
+        ]
+        if parent_unions:
+            parts.append(f"Parent unions: {', '.join(parent_unions)}.")
+        if states_covered:
+            parts.append(f"States: {', '.join(states_covered[:8])}{'...' if len(states_covered) > 8 else ''}.")
+        summary = " ".join(parts)
+
+        data = {
+            "mention_count": n_mentions,
+            "local_count": n_locals,
+            "parent_unions": parent_unions,
+            "states_covered": states_covered,
+            "mentions": enriched_mentions[:25],  # cap for payload size
+            "locals": [
+                {
+                    "parent_union": loc["parent_union"],
+                    "local_number": loc["local_number"],
+                    "state": loc["state"],
+                    "website_url": loc["website_url"],
+                    "f_num": loc["f_num"],
+                    "union_name": loc.get("union_name"),
+                    "officers_excerpt": (loc.get("officers") or "")[:300],
+                }
+                for loc in locals_data
+            ],
+        }
+
+        conn.close()
+        return {
+            "found": True,
+            "source": source,
+            "summary": summary,
+            "data": data,
+        }
+
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+# ---------------------------------------------------------------------------
+# EPA ECHO direct API
+# ---------------------------------------------------------------------------
+# Replaces the dead site-restricted EPA ECHO Google query (dropped from the
+# agent's taxonomy in Session 1c) with a real API call.
+# EPA ECHO publishes a free JSON endpoint (no auth) that returns facility
+# compliance records, violation history, and enforcement actions. Documented
+# at echo.epa.gov/tools/web-services.
+
+def search_epa_echo(
+    company_name: str,
+    *,
+    state: Optional[str] = None,
+    **_kw,
+) -> dict:
+    """Search EPA ECHO for facilities + compliance records linked to this employer.
+
+    Uses the public `get_facilities` JSON endpoint. Rate-limited to 1 req/sec.
+    Returns the usual research-agent tool shape (`{found, source, summary,
+    data, error}`) so the agent's orchestration loop handles it identically
+    to other external-API tools.
+    """
+    source = "api:epa_echo"
+    import requests
+
+    try:
+        _brave_limiter.wait()  # reuse the existing gentle rate-limiter
+        params = {
+            "output": "JSON",
+            "qcolumns": "1,2,3,4,5,7,12,14,21",
+            "p_fn": company_name,
+            "p_act": "Y",  # active facilities only
+            "responseset": "10",
+        }
+        if state:
+            params["p_st"] = state.upper()
+
+        resp = requests.get(
+            "https://echodata.epa.gov/echo/echo_rest_services.get_facilities",
+            params=params,
+            headers={"User-Agent": "LaborDataTerminal/1.0", "Accept": "application/json"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return {
+                "found": False,
+                "source": source,
+                "summary": f"EPA ECHO returned HTTP {resp.status_code}",
+                "data": {},
+                "error": f"http_{resp.status_code}",
+            }
+        try:
+            body = resp.json()
+        except (ValueError, json.JSONDecodeError):
+            return {
+                "found": False,
+                "source": source,
+                "summary": "EPA ECHO returned non-JSON body",
+                "data": {},
+                "error": "non_json",
+            }
+
+        # EPA ECHO's `get_facilities` returns a summary envelope keyed
+        # `Results`, NOT a facility array. The individual facility rows
+        # require a second `get_qid` call with the QueryID. For the
+        # research agent's purposes we report the aggregate signals
+        # directly -- facility_count, inspections, significant violations,
+        # current violations, formal enforcement actions.
+        results = body.get("Results") or {}
+        facility_count = _safe_int(results.get("QueryRows"))
+        inspection_rows = _safe_int(results.get("INSPRows"))
+        sig_violations = _safe_int(results.get("SVRows"))   # Significant Violations
+        cur_violations = _safe_int(results.get("CVRows"))   # Current Violations
+        fea_rows = _safe_int(results.get("FEARows"))        # Formal Enforcement Actions
+        v3_rows = _safe_int(results.get("V3Rows"))          # 3-year violations
+        query_id = results.get("QueryID")
+
+        if facility_count == 0:
+            return {
+                "found": False,
+                "source": source,
+                "summary": f"EPA ECHO: no facilities found for '{company_name}'{f' in {state}' if state else ''}.",
+                "data": {
+                    "query_id": query_id,
+                    "facility_count": 0,
+                },
+            }
+
+        summary_parts = [
+            f"EPA ECHO: {facility_count} facility/facilities matching '{company_name}'"
+            + (f" in {state.upper()}" if state else "")
+            + "."
+        ]
+        if inspection_rows:
+            summary_parts.append(f"{inspection_rows} inspections.")
+        if sig_violations:
+            summary_parts.append(f"{sig_violations} significant violations.")
+        if cur_violations:
+            summary_parts.append(f"{cur_violations} current violations.")
+        if fea_rows:
+            summary_parts.append(f"{fea_rows} formal enforcement actions.")
+
+        return {
+            "found": True,
+            "source": source,
+            "summary": " ".join(summary_parts),
+            "data": {
+                "facility_count": facility_count,
+                "total_inspections": inspection_rows,
+                "significant_violations": sig_violations,
+                "current_violations": cur_violations,
+                "violations_3yr": v3_rows,
+                "enforcement_actions": fea_rows,
+                "query_id": query_id,
+                # Facility detail requires a second call to
+                # `get_qid?qid={query_id}` -- left to the caller if needed.
+                "detail_url": (
+                    f"https://echodata.epa.gov/echo/echo_rest_services.get_qid?qid={query_id}&output=JSON"
+                    if query_id else None
+                ),
+            },
+        }
+    except Exception as exc:
+        return _error_result(source, exc)
+
+
+def _safe_int(v) -> int:
+    """Coerce a value (string/int/None) to an int, 0 on failure."""
+    if v is None:
+        return 0
+    if isinstance(v, int):
+        return v
+    try:
+        return int(str(v).strip() or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 # ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
@@ -4567,6 +5233,11 @@ TOOL_REGISTRY: dict[str, callable] = {
     "search_employer_locations": search_employer_locations,
     "search_leadership": search_leadership,
     "search_state_enforcement": search_state_enforcement,
+    "search_company_enrich": search_company_enrich,
+    "search_brave_web": search_brave_web,
+    "search_linkedin_company": search_linkedin_company,
+    "search_union_web_profiles": search_union_web_profiles,
+    "search_epa_echo": search_epa_echo,
 }
 
 
@@ -5041,6 +5712,69 @@ TOOL_DEFINITIONS = [
                 "company_name": {"type": "string", "description": "Company name to search for"},
                 "employer_id": {"type": "string", "description": "F7 employer_id if known"},
                 "state": {"type": "string", "description": "2-letter state code. Recommended for targeted results."},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_company_enrich",
+        "description": "Enrich company identity data using CompanyEnrich.com (30M+ companies). Returns employee count range, revenue range, website, LinkedIn URL, founding year, industry, company type, and social profiles. Covers millions of companies including private. Use this early to fill identity and financial gaps. Pass domain if known from other tools for better match accuracy.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to look up"},
+                "domain": {"type": "string", "description": "Company website domain if known (e.g. 'amazon.com') -- improves match accuracy"},
+                "linkedin_url": {"type": "string", "description": "Company LinkedIn URL if known"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_brave_web",
+        "description": "Search the web using Brave Search API. Returns structured web results with URLs, titles, and descriptions. Use for finding recent news, WARN notices, leadership names, corporate filings, or any web intelligence about a company. More traceable than Google grounding -- exact query and results are logged.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query string (e.g. '\"Amazon\" WARN layoff notice 2025')"},
+                "company_name": {"type": "string", "description": "Company name for logging context"},
+                "count": {"type": "integer", "description": "Number of results (default 10, max 20)"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "search_linkedin_company",
+        "description": "Scrape a company's LinkedIn page for structured data: industry, employee size, headquarters, founding year, specialties, employee sample, and affiliated companies. Requires a LinkedIn URL. Use when CompanyEnrich or other tools have provided a linkedin_url.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name"},
+                "linkedin_url": {"type": "string", "description": "LinkedIn company page URL (e.g. 'https://www.linkedin.com/company/starbucks')"},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_union_web_profiles",
+        "description": "Look up structured union-local web-profile rows that mention this employer. Searches 2,241 employer mentions extracted from union websites (contract pages, news, about pages) by the 2026-04-19/21 scraper work across 7 parent unions (SEIU, AFSCME, IBT, CWA, IBEW, USW, APWU). Returns which union locals mention the employer, their parent union, local number, state, website, and officers excerpt. Use this INSTEAD of union-website site-restricted Google queries -- it's structured data we already own.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company name to search for in union-website employer mentions."},
+                "state": {"type": "string", "description": "Optional 2-letter state code to restrict results (e.g. 'CA')."},
+                "employer_id": {"type": "string", "description": "Optional F7 employer_id if known (currently unused by this tool but reserved for future F-7 linkage)."},
+            },
+            "required": ["company_name"],
+        },
+    },
+    {
+        "name": "search_epa_echo",
+        "description": "Query EPA ECHO (Enforcement and Compliance History Online) via the direct JSON API for facilities and environmental-compliance records linked to this employer. Returns facility count, inspection count, violation count, and formal enforcement actions across Clean Water Act / Clean Air Act / RCRA programs. Use INSTEAD of site-restricted Google queries -- this hits the authoritative ECHO dataset directly.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "company_name": {"type": "string", "description": "Company or facility name to search for."},
+                "state": {"type": "string", "description": "Optional 2-letter state code to restrict results (e.g. 'CA')."},
             },
             "required": ["company_name"],
         },

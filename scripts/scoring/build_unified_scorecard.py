@@ -623,15 +623,24 @@ strategic_pillars AS (
         -- Blends violations, ULP history, and research sentiment
         -- Dynamic denominator: only counts sub-factors that have data
         -- Guard: LEAST(10, NULL) = 10 in PG, so use CASE to ensure NULL when no data
+        -- R7-17 (2026-04-27): include enh_score_nlrb in both gate and formula
+        -- so employers with NLRB elections (or other NLRB activity captured by
+        -- score_nlrb but not by nlrb_ulp_count) trigger anger-pillar
+        -- computation. Previously 2,526 rows (252 Priority + 453 Strong + 921
+        -- Promising + 609 Moderate + 291 Low) had score_nlrb non-NULL but
+        -- score_anger NULL because the gate only checked enh_score_osha,
+        -- enh_score_whd, and nlrb_ulp_count > 0.
         COALESCE(
             s.rse_score_anger,
             CASE WHEN s.enh_score_osha IS NOT NULL
                    OR s.enh_score_whd IS NOT NULL
+                   OR s.enh_score_nlrb IS NOT NULL
                    OR s.nlrb_ulp_count > 0
             THEN LEAST(10,
                 (
                     COALESCE(s.enh_score_osha * 3, 0)
                     + COALESCE(s.enh_score_whd * 3, 0)
+                    + COALESCE(s.enh_score_nlrb * 3, 0)
                     + COALESCE(
                         CASE
                             WHEN s.nlrb_ulp_count IS NULL THEN NULL
@@ -645,6 +654,7 @@ strategic_pillars AS (
                 )::numeric / NULLIF(
                     CASE WHEN s.enh_score_osha IS NOT NULL THEN 3 ELSE 0 END
                     + CASE WHEN s.enh_score_whd IS NOT NULL THEN 3 ELSE 0 END
+                    + CASE WHEN s.enh_score_nlrb IS NOT NULL THEN 3 ELSE 0 END
                     + CASE WHEN s.nlrb_ulp_count > 0 THEN 4 ELSE 0 END,
                     0
                 )
