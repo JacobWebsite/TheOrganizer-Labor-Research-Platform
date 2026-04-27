@@ -86,6 +86,15 @@ export function useEmployerDataSources(id, { enabled = true } = {}) {
   })
 }
 
+export function useEmployerFinancials(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-financials', id],
+    queryFn: () => apiClient.get(`/api/employers/${id}/financials`),
+    enabled: enabled && !!id,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEmployerMatches(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-matches', id],
@@ -141,5 +150,77 @@ export function useFlagEmployer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employer-flags'] })
     },
+  })
+}
+
+/**
+ * Corporate-family rollup for a master_employers row.
+ *
+ * Aggregates NLRB + OSHA + WHD + F-7 data across all name-variant siblings of
+ * the given master_id, using canonical-stem extraction. This solves the
+ * "Starbucks has 380 masters but only 2 show direct linkage to the canonical
+ * parent" problem by name-matching across all family members.
+ *
+ * Returns: { family_stem, master_count, masters_by_source, nlrb: {...},
+ *           osha: {...}, whd: {...}, f7: {...} }
+ *
+ * Where nlrb = { totals, elections_summary, elections_by_year, elections_by_state,
+ *               recent_elections, allegations_by_section, respondent_variants }
+ */
+export function useEmployerFamilyRollup(masterId, { enabled = true, limit = 100 } = {}) {
+  return useQuery({
+    queryKey: ['employer-family-rollup', masterId, limit],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/family-rollup?limit_recent_elections=${limit}`,
+      ),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000, // 10 min — corporate hierarchy changes slowly
+  })
+}
+
+/**
+ * Same corporate-family rollup, but keyed on an F-7 employer_id (hex) rather
+ * than a master_id. The backend extracts the canonical stem from the F-7
+ * `name_standard` and runs identical aggregation. Used when the profile
+ * page is rendering an F-7-sourced employer (e.g. one Starbucks store's
+ * F-7 row) so that page also gets the full national-family view.
+ */
+export function useEmployerFamilyRollupForF7(f7Id, { enabled = true, limit = 100 } = {}) {
+  return useQuery({
+    queryKey: ['employer-family-rollup-f7', f7Id, limit],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/f7/${f7Id}/family-rollup?limit_recent_elections=${limit}`,
+      ),
+    enabled: enabled && !!f7Id,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+/**
+ * State and local government contracts (NY/VA/OH) matched to a master_id.
+ * Returns the row from state_local_contracts_master_matches with vendor name,
+ * source tables, match tier, and an amount_caveat field. (R7-9, 2026-04-27)
+ *
+ * Note: total_contract_amount is unreliable across sources (NY ABO has
+ * $1.2Q-class typos). Prefer source_count and contract_row_count for display.
+ */
+export function useEmployerMasterStateLocalContracts(
+  masterId,
+  { enabled = true, includeReviewTier = false } = {},
+) {
+  return useQuery({
+    queryKey: ['employer-state-local-contracts', masterId, includeReviewTier],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/state-local-contracts` +
+          (includeReviewTier ? '?include_review_tier=true' : ''),
+      ),
+    enabled: enabled && !!masterId,
+    // 404 = "no state/local matches" — treated by TanStack as an error.
+    // Components should handle isError as well as isLoading/data.
+    retry: false,
+    staleTime: 10 * 60 * 1000,
   })
 }

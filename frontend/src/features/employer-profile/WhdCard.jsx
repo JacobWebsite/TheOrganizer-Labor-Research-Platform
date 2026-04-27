@@ -11,6 +11,17 @@ function formatCurrency(n) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
 
+function formatVintageDate(d) {
+  if (!d) return null
+  try {
+    const parsed = new Date(d)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return null
+  }
+}
+
 export function WhdCard({ employerId, sourceAttribution, dataSources }) {
   const { data, isLoading } = useEmployerWhd(employerId)
   const [showAll, setShowAll] = useState(false)
@@ -36,11 +47,17 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
   const summary = data.whd_summary || {}
   const cases = data.cases || []
   const displayCases = showAll ? cases : cases.slice(0, 5)
-  const caseCount = summary.case_count || cases.length
-  const backwages = summary.total_backwages || 0
+  // R7-10 (2026-04-27): backend returns whd_violation_count (per-employer aggregate)
+  // and whd_backwages on f7_employers_deduped.* exposed as `whd_summary`. JSX was
+  // reading legacy field names that no longer exist, so Kroger's $7.87M rendered as $0.
+  const caseCount = cases.length
+  const totalViolations = summary.whd_violation_count || cases.reduce((s, c) => s + (c.total_violations || 0), 0)
+  const backwages = summary.whd_backwages || 0
+  const totalPenalties = summary.whd_penalties || 0
 
   const hasChildLabor = cases.some(c => c.flsa_child_labor_violations > 0)
   const hasRepeatViolator = cases.some(c => c.flsa_repeat_violator)
+  const vintageDate = formatVintageDate(data?.latest_record_date)
 
   return (
     <CollapsibleCard
@@ -86,7 +103,7 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
           </div>
           <div>
             <span className="text-muted-foreground">Violations</span>
-            <div className="font-medium">{(summary.total_violations || 0).toLocaleString()}</div>
+            <div className="font-medium">{totalViolations.toLocaleString()}</div>
           </div>
           <div>
             <span className="text-muted-foreground">Backwages</span>
@@ -94,7 +111,7 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
           </div>
           <div>
             <span className="text-muted-foreground">Penalties</span>
-            <div className="font-medium">{formatCurrency(summary.total_penalties || 0)}</div>
+            <div className="font-medium">{formatCurrency(totalPenalties)}</div>
           </div>
         </div>
 
@@ -114,8 +131,8 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
                   <tr key={i} className="border-b">
                     <td className="px-2 py-1.5">{c.trade_name || c.legal_name || 'N/A'}</td>
                     <td className="px-2 py-1.5">{[c.city, c.state].filter(Boolean).join(', ')}</td>
-                    <td className="px-2 py-1.5 text-right">{c.violations_count || 0}</td>
-                    <td className="px-2 py-1.5 text-right">{formatCurrency(c.backwages)}</td>
+                    <td className="px-2 py-1.5 text-right">{c.total_violations || 0}</td>
+                    <td className="px-2 py-1.5 text-right">{formatCurrency(c.backwages_amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -127,6 +144,12 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
           <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
             Show all {cases.length} cases
           </Button>
+        )}
+
+        {vintageDate && (
+          <p className="text-xs text-muted-foreground">
+            WHD data current through {vintageDate}
+          </p>
         )}
       </div>
     </CollapsibleCard>

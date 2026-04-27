@@ -22,6 +22,17 @@ function formatDate(d) {
   }
 }
 
+function formatVintageDate(d) {
+  if (!d) return null
+  try {
+    const parsed = new Date(d)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return null
+  }
+}
+
 const RESULT_COLORS = {
   'Certify': 'bg-green-100 text-green-800',
   'Certified': 'bg-green-100 text-green-800',
@@ -52,7 +63,7 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
   const ulpCases = nlrb?.ulp_cases || []
 
   // If no data at all, show warning instead of hiding
-  if (!nlrb || (!summary.total_elections && !summary.total_ulp_cases && elections.length === 0 && ulpCases.length === 0)) {
+  if (!nlrb || (!summary.total_elections && !summary.ulp_cases && !summary.total_ulp_cases && elections.length === 0 && ulpCases.length === 0)) {
     return (
       <CollapsibleCard icon={Scale} title="NLRB Activity" summary="No records matched">
         <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
@@ -67,11 +78,12 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
     )
   }
 
-  const summaryText = `${formatNumber(summary.total_elections)} elections \u00b7 ${formatNumber(summary.total_ulp_cases)} ULP cases`
+  const summaryText = `${formatNumber(summary.total_elections)} elections \u00b7 ${formatNumber(summary.ulp_cases ?? summary.total_ulp_cases)} ULP cases`
   const visibleElections = electionsExpanded ? elections : elections.slice(0, VISIBLE_ROWS)
   const hasMoreElections = elections.length > VISIBLE_ROWS
   const visibleUlp = ulpExpanded ? ulpCases : ulpCases.slice(0, VISIBLE_ROWS)
   const hasMoreUlp = ulpCases.length > VISIBLE_ROWS
+  const vintageDate = formatVintageDate(nlrb?.latest_record_date)
 
   return (
     <CollapsibleCard icon={Scale} title="NLRB Activity" summary={summaryText}>
@@ -91,15 +103,16 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
             <div className="text-xs text-muted-foreground">Elections</div>
           </div>
           <div>
-            <div className="text-2xl font-bold">{formatNumber(summary.wins)}</div>
+            {/* R7-12 (2026-04-27): API returns union_wins / union_losses / ulp_cases. */}
+            <div className="text-2xl font-bold">{formatNumber(summary.union_wins ?? summary.wins)}</div>
             <div className="text-xs text-muted-foreground">Wins</div>
           </div>
           <div>
-            <div className="text-2xl font-bold">{formatNumber(summary.losses)}</div>
+            <div className="text-2xl font-bold">{formatNumber(summary.union_losses ?? summary.losses)}</div>
             <div className="text-xs text-muted-foreground">Losses</div>
           </div>
           <div>
-            <div className="text-2xl font-bold">{formatNumber(summary.total_ulp_cases)}</div>
+            <div className="text-2xl font-bold">{formatNumber(summary.ulp_cases ?? summary.total_ulp_cases)}</div>
             <div className="text-xs text-muted-foreground">ULP Cases</div>
           </div>
         </div>
@@ -134,8 +147,9 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
                     <tr key={el.case_number || i} className="border-b">
                       <td className="px-3 py-2 font-mono text-xs">{el.case_number || '\u2014'}</td>
                       <td className="px-3 py-2">{formatDate(el.election_date || el.date_filed)}</td>
-                      <td className="px-3 py-2"><ResultBadge result={el.result || el.status} /></td>
-                      <td className="px-3 py-2 text-right">{formatNumber(el.voters_eligible || el.unit_size)}</td>
+                      {/* R7-12 (2026-04-27): API returns boolean union_won + eligible_voters. */}
+                      <td className="px-3 py-2"><ResultBadge result={el.result || el.status || (el.union_won === true ? 'Won' : el.union_won === false ? 'Lost' : null)} /></td>
+                      <td className="px-3 py-2 text-right">{formatNumber(el.eligible_voters ?? el.voters_eligible ?? el.unit_size)}</td>
                       <td className="px-3 py-2 truncate max-w-[200px]">{el.union_name || '\u2014'}</td>
                     </tr>
                   ))}
@@ -269,6 +283,12 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
             </div>
           )
         })()}
+
+        {vintageDate && (
+          <p className="text-xs text-muted-foreground">
+            NLRB data current through {vintageDate}
+          </p>
+        )}
       </div>
     </CollapsibleCard>
   )
