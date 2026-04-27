@@ -10,7 +10,9 @@ export function ComparablesCard({ employerId }) {
   if (!data?.comparables?.length) return null
 
   const comparables = data.comparables
-  const unionized = comparables.filter((c) => c.union_name).length
+  // Backend returns `comparable_type` = 'union' | 'non_union' (not `union_name`).
+  // Count union-side comparables for the header chip.
+  const unionized = comparables.filter((c) => c.comparable_type === 'union').length
 
   return (
     <CollapsibleCard
@@ -26,7 +28,7 @@ export function ComparablesCard({ employerId }) {
               <th className="px-2 py-1.5 text-left font-medium">Employer</th>
               <th className="px-2 py-1.5 text-right font-medium">Similarity</th>
               <th className="px-2 py-1.5 text-left font-medium">Match Reasons</th>
-              <th className="px-2 py-1.5 text-left font-medium">Union</th>
+              <th className="px-2 py-1.5 text-left font-medium">Union Status</th>
             </tr>
           </thead>
           <tbody>
@@ -50,7 +52,19 @@ export function ComparablesCard({ employerId }) {
                     ))}
                   </div>
                 </td>
-                <td className="px-2 py-1.5">{c.union_name || <span className="text-muted-foreground">--</span>}</td>
+                <td className="px-2 py-1.5">
+                  {c.comparable_type === 'union' ? (
+                    <span className="inline-flex px-1.5 py-0.5 text-[10px] bg-green-100 text-green-800 border">
+                      Union
+                    </span>
+                  ) : c.comparable_type === 'non_union' ? (
+                    <span className="inline-flex px-1.5 py-0.5 text-[10px] bg-stone-100 text-stone-700 border">
+                      Non-union
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">--</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
