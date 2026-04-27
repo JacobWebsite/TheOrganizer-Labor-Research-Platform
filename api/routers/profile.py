@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from ..database import get_db
 from ..helpers import TTLCache
+from ..services.entity_context import build_entity_context_for_f7
 
 _logger = logging.getLogger(__name__)
 
@@ -76,8 +77,12 @@ def _get_nyc_enforcement(cur, employer: dict) -> dict:
     }
 
 
-def _get_nlrb_docket_summary(cur, f7_id: str) -> dict:
-    """Aggregate docket activity for an employer's NLRB cases."""
+def _get_nlrb_docket_summary(cur, member_ids: list) -> dict:
+    """Aggregate docket activity for an employer's NLRB cases.
+
+    ``member_ids`` is a list of F7 employer IDs (all canonical-group members)
+    so that large companies surface docket data across every location.
+    """
     cur.execute(
         """
         SELECT d.case_number,
@@ -88,12 +93,12 @@ def _get_nlrb_docket_summary(cur, f7_id: str) -> dict:
         FROM nlrb_docket d
         JOIN nlrb_participants p ON d.case_number = p.case_number
             AND p.participant_type = 'Employer'
-        WHERE p.matched_employer_id::text = %s
+        WHERE p.matched_employer_id::text = ANY(%s)
         GROUP BY d.case_number
         ORDER BY MAX(d.docket_date) DESC NULLS LAST
         LIMIT 20
         """,
-        [f7_id],
+        [member_ids],
     )
     rows = cur.fetchall()
 
@@ -140,7 +145,7 @@ def _get_nlrb_docket_summary(cur, f7_id: str) -> dict:
 @router.get("/api/profile/employers/{employer_id}")
 def get_employer_profile(employer_id: str):
     """Canonical employer profile payload for frontend detail rendering."""
-    cached = _profile_cache.get(f"profile:{employer_id}")
+    cached = _profile_cache.get(f"profile:v2:{employer_id}")
     if cached is not None:
         return cached
     with get_db() as conn:
@@ -160,7 +165,7 @@ def get_employer_profile(employer_id: str):
             if not row:
                 cur.execute(
                     """
-                    SELECT employer_id::text AS f7_employer_id
+                    SELECT canonical_id::text AS f7_employer_id
                     FROM mv_employer_search
                     WHERE canonical_id = %s AND source_type = 'F7'
                     LIMIT 1
@@ -186,6 +191,23 @@ def get_employer_profile(employer_id: str):
             employer = cur.fetchone()
             if not employer:
                 raise HTTPException(status_code=404, detail="Employer not found")
+
+            # Expand to all canonical group members so large companies
+            # (e.g. Starbucks with hundreds of F7 records) aggregate all
+            # NLRB elections, ULPs, OSHA matches, etc. across every location.
+            canonical_group_id = employer.get("canonical_group_id")
+            if canonical_group_id:
+                cur.execute(
+                    """
+                    SELECT employer_id::text AS employer_id
+                    FROM f7_employers_deduped
+                    WHERE canonical_group_id = %s
+                    """,
+                    [canonical_group_id],
+                )
+                member_ids = [r["employer_id"] for r in cur.fetchall()]
+            else:
+                member_ids = [f7_id]
 
             # Unified scoring context (single frontend scorecard source).
             cur.execute(
@@ -216,11 +238,11 @@ def get_employer_profile(employer_id: str):
                     AND p.participant_type = 'Employer'
                 LEFT JOIN nlrb_tallies t ON e.case_number = t.case_number AND t.tally_type = 'For'
                 LEFT JOIN unions_master um ON t.matched_olms_fnum = um.f_num
-                WHERE p.matched_employer_id::text = %s
+                WHERE p.matched_employer_id::text = ANY(%s)
                 ORDER BY e.election_date DESC
                 LIMIT 50
                 """,
-                [f7_id],
+                [member_ids],
             )
             nlrb_elections = cur.fetchall()
 
@@ -232,20 +254,24 @@ def get_employer_profile(employer_id: str):
                 JOIN nlrb_case_types ct ON c.case_type = ct.case_type
                 JOIN nlrb_participants p ON c.case_number = p.case_number
                     AND p.participant_type = 'Charged Party'
-                WHERE p.matched_employer_id::text = %s
+                WHERE p.matched_employer_id::text = ANY(%s)
                   AND ct.case_category = 'unfair_labor_practice'
                 ORDER BY c.earliest_date DESC
                 LIMIT 50
                 """,
-                [f7_id],
+                [member_ids],
             )
             ulp_cases = cur.fetchall()
 
             cur.execute(
                 """
-                SELECT o.establishment_id, o.estab_name, o.site_city, o.site_state,
-                       o.total_inspections, o.last_inspection_date,
-                       COALESCE(vs.total_violations, 0) AS total_violations,
+                SELECT o.establishment_id,
+                       o.estab_name AS establishment_name,
+                       o.site_city AS city,
+                       o.site_state AS state,
+                       o.total_inspections AS inspection_count,
+                       o.last_inspection_date,
+                       COALESCE(vs.total_violations, 0) AS violation_count,
                        COALESCE(vs.total_penalties, 0) AS total_penalties,
                        COALESCE(vs.serious_count, 0) AS serious_count,
                        COALESCE(vs.willful_count, 0) AS willful_count,
@@ -264,18 +290,18 @@ def get_employer_profile(employer_id: str):
                     FROM osha_violation_summary
                     GROUP BY establishment_id
                 ) vs ON vs.establishment_id = o.establishment_id
-                WHERE m.f7_employer_id::text = %s
+                WHERE m.f7_employer_id::text = ANY(%s)
                 ORDER BY COALESCE(vs.total_penalties, 0) DESC
                 LIMIT 25
                 """,
-                [f7_id],
+                [member_ids],
             )
             osha_establishments = cur.fetchall()
 
             osha_summary = {
                 "total_establishments": len(osha_establishments),
-                "total_inspections": sum(e["total_inspections"] or 0 for e in osha_establishments),
-                "total_violations": sum(e["total_violations"] or 0 for e in osha_establishments),
+                "total_inspections": sum(e["inspection_count"] or 0 for e in osha_establishments),
+                "total_violations": sum(e["violation_count"] or 0 for e in osha_establishments),
                 "total_penalties": float(sum(float(e["total_penalties"] or 0) for e in osha_establishments)),
                 "serious_violations": sum(e["serious_count"] or 0 for e in osha_establishments),
                 "willful_violations": sum(e["willful_count"] or 0 for e in osha_establishments),
@@ -295,7 +321,7 @@ def get_employer_profile(employer_id: str):
                     FROM nlrb_participants p
                     LEFT JOIN nlrb_elections e ON p.case_number = e.case_number
                     LEFT JOIN nlrb_tallies t ON e.case_number = t.case_number AND t.tally_type = 'For'
-                    WHERE p.matched_employer_id::text = %s
+                    WHERE p.matched_employer_id::text = ANY(%s)
                       AND p.participant_type = 'Employer'
                     UNION ALL
                     SELECT 'VR'::text AS source_type, vr.vr_case_number::text AS source_id,
@@ -306,12 +332,12 @@ def get_employer_profile(employer_id: str):
                            'Vol. Recognition'::text AS election_result,
                            vr.union_name, NULL::text AS confidence_band
                     FROM nlrb_voluntary_recognition vr
-                    WHERE vr.matched_employer_id::text = %s
+                    WHERE vr.matched_employer_id::text = ANY(%s)
                 ) x
                 ORDER BY election_date DESC NULLS LAST
                 LIMIT 40
                 """,
-                [f7_id, f7_id],
+                [member_ids, member_ids],
             )
             cross_references = cur.fetchall()
 
@@ -341,8 +367,16 @@ def get_employer_profile(employer_id: str):
             # Check if this employer is union (F7) or non-union
             is_union = bool(employer.get("is_union", True))
 
+            # #44: entity-context summary (unit / group / corporate family)
+            try:
+                entity_context = build_entity_context_for_f7(cur, f7_id, employer)
+            except Exception as exc:  # pragma: no cover - defensive; never fail profile on ctx error
+                _logger.warning("entity_context build failed for %s: %s", f7_id, exc)
+                entity_context = None
+
             result = {
                 "employer": employer,
+                "entity_context": entity_context,
                 "is_union_reference": is_union,
                 "unified_scorecard": unified_scorecard if is_union else None,
                 "data_coverage": {
@@ -372,9 +406,9 @@ def get_employer_profile(employer_id: str):
                 "cross_references": cross_references,
                 "flags": flags,
                 "nyc_enforcement": _get_nyc_enforcement(cur, employer),
-                "nlrb_docket": _get_nlrb_docket_summary(cur, f7_id),
+                "nlrb_docket": _get_nlrb_docket_summary(cur, member_ids),
             }
-            _profile_cache.set(f"profile:{employer_id}", result)
+            _profile_cache.set(f"profile:v2:{employer_id}", result)
             return result
 
 
@@ -518,6 +552,55 @@ def _onet_tables_exist(cur) -> bool:
     return cur.fetchone()["count"] >= 3
 
 
+def _enrich_occupations_wages(cur, occupations: list, state: str, cbsa_code: str = None):
+    """Attach OES wage data to each occupation. Tries MSA first, falls back to state."""
+    if not occupations or not state:
+        return
+    occ_codes = [o["occupation_code"] for o in occupations if o.get("occupation_code")]
+    if not occ_codes:
+        return
+
+    wage_map = {}
+    area_label = None
+
+    if cbsa_code:
+        cur.execute("""
+            SELECT occ_code, a_median, a_pct10, a_pct25, a_pct75, a_pct90, h_median, area_title
+            FROM mv_oes_area_wages
+            WHERE occ_code = ANY(%s) AND area = %s AND area_type = 4
+        """, [occ_codes, cbsa_code])
+        for r in cur.fetchall():
+            wage_map[r["occ_code"]] = r
+            if not area_label:
+                area_label = r["area_title"]
+
+    missing = [c for c in occ_codes if c not in wage_map]
+    if missing:
+        cur.execute("""
+            SELECT occ_code, a_median, a_pct10, a_pct25, a_pct75, a_pct90, h_median, area_title
+            FROM mv_oes_area_wages
+            WHERE occ_code = ANY(%s) AND prim_state = %s AND area_type = 2
+        """, [missing, state.upper()])
+        for r in cur.fetchall():
+            if r["occ_code"] not in wage_map:
+                wage_map[r["occ_code"]] = r
+
+    for occ in occupations:
+        w = wage_map.get(occ["occupation_code"])
+        if w:
+            occ["wages"] = {
+                "median_annual": _float(w["a_median"]),
+                "pct10_annual": _float(w["a_pct10"]),
+                "pct25_annual": _float(w["a_pct25"]),
+                "pct75_annual": _float(w["a_pct75"]),
+                "pct90_annual": _float(w["a_pct90"]),
+                "median_hourly": _float(w["h_median"]),
+                "area": w.get("area_title"),
+            }
+        else:
+            occ["wages"] = None
+
+
 def _enrich_occupations_onet(cur, occupations: list):
     """Add O*NET skills, knowledge, work context, and job zone to each occupation."""
     if not occupations:
@@ -644,28 +727,23 @@ def get_employer_occupations(employer_id: str):
     """Top BLS occupations and similar industries for an employer's NAICS."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Verify employer exists
-            cur.execute(
-                """
-                SELECT employer_id, naics, naics_detailed
-                FROM f7_employers_deduped
-                WHERE employer_id::text = %s
-                LIMIT 1
-                """,
-                [employer_id],
-            )
-            employer = cur.fetchone()
-            if not employer:
+            emp = _get_employer_basics(cur, employer_id)
+            if not emp:
                 raise HTTPException(status_code=404, detail="Employer not found")
 
-            raw_naics = (employer.get("naics_detailed") or employer.get("naics") or "").strip()
+            state = (emp.get("state") or "").strip()
+            zip_code = (emp.get("zip") or "").strip()[:5]
+            cbsa_code = (emp.get("cbsa_code") or "").strip() or _get_cbsa_code(cur, zip_code)
+            raw_naics = (emp.get("naics_detailed") or emp.get("naics") or "").strip()
             naics_code = re.sub(r"[^0-9]", "", raw_naics)
 
             if not naics_code:
                 return {
                     "employer_naics": None,
+                    "employer_state": state or None,
                     "top_occupations": [],
                     "similar_industries": [],
+                    "qcew_benchmark": None,
                 }
 
             # Try progressively shorter NAICS prefixes for BLS match
@@ -746,10 +824,18 @@ def get_employer_occupations(employer_id: str):
             # Enrich occupations with O*NET data if tables exist
             _enrich_occupations_onet(cur, top_occupations)
 
+            _enrich_occupations_wages(cur, top_occupations, state, cbsa_code)
+
+            # QCEW local industry benchmark
+            county_fips = _get_county_fips(cur, zip_code) if zip_code else None
+            qcew = _get_qcew_context(cur, county_fips, naics_code) if county_fips else None
+
             return {
                 "employer_naics": naics_code,
+                "employer_state": state or None,
                 "top_occupations": top_occupations,
                 "similar_industries": similar_industries,
+                "qcew_benchmark": qcew,
             }
 
 
@@ -881,7 +967,7 @@ def _get_employer_basics(cur, employer_id: str):
     """Get employer basics: state, zip, naics, city."""
     cur.execute("""
         SELECT employer_id, employer_name, state, city, zip,
-               naics, naics_detailed, latest_unit_size
+               naics, naics_detailed, latest_unit_size, cbsa_code
         FROM f7_employers_deduped
         WHERE employer_id::text = %s LIMIT 1
     """, [employer_id])
@@ -897,6 +983,19 @@ def _get_county_fips(cur, zip_code: str):
     )
     row = cur.fetchone()
     return row["county_fips"] if row else None
+
+
+def _get_cbsa_code(cur, zip_code: str):
+    """Derive CBSA (metro area) code from ZIP via county crosswalk."""
+    county = _get_county_fips(cur, zip_code)
+    if not county:
+        return None
+    cur.execute(
+        "SELECT cbsa_code FROM cbsa_counties WHERE fips_full = %s LIMIT 1",
+        [county],
+    )
+    row = cur.fetchone()
+    return row["cbsa_code"] if row else None
 
 
 def _get_state_fips(cur, state: str):
@@ -1115,6 +1214,7 @@ def _get_tract_demographics(cur, employer_id: str):
     return {
         "source": "ACS Tract (Census Bureau)",
         "tract_fips": row["tract_fips"],
+        "vintage_year": int(row["acs_year"]) if row.get("acs_year") else None,
         "total_population": int(total_pop) if total_pop else None,
         "median_household_income": int(row["median_household_income"]) if row.get("median_household_income") else None,
         "unemployment_rate": float(row["unemployment_rate"]) if row.get("unemployment_rate") else None,
@@ -1175,23 +1275,48 @@ def _get_qcew_context(cur, county_fips: str, naics_code: str):
     return None
 
 
-def _get_oes_wages(cur, state: str, naics_code: str):
-    """Top occupation wages from OES for employer's state."""
+def _get_oes_wages(cur, state: str, naics_code: str, cbsa_code: str = None):
+    """Top occupation wages from OES. Tries MSA first, falls back to state."""
     if not state:
         return None
-    cur.execute("""
-        SELECT occ_code, occ_title, tot_emp, a_mean, a_median,
-               a_pct10, a_pct25, a_pct75, a_pct90
-        FROM mv_oes_area_wages
-        WHERE prim_state = %s AND occ_code != '00-0000'
-        ORDER BY tot_emp DESC NULLS LAST
-        LIMIT 10
-    """, [state.upper()])
-    rows = cur.fetchall()
+
+    area_label = None
+    rows = None
+    used_msa = False
+
+    if cbsa_code:
+        cur.execute("""
+            SELECT occ_code, occ_title, tot_emp, a_mean, a_median,
+                   a_pct10, a_pct25, a_pct75, a_pct90, area_title
+            FROM mv_oes_area_wages
+            WHERE area = %s AND area_type = 4 AND occ_code != '00-0000'
+            ORDER BY tot_emp DESC NULLS LAST
+            LIMIT 10
+        """, [cbsa_code])
+        rows = cur.fetchall()
+        if rows:
+            area_label = rows[0]["area_title"]
+            used_msa = True
+
+    if not rows:
+        cur.execute("""
+            SELECT occ_code, occ_title, tot_emp, a_mean, a_median,
+                   a_pct10, a_pct25, a_pct75, a_pct90, area_title
+            FROM mv_oes_area_wages
+            WHERE prim_state = %s AND area_type = 2 AND occ_code != '00-0000'
+            ORDER BY tot_emp DESC NULLS LAST
+            LIMIT 10
+        """, [state.upper()])
+        rows = cur.fetchall()
+        if rows:
+            area_label = rows[0]["area_title"]
+
     if not rows:
         return None
     return {
         "source": "OES (BLS)",
+        "area": area_label or state.upper(),
+        "area_level": "metro" if used_msa else "state",
         "state": state.upper(),
         "top_occupations": [
             {
@@ -1542,13 +1667,14 @@ def get_employer_workforce_profile(employer_id: str):
                            (emp.get("naics_detailed") or emp.get("naics") or "").strip())
 
             county_fips = _get_county_fips(cur, zip_code)
+            cbsa_code = (emp.get("cbsa_code") or "").strip() or _get_cbsa_code(cur, zip_code)
             state_fips = _get_state_fips(cur, state) if state else None
 
             # Gather all data sources
             acs = _get_acs_demographics(cur, state_fips, naics) if state_fips else None
             lodes = _get_lodes_demographics(cur, county_fips) if county_fips else None
             qcew = _get_qcew_context(cur, county_fips, naics) if county_fips else None
-            oes = _get_oes_wages(cur, state, naics) if state else None
+            oes = _get_oes_wages(cur, state, naics, cbsa_code) if state else None
             soii = _get_injury_rates(cur, naics)
             jolts = _get_turnover_rates(cur, naics)
             ncs = _get_benefits_access(cur, naics)
@@ -1560,25 +1686,82 @@ def get_employer_workforce_profile(employer_id: str):
             # V5 Gate-routed estimate (preferred), with old blend as fallback
             v5_estimate = None
             try:
-                from ..services.demographics_v5 import estimate_demographics_v5
+                from ..services.demographics_v5 import (
+                    estimate_demographics_v5, compute_prediction_ranges,
+                    get_diversity_tier,
+                )
                 total_emp = emp.get("latest_unit_size") or 100
                 v5_result = estimate_demographics_v5(
                     cur, naics, state_fips, zip_code, county_fips,
                     total_employees=total_emp,
                 )
                 if v5_result and v5_result.get('race'):
+                    naics_group = (v5_result.get('metadata') or {}).get(
+                        'naics_group', 'Other')
+
+                    # Get county minority % for diversity tier
+                    diversity_tier = "unknown"
+                    if county_fips:
+                        cur.execute(
+                            "SELECT pct_minority FROM cur_lodes_geo_metrics "
+                            "WHERE county_fips = %s LIMIT 1",
+                            [county_fips])
+                        lrow = cur.fetchone()
+                        if lrow and lrow.get("pct_minority") is not None:
+                            diversity_tier = get_diversity_tier(
+                                float(lrow["pct_minority"]))
+
+                    # Compute prediction ranges
+                    ranges, range_context = compute_prediction_ranges(
+                        v5_result, naics_group, diversity_tier)
+
+                    # Confidence tier
+                    try:
+                        from ..services.demographics_v5 import DEMO_DIR
+                        import sys as _sys
+                        if DEMO_DIR not in _sys.path:
+                            _sys.path.insert(0, DEMO_DIR)
+                        from estimate_confidence import estimate_confidence
+                        from classifiers import classify_region
+                        region = classify_region(state or '')
+                        confidence_tier = estimate_confidence(
+                            naics_group, diversity_tier, region)
+                    except Exception:
+                        confidence_tier = None
+
+                    def _add_ranges(items, ranges_dict):
+                        if not items or not ranges_dict:
+                            return items
+                        result = []
+                        for item in items:
+                            entry = {"label": item["label"], "pct": item["pct"]}
+                            label = item["label"]
+                            if label in ranges_dict:
+                                entry["range_low"] = ranges_dict[label]["low"]
+                                entry["range_high"] = ranges_dict[label]["high"]
+                            result.append(entry)
+                        return result
+
+                    race_items = [{"label": k, "pct": v}
+                                  for k, v in v5_result['race'].items()]
+                    hisp_items = ([{"label": k, "pct": v}
+                                   for k, v in v5_result['hispanic'].items()]
+                                  if v5_result.get('hispanic') else None)
+                    gender_items = ([{"label": k, "pct": v}
+                                     for k, v in v5_result['gender'].items()]
+                                    if v5_result.get('gender') else None)
+
                     v5_estimate = {
                         "method": "gate_v1",
-                        "race": [{"label": k, "pct": v}
-                                 for k, v in v5_result['race'].items()],
-                        "hispanic": ([{"label": k, "pct": v}
-                                      for k, v in v5_result['hispanic'].items()]
-                                     if v5_result.get('hispanic') else None),
-                        "gender": ([{"label": k, "pct": v}
-                                    for k, v in v5_result['gender'].items()]
-                                   if v5_result.get('gender') else None),
+                        "race": _add_ranges(race_items, ranges),
+                        "hispanic": _add_ranges(hisp_items, ranges),
+                        "gender": _add_ranges(gender_items, ranges),
                         "metadata": v5_result.get('metadata'),
                     }
+                    if confidence_tier:
+                        v5_estimate["confidence_tier"] = confidence_tier
+                    if range_context:
+                        v5_estimate["range_context"] = range_context
             except Exception as exc:
                 _logger.warning("V5 demographics unavailable: %s", exc)
 
