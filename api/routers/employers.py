@@ -33,16 +33,23 @@ _ALIAS_CACHE: list[dict] | None = None
 def _load_aliases() -> list[dict]:
     """Load alias dictionary on first call; cache in process memory.
 
-    Fail-open: if the JSON file is missing or malformed, returns an empty list
-    so search behavior reverts to the pre-alias default rather than crashing.
+    Fail-open: if the JSON file is missing, malformed, has the wrong top-level
+    shape (e.g. a list or null instead of a dict with an "aliases" key), or
+    contains non-dict entries, returns an empty list so search behavior
+    reverts to the pre-alias default rather than crashing the search endpoint.
     """
     global _ALIAS_CACHE
     if _ALIAS_CACHE is None:
+        _ALIAS_CACHE = []
         try:
             with _ALIAS_PATH.open("r", encoding="utf-8") as f:
-                _ALIAS_CACHE = json.load(f).get("aliases", [])
+                data = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError, OSError):
-            _ALIAS_CACHE = []
+            return _ALIAS_CACHE
+        if isinstance(data, dict):
+            entries = data.get("aliases", [])
+            if isinstance(entries, list):
+                _ALIAS_CACHE = [e for e in entries if isinstance(e, dict)]
     return _ALIAS_CACHE
 
 
