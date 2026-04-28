@@ -2,7 +2,9 @@
 Employer endpoints: search, detail, flags, NAICS stats, unified, comparables.
 Extracted from labor_api_v6.py.
 """
+import json
 import re
+from pathlib import Path
 
 import psycopg2.errors
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
@@ -18,6 +20,30 @@ from ..services.entity_context import (
 )
 
 router = APIRouter()
+
+
+# R7-7 (2026-04-28) alias dictionary -- loaded lazily on first use, cached for
+# the life of the process. Used by unified_employer_search to exclude known
+# cross-industry name collisions (e.g. "Cleveland Clinic" query should not
+# return Cleveland-Cliffs Inc).
+_ALIAS_PATH = Path(__file__).resolve().parents[2] / "config" / "employer_aliases.json"
+_ALIAS_CACHE: list[dict] | None = None
+
+
+def _load_aliases() -> list[dict]:
+    """Load alias dictionary on first call; cache in process memory.
+
+    Fail-open: if the JSON file is missing or malformed, returns an empty list
+    so search behavior reverts to the pre-alias default rather than crashing.
+    """
+    global _ALIAS_CACHE
+    if _ALIAS_CACHE is None:
+        try:
+            with _ALIAS_PATH.open("r", encoding="utf-8") as f:
+                _ALIAS_CACHE = json.load(f).get("aliases", [])
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            _ALIAS_CACHE = []
+    return _ALIAS_CACHE
 
 
 # ============================================================================
@@ -375,12 +401,35 @@ def unified_employer_search(
         with conn.cursor() as cur:
             conditions = ["1=1"]
             params = []
-            order_clause = "unit_size DESC NULLS LAST"
+            # R7-7 (2026-04-28): tiebreak now prefers canonical group leaders and
+            # parent-level consolidated_workers over per-store unit_size. Without this,
+            # a Walmart HI store (unit_size=50) ranked above Walmart Inc parent
+            # (unit_size=NULL, consolidated_workers=2.3M).
+            order_clause = (
+                "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
+                "COALESCE(consolidated_workers, unit_size, 0) DESC, "
+                "unit_size DESC NULLS LAST"
+            )
 
             if name:
                 conditions.append("similarity(search_name, %s) > 0.3")
                 params.append(name.lower())
-                order_clause = "similarity(search_name, %s) DESC, unit_size DESC NULLS LAST"
+                order_clause = (
+                    "similarity(search_name, %s) DESC, "
+                    "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
+                    "COALESCE(consolidated_workers, unit_size, 0) DESC, "
+                    "unit_size DESC NULLS LAST"
+                )
+                # R7-7 alias guard: when the query matches a known alias entry,
+                # exclude rows containing collision terms (e.g. "cleveland clinic"
+                # query excludes "cleveland-cliffs"). Fail-open if the JSON is
+                # missing or malformed.
+                name_lower = name.lower()
+                for entry in _load_aliases():
+                    if any(alias in name_lower for alias in entry.get("aliases", [])):
+                        for excl in entry.get("exclude_terms", []):
+                            conditions.append("LOWER(search_name) NOT LIKE %s")
+                            params.append(f"%{excl.lower()}%")
             if state:
                 conditions.append("state = %s")
                 params.append(state.upper())

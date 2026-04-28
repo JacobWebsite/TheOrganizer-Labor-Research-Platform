@@ -1,0 +1,32 @@
+{
+  "_doc": "Employer name aliases + collision exclusions for unified employer search. Loaded by api/routers/employers.py::_load_aliases() and applied as WHERE LOWER(search_name) NOT LIKE %s%% guards when the user's query matches one of an entry's aliases. R7-7 (2026-04-28). To add a new entry: pick a canonical_name (display only), list lowercase aliases the user might type, list lowercase exclude_terms that should NOT appear in results when those aliases match. Fail-open if this file is missing or malformed.",
+  "aliases": [
+    {
+      "canonical_name": "Cleveland Clinic Foundation",
+      "aliases": ["cleveland clinic", "ccf"],
+      "exclude_terms": ["cleveland-cliffs", "cleveland cliffs"],
+      "notes": "Trigram similarity ranks Cleveland-Cliffs Inc (steel/mining) high on 'cleveland clinic' queries because of the shared prefix. Distinct entities."
+    },
+    {
+      "canonical_name": "New York City Health and Hospitals Corporation",
+      "aliases": ["nyc health and hospitals", "nyc health + hospitals", "nyc hhc", "h+h"],
+      "exclude_terms": ["nyu langone", "nyu hospital", "nyu medical"],
+      "notes": "NYC public hospital system; NYU Langone is a separate private system. Audit cited NYC Hospitals query returning NYU Langone."
+    },
+    {
+      "canonical_name": "Health Care Service Corporation",
+      "aliases": ["hcsc"],
+      "notes": "Multi-state Blue Cross plan. The acronym 'HCSC' is a known organizer-target lookup; the trigram score for 'hcsc' against the long form is low so users often miss it. No exclude_terms today; entry kept for documentation and future expansion."
+    },
+    {
+      "canonical_name": "Walmart Inc",
+      "aliases": ["walmart", "wal-mart", "walmart stores"],
+      "notes": "Trigram + new tiebreak (canonical_group_id + consolidated_workers) ranks Walmart Inc parent above per-store fragments. Entry kept for documentation; no exclude_terms needed."
+    },
+    {
+      "canonical_name": "Amazon.com Inc",
+      "aliases": ["amazon"],
+      "notes": "Same as Walmart -- tiebreak handles Amazon parent vs warehouse fragments. Entry kept for documentation."
+    }
+  ]
+}
