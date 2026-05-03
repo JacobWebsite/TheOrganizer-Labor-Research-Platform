@@ -30,14 +30,15 @@ $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
     -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 
-# Register the task (runs as current user)
+# Register the task (runs as current user, default privileges - admin not required).
+# Earlier versions used -RunLevel Highest, which silently fails to register from
+# non-admin sessions; pg_dump only needs user perms, so default level is enough.
 Register-ScheduledTask `
     -TaskName $taskName `
     -Action $action `
     -Trigger $trigger `
     -Settings $settings `
-    -Description "Daily pg_dump backup of olms_multiyear database (7-day retention)" `
-    -RunLevel Highest
+    -Description "Daily pg_dump backup of olms_multiyear database (7-day retention)"
 
 Write-Host ""
 Write-Host "Scheduled task '$taskName' created successfully."

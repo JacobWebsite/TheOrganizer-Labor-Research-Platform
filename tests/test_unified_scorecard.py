@@ -252,7 +252,14 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_anger_null_when_no_subfactors(self):
-        """Anger pillar should be NULL when no OSHA, WHD, or ULP data."""
+        """Anger pillar should be NULL when none of the gating sub-factors are present.
+
+        R7-17 (2026-04-27): the gate was widened to include `enh_score_nlrb`
+        (NLRB elections, not just ULP cases) and `nlrb_ulp_count > 0`. So the
+        full set of triggering sub-factors is OSHA, WHD, NLRB elections, ULPs,
+        and the research-enhancement override `rse_score_anger`. If none are
+        present, score_anger must be NULL.
+        """
         conn = get_connection()
         try:
             with conn.cursor() as cur:
@@ -261,6 +268,7 @@ class TestUnifiedScorecardData:
                     WHERE score_anger IS NOT NULL
                       AND enh_score_osha IS NULL
                       AND enh_score_whd IS NULL
+                      AND enh_score_nlrb IS NULL
                       AND nlrb_ulp_count = 0
                       AND rse_score_anger IS NULL
                 """)

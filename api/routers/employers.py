@@ -1228,19 +1228,32 @@ def get_employer_nlrb(employer_id: str):
             """, [employer_id])
             ulp_cases = cur.fetchall()
 
+            elections_summary = {
+                "total": len(elections),
+                "union_wins": sum(1 for e in elections if e['union_won']),
+                "union_losses": sum(1 for e in elections if e['union_won'] is False),
+                "win_rate": round(100.0 * sum(1 for e in elections if e['union_won']) / max(len(elections), 1), 1)
+            }
+            ulp_summary = {"total": len(ulp_cases)}
+
             return {
                 "employer_name": emp['employer_name'],
                 "elections": elections,
-                "elections_summary": {
-                    "total": len(elections),
-                    "union_wins": sum(1 for e in elections if e['union_won']),
-                    "union_losses": sum(1 for e in elections if e['union_won'] is False),
-                    "win_rate": round(100.0 * sum(1 for e in elections if e['union_won']) / max(len(elections), 1), 1)
-                },
+                "elections_summary": elections_summary,
                 "ulp_cases": ulp_cases,
-                "ulp_summary": {
-                    "total": len(ulp_cases)
-                }
+                "ulp_summary": ulp_summary,
+                # Flat `summary` alias keeps NlrbSection.jsx reading a single
+                # object (R7-12 contract). Both `total_elections`/`ulp_cases`
+                # *count* and `total_ulp_cases` keys are populated for the
+                # historical fallback chain in NlrbSection.
+                "summary": {
+                    "total_elections": elections_summary["total"],
+                    "union_wins": elections_summary["union_wins"],
+                    "union_losses": elections_summary["union_losses"],
+                    "win_rate": elections_summary["win_rate"],
+                    "ulp_cases": ulp_summary["total"],
+                    "total_ulp_cases": ulp_summary["total"],
+                },
             }
 
 

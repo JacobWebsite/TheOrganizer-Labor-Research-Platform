@@ -33,7 +33,15 @@ def test_weighted_columns_exist():
 
 
 def test_weighted_score_formula_consistency():
-    """weighted_score = (anger*3 + leverage*4) / active_pillar_weights (dynamic denominator, stability zeroed)"""
+    """weighted_score = LEAST(formula, thin_data_cap).
+
+    R7-18 (2026-04-27): rows with `factors_available < 3 AND
+    direct_factors_available = 0` (i.e., union_proximity-only modeled signal
+    with no direct evidence) are capped at 7.0 to avoid 10/10 perfect-tens
+    being driven by a single indirect factor. So weighted_score may be LOWER
+    than the raw formula whenever the cap kicks in. This test mirrors the
+    LEAST(...) wrap so capped rows aren't flagged as inconsistent.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -44,16 +52,39 @@ def test_weighted_score_formula_consistency():
                 WHERE weighted_score IS NOT NULL
                   AND ABS(
                     weighted_score
-                    - ROUND(
-                        (
-                            COALESCE(score_anger * 3, 0)
-                          + COALESCE(score_leverage * 4, 0)
-                        )::numeric / NULLIF(
-                            CASE WHEN score_anger IS NOT NULL THEN 3 ELSE 0 END
-                          + CASE WHEN score_leverage IS NOT NULL THEN 4 ELSE 0 END,
-                          0
-                        ),
-                        2
+                    - LEAST(
+                        ROUND(
+                            (
+                                COALESCE(score_anger * 3, 0)
+                              + COALESCE(score_leverage * 4, 0)
+                            )::numeric / NULLIF(
+                                CASE WHEN score_anger IS NOT NULL THEN 3 ELSE 0 END
+                              + CASE WHEN score_leverage IS NOT NULL THEN 4 ELSE 0 END,
+                              0
+                            ),
+                            2
+                          ),
+                        CASE WHEN (
+                            CASE WHEN score_osha IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_nlrb IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_whd IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_contracts IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_union_proximity IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_industry_growth IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_financial IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_size IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_similarity IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN has_research THEN 1 ELSE 0 END
+                        ) < 3 AND (
+                            CASE WHEN score_osha IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_nlrb IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_whd IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_contracts IS NOT NULL THEN 1 ELSE 0 END
+                            + CASE WHEN score_financial IS NOT NULL THEN 1 ELSE 0 END
+                        ) = 0
+                        THEN 7.0::numeric
+                        ELSE 10.0::numeric
+                        END
                       )
                   ) > 0.02
                 """

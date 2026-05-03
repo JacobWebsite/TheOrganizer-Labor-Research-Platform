@@ -12,7 +12,7 @@ import { SourceBadge } from './SourceBadge'
 
 const PAGE_SIZE = 25
 
-// Aged Broadsheet tier colors (keep in sync with UnifiedScorecardTable + SearchResultCard).
+// Aged Broadsheet tier colors (keep in sync with SearchResultCard).
 const TIER_COLORS = {
   Priority: '#c23a22',
   Strong: '#1a6b5a',
