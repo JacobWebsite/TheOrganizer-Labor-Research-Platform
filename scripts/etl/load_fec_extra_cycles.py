@@ -53,7 +53,12 @@ def load_indiv_from(zip_name: str, cur, conn) -> int:
         ) VALUES %s
         ON CONFLICT (sub_id) DO NOTHING
     """
-    batch, total, skipped = [], 0, 0
+    # Track inserts vs attempts separately so re-runs don't lie about how many
+    # rows actually landed. ON CONFLICT (sub_id) DO NOTHING means rowcount on
+    # each execute_values is the inserted-row count -- we sum that into
+    # `inserted`. `attempted` keeps the original semantics for the progress
+    # log so it still ticks every 200K processed rows. (Codex 2026-05-03)
+    batch, attempted, inserted, skipped = [], 0, 0, 0
     seen = set()
     for r in fec._stream_rows(zip_path):
         if len(r) < 21:
@@ -76,16 +81,18 @@ def load_indiv_from(zip_name: str, cur, conn) -> int:
         ))
         if len(batch) >= BATCH:
             execute_values(cur, sql, batch, page_size=BATCH)
-            total += len(batch)
+            inserted += cur.rowcount or 0
+            attempted += len(batch)
             batch = []
-            if total % 200_000 == 0:
-                print(f"  Loaded {total:,} rows ({time.time()-t0:.0f}s elapsed)")
+            if attempted % 200_000 == 0:
+                print(f"  Processed {attempted:,} rows ({inserted:,} inserted, {time.time()-t0:.0f}s)")
     if batch:
         execute_values(cur, sql, batch, page_size=BATCH)
-        total += len(batch)
+        inserted += cur.rowcount or 0
+        attempted += len(batch)
     conn.commit()
-    print(f"  Loaded {total:,} rows from {zip_name} ({skipped:,} skipped) in {time.time()-t0:.0f}s")
-    return total
+    print(f"  {zip_name}: processed {attempted:,} rows, inserted {inserted:,} (rest were ON CONFLICT dups), skipped {skipped:,}, time {time.time()-t0:.0f}s")
+    return inserted
 
 
 def main():

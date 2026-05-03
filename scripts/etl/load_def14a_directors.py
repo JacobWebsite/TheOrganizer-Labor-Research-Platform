@@ -152,17 +152,34 @@ def fetch_def14a_html(cik: int, accession_no_dashes: str, primary_doc: str | Non
     except json.JSONDecodeError:
         return None
     items = (body.get("directory") or {}).get("item") or []
+    # Prefer files whose name LOOKS like a DEF14A document (def14a/proxy in
+    # the name). Excluding obvious exhibits (ex-* / exhibit*) avoids fetching
+    # subsidiary lists by mistake. (Codex 2026-05-03: original logic excluded
+    # `def14a` strings, the opposite of what we want.)
+    candidates: list[str] = []
     for it in items:
-        name = (it.get("name") or "").lower()
-        if name.endswith((".htm", ".html")) and "def14a" not in name and "ex" not in name:
-            doc_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_no_dashes}/{it['name']}"
-            _limiter.wait()
-            try:
-                doc_resp = requests.get(doc_url, headers={"User-Agent": USER_AGENT}, timeout=20)
-                if doc_resp.status_code == 200:
-                    return doc_resp.text, doc_url
-            except requests.RequestException:
-                continue
+        name = (it.get("name") or "")
+        lower = name.lower()
+        if not lower.endswith((".htm", ".html")):
+            continue
+        if re.search(r"(^|[\-_])(ex[\-_]?\d|exhibit[\-_]?\d)", lower):
+            continue
+        score = 0
+        if "def14a" in lower or "def_14a" in lower or "def-14a" in lower:
+            score += 10
+        if "proxy" in lower:
+            score += 5
+        candidates.append((score, name))
+    # Highest-scoring match first; otherwise any non-exhibit .htm.
+    for _, name in sorted(candidates, key=lambda x: -x[0]):
+        doc_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession_no_dashes}/{name}"
+        _limiter.wait()
+        try:
+            doc_resp = requests.get(doc_url, headers={"User-Agent": USER_AGENT}, timeout=20)
+            if doc_resp.status_code == 200:
+                return doc_resp.text, doc_url
+        except requests.RequestException:
+            continue
     return None
 
 
@@ -203,7 +220,7 @@ def parse_directors(html: str) -> list[Director]:
 # --------------------------------------------------------------------------
 
 
-def write_directors(conn, cik: int, accession: str, source_url: str, directors: list[Director], commit: bool) -> int:
+def write_directors(conn, cik: int, filer_name: str, accession: str, source_url: str, directors: list[Director], commit: bool) -> int:
     if not directors:
         return 0
 
@@ -213,16 +230,42 @@ def write_directors(conn, cik: int, accession: str, source_url: str, directors: 
         n = name_norm_re.sub("", name.lower()).strip()
         return re.sub(r"\s+", " ", n)
 
-    # Master ID lookup via canonical match. Cheap because there are O(20)
-    # directors per filing; trades a few extra queries for code clarity.
-    rows = []
+    # Master ID lookup via SEC -> master bridge plus a name-trigram fallback.
+    # The original cut tried to ILIKE the numeric CIK against canonical_name
+    # which never matches (Codex 2026-05-03). Two-stage:
+    #   1. Try `master_employer_source_ids` where source_system='sec' and the
+    #      stored source_id matches the filer's CIK.
+    #   2. Otherwise fall back to a name-trigram lookup on the SEC filer name
+    #      passed in by process_filer.
+    master_id = None
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT master_id FROM master_employers WHERE LEFT(canonical_name, 100) ILIKE ANY(%s) LIMIT 1",
-            ([f"%{cik}%"],),
+            """
+            SELECT master_id FROM master_employer_source_ids
+            WHERE source_system IN ('sec', 'sec_companies')
+              AND source_id::text = %s
+            LIMIT 1
+            """,
+            (str(cik),),
         )
-        master_row = cur.fetchone()
-        master_id = master_row[0] if master_row else None
+        row = cur.fetchone()
+        if row:
+            master_id = row[0]
+        elif filer_name:
+            cur.execute(
+                """
+                SELECT master_id FROM master_employers
+                WHERE canonical_name %% %s
+                ORDER BY similarity(canonical_name, %s) DESC
+                LIMIT 1
+                """,
+                (filer_name, filer_name),
+            )
+            row = cur.fetchone()
+            if row:
+                master_id = row[0]
+
+    rows = []
 
     for d in directors:
         rows.append((
@@ -262,7 +305,10 @@ def write_directors(conn, cik: int, accession: str, source_url: str, directors: 
     return written
 
 
-def record_progress(conn, cik: int, status: str, count: int, notes: str = ""):
+def record_progress(conn, cik: int, status: str, count: int, notes: str = "", commit: bool = True):
+    """Upsert a row into load_def14a_progress. When `commit=False` (dry-run),
+    rolls back instead so a probe doesn't poison the skip-tracker for the
+    next real run. (Codex 2026-05-03)"""
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -276,7 +322,10 @@ def record_progress(conn, cik: int, status: str, count: int, notes: str = ""):
             """,
             (cik, status, count, notes[:500]),
         )
-    conn.commit()
+    if commit:
+        conn.commit()
+    else:
+        conn.rollback()
 
 
 # --------------------------------------------------------------------------
@@ -289,14 +338,14 @@ def process_filer(conn, cik: int, name: str, commit: bool) -> dict:
     acc_pair = fetch_latest_def14a_accession(cik)
     if not acc_pair:
         result["note"] = "no DEF14A on file"
-        record_progress(conn, cik, "def14a_not_found", 0, result["note"])
+        record_progress(conn, cik, "def14a_not_found", 0, result["note"], commit=commit)
         return result
 
     accession, primary_doc = acc_pair
     fetched = fetch_def14a_html(cik, accession, primary_doc)
     if not fetched:
         result["note"] = "DEF14A document fetch failed"
-        record_progress(conn, cik, "http_error", 0, result["note"])
+        record_progress(conn, cik, "http_error", 0, result["note"], commit=commit)
         return result
 
     html, source_url = fetched
@@ -304,11 +353,11 @@ def process_filer(conn, cik: int, name: str, commit: bool) -> dict:
     result["directors_found"] = len(directors)
     if not directors:
         result["note"] = "parser returned 0 rows (skeleton parse_directors is a stub)"
-        record_progress(conn, cik, "parse_failed", 0, result["note"])
+        record_progress(conn, cik, "parse_failed", 0, result["note"], commit=commit)
         return result
 
-    result["directors_written"] = write_directors(conn, cik, accession, source_url, directors, commit=commit)
-    record_progress(conn, cik, "ok", result["directors_written"])
+    result["directors_written"] = write_directors(conn, cik, name, accession, source_url, directors, commit=commit)
+    record_progress(conn, cik, "ok", result["directors_written"], commit=commit)
     return result
 
 

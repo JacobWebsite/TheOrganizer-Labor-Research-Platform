@@ -61,6 +61,10 @@ CREATE TABLE IF NOT EXISTS load_def14a_progress (
 -- relationship: any pair of CIKs that share a director by name_norm. Built
 -- as a view rather than an MV so it stays current as employer_directors
 -- grows. Promote to MV when row counts justify it (~10K+ interlocks).
+--
+-- Self-join uses `a.filing_cik < b.filing_cik` (not `<>`) so each interlock
+-- pair appears exactly once -- otherwise COUNT(*) and any aggregate would
+-- double-count A->B and B->A. (Codex 2026-05-03)
 CREATE OR REPLACE VIEW director_interlocks AS
 SELECT
     a.name_norm,
@@ -74,6 +78,6 @@ SELECT
 FROM employer_directors a
 JOIN employer_directors b
   ON a.name_norm = b.name_norm
- AND a.filing_cik <> b.filing_cik
+ AND a.filing_cik < b.filing_cik
  AND a.master_id IS NOT NULL
  AND b.master_id IS NOT NULL;
