@@ -155,6 +155,78 @@ def test_search_mv_non_f7_factors_null(db):
     assert count == 0, f"{count} non-F7 rows have non-NULL factors_available"
 
 
+def test_search_mv_has_master_source(db):
+    """MV should include MASTER source type from master_employers."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM mv_employer_search
+        WHERE source_type = 'MASTER'
+    """)
+    count = cur.fetchone()[0]
+    assert count > 10000, (
+        f"Expected >10K MASTER rows, got {count:,}. "
+        f"Major non-union employers should be searchable."
+    )
+
+
+def test_search_mv_master_no_unions(db):
+    """MASTER source rows should all be non-union."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM mv_employer_search
+        WHERE source_type = 'MASTER' AND has_union = TRUE
+    """)
+    count = cur.fetchone()[0]
+    assert count == 0, f"{count} MASTER rows have has_union=TRUE"
+
+
+def test_search_mv_major_employers_findable(db):
+    """Major employers like Walmart, Amazon, Starbucks should be searchable."""
+    cur = db.cursor()
+    for name in ['walmart', 'amazon', 'starbucks']:
+        cur.execute("""
+            SELECT COUNT(*) FROM mv_employer_search
+            WHERE search_name LIKE %s
+        """, [f'%{name}%'])
+        count = cur.fetchone()[0]
+        assert count > 0, (
+            f"'{name}' not found in mv_employer_search. "
+            f"Major employers must be searchable."
+        )
+
+
+def test_search_mv_master_canonical_id_format(db):
+    """MASTER canonical_ids should follow MASTER-{master_id} format."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM mv_employer_search
+        WHERE source_type = 'MASTER'
+          AND canonical_id NOT LIKE 'MASTER-%%'
+    """)
+    count = cur.fetchone()[0]
+    assert count == 0, f"{count} MASTER rows have malformed canonical_id"
+
+
+def test_search_mv_master_no_f7_overlap(db):
+    """MASTER rows should not duplicate employers already in F7."""
+    cur = db.cursor()
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM mv_employer_search m
+        WHERE m.source_type = 'MASTER'
+          AND EXISTS (
+              SELECT 1 FROM master_employer_source_ids si
+              WHERE si.master_id = REPLACE(m.canonical_id, 'MASTER-', '')::bigint
+                AND si.source_system = 'f7'
+          )
+    """)
+    count = cur.fetchone()[0]
+    assert count == 0, (
+        f"{count} MASTER rows have F7 links and should not be in MASTER source. "
+        f"These employers are already covered by F7 source."
+    )
+
+
 def test_search_mv_grouped_have_member_count(db):
     """Grouped F7 employers should have group_member_count > 1."""
     cur = db.cursor()

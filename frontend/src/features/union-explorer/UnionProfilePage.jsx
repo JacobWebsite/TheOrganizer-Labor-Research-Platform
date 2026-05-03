@@ -11,11 +11,13 @@ import {
   useUnionHealth,
 } from '@/shared/api/unions'
 import { UnionProfileHeader } from './UnionProfileHeader'
+import { UnionWebProfileSection } from './UnionWebProfileSection'
 import { MembershipSection } from './MembershipSection'
 import { OrganizingCapacitySection } from './OrganizingCapacitySection'
 import { UnionEmployersTable } from './UnionEmployersTable'
 import { UnionElectionsSection } from './UnionElectionsSection'
 import { UnionFinancialsSection } from './UnionFinancialsSection'
+import { UnionAssetsSection } from './UnionAssetsSection'
 import { UnionDisbursementsSection } from './UnionDisbursementsSection'
 import { SisterLocalsSection } from './SisterLocalsSection'
 import { ExpansionTargetsSection } from './ExpansionTargetsSection'
@@ -90,6 +92,18 @@ export function UnionProfilePage() {
 
   const union = detail.union || {}
   const nlrbElections = detail.nlrb_elections || null
+  const nlrbSummary = detail.nlrb_summary || null
+  // Compose elections prop: pass through source/note/affiliation metadata with the list
+  // so <UnionElectionsSection> can render the affiliate notice. Accepts either a flat
+  // array (new backend shape) or the legacy object-with-elections shape.
+  const electionsProp = Array.isArray(nlrbElections)
+    ? {
+        list: nlrbElections,
+        elections_source: detail.elections_source || null,
+        election_note: detail.election_note || null,
+        affiliation: union.aff_abbr || union.affiliation || null,
+      }
+    : nlrbElections
   const financialTrends = detail.financial_trends || []
   const sisterLocals = detail.sister_locals || []
 
@@ -105,12 +119,14 @@ export function UnionProfilePage() {
         </div>
       )}
       <UnionProfileHeader union={union} employers={employers} healthGrade={healthQuery.data?.composite?.grade} />
+      <UnionWebProfileSection webProfile={detail.web_profile} />
       <UnionHealthSection data={healthQuery.data} isLoading={healthQuery.isLoading} />
       <MembershipSection data={membershipQuery.data} />
       <OrganizingCapacitySection data={capacityQuery.data} />
       <UnionEmployersTable employers={employers} />
-      <UnionElectionsSection elections={nlrbElections} />
+      <UnionElectionsSection elections={electionsProp} summary={nlrbSummary} />
       <UnionFinancialsSection trends={financialTrends} />
+      <UnionAssetsSection fileNumber={fnum} />
       <UnionDisbursementsSection data={disbursementsQuery.data} isLoading={disbursementsQuery.isLoading} />
       <SisterLocalsSection sisters={sisterLocals} />
       <ExpansionTargetsSection union={union} employers={employers} />

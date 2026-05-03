@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
 from ..database import get_db
-from ..helpers import safe_sort_col, safe_order_dir
 
 router = APIRouter()
 
@@ -121,11 +120,27 @@ def get_osha_establishment(establishment_id: str):
             """, [establishment_id])
             accidents = cur.fetchall()
 
+            # Latest OSHA record date for this establishment (used by frontend
+            # to render "data current through ..." footer). Covers violations,
+            # accidents, and the establishment's own last inspection date.
+            cur.execute("""
+                SELECT GREATEST(
+                    (SELECT MAX(issuance_date) FROM osha_violations_detail WHERE establishment_id = %s),
+                    (SELECT MAX(event_date) FROM osha_accidents WHERE establishment_id = %s),
+                    (SELECT last_inspection_date FROM osha_establishments WHERE establishment_id = %s)
+                ) AS latest_record_date
+            """, [establishment_id, establishment_id, establishment_id])
+            latest_row = cur.fetchone()
+            latest_record_date = latest_row["latest_record_date"] if latest_row else None
+
             return {
                 "establishment": establishment,
                 "violation_summary": violations,
                 "recent_violations": recent_violations,
-                "accidents": accidents
+                "accidents": accidents,
+                "latest_record_date": (
+                    latest_record_date.isoformat() if latest_record_date else None
+                ),
             }
 
 

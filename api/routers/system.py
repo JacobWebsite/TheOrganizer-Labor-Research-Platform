@@ -73,7 +73,14 @@ def system_stats():
 
 @router.get("/api/system/data-freshness")
 def system_data_freshness():
-    """Return data source freshness with stale (>90 day) flag."""
+    """Return data source freshness with stale (>180 day / 6 month) flag.
+
+    Staleness is calculated from ``latest_record_date`` (the date of the most
+    recent record in the source) when available. If the source has no record-
+    date available, we fall back to ``last_refreshed`` (the snapshot refresh
+    timestamp) and flag ``fallback_to_refresh_time=true`` so the frontend can
+    show a caveat.
+    """
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT to_regclass('public.data_freshness') AS rel")
@@ -107,25 +114,36 @@ def system_data_freshness():
                 rows = cur.fetchall()
 
     now = datetime.now(timezone.utc)
+    today = now.date()
     sources = []
     for row in rows:
         last_refreshed = row.get("last_refreshed")
+        latest_record_date = row.get("latest_record_date")
+
         stale = False
-        if last_refreshed is not None:
+        fallback_to_refresh_time = False
+
+        if latest_record_date is not None:
+            # Prefer the actual source-record date for staleness.
+            days_old = (today - latest_record_date).days
+            stale = days_old > 180
+        elif last_refreshed is not None:
+            # Fall back to snapshot refresh time when record date is unknown.
+            fallback_to_refresh_time = True
             ref_dt = (
                 last_refreshed
                 if getattr(last_refreshed, "tzinfo", None) is not None
                 else last_refreshed.replace(tzinfo=timezone.utc)
             )
-            stale = (now - ref_dt).days > 90
+            stale = (now - ref_dt).days > 180
 
         sources.append(
             {
                 "source_name": row.get("source_name"),
                 "display_name": row.get("display_name") or row.get("source_name"),
                 "latest_record_date": (
-                    row.get("latest_record_date").isoformat()
-                    if row.get("latest_record_date") is not None
+                    latest_record_date.isoformat()
+                    if latest_record_date is not None
                     else None
                 ),
                 "table_name": row.get("table_name"),
@@ -136,6 +154,7 @@ def system_data_freshness():
                     else None
                 ),
                 "stale": stale,
+                "fallback_to_refresh_time": fallback_to_refresh_time,
             }
         )
 

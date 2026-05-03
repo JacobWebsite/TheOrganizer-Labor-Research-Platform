@@ -62,8 +62,29 @@ def parse_args():
     ap.add_argument("--data-file", default="usa_00001.dat")
     ap.add_argument("--layout-file", default="usa_00001.txt")
     ap.add_argument("--max-lines", type=int, default=0, help="Limit lines for test run (0=all)")
+    ap.add_argument("--spill-keys", type=int, default=8_000_000,
+                    help="Max in-memory groups before spilling to disk chunk (default 8M)")
     ap.add_argument("--skip-db", action="store_true")
     return ap.parse_args()
+
+
+CSV_HEADER = [
+    "sample", "year", "statefip", "met2013", "indnaics", "occsoc",
+    "sex", "race", "hispan", "age_bucket", "educ", "classwkr", "weighted_count",
+    "weighted_hcovany", "weighted_hcovpriv", "weighted_hinscaid",
+    "weighted_hinscare", "weighted_hcovpub2", "weighted_hcovsub2",
+]
+
+
+def _spill_chunk(agg, out_dir: Path, chunk_idx: int) -> Path:
+    """Write current accumulator to a numbered chunk CSV and clear it."""
+    chunk_path = out_dir / f"acs_chunk_{chunk_idx:03d}.csv"
+    with open(chunk_path, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        for k, vals in agg.items():
+            w.writerow([*k] + [round(v, 4) for v in vals])
+    print(f"  spilled chunk {chunk_idx} -> {chunk_path.name} ({len(agg):,} groups)")
+    return chunk_path
 
 
 def parse_layout_specs(layout_path: Path):
@@ -133,10 +154,19 @@ def main():
     all_insurance_vars = ["HCOVANY", "HCOVPRIV", "HINSCAID", "HINSCARE"] + optional_found
     print(f"Insurance vars found: {all_insurance_vars}")
 
+    out_dir = PROJECT_ROOT / "data" / "raw" / "ipums_acs"
+    spill_dir = out_dir / "spill"
+    spill_dir.mkdir(parents=True, exist_ok=True)
+    # Wipe any pre-existing chunks from a prior run
+    for old in spill_dir.glob("acs_chunk_*.csv"):
+        old.unlink()
+
     # 7 accumulators: weighted_count + 6 insurance weighted sums
     agg = defaultdict(lambda: [0.0] * 7)
     rows = 0
     kept = 0
+    chunk_idx = 0
+    chunk_paths = []
 
     with open(data_path, "r", encoding="utf-8", errors="replace") as f:
         for line in f:
@@ -196,32 +226,32 @@ def main():
             if kept % 2_000_000 == 0:
                 print(f"processed rows={rows:,} kept={kept:,} groups={len(agg):,}")
 
-    out_dir = PROJECT_ROOT / "data" / "raw" / "ipums_acs"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_csv = out_dir / "acs_occ_demo_profiles.csv"
+            # Spill to disk when accumulator exceeds threshold
+            if len(agg) >= args.spill_keys:
+                chunk_paths.append(_spill_chunk(agg, spill_dir, chunk_idx))
+                chunk_idx += 1
+                agg.clear()
 
-    with open(out_csv, "w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f)
-        w.writerow([
-            "sample", "year", "statefip", "met2013", "indnaics", "occsoc",
-            "sex", "race", "hispan", "age_bucket", "educ", "classwkr", "weighted_count",
-            "weighted_hcovany", "weighted_hcovpriv", "weighted_hinscaid",
-            "weighted_hinscare", "weighted_hcovpub2", "weighted_hcovsub2",
-        ])
-        for k, vals in agg.items():
-            w.writerow([*k] + [round(v, 4) for v in vals])
+    # Final spill of remaining in-memory groups
+    if agg:
+        chunk_paths.append(_spill_chunk(agg, spill_dir, chunk_idx))
+        chunk_idx += 1
+        agg.clear()
 
-    print(f"Wrote {out_csv} groups={len(agg):,}")
+    print(f"Spilled {len(chunk_paths)} chunk(s); total kept records={kept:,}")
 
     if args.skip_db:
+        print("--skip-db set; chunks left at " + str(spill_dir))
         return
 
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            # Final aggregated table
+            cur.execute("DROP TABLE IF EXISTS newsrc_acs_occ_demo_profiles CASCADE")
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS newsrc_acs_occ_demo_profiles (
+                CREATE TABLE newsrc_acs_occ_demo_profiles (
                     sample TEXT,
                     year TEXT,
                     statefip TEXT,
@@ -245,28 +275,74 @@ def main():
                 )
                 """
             )
-            # Add columns if table already exists (idempotent)
-            for col in ["weighted_hcovany", "weighted_hcovpriv", "weighted_hinscaid",
-                         "weighted_hinscare", "weighted_hcovpub2", "weighted_hcovsub2"]:
-                cur.execute(f"""
-                    ALTER TABLE newsrc_acs_occ_demo_profiles
-                    ADD COLUMN IF NOT EXISTS {col} NUMERIC
-                """)
-            cur.execute("TRUNCATE newsrc_acs_occ_demo_profiles")
-            with open(out_csv, "r", encoding="utf-8", newline="") as fp:
-                cur.copy_expert(
-                    """
-                    COPY newsrc_acs_occ_demo_profiles
+            # Unlogged staging table for chunk COPY (faster, no WAL)
+            cur.execute("DROP TABLE IF EXISTS staging_acs_chunks")
+            cur.execute(
+                """
+                CREATE UNLOGGED TABLE staging_acs_chunks (
+                    sample TEXT,
+                    year TEXT,
+                    statefip TEXT,
+                    met2013 TEXT,
+                    indnaics TEXT,
+                    occsoc TEXT,
+                    sex TEXT,
+                    race TEXT,
+                    hispan TEXT,
+                    age_bucket TEXT,
+                    educ TEXT,
+                    classwkr TEXT,
+                    weighted_count NUMERIC,
+                    weighted_hcovany NUMERIC,
+                    weighted_hcovpriv NUMERIC,
+                    weighted_hinscaid NUMERIC,
+                    weighted_hinscare NUMERIC,
+                    weighted_hcovpub2 NUMERIC,
+                    weighted_hcovsub2 NUMERIC
+                )
+                """
+            )
+            # Boost work_mem for the GROUP BY merge (Postgres caps at ~2GB-1)
+            cur.execute("SET maintenance_work_mem = '1GB'")
+            cur.execute("SET work_mem = '1GB'")
+
+            for cp in chunk_paths:
+                with open(cp, "r", encoding="utf-8", newline="") as fp:
+                    cur.copy_expert(
+                        """
+                        COPY staging_acs_chunks
+                        (sample, year, statefip, met2013, indnaics, occsoc, sex, race, hispan,
+                         age_bucket, educ, classwkr, weighted_count,
+                         weighted_hcovany, weighted_hcovpriv, weighted_hinscaid,
+                         weighted_hinscare, weighted_hcovpub2, weighted_hcovsub2)
+                        FROM STDIN WITH (FORMAT csv)
+                        """,
+                        fp,
+                    )
+                print(f"  COPY ok: {cp.name}")
+
+            # Merge-aggregate chunks into final table (sums collapse partial group sums)
+            cur.execute(
+                """
+                INSERT INTO newsrc_acs_occ_demo_profiles
                     (sample, year, statefip, met2013, indnaics, occsoc, sex, race, hispan,
                      age_bucket, educ, classwkr, weighted_count,
                      weighted_hcovany, weighted_hcovpriv, weighted_hinscaid,
                      weighted_hinscare, weighted_hcovpub2, weighted_hcovsub2)
-                    FROM STDIN WITH (FORMAT csv, HEADER true)
-                    """,
-                    fp,
-                )
+                SELECT sample, year, statefip, met2013, indnaics, occsoc, sex, race, hispan,
+                       age_bucket, educ, classwkr,
+                       SUM(weighted_count),
+                       SUM(weighted_hcovany), SUM(weighted_hcovpriv), SUM(weighted_hinscaid),
+                       SUM(weighted_hinscare), SUM(weighted_hcovpub2), SUM(weighted_hcovsub2)
+                FROM staging_acs_chunks
+                GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12
+                """
+            )
+            cur.execute("DROP TABLE staging_acs_chunks")
+            cur.execute("SELECT COUNT(*) FROM newsrc_acs_occ_demo_profiles")
+            final_count = cur.fetchone()[0]
         conn.commit()
-        print("Loaded newsrc_acs_occ_demo_profiles")
+        print(f"Loaded newsrc_acs_occ_demo_profiles -> {final_count:,} groups")
     finally:
         conn.close()
 

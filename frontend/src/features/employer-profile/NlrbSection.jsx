@@ -3,6 +3,7 @@ import { Scale, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
+import { SourceFreshnessFooter } from '@/shared/components/SourceFreshnessFooter'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -289,6 +290,10 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
             NLRB data current through {vintageDate}
           </p>
         )}
+        <SourceFreshnessFooter
+          sourceName="nlrb_elections_cases"
+          latestRecordDate={nlrb?.latest_record_date}
+        />
       </div>
     </CollapsibleCard>
   )

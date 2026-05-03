@@ -2,11 +2,9 @@
 Tests for scripts/research/auto_grader.py (Phase 5.3, updated Phase 5.7)
 """
 
-import json
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Module under test
 from scripts.research.auto_grader import (
@@ -18,7 +16,6 @@ from scripts.research.auto_grader import (
     _score_source_quality,
     _score_actionability,
     grade_and_save,
-    grade_research_run,
 )
 
 
@@ -125,7 +122,7 @@ class TestCoverage:
 # ---------------------------------------------------------------------------
 class TestSourceQuality:
     def test_empty_facts(self):
-        assert _score_source_quality([]) == 0.0
+        assert _score_source_quality([]) == 5.0  # neutral when no real facts
 
     def test_all_database_high_confidence(self):
         facts = [

@@ -3,6 +3,7 @@ import { Scale, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
+import { SourceFreshnessFooter } from '@/shared/components/SourceFreshnessFooter'
 import { useEmployerWhd } from '@/shared/api/profile'
 import { Button } from '@/components/ui/button'
 
@@ -151,6 +152,10 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
             WHD data current through {vintageDate}
           </p>
         )}
+        <SourceFreshnessFooter
+          sourceName="whd_wage_hour"
+          latestRecordDate={data?.latest_record_date}
+        />
       </div>
     </CollapsibleCard>
   )

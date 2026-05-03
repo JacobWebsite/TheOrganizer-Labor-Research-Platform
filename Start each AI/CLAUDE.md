@@ -2,7 +2,7 @@
 
 > **For:** Claude Code, Codex, Gemini, and other AI tools. Technical reference with schema essentials, key gotchas, and dev workflow.
 > **For project status:** See `PROJECT_STATE.md`.
-> **For roadmap:** See `COMPLETE_PROJECT_ROADMAP_2026_03.md` (supersedes Feb 26 roadmap).
+> **For roadmap:** See `CONSOLIDATED_ROADMAP_2026_03_13.md` (supersedes all prior roadmaps).
 > **For redesign spec:** See `UNIFIED_PLATFORM_REDESIGN_SPEC.md`.
 
 **Last Updated:** 2026-03-03

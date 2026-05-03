@@ -3,11 +3,13 @@ import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { Badge } from '@/components/ui/badge'
 
 const CATEGORY_COLORS = {
-  organizing: { bg: 'bg-blue-500', label: 'Organizing' },
-  compensation: { bg: 'bg-amber-500', label: 'Compensation' },
-  benefits_members: { bg: 'bg-green-500', label: 'Benefits' },
-  administration: { bg: 'bg-gray-500', label: 'Administration' },
-  external: { bg: 'bg-purple-500', label: 'External' },
+  representational: { bg: 'bg-blue-500', label: 'Representational' },
+  political_lobbying: { bg: 'bg-red-500', label: 'Political & Lobbying' },
+  staff_officers: { bg: 'bg-amber-500', label: 'Staff & Officers' },
+  member_benefits: { bg: 'bg-green-500', label: 'Member Benefits' },
+  operations: { bg: 'bg-gray-500', label: 'Operations' },
+  affiliation_dues: { bg: 'bg-purple-500', label: 'Affiliation Dues' },
+  financial: { bg: 'bg-slate-500', label: 'Financial' },
 }
 
 function formatCurrency(n) {
@@ -35,10 +37,11 @@ export function UnionDisbursementsSection({ data, isLoading }) {
   const latest = data.years[0]
   const total = latest.total || 1
 
-  const compPct = total > 0 ? (latest.compensation / total) * 100 : 0
+  const compPct = total > 0 ? ((latest.staff_officers || 0) / total) * 100 : 0
   const highComp = compPct > 25
 
-  const segments = ['organizing', 'compensation', 'benefits_members', 'administration', 'external']
+  const groupDefs = data.group_definitions || {}
+  const segments = ['representational', 'political_lobbying', 'staff_officers', 'member_benefits', 'operations', 'affiliation_dues', 'financial']
   const barSegments = segments
     .map((key) => ({
       key,
@@ -90,7 +93,7 @@ export function UnionDisbursementsSection({ data, isLoading }) {
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
           {barSegments.map((seg) => (
-            <span key={seg.key} className="flex items-center gap-1">
+            <span key={seg.key} className="flex items-center gap-1" title={groupDefs[seg.key] || ''}>
               <span className={'inline-block w-2.5 h-2.5 rounded-sm ' + seg.bg} />
               {seg.label} {seg.pct.toFixed(1)}%
             </span>
@@ -104,11 +107,13 @@ export function UnionDisbursementsSection({ data, isLoading }) {
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="px-3 py-2 text-left font-medium text-muted-foreground">Year</th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Organizing</th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Compensation</th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Representational</th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Political</th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Staff</th>
               <th className="px-3 py-2 text-right font-medium text-muted-foreground">Benefits</th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Admin</th>
-              <th className="px-3 py-2 text-right font-medium text-muted-foreground">External</th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Operations</th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Affiliation</th>
+              <th className="px-3 py-2 text-right font-medium text-muted-foreground">Financial</th>
               <th className="px-3 py-2 text-right font-medium text-muted-foreground">Total</th>
             </tr>
           </thead>
@@ -116,11 +121,13 @@ export function UnionDisbursementsSection({ data, isLoading }) {
             {data.years.map((yr) => (
               <tr key={yr.year} className="border-b">
                 <td className="px-3 py-2 tabular-nums font-medium">{yr.year}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.organizing)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.compensation)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.benefits_members)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.administration)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.external)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.representational)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.political_lobbying)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.staff_officers)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.member_benefits)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.operations)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.affiliation_dues)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(yr.financial)}</td>
                 <td className="px-3 py-2 text-right tabular-nums font-medium">{formatCurrency(yr.total)}</td>
               </tr>
             ))}

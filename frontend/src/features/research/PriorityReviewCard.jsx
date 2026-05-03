@@ -1,6 +1,7 @@
 import { Flag, ThumbsUp, AlertTriangle, Info } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
+import { questionFor, isNotFoundValue } from './questionMap'
 
 const REASON_BADGE = {
   contradicted: { label: 'Contradicted', className: 'bg-[#c78c4e]/15 text-[#c78c4e] border-[#c78c4e]/30' },
@@ -10,20 +11,21 @@ const REASON_BADGE = {
 }
 
 function PriorityFactRow({ fact, onFlag, onConfirm }) {
-  const displayName = fact.display_name || fact.attribute_name?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  const question = questionFor(fact.attribute_name)
+  const notFound = isNotFoundValue(fact.attribute_value)
   const badge = REASON_BADGE[fact.reason] || REASON_BADGE.low_confidence
 
   return (
     <div className="flex items-center gap-3 py-2 border-b last:border-0 border-muted">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium truncate">{displayName}</span>
+          <span className="text-sm font-medium truncate">{question}</span>
           <span className={`inline-flex items-center px-1.5 py-0.5 text-[9px] font-medium rounded border ${badge.className}`}>
             {badge.label}
           </span>
         </div>
         <p className="text-xs text-muted-foreground truncate mt-0.5">
-          {fact.attribute_value || '-'}
+          {notFound ? <span className="italic">No data found</span> : (fact.attribute_value || '-')}
           {fact.source_name && <span className="ml-2 text-[10px]">via {fact.source_name}</span>}
         </p>
       </div>

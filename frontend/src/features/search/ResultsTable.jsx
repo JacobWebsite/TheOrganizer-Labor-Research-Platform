@@ -5,12 +5,56 @@ import {
   getCoreRowModel,
   flexRender,
 } from '@tanstack/react-table'
-import { ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowUpDown, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { SourceBadge } from './SourceBadge'
 
 const PAGE_SIZE = 25
+
+// Aged Broadsheet tier colors (keep in sync with UnifiedScorecardTable + SearchResultCard).
+const TIER_COLORS = {
+  Priority: '#c23a22',
+  Strong: '#1a6b5a',
+  Promising: '#c78c4e',
+  Moderate: '#8a7e6b',
+  Low: '#d9cebb',
+}
+
+function ScoreCell({ score, tier, thin }) {
+  if (score == null) {
+    return <span className="text-muted-foreground">{'\u2014'}</span>
+  }
+  const color = TIER_COLORS[tier] || '#8a7e6b'
+  const isLight = tier === 'Low'
+  return (
+    <div className="flex items-center gap-1.5 whitespace-nowrap">
+      <span className="font-semibold tabular-nums" style={{ color }}>
+        {Number(score).toFixed(1)}
+      </span>
+      {tier && (
+        <span
+          className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+          style={{
+            backgroundColor: color,
+            color: isLight ? '#2c2418' : '#faf6ef',
+          }}
+        >
+          {tier}
+        </span>
+      )}
+      {thin && (
+        <span
+          className="inline-flex items-center gap-0.5 rounded-sm border border-amber-300 bg-amber-100 px-1 py-0.5 text-[9px] font-medium text-amber-800"
+          title="Score built from modeled signals only"
+        >
+          <AlertTriangle className="h-2.5 w-2.5" />
+          thin
+        </span>
+      )}
+    </div>
+  )
+}
 
 function SortHeader({ column, children }) {
   return (
@@ -54,6 +98,18 @@ export function ResultsTable({ data, total, page, onPageChange }) {
           </div>
         )
       },
+    },
+    {
+      id: 'score',
+      header: ({ column }) => <SortHeader column={column}>Score</SortHeader>,
+      accessorFn: (row) => row.weighted_score,
+      cell: ({ row }) => (
+        <ScoreCell
+          score={row.original.weighted_score}
+          tier={row.original.score_tier}
+          thin={row.original.has_thin_data}
+        />
+      ),
     },
     {
       accessorKey: 'city',

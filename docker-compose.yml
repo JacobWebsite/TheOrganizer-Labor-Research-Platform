@@ -33,7 +33,7 @@ services:
       DB_NAME: ${DB_NAME:-olms_multiyear}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      LABOR_JWT_SECRET: ${LABOR_JWT_SECRET:-dev-only-change-me}
+      LABOR_JWT_SECRET: ${LABOR_JWT_SECRET:?LABOR_JWT_SECRET must be set - generate with: python -c "import secrets; print(secrets.token_urlsafe(48))"}
       DISABLE_AUTH: ${DISABLE_AUTH:-false}
     ports:
       - "8001:8001"

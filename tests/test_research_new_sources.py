@@ -314,3 +314,131 @@ class TestGetIndustryProfileBLS:
         if result["found"]:
             # Even with a rare NAICS, NCS should fall back to all-private
             assert isinstance(result["data"]["ncs_benefits_access"], list)
+
+
+class TestUnionWebProfilesTool:
+    """Tests for `search_union_web_profiles` (Session 1d, 2026-04-24).
+
+    Replaces the dropped `site:afscme.org` / `site:seiu.org` site-restricted
+    Google queries with deterministic lookups against
+    `web_union_employers` (2,241+ rows extracted from union websites by the
+    2026-04-19/21 scraper work) joined to `web_union_profiles`.
+    """
+
+    def test_union_web_profiles_in_registry(self):
+        from scripts.research.tools import TOOL_REGISTRY
+        assert "search_union_web_profiles" in TOOL_REGISTRY
+        assert callable(TOOL_REGISTRY["search_union_web_profiles"])
+
+    def test_union_web_profiles_definition(self):
+        from scripts.research.tools import TOOL_DEFINITIONS
+        td = next((t for t in TOOL_DEFINITIONS if t["name"] == "search_union_web_profiles"), None)
+        assert td is not None
+        props = td["input_schema"]["properties"]
+        assert "company_name" in props
+        assert "state" in props
+        assert "company_name" in td["input_schema"]["required"]
+
+    def test_union_web_profiles_not_found_shape(self):
+        from scripts.research.tools import search_union_web_profiles
+        result = search_union_web_profiles("NONEXISTENT XYZ COMPANY 12345")
+        assert isinstance(result, dict)
+        assert result["found"] is False
+        assert "source" in result
+        assert "summary" in result
+        assert "data" in result
+        # Even on not-found, data should have the expected shape (empty lists)
+        assert result["data"]["mentions"] == []
+        assert result["data"]["locals"] == []
+
+    def test_union_web_profiles_found_shape(self):
+        """If the DB has the expected scraper data (Republic Services, Rush,
+        Sysco), the tool should return the full enriched structure."""
+        from scripts.research.tools import search_union_web_profiles
+        result = search_union_web_profiles("Republic Services")
+        if result["found"]:
+            d = result["data"]
+            # Required summary fields
+            assert d["mention_count"] > 0
+            assert d["local_count"] > 0
+            assert isinstance(d["parent_unions"], list)
+            assert isinstance(d["states_covered"], list)
+            # Mention records have the expected keys
+            m = d["mentions"][0]
+            assert "employer_name" in m
+            assert "source_url" in m
+            assert "union_local" in m
+            # Locals records have the expected keys
+            loc = d["locals"][0]
+            assert "parent_union" in loc
+            assert "local_number" in loc
+            assert "website_url" in loc
+        else:
+            pytest.skip("scraper data not present in DB (expected in dev/CI)")
+
+    def test_union_web_profiles_state_filter(self):
+        """State filter restricts results to that state only."""
+        from scripts.research.tools import search_union_web_profiles
+        result = search_union_web_profiles("Republic Services", state="AZ")
+        if result["found"]:
+            for mention in result["data"]["mentions"]:
+                # Either the mention itself is tagged AZ, OR it has no state
+                # (NULL state rows still match because we use COALESCE)
+                state = mention.get("state")
+                assert state is None or state.upper() == "AZ"
+
+
+class TestEpaEchoTool:
+    """Tests for `search_epa_echo` (Session 3b, 2026-04-24).
+
+    Replaces the dropped `site:echo.epa.gov` Google query with a direct
+    JSON API call to EPA ECHO. Returns facility_count + inspection /
+    violation / enforcement-action aggregates.
+    """
+
+    def test_epa_echo_in_registry(self):
+        from scripts.research.tools import TOOL_REGISTRY
+        assert "search_epa_echo" in TOOL_REGISTRY
+        assert callable(TOOL_REGISTRY["search_epa_echo"])
+
+    def test_epa_echo_definition(self):
+        from scripts.research.tools import TOOL_DEFINITIONS
+        td = next((t for t in TOOL_DEFINITIONS if t["name"] == "search_epa_echo"), None)
+        assert td is not None
+        assert "company_name" in td["input_schema"]["properties"]
+        assert "state" in td["input_schema"]["properties"]
+        assert "company_name" in td["input_schema"]["required"]
+
+    def test_epa_echo_not_found_shape(self):
+        """Bogus query returns the not-found shape without raising."""
+        from scripts.research.tools import search_epa_echo
+        try:
+            result = search_epa_echo("ZZ NONEXISTENT FAKE COMPANY 12345")
+        except Exception:
+            pytest.skip("EPA ECHO endpoint unreachable in this environment")
+        assert isinstance(result, dict)
+        assert result["found"] is False
+        assert "source" in result
+        assert "summary" in result
+        assert "data" in result
+
+    def test_epa_echo_return_format_when_found(self):
+        """If the live API returns matches, the return shape has the
+        expected aggregate keys."""
+        from scripts.research.tools import search_epa_echo
+        try:
+            result = search_epa_echo("Exxon", state="TX")
+        except Exception:
+            pytest.skip("EPA ECHO endpoint unreachable in this environment")
+        if result["found"]:
+            d = result["data"]
+            assert "facility_count" in d
+            assert d["facility_count"] > 0
+            assert "total_inspections" in d
+            assert "significant_violations" in d
+            assert "current_violations" in d
+            assert "enforcement_actions" in d
+            assert "query_id" in d
+            # detail_url is a pagination hint for callers who want the full
+            # facility list (requires a second API call)
+            assert d.get("detail_url", "").startswith("https://echodata.epa.gov/")

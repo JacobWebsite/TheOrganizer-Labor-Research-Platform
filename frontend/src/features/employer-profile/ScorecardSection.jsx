@@ -1,18 +1,21 @@
+import { AlertTriangle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { ScoreGauge } from '@/shared/components/ScoreGauge'
 import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 
 const FACTORS = [
-  { key: 'score_union_proximity', label: 'Union Proximity', weight: '3x' },
+  { key: 'score_osha', label: 'OSHA Safety', weight: 'Anger', direct: true },
+  { key: 'score_whd', label: 'Wage & Hour', weight: 'Anger', direct: true },
+  { key: 'score_nlrb', label: 'NLRB Activity', weight: 'Anger', direct: true },
+  { key: 'score_contracts', label: 'Gov Contracts', weight: 'Leverage', direct: true },
+  { key: 'score_financial', label: 'Financial', weight: 'Leverage', direct: true },
+  { key: 'score_union_proximity', label: 'Union Proximity', weight: 'Leverage' },
+  { key: 'score_industry_growth', label: 'Industry Growth', weight: 'Leverage' },
+  { key: 'score_similarity', label: 'Peer Similarity', weight: 'Leverage' },
   { key: 'score_size', label: 'Employer Size', weight: null, filter: true },
-  { key: 'score_nlrb', label: 'NLRB Activity', weight: '3x' },
-  { key: 'score_contracts', label: 'Gov Contracts', weight: '2x' },
-  { key: 'score_industry_growth', label: 'Industry Growth', weight: '2x' },
-  { key: 'score_similarity', label: 'Peer Similarity', weight: null, disabled: true },
-  { key: 'score_osha', label: 'OSHA Safety', weight: '1x' },
-  { key: 'score_whd', label: 'Wage & Hour', weight: '1x' },
-  { key: 'score_financial', label: 'Financial', weight: '2x' },
 ]
+
+const DIRECT_FACTOR_COUNT = FACTORS.filter(f => f.direct).length
 
 const ACTIVE_FACTOR_COUNT = FACTORS.filter(f => !f.disabled).length
 
@@ -59,6 +62,9 @@ export function ScorecardSection({ scorecard, explanations, scorecardDetail, mat
   const activeFactors = FACTORS.filter(f => !f.disabled)
   const factorsWithData = activeFactors.filter(f => scorecard[f.key] != null)
   const coverage = Math.round((factorsWithData.length / ACTIVE_FACTOR_COUNT) * 100)
+  const directFactorsWithData = activeFactors.filter(f => f.direct && scorecard[f.key] != null).length
+  const scorableCoverage = Math.round((directFactorsWithData / DIRECT_FACTOR_COUNT) * 100)
+  const hasThinData = scorecardDetail?.has_thin_data === true
 
   // Detect which factors were enhanced by research
   const detail = scorecardDetail || {}
@@ -83,6 +89,17 @@ export function ScorecardSection({ scorecard, explanations, scorecardDetail, mat
         <CardTitle>Organizing Scorecard</CardTitle>
       </CardHeader>
       <CardContent>
+        {hasThinData && (
+          <div className="mb-4 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+            <div>
+              <span className="font-semibold">Thin data:</span> this score comes from modeled
+              signals (similarity, industry, proximity) rather than direct employer records.
+              No OSHA, NLRB, WHD, contract, or financial filings were matched to this employer.
+              Treat the score as a starting point, not a verdict.
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-4 justify-center">
           {FACTORS.map(({ key, label, weight, disabled, filter }) => {
             if (disabled) return null
@@ -115,14 +132,23 @@ export function ScorecardSection({ scorecard, explanations, scorecardDetail, mat
         </div>
       </CardContent>
       <CardFooter>
-        <p className="text-xs text-muted-foreground">
-          {factorsWithData.length} of {ACTIVE_FACTOR_COUNT} factors available ({coverage}% coverage)
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <p>
+            <span className="font-medium">Direct evidence:</span>{' '}
+            {directFactorsWithData} of {DIRECT_FACTOR_COUNT} factors ({scorableCoverage}%) --
+            employer-specific records (OSHA, NLRB, WHD, contracts, financial)
+          </p>
+          <p>
+            <span className="font-medium">Total coverage:</span>{' '}
+            {factorsWithData.length} of {ACTIVE_FACTOR_COUNT} factors ({coverage}%) --
+            includes modeled signals (similarity, proximity, industry, size)
+          </p>
           {detail.has_research && (
-            <span className="ml-1">
-              -- <span className="text-[#3a7d44] font-medium">R</span> = enhanced by web research
-            </span>
+            <p>
+              <span className="text-[#3a7d44] font-medium">R</span> = enhanced by web research
+            </p>
           )}
-        </p>
+        </div>
       </CardFooter>
     </Card>
   )

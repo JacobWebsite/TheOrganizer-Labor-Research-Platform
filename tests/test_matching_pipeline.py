@@ -26,10 +26,10 @@ class _FakeCursor:
     def fetchall(self):
         self.parent.calls += 1
         if self.parent.calls == 1:
-            # employer_id, employer_name, name_standard, name_aggressive, state, city
+            # employer_id, employer_name, name_standard, name_aggressive, state, city, zip
             return [
-                ("F7-1", "Acme Holdings", "acme", "acme", "CA", "LOS ANGELES"),
-                ("F7-2", "Acme Logistics", "acme", "acme", "CA", "SAN DIEGO"),
+                ("F7-1", "Acme Holdings", "acme", "acme", "CA", "LOS ANGELES", "90001"),
+                ("F7-2", "Acme Logistics", "acme", "acme", "CA", "SAN DIEGO", "92101"),
             ]
         return []
 
@@ -114,29 +114,29 @@ def test_ambiguous_exact_matches_are_flagged_not_auto_selected(matcher):
 
 def test_match_tier_ordering_ein_city_state_state_aggressive_then_fuzzy(matcher, monkeypatch):
     matcher._ein_idx["123456789"] = "F7-EIN"
-    matcher._name_city_state_idx[("acme", "SAN JOSE", "CA")] = [("F7-CITY", "Acme City")]
-    matcher._name_state_idx[("acme", "CA")] = [("F7-STATE", "Acme State", "SAN JOSE")]
-    matcher._agg_state_idx[("acme", "CA")] = [("F7-AGG", "Acme Agg", "SAN JOSE")]
+    matcher._name_city_state_idx[("acmecorp", "SAN JOSE", "CA")] = [("F7-CITY", "Acmecorp City")]
+    matcher._name_state_idx[("acmecorp", "CA")] = [("F7-STATE", "Acmecorp State", "SAN JOSE")]
+    matcher._agg_state_idx[("acmecorp", "CA")] = [("F7-AGG", "Acmecorp Agg", "SAN JOSE")]
 
     ein_result = matcher._match_best(
-        {"id": "S3", "name": "acme", "state": "CA", "city": "SAN JOSE", "ein": "123456789"}
+        {"id": "S3", "name": "acmecorp", "state": "CA", "city": "SAN JOSE", "ein": "123456789"}
     )
     assert ein_result["method"] == "EIN_EXACT"
 
     city_result = matcher._match_best(
-        {"id": "S4", "name": "acme", "state": "CA", "city": "SAN JOSE", "ein": ""}
+        {"id": "S4", "name": "acmecorp", "state": "CA", "city": "SAN JOSE", "ein": ""}
     )
     assert city_result["method"] == "NAME_CITY_STATE_EXACT"
 
-    del matcher._name_city_state_idx[("acme", "SAN JOSE", "CA")]
+    del matcher._name_city_state_idx[("acmecorp", "SAN JOSE", "CA")]
     state_result = matcher._match_best(
-        {"id": "S5", "name": "acme", "state": "CA", "city": "SAN JOSE", "ein": ""}
+        {"id": "S5", "name": "acmecorp", "state": "CA", "city": "SAN JOSE", "ein": ""}
     )
     assert state_result["method"].startswith("NAME_STATE_EXACT")
 
     matcher._name_state_idx.clear()
     agg_result = matcher._match_best(
-        {"id": "S6", "name": "acme", "state": "CA", "city": "SAN JOSE", "ein": ""}
+        {"id": "S6", "name": "acmecorp", "state": "CA", "city": "SAN JOSE", "ein": ""}
     )
     assert agg_result["method"].startswith("NAME_AGGRESSIVE_STATE")
 
@@ -151,7 +151,7 @@ def test_match_tier_ordering_ein_city_state_state_aggressive_then_fuzzy(matcher,
     monkeypatch.setattr(matcher, "_fuzzy_batch", _fake_fuzzy)
 
     out = matcher.match_batch([
-        {"id": "S7", "name": "acme", "state": "CA", "city": "SAN JOSE", "ein": ""},
+        {"id": "S7", "name": "acmecorp", "state": "CA", "city": "SAN JOSE", "ein": ""},
         {"id": "S8", "name": "unknown", "state": "CA", "city": "", "ein": ""},
     ])
     methods = [r["method"] for r in out]
@@ -530,53 +530,39 @@ class TestAggressiveMatcherCollisions:
 # ============================================================================
 
 class TestFuzzyBatch:
-    """Tests for _fuzzy_batch RapidFuzz-first, trigram-fallback logic."""
+    """Tests for _fuzzy_batch in-memory trigram primary, legacy fallback."""
 
-    def test_fuzzy_batch_tries_rapidfuzz_first_then_trigram(self, matcher, monkeypatch):
-        """_fuzzy_batch should try RapidFuzz first, then trigram for leftovers."""
-        rapidfuzz_called = {"value": False}
-        trigram_called = {"value": False}
+    def test_fuzzy_batch_uses_inmemory_trigram_primary(self, matcher, monkeypatch):
+        """_fuzzy_batch should use in-memory trigram as primary method."""
+        inmem_called = {"value": False}
 
-        def fake_rapidfuzz(records):
-            rapidfuzz_called["value"] = True
-            # RapidFuzz matches record S1, leaves S2 unmatched
-            matched = [matcher._make_result(
-                "S1", "F7-RF", "FUZZY_SPLINK_ADAPTIVE", "probabilistic",
+        def fake_inmem(records, top_k=20, min_score=0.80):
+            inmem_called["value"] = True
+            return [matcher._make_result(
+                "S1", "F7-IM", "FUZZY_INMEMORY_TRIGRAM", "probabilistic",
                 "MEDIUM", 0.85, {"name_similarity": 0.85}
             )]
-            unmatched = [r for r in records if str(r["id"]) != "S1"]
-            return matched, unmatched
 
-        def fake_trigram(records, batch_size=200):
-            trigram_called["value"] = True
-            # Trigram matches S2
-            return [matcher._make_result(
-                "S2", "F7-TG", "FUZZY_TRIGRAM", "probabilistic",
-                "MEDIUM", 0.72, {"similarity": 0.72}
-            )]
-
-        monkeypatch.setattr(matcher, "_fuzzy_batch_rapidfuzz", fake_rapidfuzz)
-        monkeypatch.setattr(matcher, "_fuzzy_batch_trigram", fake_trigram)
+        monkeypatch.setattr(matcher, "_fuzzy_batch_inmemory_trigram", fake_inmem)
 
         records = [
             {"id": "S1", "name": "Alpha Corp", "state": "CA", "city": "LA"},
-            {"id": "S2", "name": "Beta Inc", "state": "NY", "city": "NYC"},
         ]
         results = matcher._fuzzy_batch(records)
 
-        assert rapidfuzz_called["value"] is True
-        assert trigram_called["value"] is True
-        assert len(results) == 2
-        methods = {r["method"] for r in results}
-        assert "FUZZY_SPLINK_ADAPTIVE" in methods
-        assert "FUZZY_TRIGRAM" in methods
+        assert inmem_called["value"] is True
+        assert len(results) == 1
+        assert results[0]["method"] == "FUZZY_INMEMORY_TRIGRAM"
 
-    def test_fuzzy_batch_falls_back_on_rapidfuzz_error(self, matcher, monkeypatch):
-        """When RapidFuzz errors, _fuzzy_batch should fall back to trigram."""
+    def test_fuzzy_batch_falls_back_on_inmem_error(self, matcher, monkeypatch):
+        """When InMemTrigram errors, _fuzzy_batch should fall back to legacy."""
         trigram_called = {"value": False}
 
-        def fake_rapidfuzz_error(records):
-            raise RuntimeError("RapidFuzz failed")
+        def fake_inmem_error(records, top_k=20, min_score=0.80):
+            raise RuntimeError("InMemTrigram failed")
+
+        def fake_rapidfuzz(records):
+            return [], records  # no matches, pass through
 
         def fake_trigram(records, batch_size=200):
             trigram_called["value"] = True
@@ -585,7 +571,8 @@ class TestFuzzyBatch:
                 "MEDIUM", 0.72, {"similarity": 0.72}
             )]
 
-        monkeypatch.setattr(matcher, "_fuzzy_batch_rapidfuzz", fake_rapidfuzz_error)
+        monkeypatch.setattr(matcher, "_fuzzy_batch_inmemory_trigram", fake_inmem_error)
+        monkeypatch.setattr(matcher, "_fuzzy_batch_rapidfuzz", fake_rapidfuzz)
         monkeypatch.setattr(matcher, "_fuzzy_batch_trigram", fake_trigram)
 
         records = [{"id": "S1", "name": "Alpha", "state": "CA", "city": "LA"}]
@@ -595,23 +582,22 @@ class TestFuzzyBatch:
         assert len(results) == 1
         assert results[0]["method"] == "FUZZY_TRIGRAM"
 
-    def test_fuzzy_batch_rapidfuzz_matches_all_no_trigram(self, matcher, monkeypatch):
-        """When RapidFuzz matches everything, trigram should NOT be called."""
-        trigram_called = {"value": False}
+    def test_fuzzy_batch_inmem_matches_all(self, matcher, monkeypatch):
+        """When InMemTrigram matches everything, legacy should NOT be called."""
+        legacy_called = {"value": False}
 
-        def fake_rapidfuzz(records):
-            matched = [matcher._make_result(
-                str(r["id"]), f"F7-{r['id']}", "FUZZY_SPLINK_ADAPTIVE",
+        def fake_inmem(records, top_k=20, min_score=0.80):
+            return [matcher._make_result(
+                str(r["id"]), f"F7-{r['id']}", "FUZZY_INMEMORY_TRIGRAM",
                 "probabilistic", "HIGH", 0.90, {}
             ) for r in records]
-            return matched, []  # no unmatched
 
-        def fake_trigram(records, batch_size=200):
-            trigram_called["value"] = True
-            return []
+        def fake_rapidfuzz(records):
+            legacy_called["value"] = True
+            return [], records
 
+        monkeypatch.setattr(matcher, "_fuzzy_batch_inmemory_trigram", fake_inmem)
         monkeypatch.setattr(matcher, "_fuzzy_batch_rapidfuzz", fake_rapidfuzz)
-        monkeypatch.setattr(matcher, "_fuzzy_batch_trigram", fake_trigram)
 
         records = [
             {"id": "S1", "name": "Alpha", "state": "CA", "city": "LA"},
@@ -620,9 +606,8 @@ class TestFuzzyBatch:
         results = matcher._fuzzy_batch(records)
 
         assert len(results) == 2
-        assert all(r["method"] == "FUZZY_SPLINK_ADAPTIVE" for r in results)
-        # Trigram should not be called when remaining is empty
-        assert trigram_called["value"] is False
+        assert all(r["method"] == "FUZZY_INMEMORY_TRIGRAM" for r in results)
+        assert legacy_called["value"] is False
 
     def test_fuzzy_result_uses_correct_method_and_tier(self, matcher, monkeypatch):
         """Fuzzy matches should use FUZZY_SPLINK_ADAPTIVE method and

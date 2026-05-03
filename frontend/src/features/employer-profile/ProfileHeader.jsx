@@ -2,6 +2,7 @@ import { MapPin, Users, Building2, Landmark } from 'lucide-react'
 import { SourceBadge } from '@/features/search/SourceBadge'
 import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 import { cn } from '@/lib/utils'
+import { EntityContextBlock } from './EntityContextBlock'
 
 const TIER_COLORS = {
   Priority: 'border border-[#c78c4e] text-[#c78c4e]',
@@ -27,13 +28,14 @@ function formatNumber(n) {
   return Number(n).toLocaleString()
 }
 
-export function ProfileHeader({ employer, scorecard, sourceType, isUnionReference, targetSignals, summaryParts, dataSources }) {
+export function ProfileHeader({ employer, scorecard, sourceType, isUnionReference, targetSignals, summaryParts, dataSources, entityContext }) {
   if (!employer) return null
 
   const name = employer.employer_name || employer.participant_name || employer.display_name || 'Unknown Employer'
   const city = employer.city || employer.unit_city
   const state = employer.state || employer.unit_state
   const location = [city, state].filter(Boolean).join(', ')
+  // Legacy fallback when entityContext is unavailable (older API responses).
   const workers = employer.consolidated_workers || employer.unit_size || employer.total_workers || employer.employee_count
   const naicsCode = employer.naics_code || employer.naics_2digit || employer.naics
   const naicsDesc = employer.naics_description || employer.sector_name
@@ -78,15 +80,11 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
                 NAICS {naicsCode}{naicsDesc ? ` -- ${naicsDesc}` : ''}
               </span>
             )}
-            {workers != null && (
-              <span className="inline-flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" />
-                {formatNumber(workers)} workers
-                {scorecard?.size_source === 'rpe_estimate' && (
-                  <span className="text-[10px] text-[#faf6ef]/40 ml-0.5">(RPE est.)</span>
-                )}
-              </span>
-            )}
+            <EntityContextBlock
+              entityContext={entityContext}
+              legacyWorkers={workers}
+              sizeSource={scorecard?.size_source}
+            />
             {unionName && (
               <span className="inline-flex items-center gap-1">
                 <Landmark className="h-3.5 w-3.5" />

@@ -3,7 +3,7 @@
 > For detailed schema see `.claude/specs/database-schema.md`.
 > For API endpoints see `.claude/specs/api-endpoints.md`.
 > For project status see `Start each AI/PROJECT_STATE.md`.
-> For the roadmap see `COMPLETE_PROJECT_ROADMAP_2026_03.md` (supersedes Feb 26 roadmap).
+> For the roadmap see `CONSOLIDATED_ROADMAP_2026_03_13.md` (superseded by `MERGED_ROADMAP_2026_04_07.md` in the vault, which is now the authoritative task list).
 > Domain agents in `.claude/agents/`, on-demand specs in `.claude/specs/`.
 
 ---
@@ -28,6 +28,9 @@ This is a labor organizing data platform. Key distinction:
 - **After implementing changes, run the full test suite** and report pass counts before committing. Do not commit with failing tests unless explicitly told to.
 - **Commit only when explicitly asked.** Do not proactively commit.
 - **Keep responses short and concise.** Use ASCII in print statements (not Unicode arrows) — Windows cp1252 crashes on them.
+- **Validate incrementally.** After each logical unit of change (e.g., one file or one function), run the relevant tests or a quick validation query before moving to the next change. Do not batch all changes together and test at the end.
+- **Use SQL for bulk data operations.** For any operation touching >100K rows, use SQL (UPDATE, INSERT...SELECT, CTEs) rather than Python/pandas. Python is for orchestration and small transforms only.
+- **MCP fallback rule.** If an MCP tool call fails or times out, switch to a direct alternative (SQL via Bash, filesystem via Read/Write) immediately. Do not retry MCP calls more than once. Never fire parallel MCP queries.
 
 ---
 
@@ -50,7 +53,7 @@ Credentials in `.env` at project root. `db_config.py` (project root, 500+ import
 ### Schema Safety
 - **Always verify column names against the actual database** before writing queries. Run `\d table_name` or equivalent — do not rely on assumptions.
 - **For materialized views, use `pg_attribute`** — `information_schema.columns` does NOT include MVs.
-- **Before schema changes (DROP CASCADE, ALTER, column renames),** check for dependent MVs, FKs, and downstream tables. Rebuild affected MVs immediately after.
+- **Before schema changes (DROP CASCADE, ALTER, column renames),** check for dependent MVs, FKs, and downstream tables. Rebuild affected MVs immediately after. Verify with `SELECT matviewname FROM pg_matviews;` to confirm nothing is missing.
 - **Never use `TRUNCATE ... CASCADE` on parent FK tables** — it cascades to child tables.
 - **`REFRESH MATERIALIZED VIEW CONCURRENTLY` does NOT update SQL definition** — must DROP + CREATE if SQL changes.
 - **`pg_type_typname_nsp_index` duplicate key on CREATE MV** — if DROP MV doesn't fully clean up, use `autocommit=True` for DROP, verify with SELECT, then CREATE in new connection.
@@ -79,7 +82,8 @@ Credentials in `.env` at project root. `db_config.py` (project root, 500+ import
 - **Windows with Git Bash.** Python 3.14 (`py` command). Node.js for frontend.
 - **`.env` file at project root** stores DB creds and JWT secret. The custom loader in `db_config.py` uses `setdefault` — shell env vars take precedence.
 - **`DISABLE_AUTH=true` in `.env`** bypasses backend JWT auth. Frontend uses `VITE_DISABLE_AUTH=true` in `frontend/.env`.
-- **Stale processes can hold ports.** Always check for zombie uvicorn/vite/node processes before debugging connection issues. Use `powershell -Command "Get-CimInstance Win32_Process -Filter \"CommandLine like '%uvicorn%'\""` to find them.
+- **Stale processes can hold ports.** Always check for zombie uvicorn/vite/node processes before debugging connection issues. Quick checks: `taskkill /F /IM node.exe`, `netstat -ano | findstr :PORT`, or `powershell -Command "Get-CimInstance Win32_Process -Filter \"CommandLine like '%uvicorn%'\""`.
+- **Env vars in `.env` require dotenv to be explicitly loaded** — changes to `.env` do not propagate without a full process restart. Never assume env changes take effect automatically.
 - **Windows cp1252 encoding** — Unicode arrows/symbols crash stdout. Use ASCII or set `PYTHONIOENCODING=utf-8`.
 - **Do NOT pipe Python output through grep on Windows** — no SIGPIPE, Python hangs as zombie. Run Python directly.
 - **`py -c` with `!` in passwords** — write to .py file instead of inline (bash interprets `!`).
@@ -101,8 +105,8 @@ cd frontend && VITE_DISABLE_AUTH=true npx vite
 # (frontend/.env has VITE_DISABLE_AUTH=true)
 
 # Tests
-py -m pytest tests/ -x -q          # backend (~1135 tests)
-cd frontend && npx vitest run       # frontend (~184 tests)
+py -m pytest tests/ -x -q          # backend (1,411 tests collected; verified 2026-04-30)
+cd frontend && npx vitest run       # frontend (~294 tests; last full run 2026-04-24)
 
 # MV rebuild (orchestrated)
 py scripts/scoring/refresh_all.py              # full chain
@@ -119,7 +123,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Backend
 - **Command:** `py -m pytest tests/ -x -q`
-- **Current count:** ~1135 tests passing, 0 failures, 3 skipped
+- **Current count:** ~1316 tests passing
 - **Run after every code change.** Report exact pass count before committing.
 - **Match rate tests are F7-only** — `osha_f7_matches`/`whd_f7_matches` track matches to F7 (union employers only). Rates are ~8.3%/~4.7%. Don't set thresholds expecting high rates.
 - **`RESEARCH_SCRAPER_GOOGLE_FALLBACK=false`** — set in tests that mock DB to prevent real URL resolution (Tier 4 Google Search).
@@ -127,7 +131,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Frontend
 - **Command:** `cd frontend && npx vitest run`
-- **Current count:** ~240 tests passing, 0 failures
+- **Current count:** ~278 tests passing, 0 failures
 - **Vitest + RTL + jsdom.** Mock API hooks with `vi.mock('@/shared/api/...')`. Wrap in `QueryClientProvider` + `MemoryRouter`.
 - **Color assertions:** Use `container.innerHTML.includes('bg-[#hex]')` not CSS selector queries (jsdom bracket escaping issues).
 - **Text changes break tests:** Always grep `__tests__/` for old text strings when changing UI copy.
@@ -147,19 +151,19 @@ ETL Loaders (scripts/etl/) -> Raw/Source Tables
   |
   v
 Deterministic Matcher (scripts/matching/run_deterministic.py)
-  -> unified_match_log (2.2M audit trail)
+  -> unified_match_log (2.8M audit trail)
   -> Source-specific match tables (osha_f7_matches, whd_f7_matches, etc.)
   |
   v
 Corporate Crosswalk (scripts/etl/build_crosswalk.py)
-  -> corporate_identifier_crosswalk (17,111 rows, links SEC/GLEIF/Mergent/CorpWatch/F7)
+  -> corporate_identifier_crosswalk (28,189 rows, links SEC/GLEIF/Mergent/CorpWatch/F7)
   |
   v
 Scoring Pipeline (scripts/scoring/)
   -> mv_organizing_scorecard (212K OSHA establishments)
   -> mv_unified_scorecard (146,863 F7/union employers, 10 factors)
-  -> mv_target_scorecard (4.4M non-union targets, 8 signals)
-  -> mv_employer_search (107K search index)
+  -> mv_target_scorecard (5.4M non-union targets, 8 signals) -- MISSING from DB as of 2026-04-30; see Open Problems/mv_target_scorecard MV Missing.md
+  -> mv_employer_search (474,881 search index)
   |
   v
 FastAPI (api/main.py, port 8001) -> React Frontend (frontend/)
@@ -169,15 +173,15 @@ FastAPI (api/main.py, port 8001) -> React Frontend (frontend/)
 
 **Union Reference Track (F7-based):**
 - `mv_unified_scorecard` — 146,863 rows (1:1 with f7_employers_deduped)
-- 10 factors (each 0-10): OSHA, NLRB, WHD, Contracts, Union Proximity, Financial, Industry Growth, Size (weight=0), Similarity (weight=1 nominally, 0% non-NULL)
+- 10 factors (each 0-10): OSHA, NLRB, WHD, Contracts, Union Proximity, Financial, Industry Growth, Size (weight=0), Similarity (15/100, 80.4% coverage)
 - Pillar formula: `weighted_score = (anger*3 + leverage*4) / active_weights` (stability zeroed, dynamic denominator)
-- Tiers: Priority (~2.0%), Strong (~10.2%), Promising (~27.7%), Moderate (~34.3%), Low (~25.8%)
+- Tiers (verified 2026-04-30): Priority 0.72% (1,052), Strong 1.93% (2,828), Promising 36.69% (53,879), Moderate 35.54% (52,197), Low 25.13% (36,907)
 
 **Non-Union Target Track:**
-- `mv_target_scorecard` — 4,386,205 rows (from master_employers)
+- `mv_target_scorecard` — was 5,382,051 rows (R7-verified 2026-04-25). **MISSING from DB as of 2026-04-30 -- see Open Problems/mv_target_scorecard MV Missing.md.** Rebuild via `py scripts/scoring/build_target_scorecard.py`.
 - 8 signals: OSHA, WHD, NLRB, Contracts, Financial, Industry Growth, Union Density, Size
 - Gold standard tiers: stub -> bronze (3+ signals or research) -> silver -> gold -> platinum
-- 882 bronze tier, 25.5% with enforcement signals
+- Tier counts pending rebuild (last verified: 882 bronze, 25.5% with enforcement signals).
 
 ### MV Dependency Chain
 ```
@@ -193,7 +197,7 @@ create_scorecard_mv.py        # OSHA-based organizing scorecard
 **DROP CASCADE warning:** Rebuilding crosswalk drops dependent MVs. Must rebuild entire chain.
 
 ### Corporate Crosswalk
-- **`corporate_identifier_crosswalk`** — 17,111 rows. Links SEC, GLEIF, Mergent, CorpWatch, F7. (USASpending tier needs re-run after crosswalk rebuild.)
+- **`corporate_identifier_crosswalk`** — 39,827 rows (verified 2026-04-30). Links SEC, GLEIF, Mergent, CorpWatch, F7. (USASpending tier needs re-run after crosswalk rebuild.)
 - **Tiers:** EIN_EXACT > LEI_EXACT > EIN_F7_BACKFILL > NAME_STATE > USASPENDING
 - **Script:** `PYTHONPATH=. py scripts/etl/build_crosswalk.py` (DROP+CREATE). Then `_match_usaspending.py` for federal columns.
 - **F7 coverage:** 12,534 (8.5% of 146,863).
@@ -221,7 +225,7 @@ create_scorecard_mv.py        # OSHA-based organizing scorecard
 **Pillar Architecture (Round 4 audit batch 3):**
 - **Anger** (weight 3): OSHA + WHD + ULP, dynamic sub-factor denominator
 - **Stability** (weight 0): zeroed pending data coverage; kept for display
-- **Leverage** (weight 4): proximity + similarity + contracts + financial + growth + size, dynamic sub-factor denominator
+- **Leverage** (weight 4): proximity + similarity + contracts + financial + growth, dynamic sub-factor denominator
 - **Formula:** `weighted_score = (anger*3 + leverage*4) / active_pillar_weights`
 - Dynamic denominator at both pillar and final level: NULL pillars do not inflate or deflate scores
 
@@ -229,15 +233,15 @@ create_scorecard_mv.py        # OSHA-based organizing scorecard
 |--------|----------|-------------------|-----------------|
 | NLRB | 17.6% | Anger sub-factor (4/10) | +10.2 pp (strongest) |
 | Industry Growth | 84.9% | Leverage sub-factor (10/100) | +9.6 pp |
-| Contracts | 5.9% | Leverage sub-factor (20/100) | +5.7 pp |
+| Contracts | 5.9% | Leverage sub-factor (25/100) | +5.7 pp |
 | WHD | 7.7% | Anger sub-factor (3/10) | +4.1 pp |
-| Financial | 7.3% | Leverage sub-factor (20/100) | +4.1 pp |
+| Financial | 7.3% | Leverage sub-factor (25/100) | +4.1 pp |
 | OSHA | 22.3% | Anger sub-factor (3/10) | -0.6 pp (predicts losses) |
-| Union Proximity | 100% | Leverage sub-factor (25/100) | +0.0 pp (zero power) |
-| Size | 100% | Leverage sub-factor (15/100) | +0.2 pp (zero power) |
-| Similarity | 0% | Leverage sub-factor (10/100) | N/A (0% non-NULL) |
+| Union Proximity | 100% | Leverage sub-factor (10/100) | +0.0 pp (zero power) |
+| Size | 100% | Leverage sub-factor (weight=0, removed) | +0.2 pp (zero power) |
+| Similarity | 80.4% | Leverage sub-factor (15/100) | N/A |
 
-**Research quality dual-gate:** >=7.0 enhances scores, 5.0-6.9 saves as unverified notes, <5.0 rejected.
+**Research quality dual-gate:** >=6.0 enhances scores, 5.0-6.9 saves as unverified notes, <5.0 rejected.
 
 **Pillar weight validation (2026-03-02):** Logistic regression on 6,403 NLRB outcomes shows anger is the strongest predictor (coeff 0.12), stability slightly negative, leverage weak. Model accuracy = base win rate (79.9%), confirming pillars don't add marginal predictive power. This is expected -- the score flags for investigation, not prediction. Current weights (3-0-4) kept. See `docs/pillar_weight_validation.csv`.
 
@@ -245,7 +249,7 @@ create_scorecard_mv.py        # OSHA-based organizing scorecard
 - **Score IS predictive** — win rates monotonic by tier: Priority 90.9%, Strong 84.7%, Low 74.1%
 - **Selection bias:** Only 34% of NLRB elections link to scored employers. F7-matched baseline is 80.8%.
 - **Data richness paradox:** Fewer factors = higher win rates (2-factor=88.2%, 8-factor=73.4%).
-- **Priority tier:** ~2,891 employers (post-batch-3 rebalance). D1/D7 decision: NO enforcement gate.
+- **Priority tier:** 1,052 employers (verified 2026-04-30; was ~2,891 post-batch-3, shrinkage from R7 cleanup). D1/D7 decision: NO enforcement gate.
 - **Propensity model KILLED** — was hardcoded formula (coin-flip accuracy). Code archived.
 
 ---
@@ -324,27 +328,27 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - `.env` — credentials (never commit)
 
 ### Scripts
-- `scripts/scoring/` — all scorecard/MV build scripts (10 scripts)
-- `scripts/matching/` — deterministic matcher, adapters (19 + 13 sub)
-- `scripts/research/` — research agent (14 tools, Gemini)
-- `scripts/etl/` — data loaders (43+ scripts)
-- `scripts/cba/` — CBA pipeline (8 scripts)
-- `scripts/maintenance/` — MV refresh, dedup, backup (8 scripts)
-- `scripts/analysis/` — ad-hoc analysis (54 scripts)
+- `scripts/scoring/` — all scorecard/MV build scripts (14 scripts)
+- `scripts/matching/` — deterministic matcher, adapters (23 + 14 sub)
+- `scripts/research/` — research agent (39 tools, Gemini)
+- `scripts/etl/` — data loaders (84 scripts)
+- `scripts/cba/` — CBA pipeline (23 scripts)
+- `scripts/maintenance/` — MV refresh, dedup, backup (19 scripts)
+- `scripts/analysis/` — ad-hoc analysis (189 scripts)
 
 ### Documentation
 - `.claude/agents/` — 9 domain-specialist agent specs (Tier 2)
 - `.claude/specs/` — 12 on-demand reference specs (Tier 3)
-- `.claude/skills/` — 6 user-invoked skills (start, ship, debug, schema-check, rebuild-mvs, union-research)
+- `.claude/skills/` — 7 user-invoked skills (start, ship, debug, schema-check, rebuild-mvs, union-research, wrapup)
 - `PROJECT_CATALOG.md` — comprehensive file catalog (~755 code files, every section)
 - `DOCUMENT_INDEX.md` — master catalog of all project documentation
 - `Start each AI/PROJECT_STATE.md` — shared AI context (multi-tool)
 - `Start each AI/CLAUDE.md` — shared technical reference (multi-tool)
-- `COMPLETE_PROJECT_ROADMAP_2026_03.md` — authoritative roadmap (62 tasks, 36 open questions)
+- `CONSOLIDATED_ROADMAP_2026_03_13.md` — legacy roadmap (superseded by `MERGED_ROADMAP_2026_04_07.md` in the vault, which is now the authoritative task list)
 
 ### Tests
-- `tests/` — backend tests (~1135)
-- `frontend/src/**/*.test.jsx` — frontend tests (~233)
+- `tests/` — backend tests (~1316)
+- `frontend/src/**/*.test.jsx` — frontend tests (~278)
 
 ---
 
@@ -355,7 +359,7 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - **Phase R1: Research Agent Learning Loop — DONE.** Contradiction detection, human fact review API, learning propagation, frontend review UI.
 - **Phase 5 Frontend Redesign — DONE.** All pages redesigned with "Aged Broadsheet" visual theme.
 - **Phase 3 Workstreams A+B+C+D — DONE.** Research quality, similarity rebuild, wage outliers, demographics API.
-- **All tests pass:** ~1135 backend (0 failures, 3 skipped), 240 frontend (0 failures).
+- **All tests pass:** ~1316 backend, ~278 frontend.
 
 ### Active Decisions
 | ID | Decision | Status |
@@ -363,7 +367,8 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 | D1/D7 | No enforcement gate for any tier | CLOSED |
 | D5 | Industry Growth weight increase to 3x? | Open |
 | D11 | Scoring framework overhaul (Anger/Stability/Leverage) | Implemented (batch 3): stability zeroed, dynamic denominator |
-| D12 | Union Proximity weight (3x despite zero power) | Open |
+| D12 | Union Proximity weight: reduced 25->10, freed 15 redistributed (contracts 25, financial 25, similarity 15) | CLOSED (2026-04-03) |
+| D13 | Stability pillar demoted to flags (score_stability always NULL) | CLOSED (2026-04-03) |
 
 ### Deferred (do NOT prompt about until roadmap mostly done)
 - Phase 2 remaining re-runs (SAM/WHD/990/SEC with RapidFuzz)

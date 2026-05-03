@@ -149,7 +149,12 @@ class TestTargetScorecardData:
 
     def test_signals_present_range(self, conn):
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE signals_present < 0 OR signals_present > 8")
+        # Bumped upper bound 8 -> 9 on 2026-04-24: signal_union_density was
+        # added as the 9th scorable column at some point after the original
+        # test was written. mv_target_scorecard now has 9 signal_* columns
+        # (osha/whd/nlrb/contracts/financial/industry_growth/size/similarity/
+        # union_density), so the legitimate maximum is 9.
+        cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE signals_present < 0 OR signals_present > 9")
         assert cur.fetchone()[0] == 0
 
     def test_gold_standard_tier_values(self, conn):
@@ -289,9 +294,10 @@ class TestTargetScorecardAPI:
         required_keys = {
             "signals_present", "has_enforcement", "enforcement_count",
             "has_recent_violations", "has_research", "gold_standard_tier",
-            "pillar_anger", "pillar_leverage", "pillar_stability",
+            "pillar_anger", "pillar_leverage",
         }
         assert required_keys <= set(summary.keys())
+        # pillar_stability removed per D13 (demoted to flags, always NULL)
 
     def test_detail_not_found(self, client):
         r = client.get("/api/targets/scorecard/999999999")

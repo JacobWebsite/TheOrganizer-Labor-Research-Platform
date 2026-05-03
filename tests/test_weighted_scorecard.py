@@ -64,20 +64,21 @@ def test_weighted_score_formula_consistency():
         conn.close()
 
 
-def test_similarity_null_when_union_proximity_strong():
+def test_similarity_populated_after_gower_overhaul():
+    """After Gower overhaul (2026-04-01), score_similarity should be non-NULL
+    for a significant portion of employers. The old test asserted similarity
+    was NULL when proximity was strong, but that was a broken-pipeline artifact."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT COUNT(*)
-                FROM mv_unified_scorecard
-                WHERE score_union_proximity >= 5
-                  AND score_similarity IS NOT NULL
+                SELECT COUNT(*) FROM mv_unified_scorecard
+                WHERE score_similarity IS NOT NULL
                 """
             )
-            bad = cur.fetchone()[0]
-            assert bad == 0, f"{bad} rows have score_similarity despite strong union proximity"
+            has_sim = cur.fetchone()[0]
+            assert has_sim > 100000, f"Expected >100K with similarity, got {has_sim}"
     finally:
         conn.close()
 

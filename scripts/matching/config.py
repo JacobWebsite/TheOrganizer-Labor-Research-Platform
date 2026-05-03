@@ -5,7 +5,7 @@ Defines MatchConfig dataclass, tier thresholds, and predefined scenarios.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 
 @dataclass
@@ -207,6 +207,72 @@ SCENARIOS: Dict[str, MatchConfig] = {
         source_normalized_col="company_name_normalized",
         target_normalized_col="estab_name_normalized",
         output_cols=["company_name", "estab_name", "total_violations"],
+    ),
+
+    # Mergent Employers → SAM Entities
+    "mergent_to_sam": MatchConfig(
+        name="mergent_to_sam",
+        source_table="mergent_employers",
+        target_table="sam_entities",
+        source_id_col="duns",
+        source_name_col="company_name",
+        source_state_col="state",
+        source_city_col="city",
+        source_ein_col="ein",
+        source_address_col="street_address",
+        target_id_col="uei",
+        target_name_col="legal_business_name",
+        target_state_col="physical_state",
+        target_city_col="physical_city",
+        target_ein_col=None,  # SAM has no EIN
+        target_address_col="physical_address",
+        source_normalized_col="company_name_normalized",
+        target_normalized_col="name_normalized",
+        output_cols=["company_name", "legal_business_name", "physical_state"],
+    ),
+
+    # Mergent Employers → SEC Companies
+    "mergent_to_sec": MatchConfig(
+        name="mergent_to_sec",
+        source_table="mergent_employers",
+        target_table="sec_companies",
+        source_id_col="duns",
+        source_name_col="company_name",
+        source_state_col="state",
+        source_city_col="city",
+        source_ein_col="ein",
+        source_address_col="street_address",
+        target_id_col="cik",
+        target_name_col="company_name",
+        target_state_col="state",
+        target_city_col="city",
+        target_ein_col="ein",
+        target_address_col="street_address",
+        source_normalized_col="company_name_normalized",
+        target_normalized_col="name_normalized",
+        output_cols=["company_name", "ticker", "sic_description"],
+    ),
+
+    # Mergent Employers → WHD Cases
+    "mergent_to_whd": MatchConfig(
+        name="mergent_to_whd",
+        source_table="mergent_employers",
+        target_table="whd_cases",
+        source_id_col="duns",
+        source_name_col="company_name",
+        source_state_col="state",
+        source_city_col="city",
+        source_ein_col="ein",
+        source_address_col="street_address",
+        target_id_col="id",
+        target_name_col="legal_name",
+        target_state_col="state",
+        target_city_col="city",
+        target_ein_col=None,  # WHD has no EIN
+        target_address_col="street_address",
+        source_normalized_col="company_name_normalized",
+        target_normalized_col="name_normalized",
+        output_cols=["company_name", "legal_name", "total_violations"],
     ),
 
     # NYC Violations → Mergent Employers (for labor violations scoring)

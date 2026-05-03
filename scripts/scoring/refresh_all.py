@@ -36,9 +36,19 @@ def run_pre_checks():
     conn = get_connection()
     try:
         # Import and call _check_contract_data from build_unified_scorecard
-        from scripts.scoring.build_unified_scorecard import _check_contract_data
-        _check_contract_data(conn)
-        print("  Pre-build checks passed.")
+        # Skip if mv_employer_data_sources doesn't exist yet (it's built by step 3)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM pg_matviews WHERE matviewname = 'mv_employer_data_sources'
+            )
+        """)
+        if cur.fetchone()[0]:
+            from scripts.scoring.build_unified_scorecard import _check_contract_data
+            _check_contract_data(conn)
+            print("  Pre-build checks passed.")
+        else:
+            print("  mv_employer_data_sources not yet built -- skipping pre-check (will be created in step 3).")
     finally:
         conn.close()
 
@@ -72,7 +82,7 @@ def run_report_step(subcommand):
     """Run score_change_report.py with the given subcommand."""
     script_path = os.path.join(SCRIPT_DIR, "score_change_report.py")
     if not os.path.isfile(script_path):
-        print(f"  WARNING: score_change_report.py not found, skipping report.")
+        print("  WARNING: score_change_report.py not found, skipping report.")
         return 0.0, -1
 
     print(f"\n{'=' * 60}")

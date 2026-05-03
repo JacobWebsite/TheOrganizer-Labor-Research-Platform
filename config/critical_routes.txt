@@ -1,0 +1,44 @@
+# Critical API routes that must be present in the running API.
+# Used by scripts/maintenance/check_critical_routes.py.
+# One route per line. Blank lines and lines starting with # are ignored.
+# Routes are matched literally against keys in /openapi.json `paths`.
+#
+# Provenance: each entry should cite the audit/regression finding that put
+# it on this list, so future contributors know why it matters.
+
+# R7-6 (2026-04-26): Family-rollup routes were absent from the running API
+# on :8001 despite being in the codebase. Caught Starbucks 0-elections
+# regression in the wild before this check existed.
+/api/employers/f7/{employer_id}/family-rollup
+/api/employers/master/{master_id}/family-rollup
+
+# R7-9 (2026-04-26): State/local contracts endpoint absent — beta
+# differentiator data invisible to users.
+/api/employers/master/{master_id}/state-local-contracts
+
+# R7-15 (2026-04-26): Data-sources route returned 404 for master ids.
+# Single endpoint accepts both F7 and MASTER- prefixed ids.
+/api/employers/{employer_id}/data-sources
+
+# Demographics endpoints (R7-1/2/3 fixes 2026-04-27/28).
+/api/demographics/employer/{master_id}
+/api/demographics/{state}
+/api/demographics/{state}/{naics}
+
+# Master employer detail + search (core profile path).
+/api/master/{master_id}
+/api/master/search
+
+# Target scorecard endpoints (depend on mv_target_scorecard MV).
+/api/targets/scorecard/{master_id}
+
+# R7-14 (2026-04-26): Comparables route 404 for MASTER- ids was fixed by
+# stripping the MASTER- prefix server-side. One endpoint serves both.
+/api/employers/{employer_id}/comparables
+
+# Workplace demographics (frontend WorkforceDemographicsCard).
+# Mounted under /profile router, NOT /employers — see api/routers/profile.py.
+/api/profile/employers/{employer_id}/workplace-demographics
+
+# Health endpoint (CI/uptime).
+/api/health

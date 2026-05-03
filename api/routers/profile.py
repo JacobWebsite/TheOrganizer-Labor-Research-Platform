@@ -13,6 +13,11 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 _profile_cache = TTLCache(ttl_seconds=300)  # 5-minute cache per employer
 
+# Data vintage for the materialized inputs feeding workforce-profile.
+# Mirrors the constants in api/routers/demographics.py; keep in sync.
+ACS_PUMS_VINTAGE = "2022"   # ACS 5-year PUMS feeding cur_acs_workforce_demographics
+LODES_VINTAGE = "2022"      # LODES WAC year feeding cur_lodes_geo_metrics
+
 
 def _get_nyc_enforcement(cur, employer: dict) -> dict:
     """On-the-fly name lookup against 3 small NYC/NYS enforcement tables."""
@@ -883,7 +888,8 @@ def get_employer_workplace_demographics(employer_id: str):
 
             return {
                 "available": True,
-                "source": "LODES 2022 (Census Bureau)",
+                "source": f"LODES {LODES_VINTAGE} (Census Bureau)",
+                "vintage_year": LODES_VINTAGE,
                 "geography": "County",
                 "county_fips": county_fips,
                 "total_jobs": demo_total,
@@ -1097,6 +1103,7 @@ def _get_acs_demographics(cur, state_fips: str, naics_code: str):
 
         return {
             "source": "ACS (Census Bureau)",
+            "vintage_year": ACS_PUMS_VINTAGE,
             "level": level,
             "naics_matched": prefix,
             "total_workers": round(total),
@@ -1125,7 +1132,8 @@ def _get_lodes_demographics(cur, county_fips: str):
         return None
 
     return {
-        "source": "LODES 2022 (Census Bureau)",
+        "source": f"LODES {LODES_VINTAGE} (Census Bureau)",
+        "vintage_year": LODES_VINTAGE,
         "county_fips": county_fips,
         "total_jobs": round(age_total),
         "demo_total_jobs": round(demo_total),
@@ -1672,6 +1680,21 @@ def get_employer_workforce_profile(employer_id: str):
 
             # Gather all data sources
             acs = _get_acs_demographics(cur, state_fips, naics) if state_fips else None
+            # Local import: top-level import keeps getting auto-stripped by the
+            # formatter when the use isn't on the same line range. M-2 plausibility
+            # check (R7-1: NY hospitals returning 145M workers).
+            from ..services.demographics_bounds import (
+                assert_demographics_plausible,
+                log_warnings,
+            )
+            log_warnings(
+                assert_demographics_plausible(
+                    acs,
+                    state_abbr=state,
+                    context=f"GET /api/profile/employers/{employer_id}/workforce-profile (acs)",
+                ),
+                _logger,
+            )
             lodes = _get_lodes_demographics(cur, county_fips) if county_fips else None
             qcew = _get_qcew_context(cur, county_fips, naics) if county_fips else None
             oes = _get_oes_wages(cur, state, naics, cbsa_code) if state else None

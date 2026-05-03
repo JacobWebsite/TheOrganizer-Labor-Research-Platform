@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
 
 export function useCBADocuments({ employer, union, category, date_from, date_to, page = 1, limit = 25, enabled = true } = {}) {
@@ -82,5 +82,133 @@ export function useCBAProvisionClasses() {
     queryKey: ['cba-provision-classes'],
     queryFn: () => apiClient.get('/api/cba/provisions/classes'),
     staleTime: Infinity,
+  })
+}
+
+export function useCBARules() {
+  return useQuery({
+    queryKey: ['cba-rules'],
+    queryFn: () => apiClient.get('/api/cba/rules'),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useCBAReviewQueue({ category, rule_name, review_status, min_confidence, max_confidence, page = 1, limit = 25, sort, order, enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['cba-review-queue', { category, rule_name, review_status, min_confidence, max_confidence, page, limit, sort, order }],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (category) params.set('category', category)
+      if (rule_name) params.set('rule_name', rule_name)
+      if (review_status) params.set('review_status', review_status)
+      if (min_confidence != null) params.set('min_confidence', String(min_confidence))
+      if (max_confidence != null) params.set('max_confidence', String(max_confidence))
+      if (sort) params.set('sort', sort)
+      if (order) params.set('order', order)
+      params.set('page', String(page))
+      params.set('limit', String(limit))
+      return apiClient.get(`/api/cba/review/queue?${params}`)
+    },
+    enabled,
+    placeholderData: (prev) => prev,
+  })
+}
+
+export function useCBAReviewStats() {
+  return useQuery({
+    queryKey: ['cba-review-stats'],
+    queryFn: () => apiClient.get('/api/cba/review/stats'),
+    staleTime: 30 * 1000,
+  })
+}
+
+export function useCBAArticles(cbaId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['cba-articles', cbaId],
+    queryFn: () => apiClient.get(`/api/cba/documents/${cbaId}/articles`),
+    enabled: enabled && !!cbaId,
+  })
+}
+
+export function useCBAArticleSearch({ q, category, category_group, employer_name, union_name, sort_by, page = 1, limit = 25, enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['cba-article-search', { q, category, category_group, employer_name, union_name, sort_by, page, limit }],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (q) params.set('q', q)
+      if (category) params.set('category', category)
+      if (category_group) params.set('category_group', category_group)
+      if (employer_name) params.set('employer_name', employer_name)
+      if (union_name) params.set('union_name', union_name)
+      if (sort_by) params.set('sort_by', sort_by)
+      params.set('page', String(page))
+      params.set('limit', String(limit))
+      return apiClient.get(`/api/cba/articles/search?${params}`)
+    },
+    enabled: enabled && !!(q || category || category_group),
+    placeholderData: (prev) => prev,
+  })
+}
+
+export function useCBACategoryGroups() {
+  return useQuery({
+    queryKey: ['cba-category-groups'],
+    queryFn: () => apiClient.get('/api/cba/category-groups'),
+    staleTime: Infinity,
+  })
+}
+
+export function useCBASemanticSearch({
+  q,
+  types = 'article,provision',
+  top_k = 25,
+  min_similarity = 0,
+  employer_name,
+  union_name,
+  category,
+  category_group,
+  cba_id,
+  enabled = true,
+} = {}) {
+  return useQuery({
+    queryKey: ['cba-semantic-search', {
+      q, types, top_k, min_similarity,
+      employer_name, union_name, category, category_group, cba_id,
+    }],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      params.set('q', q)
+      params.set('types', types)
+      params.set('top_k', String(top_k))
+      if (min_similarity > 0) params.set('min_similarity', String(min_similarity))
+      if (employer_name) params.set('employer_name', employer_name)
+      if (union_name) params.set('union_name', union_name)
+      if (category) params.set('category', category)
+      if (category_group) params.set('category_group', category_group)
+      if (cba_id != null) params.set('cba_id', String(cba_id))
+      return apiClient.get(`/api/cba/semantic-search?${params}`)
+    },
+    enabled: enabled && !!q && q.trim().length >= 2,
+    placeholderData: (prev) => prev,
+    // Semantic search is expensive (Gemini API call), so cache aggressively
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useSubmitCBAReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ provisionId, review_action, corrected_category, corrected_class, notes }) =>
+      apiClient.post(`/api/cba/provisions/${provisionId}/review`, {
+        review_action,
+        corrected_category: corrected_category || null,
+        corrected_class: corrected_class || null,
+        notes: notes || null,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cba-review-queue'] })
+      qc.invalidateQueries({ queryKey: ['cba-review-stats'] })
+      qc.invalidateQueries({ queryKey: ['cba-rules'] })
+    },
   })
 }

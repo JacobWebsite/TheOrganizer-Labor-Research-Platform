@@ -443,9 +443,25 @@ def main():
         print("")
         print("Elapsed: %.1f seconds" % elapsed)
 
+        try:
+            from etl_log import log_etl_run
+            log_etl_run('whd', 'whd_cases', total, 'success',
+                         'scripts/etl/load_whd_national.py',
+                         duration_seconds=round(elapsed, 2))
+        except Exception as log_err:
+            print("WARNING: ETL log failed: %s" % log_err)
+
     except Exception as e:
         conn.rollback()
         print("ERROR: %s" % str(e))
+        try:
+            from etl_log import log_etl_run
+            log_etl_run('whd', 'whd_cases', None, 'error',
+                         'scripts/etl/load_whd_national.py',
+                         error_message=str(e),
+                         duration_seconds=round(time.time() - t0, 2))
+        except Exception:
+            pass
         raise
     finally:
         cur.close()

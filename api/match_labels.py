@@ -9,15 +9,28 @@ SOURCE_LABELS = {
     "sam": "SAM.gov Federal Contractors",
     "corpwatch": "CorpWatch Corporate Data",
     "mergent": "Mergent Intellect",
+    "web_scraper": "Union website directory",
 }
 
 METHOD_LABELS = {
     "EIN_EXACT": "EIN (exact match)",
     "NAME_CITY_STATE": "name + city + state",
+    "NAME_CITY_STATE_EXACT": "name + city + state",
+    "NAME_ZIP_STATE": "name + ZIP + state",
     "NAME_STATE": "name + state",
+    "NAME_STATE_EXACT": "name + state",
     "AGGRESSIVE": "aggressive name normalization",
+    "NAME_AGGRESSIVE_STATE": "aggressive name normalization",
+    "SORTED_TOKEN_STATE": "sorted token match",
+    "COLLAPSED_SPACING_STATE": "spacing-collapsed match",
+    "TRUNCATED_NAME_STATE": "prefix truncation match",
+    "STRIPPED_LEADING_NUMS_STATE": "leading number stripped match",
+    "STEMMED_NAME_STATE": "stemmed name match",
+    "PHONETIC_STATE": "phonetic encoding match",
+    "FUZZY_INMEMORY_TRIGRAM": "trigram similarity",
     "FUZZY_SPLINK_ADAPTIVE": "fuzzy name matching",
     "TRIGRAM": "trigram similarity",
+    "FUZZY_TRIGRAM": "trigram similarity",
 }
 
 
@@ -32,7 +45,9 @@ def build_citation(source_system, match_method, confidence_score=None):
     method = METHOD_LABELS.get(match_method, match_method or "unknown method")
 
     # Append similarity score for fuzzy methods
-    if match_method in ("FUZZY_SPLINK_ADAPTIVE", "TRIGRAM") and confidence_score is not None:
+    fuzzy_methods = ("FUZZY_SPLINK_ADAPTIVE", "TRIGRAM", "FUZZY_TRIGRAM",
+                     "FUZZY_INMEMORY_TRIGRAM", "PHONETIC_STATE")
+    if match_method in fuzzy_methods and confidence_score is not None:
         score_val = float(confidence_score)
         method = f"{method} ({score_val:.2f} similarity)"
 

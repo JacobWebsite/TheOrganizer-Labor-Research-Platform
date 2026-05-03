@@ -4,11 +4,19 @@ Demographics API - ACS workforce demographics by state and industry.
 GET /api/demographics/{state}/{naics}  - Industry workforce demographics
 GET /api/demographics/{state}          - State-wide workforce demographics
 """
+import logging
+
 from fastapi import APIRouter, HTTPException
 from psycopg2.extras import RealDictCursor
 from db_config import get_connection
 
+from ..services.demographics_bounds import (
+    assert_demographics_plausible,
+    log_warnings,
+)
+
 router = APIRouter(prefix="/api/demographics", tags=["demographics"])
+_logger = logging.getLogger(__name__)
 
 # Decode maps for IPUMS ACS coded values
 SEX_LABELS = {"1": "Male", "2": "Female"}
@@ -66,7 +74,14 @@ def _get_state_fips(cur, state: str) -> str:
 
 
 def _build_demographics(cur, state_fips: str, naics4: str = None):
-    """Query ACS and build decoded demographics response."""
+    """Query ACS and build decoded demographics response.
+
+    cur_acs_workforce_demographics is built from one IPUMS sample (2023 ACS
+    5-year) with not-in-labor-force people excluded — every row is a leaf
+    cell of the (state x metro x naics4 x soc x demographics x worker_class)
+    cube, scoped to employed wage workers + self-employed. Summing without
+    a grain filter gives the correct total. See newsrc_curate_all.build_acs.
+    """
     where = ["state_fips = %s"]
     params = [state_fips]
     if naics4:
@@ -275,7 +290,7 @@ async def get_employer_demographics(master_id: int):
                 status_code=404,
                 detail=f"No demographics data available for employer {master_id}")
 
-        return {
+        payload = {
             "master_id": master_id,
             "employer_name": emp["canonical_name"],
             "state": state_abbr,
@@ -289,6 +304,15 @@ async def get_employer_demographics(master_id: int):
             "confidence": "YELLOW" if naics4 else "RED",
             **result,
         }
+        log_warnings(
+            assert_demographics_plausible(
+                payload,
+                state_abbr=state_abbr,
+                context=f"GET /api/demographics/employer/{master_id}",
+            ),
+            _logger,
+        )
+        return payload
     finally:
         conn.close()
 
@@ -340,7 +364,7 @@ async def get_industry_demographics(state: str, naics: str):
             label = f"State-wide workforce baseline for {state.upper()}"
             naics_desc = None
 
-        return {
+        payload = {
             "state": state.upper(),
             "naics": naics,
             "naics_description": naics_desc,
@@ -353,6 +377,15 @@ async def get_industry_demographics(state: str, naics: str):
             ),
             **result,
         }
+        log_warnings(
+            assert_demographics_plausible(
+                payload,
+                state_abbr=state.upper(),
+                context=f"GET /api/demographics/{state}/{naics}",
+            ),
+            _logger,
+        )
+        return payload
     finally:
         conn.close()
 
@@ -372,7 +405,7 @@ async def get_state_demographics(state: str):
                 detail=f"No ACS workforce data for {state.upper()}",
             )
 
-        return {
+        payload = {
             "state": state.upper(),
             "naics": None,
             "naics_description": None,
@@ -380,5 +413,14 @@ async def get_state_demographics(state: str):
             "methodology": f"ACS {ACS_PUMS_VINTAGE} 5-year PUMS, state-wide aggregate",
             **result,
         }
+        log_warnings(
+            assert_demographics_plausible(
+                payload,
+                state_abbr=state.upper(),
+                context=f"GET /api/demographics/{state}",
+            ),
+            _logger,
+        )
+        return payload
     finally:
         conn.close()

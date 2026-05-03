@@ -194,14 +194,11 @@ export function TargetsTable({
         const badges = []
         if (row.original.is_federal_contractor) badges.push('Fed Contractor')
         if (row.original.is_nonprofit) badges.push('Nonprofit')
-        if (row.original.is_low_wage_outlier) badges.push('Low Wage')
         if (badges.length === 0) return null
         return (
           <div className="flex gap-1">
             {badges.map((b) => (
-              <span key={b} className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border ${
-                b === 'Low Wage' ? 'bg-[#c23a22]/10 text-[#c23a22] border-[#c23a22]/20' : 'bg-muted'
-              }`}>
+              <span key={b} className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium border bg-muted">
                 {b}
               </span>
             ))}

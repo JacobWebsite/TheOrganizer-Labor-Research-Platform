@@ -11,7 +11,6 @@ Validates:
 import sys
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -270,20 +269,17 @@ class TestUnifiedScorecardData:
         finally:
             conn.close()
 
-    def test_stability_no_fake_baseline(self):
-        """Stability should be NULL (not 5.0) when no turnover/wage data."""
+    def test_stability_pillar_removed(self):
+        """Stability pillar should always be NULL (D13: demoted to flags)."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(*) FROM mv_unified_scorecard
-                    WHERE score_stability = 5.0
-                      AND turnover_rate_found IS NULL
-                      AND wage_outlier_score IS NULL
-                      AND rse_score_stability IS NULL
+                    WHERE score_stability IS NOT NULL
                 """)
-                fake = cur.fetchone()[0]
-                assert fake == 0, f"{fake} employers still have fake 5.0 stability baseline"
+                non_null = cur.fetchone()[0]
+                assert non_null == 0, f"{non_null} employers still have non-NULL score_stability"
         finally:
             conn.close()
 

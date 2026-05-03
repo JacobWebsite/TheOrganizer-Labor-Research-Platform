@@ -212,6 +212,19 @@ rpe_size AS (
     WHERE f990.latest_revenue > 0
       AND tds2.naics IS NOT NULL
 ),
+-- PPP: workforce size fallback from PPP loan data
+ppp_size AS (
+    SELECT
+        pppsid.master_id,
+        MAX(pr.total_jobs_reported) AS ppp_jobs_reported
+    FROM cur_ppp_employer_rollup pr
+    JOIN master_employer_source_ids pppsid
+        ON pppsid.source_system = 'ppp'
+        AND pppsid.source_id = pr.borrower_name || '|' || pr.borrower_state
+    WHERE pr.total_jobs_reported IS NOT NULL
+      AND pr.total_jobs_reported > 0
+    GROUP BY pppsid.master_id
+),
 -- BLS industry projections
 bls_proj AS (
     SELECT matrix_code, employment_change_pct
@@ -229,14 +242,16 @@ industry_density AS (
     FROM bls_national_industry_density
     WHERE year = (SELECT MAX(year) FROM bls_national_industry_density)
 ),
--- Similarity: employer_comparables links master_id -> comparable union employers
+-- Similarity: employer_comparables links master_id -> comparable employers
 similarity_agg AS (
     SELECT
         ec.employer_id AS master_id,
-        COUNT(*) FILTER (WHERE me.is_union) AS unionized_comparable_count,
+        COUNT(*) FILTER (WHERE ec.comparable_type = 'union') AS unionized_comparable_count,
+        COUNT(*) FILTER (WHERE ec.comparable_type = 'non_union') AS non_union_comparable_count,
+        MIN(ec.gower_distance) FILTER (WHERE ec.comparable_type = 'union')::numeric AS best_union_distance,
+        MIN(ec.gower_distance) FILTER (WHERE ec.comparable_type = 'non_union')::numeric AS best_non_union_distance,
         MIN(ec.gower_distance)::numeric AS best_distance
     FROM employer_comparables ec
-    JOIN master_employers me ON me.master_id = ec.comparable_employer_id
     GROUP BY ec.employer_id
 ),
 -- Research enhancement bridge: link research_score_enhancements to master_ids
@@ -412,9 +427,30 @@ raw_signals AS (
                 )
         END AS signal_nlrb,
 
-        -- SIGNAL: Federal Contracts (0-10) -- binary presence, no obligation amounts
+        -- SIGNAL: Contracts (0-10) -- GREATEST of federal-presence score and
+        -- state/local source-count tier (added 2026-04-23 to mirror
+        -- build_unified_scorecard's f7-side logic).
+        --
+        -- State/local tier uses source_count (= number of distinct staging
+        -- tables that listed this vendor) instead of $ amounts because NY ABO
+        -- multi-FY filings + NYC Awards typos make $ amounts unreliable.
+        --   4+ sources -> 8, 3 -> 6, 2 -> 5, 1 -> 3.
+        --
+        -- Only Tier A+B state/local matches feed mv_target_data_sources, so
+        -- the rule-engine (H1-H16) already filtered out person-name and series
+        -- false positives before this point.
         CASE
-            WHEN tds.is_federal_contractor THEN 5
+            WHEN tds.is_federal_contractor OR tds.is_state_local_contractor THEN
+                GREATEST(
+                    CASE WHEN tds.is_federal_contractor THEN 5 ELSE 0 END,
+                    CASE
+                        WHEN tds.state_local_source_count >= 4 THEN 8
+                        WHEN tds.state_local_source_count = 3 THEN 6
+                        WHEN tds.state_local_source_count = 2 THEN 5
+                        WHEN tds.state_local_source_count = 1 THEN 3
+                        ELSE 0
+                    END
+                )
         END AS signal_contracts,
 
         -- SIGNAL: Financial (0-10) -- GREATEST of 990 score and Form 5500 score
@@ -492,48 +528,35 @@ raw_signals AS (
 
         -- SIGNAL: Size (0-10, weight=0, filter dimension only)
         CASE
-            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) IS NULL THEN NULL
-            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) < 15 THEN 0
-            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) BETWEEN 500 AND 25000 THEN 10
+            WHEN COALESCE(tds.employee_count, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) IS NULL THEN NULL
+            WHEN COALESCE(tds.employee_count, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) < 15 THEN 0
+            WHEN COALESCE(tds.employee_count, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) BETWEEN 500 AND 25000 THEN 10
             -- High-end taper: 25,001-100,000 tapers from 10 down to 5
-            WHEN COALESCE(tds.employee_count, rpe.rpe_estimated_employees) > 25000 THEN
-                GREATEST(5, 10 - ROUND(((COALESCE(tds.employee_count, rpe.rpe_estimated_employees) - 25000)::numeric / 75000) * 5, 2))
-            ELSE ROUND((((COALESCE(tds.employee_count, rpe.rpe_estimated_employees) - 15)::numeric / 485) * 10), 2)
+            WHEN COALESCE(tds.employee_count, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) > 25000 THEN
+                GREATEST(5, 10 - ROUND(((COALESCE(tds.employee_count, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) - 25000)::numeric / 75000) * 5, 2))
+            ELSE ROUND((((COALESCE(tds.employee_count, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) - 15)::numeric / 485) * 10), 2)
         END AS signal_size,
 
-        COALESCE(tds.employee_count, rpe.rpe_estimated_employees) AS effective_employee_count,
+        COALESCE(tds.employee_count, ppp.ppp_jobs_reported, rpe.rpe_estimated_employees) AS effective_employee_count,
         CASE
             WHEN tds.employee_count IS NOT NULL THEN 'direct'
+            WHEN ppp.ppp_jobs_reported IS NOT NULL THEN 'ppp_2020'
             WHEN rpe.rpe_estimated_employees IS NOT NULL THEN 'rpe_estimate'
             ELSE NULL
         END AS employee_count_source,
+        ppp.ppp_jobs_reported AS ppp_employee_count,
 
-        -- SIGNAL: Similarity (0-10) -- peer comparison via Gower distance to unionized employers
+        -- SIGNAL: Similarity (0-10) -- distance to nearest already-unionized peer via Gower.
+        -- Linear inverse scaled to observed max distance of 0.40 (real range is [0, 0.39]).
         CASE
-            WHEN sa.unionized_comparable_count IS NULL THEN NULL
-            ELSE LEAST(
-                10,
-                CASE sa.unionized_comparable_count
-                    WHEN 5 THEN 10
-                    WHEN 4 THEN 8
-                    WHEN 3 THEN 6
-                    WHEN 2 THEN 4
-                    WHEN 1 THEN 2
-                    ELSE 0
-                END
-                + CASE WHEN sa.best_distance IS NOT NULL AND sa.best_distance < 0.15 THEN 1 ELSE 0 END
-            )
+            WHEN sa.best_union_distance IS NULL THEN NULL
+            ELSE GREATEST(0, LEAST(10,
+                ROUND((10.0 * (1 - sa.best_union_distance / 0.40))::numeric, 1)
+            ))
         END AS signal_similarity,
 
         sa.unionized_comparable_count,
         sa.best_distance AS similarity_best_distance,
-
-        -- Wage outlier columns
-        ewo.wage_outlier_score,
-        ewo.is_low_wage_outlier,
-        ewo.wage_ratio,
-        ewo.employer_annual_pay,
-        ewo.qcew_avg_annual_pay,
 
         -- Raw detail columns for drilldown
         oa.estab_count AS osha_estab_count,
@@ -627,8 +650,8 @@ raw_signals AS (
         ELSE NULL
     END
     LEFT JOIN rpe_size rpe ON rpe.master_id = tds.master_id
+    LEFT JOIN ppp_size ppp ON ppp.master_id = tds.master_id
     LEFT JOIN similarity_agg sa ON sa.master_id = tds.master_id
-    LEFT JOIN employer_wage_outliers ewo ON ewo.master_id = tds.master_id
     LEFT JOIN financial_990 f990 ON f990.master_id = tds.master_id
     LEFT JOIN financial_form5500 ff5 ON ff5.master_id = tds.master_id
     LEFT JOIN research_bridge rb ON rb.master_id = tds.master_id
@@ -661,6 +684,30 @@ enhanced AS (
          + CASE WHEN rs.signal_size IS NOT NULL THEN 1 ELSE 0 END
          + CASE WHEN rs.signal_similarity IS NOT NULL THEN 1 ELSE 0 END
         ) AS signals_present,
+
+        -- Direct evidence: employer-specific records (enforcement + financial filings + contracts)
+        (CASE WHEN rs.signal_osha IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_whd IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_contracts IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_financial IS NOT NULL THEN 1 ELSE 0 END
+        ) AS direct_signals_available,
+
+        -- Indirect/modeled signals (derived from metadata + general data)
+        (CASE WHEN rs.signal_union_density IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_industry_growth IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_size IS NOT NULL THEN 1 ELSE 0 END
+         + CASE WHEN rs.signal_similarity IS NOT NULL THEN 1 ELSE 0 END
+        ) AS indirect_signals_available,
+
+        -- Scorable coverage: direct evidence only (0-5 signals)
+        ROUND(100.0 * (
+            CASE WHEN rs.signal_osha IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN rs.signal_whd IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN rs.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN rs.signal_contracts IS NOT NULL THEN 1 ELSE 0 END
+            + CASE WHEN rs.signal_financial IS NOT NULL THEN 1 ELSE 0 END
+        )::numeric / 5, 1) AS scorable_coverage_pct,
 
         -- Enforcement flags
         (rs.signal_osha IS NOT NULL OR rs.signal_whd IS NOT NULL OR rs.signal_nlrb IS NOT NULL) AS has_enforcement,
@@ -712,37 +759,38 @@ SELECT
         )
     END AS pillar_leverage,
 
-    -- Pillar: stability -- blends research stability, turnover, sentiment, and wage outlier score
-    -- Higher = more stable workforce (better for organizing). Wage outlier inverted: low wages = less stable.
-    CASE
-        WHEN e.rse_score_stability IS NOT NULL THEN
-            -- If research provided stability AND we have wage data, average them
-            ROUND(CASE WHEN e.wage_outlier_score IS NOT NULL
-                THEN (e.rse_score_stability + (10 - e.wage_outlier_score)) / 2.0
-                ELSE e.rse_score_stability
-            END::numeric, 2)
-        WHEN e.turnover_rate_found IS NOT NULL THEN
-            ROUND(LEAST(10, GREATEST(0, 10 - e.turnover_rate_found))::numeric, 2)
-        WHEN e.wage_outlier_score IS NOT NULL THEN
-            -- Low wages -> high turnover risk -> low stability
-            ROUND((10 - e.wage_outlier_score)::numeric, 2)
-        WHEN e.sentiment_score_found IS NOT NULL THEN
-            ROUND(LEAST(10, GREATEST(0, e.sentiment_score_found * 10))::numeric, 2)
-        ELSE NULL
-    END AS pillar_stability,
+    -- STABILITY PILLAR REMOVED (D13 decision 2026-04-03): demoted to flags.
+    -- Underlying data (rse_score_stability, turnover, wage_outlier, sentiment)
+    -- still available as passthrough columns for filtering/display.
+    NULL::numeric AS pillar_stability,
+
+    -- Thin-data flag: zero direct employer-specific evidence, but modeled signals
+    -- (similarity or union density) are high enough to inflate leverage score >= 6.0.
+    -- When direct_signals_available=0, pillar_leverage reduces to the average of
+    -- whichever of {similarity, union_density} are present, so checking those directly
+    -- is equivalent.
+    CASE WHEN e.direct_signals_available = 0
+         AND (COALESCE(e.signal_similarity, 0) >= 6.0
+              OR COALESCE(e.signal_union_density, 0) >= 6.0)
+        THEN TRUE ELSE FALSE
+    END AS has_thin_data,
 
     -- Gold standard tier: how complete is this employer's profile?
+    -- Task #38: silver/gold/platinum also require >=1 direct signal
+    -- (OSHA/NLRB/WHD/contracts/financial). Research alone is not enough to
+    -- clear the top tiers -- it must be grounded in at least one employer-
+    -- specific federal record. Research without any direct signal falls back
+    -- to bronze, and research with zero direct signals AND zero evidence at
+    -- all falls back to stub via the base CASE logic (research_run_id path).
     CASE
-        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 8.5 THEN 'platinum'
-        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 7.0 THEN 'gold'
-        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 5.0 THEN 'silver'
+        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 8.5
+             AND e.direct_signals_available >= 1 THEN 'platinum'
+        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 7.0
+             AND e.direct_signals_available >= 1 THEN 'gold'
+        WHEN e.research_run_id IS NOT NULL AND e.research_quality >= 5.0
+             AND e.direct_signals_available >= 1 THEN 'silver'
         WHEN e.research_run_id IS NOT NULL THEN 'bronze'
-        WHEN (CASE WHEN e.signal_osha IS NOT NULL THEN 1 ELSE 0 END
-             + CASE WHEN e.signal_whd IS NOT NULL THEN 1 ELSE 0 END
-             + CASE WHEN e.signal_nlrb IS NOT NULL THEN 1 ELSE 0 END
-             + CASE WHEN e.signal_contracts IS NOT NULL THEN 1 ELSE 0 END
-             + CASE WHEN e.signal_financial IS NOT NULL THEN 1 ELSE 0 END
-        ) >= 3 THEN 'bronze'
+        WHEN e.direct_signals_available >= 3 THEN 'bronze'
         ELSE 'stub'
     END AS gold_standard_tier
 
@@ -812,27 +860,20 @@ def _print_stats(cur):
         pct = 100.0 * cnt / total if total > 0 else 0
         print(f"    {col:20s}: {cnt:>10,} ({pct:5.1f}%) avg={avg}")
 
-    # Wage context
-    cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE wage_outlier_score IS NOT NULL")
-    wage_cnt = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE is_low_wage_outlier")
-    low_wage_cnt = cur.fetchone()[0]
-    print(f"\n  Wage context:")
-    print(f"    Has wage comparison: {wage_cnt:>10,} ({100.0*wage_cnt/total:.2f}%)")
-    if wage_cnt > 0:
-        print(f"    Low-wage outliers:   {low_wage_cnt:>10,} ({100.0*low_wage_cnt/wage_cnt:.1f}% of compared)")
-        cur.execute("""
-            SELECT ROUND(AVG(qcew_avg_annual_pay)::numeric, 0),
-                   ROUND(AVG(wage_ratio)::numeric, 3)
-            FROM mv_target_scorecard WHERE wage_outlier_score IS NOT NULL
-        """)
-        avg_pay, avg_ratio = cur.fetchone()
-        print(f"    Avg QCEW local pay: ${avg_pay:,.0f}, avg wage ratio: {avg_ratio}")
+    # PPP employee count coverage
+    cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE ppp_employee_count IS NOT NULL")
+    ppp_cnt = cur.fetchone()[0]
+    ppp_pct = 100.0 * ppp_cnt / total if total > 0 else 0
+    print(f"\n  PPP employee count: {ppp_cnt:>10,} ({ppp_pct:.1f}%)")
+    # How many gained size signal from PPP (were null before, now have it)
+    cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE employee_count_source = 'ppp_2020'")
+    ppp_src = cur.fetchone()[0]
+    print(f"    PPP as primary size source: {ppp_src:>10,}")
 
     # Research integration
     cur.execute("SELECT COUNT(*) FROM mv_target_scorecard WHERE has_research")
     research_cnt = cur.fetchone()[0]
-    print(f"\n  Research integration:")
+    print("\n  Research integration:")
     print(f"    Has research:  {research_cnt:>10,} ({100.0*research_cnt/total:.2f}%)")
     if research_cnt > 0:
         cur.execute("""

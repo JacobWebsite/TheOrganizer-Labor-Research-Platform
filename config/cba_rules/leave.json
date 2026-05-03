@@ -30,7 +30,7 @@
     },
     {
       "name": "personal_days",
-      "pattern": "\\b(?:personal|floating)\\s+(?:day|leave|holiday)s?\\b",
+      "pattern": "\\b(?:personal)\\s+(?:day|leave|holiday)s?\\b",
       "confidence": 0.80,
       "provision_class": "personal_days",
       "summary": "Personal days"
@@ -95,9 +95,13 @@
   "negative_patterns": [
     {"pattern": "\\bleave\\s+(?:of|the)\\s+(?:premises|building|work\\s+area)\\b", "note": "Physical leaving, not time off"},
     {"pattern": "(?:wages|hours|sick\\s+pay|vacations?|holidays?|insurance|relief\\s+periods?),?\\s*(?:,|and)?\\s*(?:jury\\s+duty|holiday\\s+pay|FMLA),?\\s*(?:,|or|and)?\\s*(?:group\\s+life|insurance|sick\\s+pay|vacations?|holidays?)", "note": "Topic in a list of many items = maintenance of standards clause, not standalone leave provision"},
-    {"pattern": "\\d{1,3}(?:,\\s*\\d{1,3}){2,}", "note": "Index page numbers like '61, 69, 70'"}
+    {"pattern": "\\d{1,3}(?:,\\s*\\d{1,3}){2,}", "note": "Index page numbers like '61, 69, 70'"},
+    {"pattern": "compensatory\\s+time|comp\\s+time|fiscal\\s+year\\s+accrual", "note": "Compensatory time language, not military leave"},
+    {"pattern": "seniority\\s+(?:list|roster|order|shall\\s+be\\s+(?:defined|determined))", "note": "Seniority definition, not military leave"},
+    {"pattern": "(?:following|recognized|observed|designated)\\s+holidays?\\s*:?\\s*(?:New\\s+Year|Martin|President|Memorial|Independence|Labor\\s+Day|Thanksgiving|Christmas)", "note": "Holiday list context, not personal days"}
   ],
   "heading_exclusions": [
-    {"pattern": "\\b(enforcement|penalty|penalties|fine)\\b", "note": "enforcement sections"}
+    {"pattern": "\\b(enforcement|penalty|penalties|fine)\\b", "note": "enforcement sections"},
+    {"pattern": "\\b(overtime|scheduling|hours\\s+of\\s+work|compensation|wages|seniority)\\b", "note": "military leave should not match in scheduling/wages/seniority headings"}
   ]
 }

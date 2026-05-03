@@ -49,17 +49,26 @@ def auth_client():
 
 @pytest.fixture(scope="module", autouse=True)
 def cleanup_test_users():
-    """Remove test users after all auth tests complete."""
-    yield
+    """Remove test users before and after all auth tests complete.
+
+    Pre-cleanup handles leftover users from previous runs or other test
+    modules that may have created users via auth fixtures.
+    """
     from db_config import get_connection
-    conn = get_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM platform_users WHERE username LIKE 'test_%'")
-        conn.commit()
-    except Exception:
-        conn.rollback()
-    conn.close()
+
+    def _delete():
+        conn = get_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("DELETE FROM platform_users WHERE username LIKE 'test_%'")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        conn.close()
+
+    _delete()  # pre-cleanup
+    yield
+    _delete()  # post-cleanup
 
 
 # ============================================================================

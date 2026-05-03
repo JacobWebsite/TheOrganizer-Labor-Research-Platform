@@ -9,6 +9,9 @@ TREND_THRESHOLD_PCT = 2.0
 
 INTERMEDIATE_CODES = {'DC', 'JC', 'CONF', 'D', 'C', 'SC', 'SA', 'BCTC'}
 
+# Federations/coalitions that are not unions — exclude from browse/search
+EXCLUDED_AFFILIATIONS = {'SOC'}
+
 
 def _classify_union_level(desig_name):
     code = (desig_name or '').strip().upper()
@@ -96,13 +99,14 @@ def search_unions(
     min_members: Optional[int] = None,
     has_employers: Optional[bool] = None,
     include_historical: bool = False,
+    include_inactive: bool = False,
     limit: int = Query(50, le=500),
     offset: int = 0
 ):
     """Search unions with filters including display names and hierarchy type.
 
-    By default, only shows current unions (yr_covered >= 2022).
-    Set include_historical=true to include older/defunct unions.
+    By default, only shows current unions (yr_covered >= 2022) and excludes
+    inactive unions. Set include_historical/include_inactive to override.
     Accepts both 'name' and 'q' as search parameters.
     """
     # Accept both 'q' and 'name' for search term
@@ -116,6 +120,16 @@ def search_unions(
             # Filter out stale/historical unions by default
             if not include_historical:
                 conditions.append("um.yr_covered >= 2022")
+
+            # Filter out inactive unions by default
+            if not include_inactive:
+                conditions.append("(um.is_likely_inactive IS NOT TRUE)")
+
+            # Exclude non-union organizations (federations/coalitions)
+            if EXCLUDED_AFFILIATIONS:
+                placeholders = ",".join(["%s"] * len(EXCLUDED_AFFILIATIONS))
+                conditions.append(f"(um.aff_abbr IS NULL OR um.aff_abbr NOT IN ({placeholders}))")
+                params.extend(sorted(EXCLUDED_AFFILIATIONS))
 
             if search_term:
                 # Search union_name, local_number, and display_name
@@ -238,13 +252,46 @@ def get_national_unions(
                 FROM unions_master um
                 LEFT JOIN union_hierarchy uh ON um.f_num = uh.f_num
                 WHERE um.aff_abbr IS NOT NULL AND um.aff_abbr != ''
+                  AND um.aff_abbr NOT IN ('SOC')
                   {inactive_filter.replace('is_likely_inactive', 'um.is_likely_inactive')}
                 GROUP BY um.aff_abbr
                 HAVING SUM(um.members) > 0
-                ORDER BY MAX(um.members) DESC NULLS LAST
+                ORDER BY SUM(CASE WHEN uh.count_members THEN um.members ELSE 0 END) DESC NULLS LAST
                 LIMIT %s
             """, [limit])
             return {"national_unions": cur.fetchall()}
+
+
+@router.get("/api/unions/overview")
+def get_union_overview():
+    """Return deduplicated union movement overview stats."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    (SELECT COALESCE(SUM(members), 0) FROM v_union_members_counted) AS total_members,
+                    (SELECT COUNT(*) FROM unions_master
+                     WHERE is_likely_inactive IS NOT TRUE
+                       AND (aff_abbr IS NULL OR aff_abbr NOT IN ('SOC'))) AS active_unions,
+                    (SELECT COUNT(DISTINCT employer_id) FROM f7_employers_deduped
+                     WHERE latest_union_fnum IS NOT NULL) AS total_employers,
+                    (SELECT COALESCE(SUM(latest_unit_size), 0) FROM f7_employers_deduped
+                     WHERE latest_union_fnum IS NOT NULL) AS total_covered_workers,
+                    (SELECT COUNT(*) FROM nlrb_elections
+                     WHERE election_date >= CURRENT_DATE - INTERVAL '12 months') AS recent_elections,
+                    (SELECT COUNT(*) FROM nlrb_elections
+                     WHERE union_won = true
+                       AND election_date >= CURRENT_DATE - INTERVAL '12 months') AS recent_wins
+            """)
+            row = cur.fetchone()
+            return {
+                "total_members": int(row["total_members"]),
+                "active_unions": int(row["active_unions"]),
+                "total_employers": int(row["total_employers"]),
+                "total_covered_workers": int(row["total_covered_workers"]),
+                "recent_elections": int(row["recent_elections"]),
+                "recent_wins": int(row["recent_wins"]),
+            }
 
 
 @router.get("/api/unions/national/{aff_abbr}")
@@ -439,46 +486,51 @@ def get_union_disbursements(file_number: str):
 
             years = []
             for row in rows:
-                organizing = (
-                    float(row["representational"])
-                    + float(row["strike_benefits"])
-                    + float(row["political"])
-                )
-                compensation = (
-                    float(row["to_officers"])
-                    + float(row["to_employees"])
-                )
-                benefits_members = (
-                    float(row["benefits"])
-                    + float(row["members"])
+                representational = float(row["representational"])
+                political_lobbying = (
+                    float(row["political"])
                     + float(row["contributions"])
                 )
-                administration = (
+                staff_officers = (
+                    float(row["to_officers"])
+                    + float(row["to_employees"])
+                    + float(row["direct_taxes"])
+                    + float(row["withheld"])
+                )
+                member_benefits = (
+                    float(row["benefits"])
+                    + float(row["strike_benefits"])
+                    + float(row["members"])
+                )
+                operations = (
                     float(row["general_overhead"])
                     + float(row["union_administration"])
                     + float(row["supplies"])
                     + float(row["fees"])
                     + float(row["administration"])
-                    + float(row["direct_taxes"])
-                    + float(row["withheld"])
                 )
-                external = (
+                affiliation_dues = (
                     float(row["per_capita_tax"])
                     + float(row["affiliates"])
-                    + float(row["investments"])
+                )
+                financial = (
+                    float(row["investments"])
                     + float(row["loans_made"])
                     + float(row["loans_payment"])
                     + float(row["other_disbursements"])
                 )
-                total = organizing + compensation + benefits_members + administration + external
+                total = (representational + political_lobbying + staff_officers
+                         + member_benefits + operations + affiliation_dues + financial)
 
                 years.append({
                     "year": row["year"],
-                    "organizing": organizing,
-                    "compensation": compensation,
-                    "benefits_members": benefits_members,
-                    "administration": administration,
-                    "external": external,
+                    "representational": representational,
+                    "political_lobbying": political_lobbying,
+                    "staff_officers": staff_officers,
+                    "member_benefits": member_benefits,
+                    "operations": operations,
+                    "affiliation_dues": affiliation_dues,
+                    "financial": financial,
                     "total": total,
                     "categories": {
                         "representational": float(row["representational"]),
@@ -513,6 +565,15 @@ def get_union_disbursements(file_number: str):
                 "file_number": file_number,
                 "years": years,
                 "has_strike_fund": has_strike_fund,
+                "group_definitions": {
+                    "representational": "Contract negotiation, grievance handling, and arbitration (LM-2 Schedule 15)",
+                    "political_lobbying": "Political activities, lobbying, campaign contributions, and charitable giving (LM-2 Schedules 16-17)",
+                    "staff_officers": "Salaries, wages, and payroll taxes for union staff and elected officers (LM-2 Lines 46-49)",
+                    "member_benefits": "Direct payments to members: insurance, education, hardship, and strike pay (LM-2 Lines 50-51, 65)",
+                    "operations": "Rent, utilities, legal fees, accounting, office supplies, and overhead (LM-2 Schedules 18-19)",
+                    "affiliation_dues": "Per capita taxes and dues paid to parent unions and affiliated bodies (LM-2 Lines 55-56)",
+                    "financial": "Investment purchases, loans issued, loan repayments, and miscellaneous (LM-2 Lines 57-60, 66)",
+                },
             }
 
 
@@ -819,25 +880,79 @@ def get_union_detail(f_num: str, consolidated: bool = True):
                 """, [f_num])
             employers = cur.fetchall()
 
-            # NLRB elections
+            # NLRB elections -- aggregated per employer (one row per participant_name + state)
+            # Direct match first, then affiliation fallback.
             cur.execute("""
-                SELECT e.case_number, e.election_date, e.union_won, e.eligible_voters,
-                    e.vote_margin, p.participant_name as employer_name, p.state
+                SELECT
+                    p.participant_name AS employer_name,
+                    p.state,
+                    COUNT(*) AS election_count,
+                    COUNT(*) FILTER (WHERE e.union_won = TRUE) AS win_count,
+                    COUNT(*) FILTER (WHERE e.union_won = FALSE) AS loss_count,
+                    ROUND(
+                        COUNT(*) FILTER (WHERE e.union_won = TRUE)::numeric
+                            / NULLIF(COUNT(*) FILTER (WHERE e.union_won IS NOT NULL), 0),
+                        3
+                    ) AS win_rate,
+                    MAX(e.election_date) AS latest_election_date,
+                    MIN(e.election_date) AS earliest_election_date,
+                    (ARRAY_AGG(e.case_number ORDER BY e.election_date DESC NULLS LAST))[1]
+                        AS latest_case_number,
+                    SUM(e.eligible_voters) AS total_eligible_voters,
+                    BOOL_OR(FALSE) AS is_affiliate_match
                 FROM nlrb_tallies t
                 JOIN nlrb_elections e ON t.case_number = e.case_number
                 LEFT JOIN nlrb_participants p ON e.case_number = p.case_number
                     AND p.participant_type = 'Employer'
                 WHERE t.matched_olms_fnum = %s
-                ORDER BY e.election_date DESC
+                GROUP BY p.participant_name, p.state
+                ORDER BY MAX(e.election_date) DESC NULLS LAST
             """, [f_num])
             elections = cur.fetchall()
+
+            # If no direct matches and union has an affiliation, show affiliate elections
+            elections_source = "direct"
+            if not elections and union.get("aff_abbr"):
+                cur.execute("""
+                    SELECT
+                        p.participant_name AS employer_name,
+                        p.state,
+                        COUNT(*) AS election_count,
+                        COUNT(*) FILTER (WHERE e.union_won = TRUE) AS win_count,
+                        COUNT(*) FILTER (WHERE e.union_won = FALSE) AS loss_count,
+                        ROUND(
+                            COUNT(*) FILTER (WHERE e.union_won = TRUE)::numeric
+                                / NULLIF(COUNT(*) FILTER (WHERE e.union_won IS NOT NULL), 0),
+                            3
+                        ) AS win_rate,
+                        MAX(e.election_date) AS latest_election_date,
+                        MIN(e.election_date) AS earliest_election_date,
+                        (ARRAY_AGG(e.case_number ORDER BY e.election_date DESC NULLS LAST))[1]
+                            AS latest_case_number,
+                        SUM(e.eligible_voters) AS total_eligible_voters,
+                        BOOL_OR(TRUE) AS is_affiliate_match
+                    FROM nlrb_tallies t
+                    JOIN nlrb_elections e ON t.case_number = e.case_number
+                    JOIN unions_master um2 ON t.matched_olms_fnum = um2.f_num
+                    LEFT JOIN nlrb_participants p ON e.case_number = p.case_number
+                        AND p.participant_type = 'Employer'
+                    WHERE um2.aff_abbr = %s
+                    GROUP BY p.participant_name, p.state
+                    ORDER BY MAX(e.election_date) DESC NULLS LAST
+                    LIMIT 50
+                """, [union["aff_abbr"]])
+                elections = cur.fetchall()
+                elections_source = "affiliate"
 
             # Financial trends (used by profile charts)
             cur.execute("""
                 SELECT lm.yr_covered AS year,
                        SUM(am.number) FILTER (WHERE am.voting_eligibility = 'T') AS members,
                        SUM(COALESCE(lm.ttl_assets, 0)) AS assets,
-                       SUM(COALESCE(lm.ttl_receipts, 0)) AS receipts
+                       SUM(COALESCE(lm.ttl_liabilities, 0)) AS liabilities,
+                       SUM(COALESCE(lm.ttl_assets, 0)) - SUM(COALESCE(lm.ttl_liabilities, 0)) AS net_assets,
+                       SUM(COALESCE(lm.ttl_receipts, 0)) AS receipts,
+                       SUM(COALESCE(lm.ttl_disbursements, 0)) AS disbursements
                 FROM lm_data lm
                 LEFT JOIN ar_membership am ON am.rpt_id = lm.rpt_id
                 WHERE lm.f_num = %s
@@ -886,20 +1001,93 @@ def get_union_detail(f_num: str, consolidated: bool = True):
             """, [f_num])
             geo_distribution = cur.fetchall()
 
+            # Web profile: union-owned website + directory metadata (populated
+            # by scripts/etl/scrape_*_directory.py). Present for the 6 parent
+            # unions that have a directory scraper today (IBT, AFSCME, APWU,
+            # SEIU, CWA, IBEW, USW). Returns None when the union has no
+            # matched web profile.
+            cur.execute("""
+                SELECT id, parent_union, local_number, state, website_url,
+                       phone, fax, email, address, officers,
+                       source_directory_url, scrape_status, match_status,
+                       last_scraped, extra_data
+                FROM web_union_profiles
+                WHERE f_num = %s
+                ORDER BY last_scraped DESC NULLS LAST, id DESC
+                LIMIT 1
+            """, [f_num])
+            web_profile = cur.fetchone()
+
+            # Determine election context note
+            sector = union.get("sector") or ""
+            match_status = union.get("match_status") or ""
+            election_note = None
+            if not elections:
+                if "PUBLIC" in match_status.upper() or sector.upper() == "PUB":
+                    election_note = "NLRB covers private sector only. Public sector elections are administered by state labor boards (PERB/PELRB)."
+                elif "FEDERAL" in match_status.upper() or "RLA" in match_status.upper():
+                    election_note = "This union represents federal or railroad workers. Elections are administered by FLRA or NMB, not NLRB."
+                else:
+                    election_note = "No matched elections found. This may mean the union hasn't held NLRB elections recently, or election data matching is incomplete."
+
+            # NLRB summary -- computed via COUNT(DISTINCT case_number) on the
+            # underlying tallies/elections join, NOT by summing per-employer
+            # aggregates. A single election with >1 employer participant (joint
+            # employer / multi-party cases) would otherwise be counted once per
+            # participant. Codex finding #9, fixed 2026-04-24.
+            nlrb_summary = {
+                "total_elections": 0,
+                "unique_employers": len(elections),
+                "wins": 0,
+                "losses": 0,
+                "win_rate": 0,
+            }
+            if elections_source == "direct":
+                cur.execute("""
+                    SELECT
+                        COUNT(DISTINCT e.case_number) AS total_elections,
+                        COUNT(DISTINCT e.case_number) FILTER (WHERE e.union_won = TRUE) AS wins,
+                        COUNT(DISTINCT e.case_number) FILTER (WHERE e.union_won = FALSE) AS losses
+                    FROM nlrb_tallies t
+                    JOIN nlrb_elections e ON t.case_number = e.case_number
+                    WHERE t.matched_olms_fnum = %s
+                """, [f_num])
+                _row = cur.fetchone()
+            elif elections_source == "affiliate" and union.get("aff_abbr"):
+                cur.execute("""
+                    SELECT
+                        COUNT(DISTINCT e.case_number) AS total_elections,
+                        COUNT(DISTINCT e.case_number) FILTER (WHERE e.union_won = TRUE) AS wins,
+                        COUNT(DISTINCT e.case_number) FILTER (WHERE e.union_won = FALSE) AS losses
+                    FROM nlrb_tallies t
+                    JOIN nlrb_elections e ON t.case_number = e.case_number
+                    JOIN unions_master um2 ON t.matched_olms_fnum = um2.f_num
+                    WHERE um2.aff_abbr = %s
+                """, [union["aff_abbr"]])
+                _row = cur.fetchone()
+            else:
+                _row = None
+            if _row:
+                total = int(_row["total_elections"] or 0)
+                wins = int(_row["wins"] or 0)
+                losses = int(_row["losses"] or 0)
+                nlrb_summary["total_elections"] = total
+                nlrb_summary["wins"] = wins
+                nlrb_summary["losses"] = losses
+                nlrb_summary["win_rate"] = round(100.0 * wins / max(total, 1), 1)
+
             return {
                 "union": union,
                 "top_employers": employers,
                 "nlrb_elections": elections,
+                "elections_source": elections_source,
+                "election_note": election_note,
                 "financial_trends": financial_trends,
                 "industry_distribution": industry_distribution,
                 "sister_locals": sister_locals,
                 "geo_distribution": geo_distribution,
-                "nlrb_summary": {
-                    "total_elections": len(elections),
-                    "wins": sum(1 for e in elections if e['union_won']),
-                    "losses": sum(1 for e in elections if e['union_won'] is False),
-                    "win_rate": round(100.0 * sum(1 for e in elections if e['union_won']) / max(len(elections), 1), 1)
-                }
+                "web_profile": web_profile,
+                "nlrb_summary": nlrb_summary,
             }
 
 
@@ -993,3 +1181,97 @@ def get_locals_for_affiliation(
             """, params)
 
             return {"affiliation": affiliation, "locals": cur.fetchall()}
+
+
+INVESTMENT_TYPE_LABELS = {
+    701: "Mutual Funds & ETFs",
+    702: "Real Estate & Housing Trusts",
+    703: "Marketable Securities (Cost)",
+    704: "Marketable Securities (Book Value)",
+    705: "Other Investments (Cost)",
+    706: "Other Investments (Book Value)",
+}
+
+
+@router.get("/api/unions/{file_number}/assets")
+def get_union_assets(file_number: str):
+    """Return detailed asset holdings from ar_assets_investments for a union."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT f_num, union_name FROM unions_master WHERE f_num = %s",
+                [file_number],
+            )
+            union = cur.fetchone()
+            if not union:
+                raise HTTPException(status_code=404, detail="Union not found")
+
+            # Get latest filing with asset data. Also capture the year so
+            # callers can surface a mismatch label when the detailed holdings
+            # are from an older filing year than the summary totals below.
+            cur.execute("""
+                SELECT ai.inv_type, ai.name, ai.amount, lm.yr_covered
+                FROM ar_assets_investments ai
+                JOIN lm_data lm ON lm.rpt_id = ai.rpt_id
+                WHERE lm.f_num = %s
+                  AND lm.yr_covered = (
+                      SELECT MAX(lm2.yr_covered)
+                      FROM lm_data lm2
+                      JOIN ar_assets_investments ai2 ON ai2.rpt_id = lm2.rpt_id
+                      WHERE lm2.f_num = %s
+                  )
+                ORDER BY ai.inv_type, ai.amount DESC NULLS LAST
+            """, [file_number, file_number])
+            holdings = cur.fetchall()
+            holdings_year = holdings[0]["yr_covered"] if holdings else None
+
+            # Get summary totals from the most recent LM filing, regardless of
+            # whether that filing included schedule-7/8 asset detail. Many
+            # small locals file LM-3/LM-4 with totals but no itemized holdings;
+            # we intentionally surface the most recent totals here and let the
+            # caller render a label when `holdings_year` != `summary.year`.
+            cur.execute("""
+                SELECT yr_covered, ttl_assets, ttl_liabilities,
+                       ttl_assets - COALESCE(ttl_liabilities, 0) AS net_assets
+                FROM lm_data
+                WHERE f_num = %s
+                ORDER BY yr_covered DESC
+                LIMIT 1
+            """, [file_number])
+            summary = cur.fetchone()
+            summary_year = summary["yr_covered"] if summary else None
+
+            # Group by investment type
+            groups = {}
+            for row in holdings:
+                inv_type = row["inv_type"]
+                label = INVESTMENT_TYPE_LABELS.get(inv_type, f"Type {inv_type}")
+                if label not in groups:
+                    groups[label] = {"type_code": inv_type, "total": 0, "holdings": []}
+                amount = float(row["amount"] or 0)
+                groups[label]["total"] += amount
+                groups[label]["holdings"].append({
+                    "name": row["name"],
+                    "amount": amount,
+                })
+
+            year_mismatch = (
+                holdings_year is not None
+                and summary_year is not None
+                and holdings_year != summary_year
+            )
+
+            return {
+                "file_number": file_number,
+                "union_name": union["union_name"],
+                "summary": {
+                    "year": summary_year,
+                    "total_assets": float(summary["ttl_assets"]) if summary and summary["ttl_assets"] else None,
+                    "total_liabilities": float(summary["ttl_liabilities"]) if summary and summary["ttl_liabilities"] else None,
+                    "net_assets": float(summary["net_assets"]) if summary and summary["net_assets"] else None,
+                },
+                "holdings_year": holdings_year,
+                "year_mismatch": year_mismatch,
+                "investment_groups": groups,
+                "total_holdings": len(holdings),
+            }

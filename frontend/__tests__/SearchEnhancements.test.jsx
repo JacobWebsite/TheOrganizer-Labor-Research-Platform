@@ -88,38 +88,49 @@ describe('SearchEnhancements', () => {
     expect(screen.getByText('Union: SEIU')).toBeInTheDocument()
   })
 
-  it('renders factors badge for F7 employer with factors_available', () => {
+  it('renders direct-evidence badge for F7 employer with direct_factors_available', () => {
     const emp = {
       canonical_id: '2', employer_name: 'Factor Corp', city: 'LA', state: 'CA',
       unit_size: 200, source_type: 'F7', union_name: 'UAW',
       group_member_count: null, consolidated_workers: null,
-      factors_available: 7, factors_total: 10,
+      direct_factors_available: 3,
     }
     renderWithProviders(<SearchResultCard employer={emp} />)
-    expect(screen.getByText('7/10 factors')).toBeInTheDocument()
+    expect(screen.getByText('3/5 direct')).toBeInTheDocument()
   })
 
-  it('does not render factors badge for non-F7 employer', () => {
+  it('does not render direct-evidence badge for non-F7 employer', () => {
     const emp = {
       canonical_id: 'NLRB-1', employer_name: 'NLRB Corp', city: 'DC', state: 'DC',
       unit_size: 50, source_type: 'NLRB', union_name: null,
       group_member_count: null, consolidated_workers: null,
-      factors_available: null, factors_total: null,
+      direct_factors_available: null,
     }
     const { container } = renderWithProviders(<SearchResultCard employer={emp} />)
-    expect(container.innerHTML).not.toContain('factors')
+    expect(container.innerHTML).not.toContain('direct')
   })
 
-  it('renders amber warning for low factors', () => {
+  it('renders amber warning when zero direct factors', () => {
     const emp = {
       canonical_id: '3', employer_name: 'Low Data Inc', city: 'NY', state: 'NY',
       unit_size: 30, source_type: 'F7', union_name: null,
       group_member_count: null, consolidated_workers: null,
-      factors_available: 2, factors_total: 10,
+      direct_factors_available: 0,
     }
     const { container } = renderWithProviders(<SearchResultCard employer={emp} />)
-    expect(screen.getByText('2/10 factors')).toBeInTheDocument()
+    expect(screen.getByText('0/5 direct')).toBeInTheDocument()
     expect(container.innerHTML).toContain('bg-amber-100')
+  })
+
+  it('renders thin-data warning badge when has_thin_data is true', () => {
+    const emp = {
+      canonical_id: '4', employer_name: 'Thin Data Corp', city: 'SF', state: 'CA',
+      unit_size: 50, source_type: 'F7', union_name: null,
+      group_member_count: null, consolidated_workers: null,
+      direct_factors_available: 0, has_thin_data: true,
+    }
+    renderWithProviders(<SearchResultCard employer={emp} />)
+    expect(screen.getByText('thin data')).toBeInTheDocument()
   })
 
   it('renders view mode toggle in post-search state', () => {

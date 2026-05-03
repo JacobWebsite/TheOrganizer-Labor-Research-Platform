@@ -328,7 +328,7 @@ def main():
             stats['unmatched'] += 1
 
     # Summary
-    print(f'\n=== NLRB ULP MATCHING RESULTS ===')
+    print('\n=== NLRB ULP MATCHING RESULTS ===')
     print(f'Total CA records:    {stats["total"]:>8,}')
     print(f'Names extracted:     {stats["extracted"]:>8,}')
     print(f'  Skipped (person):  {stats["skipped_person"]:>8,}')
@@ -337,7 +337,7 @@ def main():
     print(f'Matched:             {stats["matched"]:>8,} ({100*stats["matched"]/max(stats["extracted"],1):.1f}% of extracted)')
     print(f'Unmatched:           {stats["unmatched"]:>8,}')
 
-    print(f'\nMatch methods:')
+    print('\nMatch methods:')
     for method, cnt in sorted(method_counts.items(), key=lambda x: -x[1]):
         print(f'  {method:30s}: {cnt:>7,}')
 
@@ -374,7 +374,19 @@ def main():
                 print(f'  Batch {i//batch_size + 1}: {min(i+batch_size, len(matches)):,}/{len(matches):,}')
 
         if args.log:
+            import json
+            from datetime import datetime
+
             print('Writing to unified_match_log...')
+            run_id = f"ulp-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+            def _confidence_band(score):
+                if score >= 0.85:
+                    return 'HIGH'
+                if score >= 0.70:
+                    return 'MEDIUM'
+                return 'LOW'
+
             # Group by employer_id, take highest confidence per employer
             best_per_employer = {}
             for pid, eid, conf, method in matches:
@@ -382,16 +394,30 @@ def main():
                     best_per_employer[eid] = (pid, conf, method)
 
             log_rows = [
-                (eid, 'nlrb_ulp', str(pid), conf, method, 'active')
+                (
+                    run_id,
+                    'nlrb_ulp',
+                    str(pid),
+                    'f7',
+                    str(eid),
+                    method,
+                    method,
+                    _confidence_band(conf),
+                    conf,
+                    json.dumps({'match_method_detail': method, 'source': 'match_nlrb_ulp.py'}),
+                    'active',
+                )
                 for eid, (pid, conf, method) in best_per_employer.items()
             ]
             execute_values(cur, """
                 INSERT INTO unified_match_log
-                    (f7_employer_id, source_type, source_id, confidence, match_tier, status)
+                    (run_id, source_system, source_id, target_system, target_id,
+                     match_method, match_tier, confidence_band, confidence_score,
+                     evidence, status)
                 VALUES %s
-                ON CONFLICT DO NOTHING
+                ON CONFLICT (run_id, source_system, source_id, target_id) DO NOTHING
             """, log_rows)
-            print(f'  Wrote {len(log_rows):,} UML entries')
+            print(f'  Wrote {len(log_rows):,} UML entries (run_id={run_id})')
 
         conn.commit()
         print('COMMITTED.')

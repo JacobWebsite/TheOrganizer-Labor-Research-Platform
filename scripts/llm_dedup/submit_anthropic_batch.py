@@ -277,8 +277,11 @@ def cmd_fetch(args):
                 parse_fail += 1
                 continue
 
-            v = verdict_obj.get('verdict', 'UNKNOWN')
+            # v1.0 prompt returns 'verdict' + 'reason'; v2.0 returns 'label' + 'reasoning'.
+            # Accept either so this fetcher works against both prompt schemas.
+            v = verdict_obj.get('label') or verdict_obj.get('verdict', 'UNKNOWN')
             c = verdict_obj.get('confidence', 'UNKNOWN')
+            reason_text = verdict_obj.get('reasoning') or verdict_obj.get('reason', '')
             verdict_counts[v] += 1
             confidence_counts[c] += 1
 
@@ -296,7 +299,7 @@ def cmd_fetch(args):
                 f'{meta.get("composite", 0):.4f}' if meta.get('composite') is not None else '',
                 _csv(meta.get('src1')), _csv(meta.get('src2')),
                 _csv(meta.get('name1')), _csv(meta.get('name2')),
-                v, c, _csv(verdict_obj.get('reason', '')),
+                v, c, _csv(reason_text),
             ]) + '\n')
 
     print(f'\nFetched {n:,} entries')

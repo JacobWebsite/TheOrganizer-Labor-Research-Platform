@@ -19,6 +19,7 @@ const FILTER_LABELS = {
   state: 'State',
   min_members: 'Min members',
   has_employers: 'Has employers',
+  include_inactive: 'Include inactive',
 }
 
 /**
@@ -27,7 +28,7 @@ const FILTER_LABELS = {
 export function UnionFilters({ filters, onSetFilter, onClearFilter, onClearAll }) {
   const [expanded, setExpanded] = useState(
     Boolean(filters.aff_abbr || filters.sector || filters.state ||
-            filters.min_members || filters.has_employers)
+            filters.min_members || filters.has_employers || filters.include_inactive)
   )
 
   const { data: statesData } = useStates()
@@ -63,6 +64,7 @@ export function UnionFilters({ filters, onSetFilter, onClearFilter, onClearAll }
     filters.state && { key: 'state', label: `State: ${filters.state}` },
     filters.min_members && { key: 'min_members', label: `Min members: ${filters.min_members}` },
     filters.has_employers && { key: 'has_employers', label: `Has employers: ${filters.has_employers === 'true' ? 'Yes' : 'No'}` },
+    filters.include_inactive && { key: 'include_inactive', label: 'Including inactive' },
   ].filter(Boolean)
 
   return (
@@ -188,6 +190,22 @@ export function UnionFilters({ filters, onSetFilter, onClearFilter, onClearAll }
               <option key={o.value} value={o.value}>Employers: {o.label}</option>
             ))}
           </Select>
+
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={filters.include_inactive === 'true'}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  onSetFilter('include_inactive', 'true')
+                } else {
+                  onClearFilter('include_inactive')
+                }
+              }}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            Include inactive
+          </label>
         </div>
       )}
     </div>

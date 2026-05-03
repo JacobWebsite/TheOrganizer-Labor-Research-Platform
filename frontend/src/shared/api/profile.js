@@ -70,6 +70,53 @@ export function useEmployerWhd(id, { enabled = true } = {}) {
   })
 }
 
+// 24Q-31: EPA ECHO environmental enforcement on the master profile.
+// Endpoint returns { summary, facilities, latest_record_date }.
+export function useMasterEpaEcho(masterId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['master-epa-echo', masterId],
+    queryFn: () => apiClient.get(`/api/employers/master/${masterId}/epa-echo`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-7: Mergent executive roster on the master profile.
+// Endpoint returns { summary, executives, source_freshness }.
+export function useMasterExecutives(masterId, { enabled = true, limit = 25 } = {}) {
+  return useQuery({
+    queryKey: ['master-executives', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/executives?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-9: SEC 13F institutional ownership on the master profile.
+// Endpoint returns { summary, owners }.
+export function useMasterInstitutionalOwners(masterId, { enabled = true, limit = 25 } = {}) {
+  return useQuery({
+    queryKey: ['master-institutional-owners', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/institutional-owners?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-39: LDA federal lobbying disclosure on the master profile.
+// Endpoint returns { summary, quarterly_spend, top_issues, top_registrants }.
+export function useMasterLobbying(masterId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['master-lobbying', masterId],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/lobbying`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEmployerCorporate(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-corporate', id],

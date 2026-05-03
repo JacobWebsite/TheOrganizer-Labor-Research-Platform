@@ -127,3 +127,85 @@ class TestDemographicsApi:
             edu_groups = [e["group"] for e in data.get("education", [])]
             # Should have at least HS diploma and Bachelor's
             assert any("HS" in g for g in edu_groups) or len(edu_groups) > 0
+
+
+class TestPlausibilityBounds:
+    """R7-1 regression guard: total_workers must reconcile to BLS QCEW.
+
+    Pre-fix the table summed 9 IPUMS sample-years and leaked not-in-labor
+    -force people, returning 145M for NY. Post-fix, the table is built
+    from one ACS sample (2023 5-year) with employed wage + self-employed
+    workers only. State totals should be within ~30% of QCEW covered
+    employment (the ~10-30% gap is expected: ACS includes self-employed
+    and uncovered workers QCEW excludes).
+    """
+
+    PLAUSIBLE_STATE_MAX = 50_000_000
+
+    QCEW_GROUND_TRUTH = {
+        "NY": 9_705_821,
+        "CA": 18_183_696,
+        "TX": 13_936_364,
+    }
+
+    @pytest.fixture
+    def client(self):
+        from api.main import app
+        from fastapi.testclient import TestClient
+        return TestClient(app)
+
+    def test_ny_state_fallback_within_bounds(self, client):
+        resp = client.get("/api/demographics/NY")
+        if resp.status_code == 200:
+            data = resp.json()
+            tw = data["total_workers"]
+            assert tw < self.PLAUSIBLE_STATE_MAX, (
+                f"NY total_workers={tw:,} exceeds "
+                f"{self.PLAUSIBLE_STATE_MAX:,} -- R7-1 grain-mixing bug "
+                f"may have returned"
+            )
+            qcew = self.QCEW_GROUND_TRUTH["NY"]
+            ratio = tw / qcew
+            assert 0.8 <= ratio <= 1.5, (
+                f"NY ACS={tw:,} / QCEW={qcew:,} ratio={ratio:.2f} "
+                f"out of expected [0.8, 1.5] band -- ETL may be drifting"
+            )
+
+    def test_ca_state_fallback_within_bounds(self, client):
+        resp = client.get("/api/demographics/CA")
+        if resp.status_code == 200:
+            data = resp.json()
+            tw = data["total_workers"]
+            assert tw < self.PLAUSIBLE_STATE_MAX
+            qcew = self.QCEW_GROUND_TRUTH["CA"]
+            ratio = tw / qcew
+            assert 0.8 <= ratio <= 1.5, (
+                f"CA ACS={tw:,} / QCEW={qcew:,} ratio={ratio:.2f}"
+            )
+
+    def test_state_fallback_via_unmatched_naics(self, client):
+        """The exact audit case: NY/6221 (hospitals NAICS not in ACS table)
+        falls through to state-wide. Pre-fix returned 145M; post-fix should
+        match /api/demographics/NY exactly."""
+        state_only = client.get("/api/demographics/NY")
+        with_naics = client.get("/api/demographics/NY/6221")
+        if state_only.status_code == 200 and with_naics.status_code == 200:
+            d1 = state_only.json()
+            d2 = with_naics.json()
+            assert d2["fallback_level"] == "state"
+            assert d2["total_workers"] == d1["total_workers"]
+            assert d2["total_workers"] < self.PLAUSIBLE_STATE_MAX
+
+    def test_age_distribution_is_workforce_shaped(self, client):
+        """Pre-fix the state-rollup row leaked not-in-labor-force people,
+        causing 56% of 'workers' to be 65+. The fixed table excludes them,
+        so 65+ should now be a small minority of any state's workforce."""
+        resp = client.get("/api/demographics/NY")
+        if resp.status_code == 200:
+            data = resp.json()
+            age = {a["bucket"]: a["pct"] for a in data.get("age_distribution", [])}
+            if "65p" in age:
+                assert age["65p"] < 25.0, (
+                    f"NY 65+ workforce share = {age['65p']}% -- "
+                    f"too high; not-in-labor-force people may be leaking in"
+                )

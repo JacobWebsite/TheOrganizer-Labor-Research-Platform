@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Users } from 'lucide-react'
+import { MapPin, Users, AlertTriangle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { SourceBadge } from './SourceBadge'
 
@@ -48,20 +48,31 @@ export function SearchResultCard({ employer }) {
               <Users className="h-3 w-3" /> {formatNumber(workers)} workers
             </span>
           )}
-          {employer.source_type === 'F7' && employer.factors_available != null && (() => {
-            const f = employer.factors_available
-            const t = employer.factors_total || 10
-            const cls = f >= 5
+          {employer.source_type === 'F7' && employer.direct_factors_available != null && (() => {
+            const d = employer.direct_factors_available
+            const cls = d >= 3
               ? 'bg-[#1a6b5a]/20 text-[#1a6b5a]'
-              : f >= 3
+              : d >= 1
                 ? 'bg-[#c78c4e]/20 text-[#c78c4e]'
                 : 'bg-amber-100 text-amber-800 border border-amber-300'
             return (
-              <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
-                {f}/{t} factors
+              <span
+                className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cls}`}
+                title="Direct employer-specific records (OSHA, NLRB, WHD, contracts, financial)"
+              >
+                {d}/5 direct
               </span>
             )
           })()}
+          {employer.has_thin_data && (
+            <span
+              className="inline-flex items-center gap-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 text-[10px] font-medium"
+              title="High score comes from modeled signals (similarity, size, industry), not employer-specific records"
+            >
+              <AlertTriangle className="h-2.5 w-2.5" />
+              thin data
+            </span>
+          )}
         </div>
         {employer.union_name && (
           <div className="text-xs text-muted-foreground truncate">

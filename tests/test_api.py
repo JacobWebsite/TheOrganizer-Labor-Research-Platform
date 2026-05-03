@@ -76,8 +76,8 @@ def test_lookups_affiliations(client):
 # ============================================================================
 
 def test_employer_search_walmart(client):
-    """Searching for 'walmart' returns results."""
-    r = client.get("/api/employers/search?q=walmart&limit=5")
+    """Searching for 'hospital' returns results."""
+    r = client.get("/api/employers/search?name=hospital&limit=5")
     assert r.status_code == 200
     data = r.json()
     assert "employers" in data
@@ -88,7 +88,7 @@ def test_employer_search_walmart(client):
 
 def test_employer_search_empty(client):
     """Searching for gibberish returns 200 (not an error)."""
-    r = client.get("/api/employers/search?q=zzzzxxxxxnotreal&limit=5")
+    r = client.get("/api/employers/search?name=zzzzxxxxxnotreal&limit=5")
     assert r.status_code == 200
     data = r.json()
     assert "total" in data
@@ -220,7 +220,7 @@ def test_response_times(client):
     endpoints = [
         "/api/summary",
         "/api/lookups/sectors",
-        "/api/employers/search?q=hospital&limit=10",
+        "/api/employers/search?name=hospital&limit=10",
         "/api/unions/search?q=afscme&limit=10",
         "/api/nlrb/elections/search?state=CA&limit=10",
         "/api/density/by-state",
@@ -327,7 +327,8 @@ def test_siblings_invalid_id(client):
 def test_comparables_endpoint(client):
     """Comparables endpoint returns similar unionized employers."""
     # Find an employer with comparables data
-    import sys, os
+    import sys
+    import os
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
     from db_config import get_connection
     conn = get_connection()
@@ -477,7 +478,7 @@ def test_scorecard_detail_has_ulp_context(client):
 # ============================================================================
 
 def test_data_freshness_endpoint(client):
-    """Data freshness admin endpoint is blocked when auth is disabled by default."""
+    """Data freshness admin endpoint returns 403 when DISABLE_AUTH=true and ALLOW_INSECURE_ADMIN is not set (FA6.2)."""
     r = client.get("/api/admin/data-freshness")
-    assert r.status_code == 503
+    assert r.status_code == 403
     assert "Admin endpoints are disabled" in r.json()["detail"]

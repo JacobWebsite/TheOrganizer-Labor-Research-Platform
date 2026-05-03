@@ -41,6 +41,9 @@
   ],
   "heading_exclusions": [
     {"pattern": "\\b(discharge|discipline|disciplinary|dismissal)\\b", "note": "should be job_security"},
-    {"pattern": "\\b(just\\s+cause|progressive\\s+discipline)\\b", "note": "discipline standards are job_security"}
+    {"pattern": "\\b(just\\s+cause|progressive\\s+discipline)\\b", "note": "discipline standards are job_security"},
+    {"pattern": "\\b(scheduling|hours|overtime|shift)\\b", "note": "scheduling articles"},
+    {"pattern": "\\b(safety|health\\s+and\\s+safety|OSHA)\\b", "note": "safety articles"},
+    {"pattern": "\\b(leave|vacation|sick|holiday|PTO)\\b", "note": "leave articles"}
   ]
 }

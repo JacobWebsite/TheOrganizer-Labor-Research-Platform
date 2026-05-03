@@ -3507,7 +3507,6 @@ def search_acs_workforce(
                     "data": {}}
         state_fips = fips_row["fips"]
 
-        # Build WHERE clause
         where = ["state_fips = %s"]
         params: list = [state_fips]
         if naics:
@@ -4685,13 +4684,66 @@ def search_company_enrich(
         # Apple/Kroger/AT&T.
         returned_name = (co.get("name") or "").strip()
         if not domain and returned_name:
+            qn_lower = company_name.lower()
+            rn_lower = returned_name.lower()
+
+            # Layer 1 (2026-04-30): Alias-based collision exclusion. If the
+            # query matches a known-collision alias from config/employer_aliases.json,
+            # reject any returned name that contains an exclude_term. The same
+            # config powers the search-rank tiebreak in employers.py:_load_aliases.
+            # Catches Cleveland Clinic -> Cleveland-Cliffs (partial=83 slips
+            # past Layer 2) and NYC Hospitals -> NYU Langone (partial=88 slips
+            # past Layer 2) -- the cases the composite fuzzy guard misses.
+            try:
+                import json as _json
+                from pathlib import Path as _Path
+                _alias_path = _Path(__file__).resolve().parents[2] / "config" / "employer_aliases.json"
+                with _alias_path.open("r", encoding="utf-8") as _f:
+                    _data = _json.load(_f)
+                _entries = _data.get("aliases", []) if isinstance(_data, dict) else []
+                for _entry in _entries:
+                    if not isinstance(_entry, dict):
+                        continue
+                    if any(a in qn_lower for a in _entry.get("aliases", [])):
+                        for _excl in _entry.get("exclude_terms", []):
+                            if _excl.lower() in rn_lower:
+                                _log.warning(
+                                    "CompanyEnrich alias collision: query=%r, returned=%r, alias_match=%r, excluded_term=%r",
+                                    company_name, returned_name,
+                                    _entry.get("canonical_name"), _excl,
+                                )
+                                return {
+                                    "found": False,
+                                    "source": source,
+                                    "summary": (
+                                        f"CompanyEnrich: Alias collision (queried '{company_name}' "
+                                        f"matches alias for '{_entry.get('canonical_name')}', "
+                                        f"but returned '{returned_name}' contains excluded term "
+                                        f"'{_excl}'). Rejected to prevent identity grafting."
+                                    ),
+                                    "data": {},
+                                    "error": "alias_collision",
+                                }
+            except (FileNotFoundError, _json.JSONDecodeError, OSError):
+                pass  # fail-open: missing/malformed alias file shouldn't break enrichment
+
+            # Layer 2: Composite fuzzy guard (R7-16, 2026-04-27). Reject only
+            # when all three strategies fall below threshold. Single strategies
+            # fail on legitimate edge cases:
+            #   - token_sort_ratio penalizes substring matches ("Starbucks" vs
+            #     "Starbucks Coffee Company" = 55% even though clearly the same).
+            #   - partial_ratio is too permissive on shared prefixes ("Cleveland
+            #     Clinic" vs "Cleveland-Cliffs" = 83%) -- handled by Layer 1.
+            #   - token_set_ratio rewards subset overlap ("the kroger" vs
+            #     "kroger company" = 75% legitimate).
+            # Combined: partial<80 AND token_sort<65 AND token_set<75 catches
+            # Crouse Hospital -> Children's National (75/57/70) without
+            # false-rejecting Walmart/Starbucks/Apple/Kroger/AT&T.
             try:
                 from rapidfuzz import fuzz
-                qn = company_name.lower()
-                rn = returned_name.lower()
-                sim_partial = fuzz.partial_ratio(qn, rn)
-                sim_sort = fuzz.token_sort_ratio(qn, rn)
-                sim_set = fuzz.token_set_ratio(qn, rn)
+                sim_partial = fuzz.partial_ratio(qn_lower, rn_lower)
+                sim_sort = fuzz.token_sort_ratio(qn_lower, rn_lower)
+                sim_set = fuzz.token_set_ratio(qn_lower, rn_lower)
                 if sim_partial < 80 and sim_sort < 65 and sim_set < 75:
                     _log.warning(
                         "CompanyEnrich identity mismatch: query=%r, returned=%r, partial=%d sort=%d set=%d",

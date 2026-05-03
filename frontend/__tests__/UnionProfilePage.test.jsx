@@ -21,6 +21,7 @@ vi.mock('@/shared/api/unions', () => ({
   useUnionEmployers: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionDisbursements: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionHealth: vi.fn(() => ({ data: null, isLoading: false })),
+  useUnionAssets: vi.fn(() => ({ data: null, isLoading: false })),
 }))
 
 import {

@@ -42,9 +42,14 @@ def test_disbursements_has_years_with_categories(client):
     assert len(data["years"]) > 0
 
     yr = data["years"][0]
-    for key in ("organizing", "compensation", "benefits_members",
-                "administration", "external", "total"):
-        assert key in yr
+    # Updated 2026-04-24: P6-3 Union Explorer Overhaul (2026-03-24)
+    # reorganized disbursement categories into 7 LM-2-aligned buckets.
+    # Old test referenced organizing/compensation/benefits_members/
+    # administration/external. New buckets match what the API returns.
+    for key in ("representational", "political_lobbying", "staff_officers",
+                "member_benefits", "operations", "affiliation_dues",
+                "financial", "total"):
+        assert key in yr, f"missing key {key!r} in disbursement year payload"
     assert isinstance(yr["categories"], dict)
     assert "representational" in yr["categories"]
     assert "to_officers" in yr["categories"]
@@ -69,13 +74,18 @@ def test_disbursements_totals_add_up(client):
 
     r = client.get(f"/api/unions/{file_number}/disbursements")
     data = r.json()
+    # Updated 2026-04-24: sum across the 7 LM-2 buckets the API now returns
+    # (P6-3 reorg, 2026-03-24). Old test summed organizing/compensation/
+    # benefits_members/administration/external -- those keys no longer exist.
     for yr in data["years"]:
         expected = (
-            yr["organizing"]
-            + yr["compensation"]
-            + yr["benefits_members"]
-            + yr["administration"]
-            + yr["external"]
+            yr["representational"]
+            + yr["political_lobbying"]
+            + yr["staff_officers"]
+            + yr["member_benefits"]
+            + yr["operations"]
+            + yr["affiliation_dues"]
+            + yr["financial"]
         )
         assert abs(yr["total"] - expected) < 0.01
 

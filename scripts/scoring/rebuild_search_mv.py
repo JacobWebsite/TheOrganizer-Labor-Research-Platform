@@ -6,6 +6,10 @@ Changes from original (archive/old_scripts/etl_archive/setup_unified_search.py):
   - F7 source: exclude historical (pre-2020) records
   - New columns: canonical_group_id, group_member_count, consolidated_workers
   - UNIQUE INDEX on canonical_id for REFRESH CONCURRENTLY support
+  - Source 5 (MASTER): non-union employers from master_employers with
+    employee_count >= 100 OR data_quality_score >= 60, excluding those
+    already present via F7 link.  Adds ~330K rows so major employers
+    like Walmart, Amazon, Starbucks are searchable.
 
 Usage: py scripts/scoring/rebuild_search_mv.py
 """
@@ -95,7 +99,10 @@ def _run(conn, cur):
             usc.factors_available,
             usc.factors_total,
             usc.weighted_score,
-            usc.score_tier
+            usc.score_tier,
+            usc.direct_factors_available,
+            usc.scorable_coverage_pct,
+            usc.has_thin_data
         FROM f7_employers_deduped e
         LEFT JOIN employer_canonical_groups g
             ON e.canonical_group_id = g.group_id
@@ -108,8 +115,16 @@ def _run(conn, cur):
         UNION ALL
 
         -- Source 2: NLRB employer participants (unmatched to F7)
+        --   P1 #43 (2026-04-30): Dedup is per (employer_name, city, state) -- one
+        --   search row per employer location, NOT per election. Picks the most
+        --   recent election as the display row. Reduces NLRB search rows from
+        --   ~86K to ~54K (-37%), eliminating cases like "Starbucks Corporation"
+        --   appearing 183 times in the NLRB band of search results.
+        --   Election history remains available via /api/employers/unified-detail.
         SELECT
-            'NLRB-' || sub.id::text AS canonical_id,
+            'NLRB-' || sub.id::text
+                || COALESCE('-' || TO_CHAR(sub.election_date, 'YYYYMMDD'), '')
+                AS canonical_id,
             'NLRB' AS source_type,
             sub.participant_name AS employer_name,
             sub.city,
@@ -130,8 +145,16 @@ def _run(conn, cur):
             NULL::int AS factors_available,
             NULL::int AS factors_total,
             NULL::numeric AS weighted_score,
-            NULL::text AS score_tier
+            NULL::text AS score_tier,
+            NULL::int AS direct_factors_available,
+            NULL::numeric AS scorable_coverage_pct,
+            NULL::boolean AS has_thin_data
         FROM (
+            -- Collapse to one row per (employer_name, city, state). The
+            -- representative row carries the MOST RECENT election (by
+            -- election_date DESC) so search shows the latest organizing
+            -- snapshot at that location. Past elections are still queryable
+            -- via /api/employers/unified-detail/{canonical_id}.
             SELECT DISTINCT ON (
                 UPPER(p.participant_name),
                 UPPER(COALESCE(p.city, '')),
@@ -139,6 +162,7 @@ def _run(conn, cur):
             )
                 p.id, p.participant_name, p.city, p.state,
                 p.address_1, p.zip, p.case_number,
+                e.election_date,
                 e.union_won, e.eligible_voters,
                 t.labor_org_name, t.matched_olms_fnum
             FROM nlrb_participants p
@@ -153,8 +177,9 @@ def _run(conn, cur):
                 UPPER(p.participant_name),
                 UPPER(COALESCE(p.city, '')),
                 UPPER(COALESCE(p.state, '')),
+                e.election_date DESC NULLS LAST,
                 e.union_won DESC NULLS LAST,
-                e.election_date DESC NULLS LAST
+                p.id
         ) sub
 
         UNION ALL
@@ -182,7 +207,10 @@ def _run(conn, cur):
             NULL::int AS factors_available,
             NULL::int AS factors_total,
             NULL::numeric AS weighted_score,
-            NULL::text AS score_tier
+            NULL::text AS score_tier,
+            NULL::int AS direct_factors_available,
+            NULL::numeric AS scorable_coverage_pct,
+            NULL::boolean AS has_thin_data
         FROM nlrb_voluntary_recognition vr
         WHERE vr.matched_employer_id IS NULL
           AND vr.employer_name IS NOT NULL
@@ -212,8 +240,60 @@ def _run(conn, cur):
             NULL::int AS factors_available,
             NULL::int AS factors_total,
             NULL::numeric AS weighted_score,
-            NULL::text AS score_tier
+            NULL::text AS score_tier,
+            NULL::int AS direct_factors_available,
+            NULL::numeric AS scorable_coverage_pct,
+            NULL::boolean AS has_thin_data
         FROM manual_employers m
+
+        UNION ALL
+
+        -- Source 5: Non-union employers from master_employers
+        --   Includes employers with 100+ employees OR data_quality_score >= 60
+        --   Excludes employers already present via F7 link
+        --   Excludes unions and labor organizations
+        --   This brings in major employers like Walmart, Amazon, Starbucks
+        --   that may not have F7 (union bargaining) records
+        SELECT
+            'MASTER-' || me.master_id::text AS canonical_id,
+            'MASTER' AS source_type,
+            me.display_name AS employer_name,
+            me.city,
+            me.state,
+            NULL AS street,
+            me.zip,
+            me.naics,
+            me.employee_count AS unit_size,
+            NULL AS union_name,
+            NULL AS union_fnum,
+            FALSE AS has_union,
+            NULL::double precision AS latitude,
+            NULL::double precision AS longitude,
+            LOWER(me.display_name) AS search_name,
+            NULL::int AS canonical_group_id,
+            NULL::int AS group_member_count,
+            NULL::int AS consolidated_workers,
+            NULL::int AS factors_available,
+            NULL::int AS factors_total,
+            NULL::numeric AS weighted_score,
+            NULL::text AS score_tier,
+            NULL::int AS direct_factors_available,
+            NULL::numeric AS scorable_coverage_pct,
+            NULL::boolean AS has_thin_data
+        FROM master_employers me
+        WHERE me.is_union = FALSE
+          AND COALESCE(me.is_labor_org, FALSE) = FALSE
+          AND NOT EXISTS (
+              SELECT 1 FROM master_employer_source_ids si
+              WHERE si.master_id = me.master_id
+                AND si.source_system = 'f7'
+          )
+          AND (
+              me.employee_count >= 100
+              OR me.data_quality_score >= 60
+          )
+          AND me.canonical_name IS NOT NULL
+          AND LENGTH(TRIM(me.canonical_name)) > 2
     """)
 
     # ── Indexes ─────────────────────────────────────────────────────────
@@ -274,10 +354,34 @@ def _run(conn, cur):
         WHERE source_type = 'F7'
     """)
     stats = cur.fetchone()
-    print(f"\n  F7 dedup stats:")
+    print("\n  F7 dedup stats:")
     print(f"    Grouped (canonical reps): {stats[0]:,}")
     print(f"    Ungrouped (singletons):   {stats[1]:,}")
     print(f"    With group info:          {stats[2]:,}")
+
+    # MASTER source stats
+    cur.execute("""
+        SELECT
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE unit_size IS NOT NULL) AS with_emp_count,
+            COUNT(*) FILTER (WHERE unit_size >= 1000) AS large_employers
+        FROM mv_employer_search
+        WHERE source_type = 'MASTER'
+    """)
+    mstats = cur.fetchone()
+    print("\n  MASTER (non-union from master_employers) stats:")
+    print(f"    Total:             {mstats[0]:,}")
+    print(f"    With employee ct:  {mstats[1]:,}")
+    print(f"    Large (1000+):     {mstats[2]:,}")
+
+    # Spot-check: verify major employers are now searchable
+    for test_name in ['walmart', 'amazon', 'starbucks']:
+        cur.execute("""
+            SELECT COUNT(*) FROM mv_employer_search
+            WHERE search_name LIKE %s
+        """, [f'%{test_name}%'])
+        cnt = cur.fetchone()[0]
+        print(f"    Spot-check '{test_name}': {cnt:,} rows")
 
     cur.close()
     print("\nDone! mv_employer_search rebuilt with dedup.")

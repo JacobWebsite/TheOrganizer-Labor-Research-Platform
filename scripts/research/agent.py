@@ -18,21 +18,24 @@ import json
 import logging
 import os
 import re
-import sys
 import time
 import asyncio
 from datetime import datetime, date
-from typing import Optional, Any, Tuple
+from typing import Optional
 
 from google import genai
 from google.genai import types
 
-from scripts.research.tools import TOOL_REGISTRY, TOOL_DEFINITIONS, _conn, _safe, _safe_dict, _safe_list
+from scripts.research.tools import TOOL_REGISTRY, TOOL_DEFINITIONS, _conn
 
 # Configuration
 MODEL = os.environ.get("RESEARCH_AGENT_MODEL", "gemini-2.5-flash")
 MAX_TOOL_TURNS = int(os.environ.get("RESEARCH_AGENT_MAX_TURNS", 25))
 MAX_TOKENS = int(os.environ.get("RESEARCH_AGENT_MAX_TOKENS", 65536))
+# Iterative critique loop: number of rounds and per-round timeout (seconds).
+# Each round = 1 Gemini critique call + up to 5 parallel tool calls.
+CRITIQUE_ROUNDS = int(os.environ.get("RESEARCH_CRITIQUE_ROUNDS", 3))
+CRITIQUE_ROUND_TIMEOUT_S = int(os.environ.get("RESEARCH_CRITIQUE_ROUND_TIMEOUT_S", 120))
 
 _INPUT_COST_PER_1K = 0.003  # $0.30 per 1M
 _OUTPUT_COST_PER_1K = 0.025  # $2.50 per 1M
@@ -50,6 +53,7 @@ _DOSSIER_SECTIONS = [
     "workplace",
     "assessment",
     "sources",
+    "adaptive_findings",
 ]
 
 _INTERNAL_TOOLS = [
@@ -175,12 +179,101 @@ _GAP_QUERY_TEMPLATES = {
     ],
 }
 
+_SECTION_QUERY_TEMPLATES = {
+    "financial": [
+        '"{company}" revenue annual report {year}',
+        '"{company}" employee count headcount {year}',
+    ],
+    "leadership": [
+        '"{company}" CEO executive team management',
+        '"{company}" leadership officers directors {state}',
+    ],
+    "corporate_structure": [
+        '"{company}" parent company owner subsidiary',
+        '"{company}" acquired merger acquisition {year}',
+    ],
+    "workplace": [
+        '"{company}" worker complaints safety violations {state}',
+        '"{company}" working conditions employee reviews',
+    ],
+    "labor": [
+        '"{company}" union organizing NLRB election',
+        '"{company}" labor relations collective bargaining {state}',
+    ],
+    "workforce": [
+        '"{company}" jobs hiring employees {state} {year}',
+    ],
+    "identity": [
+        '"{company}" company profile industry {state}',
+    ],
+}
+
 _TOOL_GAP_MAP = {
     "search_mergent": ["employee_count", "revenue", "website_url"],
     "search_990": ["nonprofit_financials", "employee_count"],
     "search_osha": ["osha_violations"],
     "search_nlrb": ["nlrb_activity"],
     "search_whd": ["whd_violations"],
+}
+
+# --------------------------------------------------------------------------
+# Per-archetype query overrides (Session 6a, 2026-04-24)
+# --------------------------------------------------------------------------
+# Appends / replaces base templates based on the employer's `company_type`.
+# Matches the classifications emitted by the scorecard + managed-agents
+# pipelines. Keys line up with `research_query_effectiveness.company_type`.
+#
+# Philosophy:
+# - Public SEC filers get SEC-proxy and 10-K queries, skip generic Google
+# - Nonprofits skip SEC entirely, add 990 and GuideStar queries
+# - Municipal employers skip NLRB (use state PERB/SERB), add state audit
+#   + city council queries
+_ARCHETYPE_QUERY_OVERRIDES = {
+    "public_sec": {
+        "revenue": [
+            '"{company}" SEC 10-K annual report {year}',
+            '"{company}" 10-Q earnings revenue {year}',
+            '"{company}" investor relations financial results',
+        ],
+        "employee_count": [
+            '"{company}" SEC 10-K employees headcount {year}',
+            '"{company}" proxy DEF14A officers compensation',
+        ],
+        "leadership": [
+            '"{company}" CEO executive compensation DEF14A proxy',
+            '"{company}" board of directors SEC filing',
+        ],
+    },
+    "nonprofit": {
+        "revenue": [
+            '"{company}" Form 990 revenue {year}',
+            '"{company}" GuideStar ProPublica nonprofit explorer',
+            '"{company}" nonprofit annual report {year}',
+        ],
+        "employee_count": [
+            '"{company}" Form 990 Schedule J compensation {year}',
+            '"{company}" 990 Part IX functional expenses',
+        ],
+        "nonprofit_financials": [
+            '"{company}" 990 Schedule D Schedule J {year}',
+            '"{company}" nonprofit Form 990 GuideStar ProPublica',
+        ],
+    },
+    "municipal": {
+        "nlrb_activity": [
+            '"{company}" PERB SERB public employment relations {state}',
+            '"{company}" AFSCME SEIU public-sector union {state}',
+            '"{company}" bargaining unit municipal state {year}',
+        ],
+        "whd_violations": [
+            '"{company}" state audit Auditor "{state}"',
+            '"{company}" city council budget audit report',
+        ],
+        "recent_news": [
+            '"{company}" city council meeting minutes {year}',
+            '"{company}" budget layoffs service cuts {year}',
+        ],
+    },
 }
 
 def _get_best_queries(gap_type: str, company_type: Optional[str] = None) -> list[str]:
@@ -220,48 +313,96 @@ def _update_query_effectiveness(gap_types_used: list, web_facts_by_gap: dict, co
     conn.commit()
     conn.close()
 
+def _pick_templates(gap_key: str, company_type: Optional[str]) -> list[str]:
+    """Resolve the template list for a gap, applying per-archetype overrides.
+
+    Resolution order:
+      1. Learned templates from research_query_effectiveness (_get_best_queries)
+      2. Archetype-specific overrides for this company_type (if any)
+      3. Base templates in _GAP_QUERY_TEMPLATES
+    """
+    learned = _get_best_queries(gap_key, company_type)
+    if learned:
+        return learned
+    ct = (company_type or "").strip().lower()
+    archetype = _ARCHETYPE_QUERY_OVERRIDES.get(ct, {})
+    if gap_key in archetype:
+        return archetype[gap_key]
+    return _GAP_QUERY_TEMPLATES.get(gap_key, [])
+
+
 def _build_web_search_queries(company_name: str, company_type: Optional[str],
                                company_state: Optional[str],
                                db_gaps: list[str],
                                year: str = None,
-                               company_address: Optional[str] = None) -> list[str]:
-    """Build targeted search queries based on which DB tools missed."""
+                               company_address: Optional[str] = None,
+                               weak_sections: Optional[list[str]] = None) -> list[str]:
+    """Build targeted search queries based on which DB tools missed and weak dossier sections.
+
+    Applies per-archetype overrides (Session 6a) + time-boxing of recency-
+    sensitive gap types (Session 6b). For recent_news / nlrb_activity /
+    whd_violations the rendered query always includes the current year + the
+    prior year so we catch same-day filings and last-quarter events without
+    relying on the template author remembering to stamp `{year}`.
+    """
     if year is None:
         year = str(datetime.now().year)
+    prior_year = str(int(year) - 1)
     queries = []
     gap_types_used = []
 
+    # Priority 1: Gap-targeted queries for weak dossier sections
+    if weak_sections:
+        for sec in weak_sections:
+            templates = _SECTION_QUERY_TEMPLATES.get(sec, [])
+            for t in templates[:2]:
+                queries.append((t, f"section_{sec}"))
+
+    # Priority 2: Tool-gap queries, with archetype awareness
     for tool_name in db_gaps:
         for gap_key in _TOOL_GAP_MAP.get(tool_name, []):
-            best = _get_best_queries(gap_key, company_type)
-            templates = best or _GAP_QUERY_TEMPLATES.get(gap_key, [])
+            templates = _pick_templates(gap_key, company_type)
             for t in templates[:2]:
-                queries.append(t)
-                gap_types_used.append((gap_key, t))
+                queries.append((t, gap_key))
 
+    # Priority 3: Always-run queries (news, labor, conditions)
     for key in ["recent_news", "labor_stance", "worker_conditions"]:
-        templates = _GAP_QUERY_TEMPLATES.get(key)
+        templates = _pick_templates(key, company_type)
         for t in templates[:1]:
-            queries.append(t)
-            gap_types_used.append((key, t))
+            queries.append((t, key))
 
-    filled = []
-    for q in queries:
+    # Time-boxing suffix for recency-sensitive gap types. Adds the current +
+    # prior year to the query string so the search engine surfaces fresh hits
+    # even when the template doesn't stamp `{year}` itself.
+    _TIME_BOXED_GAPS = {"recent_news", "nlrb_activity", "whd_violations", "section_workplace", "section_labor"}
+
+    filled: list[str] = []
+    gap_types_aligned: list[tuple[str, str]] = []
+    for q, gap_key in queries:
         try:
-            filled.append(q.format(
+            rendered = q.format(
                 company=company_name,
                 state=company_state or "",
                 year=year,
                 address=company_address or "",
-            ))
+            )
         except (KeyError, IndexError):
-            filled.append(q.format(
+            rendered = q.format(
                 company=company_name,
                 state=company_state or "",
-                year=year
-            ))
+                year=year,
+            )
+        # Append year disjunction for time-boxed gap types unless the template
+        # already stamped the current year (we don't want e.g. "2026 2026 OR 2025").
+        if gap_key in _TIME_BOXED_GAPS and year not in rendered:
+            rendered = f"{rendered} {year} OR {prior_year}"
+        filled.append(rendered)
+        # `_update_query_effectiveness` expects (gap_key, template) tuples;
+        # `template` is the raw (un-rendered) template for learning stability
+        # across company-name swaps. See scripts/research/agent.py:297.
+        gap_types_aligned.append((gap_key, q))
 
-    return filled[:15], gap_types_used[:15]
+    return filled[:15], gap_types_aligned[:15]
 
 # ---------------------------------------------------------------------------
 # Strategy Loader (Learning Loop)
@@ -334,6 +475,7 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
     company_type = run.get("company_type") or "unknown"
     state = run.get("company_state") or "unknown"
     size_bucket = run.get("employee_size_bucket") or "unknown"
+    website_url = run.get("website_url") or "unknown"
 
     prompt = f"""You are a labor-relations research agent. Your job is to compile a comprehensive organizing dossier on a single employer by querying internal databases.
 
@@ -345,6 +487,7 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
 - **Type:** {company_type}
 - **State:** {state}
 - **Size bucket:** {size_bucket}
+- **Website:** {website_url}
 
 ## Instructions
 
@@ -361,6 +504,7 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - Solidarity Network (search_solidarity_network) -- Call if corporate family context is available. Finds unionized sister facilities in the corporate family.
    - Form 5500 benefit plans (search_form5500) -- ALWAYS call this. Returns pension/welfare plan data, participant counts, and collective bargaining indicators.
    - PPP loans (search_ppp_loans) -- Call this. Returns pandemic-era loan amounts, forgiveness status, and jobs retained.
+   - Company Enrich (search_company_enrich) -- ALWAYS call this early. Returns employee count range, revenue range, website, LinkedIn, founding year, industry, company type. Covers 30M+ companies including private. Pass domain if known from other tools for better match accuracy.
 
 2. **Get industry and local context:**
    - BLS industry profile (get_industry_profile) -- needs a NAICS code. Now includes CBP local establishment counts if state is provided.
@@ -381,6 +525,7 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - SOS corporate filings (search_sos_filings) -- ALWAYS call this. Finds registered agents, officers, and filing links.
    - Competitor wage comparison (compare_industry_wages) -- ALWAYS call this. Compares target wages against local industry peers.
    - QCEW wage comparison (compare_employer_wages) -- Call if state and NAICS are known. Compares employer wages against BLS local industry averages. Pass known_wage if available from WHD or 990 data.
+   - Brave Web Search (search_brave_web) -- Use for targeted factual queries (recent news, WARN notices, leadership names). Returns structured URLs and descriptions with traceable queries.
 
 4. **Scrape employer website** (scrape_employer_website) -- if search_mergent returned a website URL, pass it here. Otherwise the tool will look it up. Returns homepage, about, careers, and news text.
 
@@ -390,6 +535,8 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - **corporate_structure**: parent company, parent type (public/private/PE/nonprofit), known subsidiaries, investors, corporate family context. Use data from search_gleif_ownership, search_sec, search_mergent, search_solidarity_network. If no parent found, note "Appears to be an independent company."
    - **locations**: all known employer addresses from OSHA establishments, SAM entities, SOS filings, and web scrape. Group by city/state. Include establishment counts per location if available.
    - **leadership**: CEO/president, executive team, local management. Source from search_sos_filings (officers/directors), search_sec (for public companies), and web scrape of "about us" / "leadership" pages.
+
+7. **Flag adaptive findings:** If you discover something important that does NOT fit the standard 10 sections -- such as pending acquisitions, store closures, major lawsuits, private equity involvement, regulatory actions, or industry disruption -- add it to the "adaptive_findings" section. Each finding should have: "finding" (what you discovered), "significance" (why it matters for organizing), "source" (where you found it). This section captures critical intelligence that the template was not designed for.
 
 IMPORTANT: Do NOT call `google_search` directly -- web search is handled separately after your database queries. But DO call all tools listed in steps 1-4 above.
 
@@ -405,7 +552,8 @@ Return your final report as a JSON object inside a code block. Your response mus
     "labor": {{ ... }},
     "workplace": {{ ... }},
     "assessment": {{ ... }},
-    "sources": {{ ... }}
+    "sources": {{ ... }},
+    "adaptive_findings": {{ ... }}
   }},
   "facts": [
     {{
@@ -420,6 +568,18 @@ Return your final report as a JSON object inside a code block. Your response mus
     }}
   ]
 }}
+
+## Confidence Scoring Rules
+Assign confidence using this scale:
+- 1.00: Official government records from our database (OSHA citations, NLRB cases, WHD findings, SEC filings, SAM.gov)
+- 0.90: Structured third-party data (Mergent, IRS 990, BLS, Form 5500, CompanyEnrich)
+- 0.75: Company's own website or official filings (About page, annual report, careers page)
+- 0.60: News articles, press releases, job posting aggregators. Single web source.
+- 0.40: Inferred or estimated values (industry averages, ranges, educated guesses)
+- 0.20: Unverified claims from anonymous sources (Reddit, Glassdoor reviews)
+
+Do NOT default to 0.9 or 1.0. Most web-sourced facts should be 0.60-0.75.
+Database tool results should be 0.90-1.00. Your own analysis/assessment fields should be 0.50-0.70.
 """
     # Inject strategy section if available
     naics_2 = (run.get("industry_naics") or "")[:2]
@@ -430,7 +590,99 @@ Return your final report as a JSON object inside a code block. Your response mus
     if strategy_section:
         prompt += strategy_section
 
+    # Inject few-shot examples from gold-standard dossiers (Session 6d).
+    # Pedagogical signal only: shows the agent what a high-quality dossier
+    # Bottom Line + Data Quality Notes + citation density look like. The
+    # agent's OWN output is still JSON (dossier + facts), but the dossier
+    # structure + citation discipline transfers.
+    try:
+        few_shot = _build_few_shot_examples(run.get("company_type"))
+        if few_shot:
+            prompt += few_shot
+    except Exception:
+        pass
+
     return prompt
+
+
+# Module-level cache so we don't pull from DB on every run.
+_FEW_SHOT_CACHE: dict[str, str] = {}
+
+
+def _build_few_shot_examples(company_type: Optional[str], n: int = 2) -> str:
+    """Return a compact prompt section with 2 gold-standard dossier excerpts.
+
+    The agent learns the output format + citation discipline, NOT the
+    content. Each example is truncated so the total injection stays under
+    ~3KB of prompt text. We pick diverse archetypes (thin-data small
+    employer + data-rich public company + municipal if possible), prefering
+    gold_standard rows with the widest range of sources_count.
+
+    Cached per-company_type for the lifetime of the process.
+    """
+    cache_key = (company_type or "").lower() or "__default__"
+    if cache_key in _FEW_SHOT_CACHE:
+        return _FEW_SHOT_CACHE[cache_key]
+
+    conn = _conn()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            SELECT company_name, sections_filled, total_facts_found,
+                   dossier_json->'metadata'->>'gap_cell' AS gap_cell,
+                   dossier_json->'metadata'->>'headline_finding' AS headline_finding,
+                   LEFT(dossier_json->>'markdown_body', 900) AS markdown_snippet
+            FROM research_runs
+            WHERE is_gold_standard = TRUE
+              AND dossier_json IS NOT NULL
+              AND sections_filled >= 10
+            ORDER BY total_facts_found DESC
+            LIMIT %s
+            """,
+            (n,),
+        )
+        rows = cur.fetchall()
+    except Exception:
+        rows = []
+    finally:
+        conn.close()
+
+    if not rows:
+        _FEW_SHOT_CACHE[cache_key] = ""
+        return ""
+
+    parts = [
+        "",
+        "## Example Gold-Standard Dossier Excerpts (for format + citation-density reference only)",
+        "",
+        "The following are condensed excerpts from gold-standard dossiers in our `research_runs` "
+        "table. They illustrate the expected tone, section structure, and citation density. "
+        "Your own output is JSON (dossier + facts) -- match the rigor, not the prose verbatim.",
+    ]
+    for i, row in enumerate(rows, 1):
+        name = row["company_name"] if isinstance(row, dict) else row[0]
+        sections = row["sections_filled"] if isinstance(row, dict) else row[1]
+        cites = row["total_facts_found"] if isinstance(row, dict) else row[2]
+        gap_cell = row["gap_cell"] if isinstance(row, dict) else row[3]
+        headline = row["headline_finding"] if isinstance(row, dict) else row[4]
+        snippet = row["markdown_snippet"] if isinstance(row, dict) else row[5]
+        snippet = (snippet or "").strip()[:600]
+        parts.append("")
+        parts.append(f"### EXAMPLE_{i}: {name}")
+        if gap_cell:
+            parts.append(f"- Archetype: {gap_cell}")
+        parts.append(f"- Sections filled: {sections} / Citations: {cites}")
+        if headline:
+            parts.append(f"- Headline finding: {headline[:400]}")
+        if snippet:
+            parts.append("- Excerpt:")
+            parts.append("```")
+            parts.append(snippet)
+            parts.append("```")
+    result = "\n".join(parts)
+    _FEW_SHOT_CACHE[cache_key] = result
+    return result
 
 def _build_gemini_tools():
     """Build FunctionDeclarations for Gemini."""
@@ -458,6 +710,53 @@ def _build_google_search_tool():
     """Build the Tool object for Google Search grounding."""
     return [types.Tool(google_search=types.GoogleSearch())]
 
+
+def _build_dossier_schema(vocabulary: dict) -> types.Schema:
+    """Build a Gemini response_schema from the vocabulary table.
+
+    Groups vocabulary entries by dossier_section, builds an OBJECT schema
+    per section with STRING properties for each vocabulary attribute_name.
+    Used with response_mime_type='application/json' to force structured output.
+    """
+    by_section: dict[str, list[str]] = {}
+    for attr_name, meta in vocabulary.items():
+        sec = meta["dossier_section"]
+        by_section.setdefault(sec, []).append(attr_name)
+
+    section_schemas = {}
+    for sec in _DOSSIER_SECTIONS:
+        if sec == "adaptive_findings":
+            section_schemas[sec] = types.Schema(
+                type="ARRAY",
+                items=types.Schema(type="OBJECT", properties={
+                    "finding": types.Schema(type="STRING"),
+                    "significance": types.Schema(type="STRING"),
+                    "source": types.Schema(type="STRING"),
+                }),
+            )
+        elif sec in by_section:
+            props = {attr: types.Schema(type="STRING", nullable=True) for attr in by_section[sec]}
+            section_schemas[sec] = types.Schema(type="OBJECT", properties=props)
+        else:
+            section_schemas[sec] = types.Schema(type="OBJECT")
+
+    fact_schema = types.Schema(type="OBJECT", properties={
+        "dossier_section": types.Schema(type="STRING"),
+        "attribute_name": types.Schema(type="STRING"),
+        "attribute_value": types.Schema(type="STRING", nullable=True),
+        "source_type": types.Schema(type="STRING"),
+        "source_name": types.Schema(type="STRING"),
+        "confidence": types.Schema(type="NUMBER"),
+        "as_of_date": types.Schema(type="STRING", nullable=True),
+    }, required=["dossier_section", "attribute_name", "attribute_value",
+                 "source_type", "confidence"])
+
+    return types.Schema(type="OBJECT", properties={
+        "dossier": types.Schema(type="OBJECT", properties=section_schemas),
+        "facts": types.Schema(type="ARRAY", items=fact_schema),
+    }, required=["dossier", "facts"])
+
+
 # ---------------------------------------------------------------------------
 # Post-Processing & Validation
 # ---------------------------------------------------------------------------
@@ -466,17 +765,17 @@ def _extract_financial_from_text(text: str) -> dict:
     """Regex-extract employee count and revenue from raw web text."""
     result = {}
     if not text: return result
-    
+
     # Employee count
     m_emp = re.search(r'\b(?:employ(?:ees?|s)|headcount|workforce)\s*(?:of|is|at|approx\.?)?\s*([\d,]+)\b', text, re.IGNORECASE)
     if m_emp:
         val = m_emp.group(1).replace(",", "")
         if val.isdigit() and int(val) > 0: result["employee_count"] = val
-        
+
     # Revenue
     m_rev = re.search(r'\b(?:revenue|sales|turnover)\s*(?:of|is|at|approx\.?)?\s*\$?\s*([\d,.]+\s*[bm]illion)\b', text, re.IGNORECASE)
     if m_rev: result["revenue"] = m_rev.group(1)
-    
+
     return result
 
 def _patch_dossier_financials(dossier_data: dict, web_text: str = "") -> int:
@@ -485,7 +784,7 @@ def _patch_dossier_financials(dossier_data: dict, web_text: str = "") -> int:
     body = dossier_data["dossier"]
     identity = body.setdefault("identity", {})
     financial = body.setdefault("financial", {})
-    
+
     patched = 0
     if not financial.get("employee_count") or not financial.get("revenue"):
         extracted = _extract_financial_from_text(web_text)
@@ -495,46 +794,41 @@ def _patch_dossier_financials(dossier_data: dict, web_text: str = "") -> int:
                 patched += 1
     return patched
 
-def _resolve_contradictions(run_id: int) -> int:
-    """Detect and flag contradictions among facts for a research run.
+def _string_similarity(a: str, b: str) -> float:
+    """Bigram Jaccard similarity (0.0-1.0). No external deps."""
+    if not a or not b:
+        return 0.0
+    ba = set(a[i:i + 2] for i in range(len(a) - 1))
+    bb = set(b[i:i + 2] for i in range(len(b) - 1))
+    if not ba or not bb:
+        return 0.0
+    return len(ba & bb) / len(ba | bb)
 
-    For numeric attributes: if max/min > 2.0, flag the newer fact's
-    contradicts_fact_id pointing to the older fact.
-    For string attributes appearing 2+ times with different values:
-    flag if values differ after lowercasing.
 
-    Returns the count of contradictions flagged.
+_NUMERIC_ATTRS = {
+    "employee_count", "revenue", "osha_violation_count",
+    "osha_serious_count", "whd_case_count", "nlrb_ulp_count",
+    "federal_obligations",
+}
+
+_SKIP_VALUES = {
+    "-", "none", "null", "verified none (tools searched)",
+    "not found (searched)", "not searched",
+}
+
+
+def _find_contradictions(facts_by_attr: dict[str, list[dict]]) -> list[tuple[int, int]]:
+    """Core contradiction logic shared by within-run and cross-run detection.
+
+    Returns list of (fact_id_to_flag, contradicts_id) tuples.
     """
-    _NUMERIC_ATTRS = {
-        "employee_count", "revenue", "osha_violation_count",
-        "osha_serious_count", "whd_case_count", "nlrb_ulp_count",
-        "federal_obligations",
-    }
-    conn = _conn()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, attribute_name, attribute_value FROM research_facts WHERE run_id = %s ORDER BY id",
-        (run_id,),
-    )
-    rows = cur.fetchall()
-    conn.close()
+    to_flag: list[tuple[int, int]] = []
 
-    if not rows:
-        return 0
-
-    # Group facts by attribute_name
-    by_attr: dict[str, list[dict]] = {}
-    for r in rows:
-        by_attr.setdefault(r["attribute_name"], []).append(dict(r))
-
-    to_flag: list[tuple[int, int]] = []  # (fact_id_to_flag, contradicts_id)
-
-    for attr, facts in by_attr.items():
+    for attr, facts in facts_by_attr.items():
         if len(facts) < 2:
             continue
 
         if attr in _NUMERIC_ATTRS:
-            # Extract numeric values
             nums = []
             for f in facts:
                 val = f.get("attribute_value")
@@ -551,26 +845,117 @@ def _resolve_contradictions(run_id: int) -> int:
                 nums.sort(key=lambda x: x[0])
                 min_val, min_fact = nums[0]
                 max_val, max_fact = nums[-1]
-                if min_val > 0 and (max_val / min_val) > 2.0:
-                    # Flag the newer (higher id) fact
+                if min_val > 0 and (max_val / min_val) > 1.5:
                     newer = max_fact if max_fact["id"] > min_fact["id"] else min_fact
                     older = min_fact if newer is max_fact else max_fact
                     to_flag.append((newer["id"], older["id"]))
         else:
-            # String comparison: flag if different values after lowercasing
-            seen: dict[str, dict] = {}
+            # String comparison with fuzzy matching
+            seen_vals: list[tuple[str, dict]] = []
             for f in facts:
                 val = str(f.get("attribute_value") or "").strip().lower()
-                if not val or val in ("-", "none", "null", "verified none (tools searched)", "not searched"):
+                if not val or val in _SKIP_VALUES:
                     continue
-                if val not in seen:
-                    seen[val] = f
-                # else same value, no contradiction
-            if len(seen) >= 2:
-                ordered = sorted(seen.values(), key=lambda x: x["id"])
+                is_duplicate = False
+                for existing_val, _existing_fact in seen_vals:
+                    if val == existing_val or _string_similarity(val, existing_val) > 0.90:
+                        is_duplicate = True
+                        break
+                if not is_duplicate:
+                    seen_vals.append((val, f))
+            if len(seen_vals) >= 2:
+                ordered = sorted([f for _, f in seen_vals], key=lambda x: x["id"])
                 older = ordered[0]
                 for newer in ordered[1:]:
                     to_flag.append((newer["id"], older["id"]))
+
+    return to_flag
+
+
+def _resolve_contradictions(run_id: int) -> int:
+    """Detect and flag contradictions among facts for a research run.
+
+    For numeric attributes: if max/min > 1.5, flag the newer fact.
+    For string attributes: flag if different values (fuzzy similarity <= 0.90).
+
+    Returns the count of contradictions flagged.
+    """
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, attribute_name, attribute_value FROM research_facts WHERE run_id = %s ORDER BY id",
+        (run_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    if not rows:
+        return 0
+
+    by_attr: dict[str, list[dict]] = {}
+    for r in rows:
+        by_attr.setdefault(r["attribute_name"], []).append(dict(r))
+
+    to_flag = _find_contradictions(by_attr)
+
+    if not to_flag:
+        return 0
+
+    conn = _conn()
+    cur = conn.cursor()
+    for fact_id, contradicts_id in to_flag:
+        cur.execute(
+            "UPDATE research_facts SET contradicts_fact_id = %s WHERE id = %s AND contradicts_fact_id IS NULL",
+            (contradicts_id, fact_id),
+        )
+    conn.commit()
+    conn.close()
+    return len(to_flag)
+
+
+def _resolve_cross_run_contradictions(employer_id: str, run_id: int) -> int:
+    """Detect contradictions between the current run and the most recent prior run
+    for the same employer. Returns count of contradictions flagged."""
+    conn = _conn()
+    cur = conn.cursor()
+    # Find the most recent prior completed run for this employer
+    cur.execute(
+        "SELECT id FROM research_runs "
+        "WHERE employer_id = %s AND status = 'completed' AND id != %s "
+        "ORDER BY completed_at DESC LIMIT 1",
+        (employer_id, run_id),
+    )
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return 0
+    prior_run_id = row["id"]
+
+    # Fetch facts from both runs
+    cur.execute(
+        "SELECT id, attribute_name, attribute_value, run_id FROM research_facts "
+        "WHERE run_id IN (%s, %s) AND source_name != 'exhaustive_coverage' ORDER BY id",
+        (run_id, prior_run_id),
+    )
+    rows = cur.fetchall()
+    conn.close()
+
+    if not rows:
+        return 0
+
+    # Group by attribute, but only include attrs that appear in BOTH runs
+    by_attr: dict[str, list[dict]] = {}
+    for r in rows:
+        by_attr.setdefault(r["attribute_name"], []).append(dict(r))
+
+    # Filter to attrs present in both runs
+    cross_attrs: dict[str, list[dict]] = {}
+    for attr, facts in by_attr.items():
+        run_ids_present = {f["run_id"] for f in facts}
+        if run_id in run_ids_present and prior_run_id in run_ids_present:
+            cross_attrs[attr] = facts
+
+    to_flag = _find_contradictions(cross_attrs)
 
     if not to_flag:
         return 0
@@ -592,7 +977,7 @@ def _extract_financial_trend(dossier_data: dict, web_text: str = "") -> bool:
     body = dossier_data["dossier"]
     assessment = body.setdefault("assessment", {})
     if assessment.get("financial_trend"): return False
-    
+
     combined = (assessment.get("organizing_summary") or "") + " " + (web_text or "")
     if "layoff" in combined.lower() or "closing" in combined.lower():
         assessment["financial_trend"] = "declining"
@@ -608,7 +993,7 @@ def _validate_employee_count(dossier_data: dict, run: dict) -> None:
     financial = dossier_data["dossier"].get("financial", {})
     emp_val = financial.get("employee_count")
     if not emp_val: return
-    
+
     try:
         num = int(str(emp_val).replace(",", "").split()[0])
         if num < 50 and run.get("employee_size_bucket") == "large":
@@ -628,11 +1013,38 @@ def _count_null_fields(dossier_data: dict) -> tuple[int, int]:
             if val is None or val == "" or val == []: nulls += 1
     return (total, nulls)
 
+def _assess_coverage(dossier_data: dict) -> tuple[float, list[str]]:
+    """Assess dossier coverage. Returns (coverage_pct, list_of_weak_sections).
+
+    A section is 'weak' if less than 50% of its fields are filled.
+    """
+    _body = dossier_data.get("dossier", {})
+    filled_total, field_total = 0, 0
+    weak = []
+    _null_vals = {"", "null", "None", "none"}
+    for sec in ["identity", "financial", "workforce", "labor", "workplace",
+                 "leadership", "corporate_structure", "assessment"]:
+        sec_dict = _body.get(sec, {})
+        if not isinstance(sec_dict, dict):
+            continue
+        sec_filled, sec_total = 0, 0
+        for v in sec_dict.values():
+            sec_total += 1
+            if v is not None and str(v).strip() not in _null_vals:
+                sec_filled += 1
+        filled_total += sec_filled
+        field_total += sec_total
+        if sec_total > 0 and (sec_filled / sec_total) < 0.5:
+            weak.append(sec)
+    pct = (filled_total / max(field_total, 1)) * 100
+    return pct, weak
+
+
 def _ensure_exhaustive_coverage(run_id: int, dossier_data: dict, vocabulary: dict) -> int:
     """Ensure all vocabulary fields are non-null."""
     if not dossier_data or "dossier" not in dossier_data: return 0
     body = dossier_data["dossier"]
-    
+
     conn = _conn(); cur = conn.cursor()
     cur.execute("SELECT tool_name FROM research_actions WHERE run_id = %s", (run_id,))
     ran = set(row["tool_name"] for row in cur.fetchall()); conn.close()
@@ -642,13 +1054,19 @@ def _ensure_exhaustive_coverage(run_id: int, dossier_data: dict, vocabulary: dic
     for attr, meta in vocabulary.items():
         sec = meta["dossier_section"]
         if sec not in _DOSSIER_SECTIONS: continue
+        sec_val = body.get(sec)
+        # Skip sections that are lists (e.g., adaptive_findings) -- not dict-based
+        if isinstance(sec_val, list):
+            continue
         sec_dict = body.setdefault(sec, {})
+        if not isinstance(sec_dict, dict):
+            continue
         if sec_dict.get(attr) in (None, "", []):
-            status = "Verified None (Tools searched)" if ran else "Not searched"
+            status = "Not found (searched)" if ran else "Not searched"
             sec_dict[attr] = status
             facts_arr.append({
                 "dossier_section": sec, "attribute_name": attr, "attribute_value": status,
-                "source_type": "system", "source_name": "exhaustive_coverage", "confidence": 1.0,
+                "source_type": "system", "source_name": "exhaustive_coverage", "confidence": 0.10,
                 "as_of_date": date.today().isoformat()
             })
             filled += 1
@@ -668,22 +1086,53 @@ def _log_action(run_id: int, tool_name: str, tool_params: dict, order: int, resu
     return aid
 
 def _save_facts(run_id: int, employer_id: str, facts: list, vocabulary: dict, tool_action_map: dict) -> int:
+    """Persist facts to research_facts.
+
+    Uses a PostgreSQL SAVEPOINT per row so a single bad insert does not
+    roll back the earlier successful inserts in the same connection.
+    Before this change, a `conn.rollback()` inside the loop silently
+    undid every successful row up to that point while the `saved` counter
+    kept incrementing -- so `total_facts_found` could report many facts
+    that were no longer in the table.
+    """
     if not facts: return 0
     conn = _conn(); cur = conn.cursor()
     saved = 0
     for f in facts:
         attr = f.get("attribute_name")
-        if attr not in vocabulary: continue
+        if attr not in vocabulary:
+            _log.debug("Run %d: dropping fact with unknown attr '%s'", run_id, attr)
+            continue
         aid = tool_action_map.get(f.get("source_name"))
         # Truncate varchar fields to match column limits
         section = (f.get("dossier_section") or "")[:50]
         src_type = (f.get("source_type") or "")[:30]
         src_name = (f.get("source_name") or "")[:200]
-        cur.execute("""
-            INSERT INTO research_facts (run_id, employer_id, action_id, dossier_section, attribute_name, attribute_value, attribute_value_json, source_type, source_name, confidence, as_of_date)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (run_id, employer_id, aid, section, attr[:100], str(f.get("attribute_value"))[:1000], json.dumps(f.get("attribute_value_json")), src_type, src_name, f.get("confidence", 0.5), f.get("as_of_date")))
-        saved += 1
+        # Sanitize as_of_date: Gemini sometimes returns just a year ("2017")
+        # or other non-date strings. Coerce to valid date or None.
+        raw_date = f.get("as_of_date")
+        as_of_date = None
+        if raw_date and isinstance(raw_date, str):
+            raw_date = raw_date.strip()
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", raw_date):
+                as_of_date = raw_date
+            elif re.match(r"^\d{4}-\d{2}$", raw_date):
+                as_of_date = raw_date + "-01"
+            elif re.match(r"^\d{4}$", raw_date):
+                as_of_date = raw_date + "-01-01"
+        # SAVEPOINT per row: scoped rollback on failure so earlier inserts
+        # in this batch survive.
+        cur.execute("SAVEPOINT fact_insert")
+        try:
+            cur.execute("""
+                INSERT INTO research_facts (run_id, employer_id, action_id, dossier_section, attribute_name, attribute_value, attribute_value_json, source_type, source_name, confidence, as_of_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (run_id, employer_id, aid, section, attr[:100], str(f.get("attribute_value"))[:1000], json.dumps(f.get("attribute_value_json")), src_type, src_name, f.get("confidence", 0.5), as_of_date))
+            cur.execute("RELEASE SAVEPOINT fact_insert")
+            saved += 1
+        except Exception as e:
+            _log.warning("Run %d: failed to save fact %s: %s", run_id, attr, e)
+            cur.execute("ROLLBACK TO SAVEPOINT fact_insert")
     conn.commit(); conn.close()
     return saved
 
@@ -705,6 +1154,335 @@ def _extract_dossier_json(text: str) -> Optional[dict]:
     return None
 
 # ---------------------------------------------------------------------------
+# Phase 2.7: Critique Loop
+# ---------------------------------------------------------------------------
+
+async def _critique_and_followup(
+    run_id: int,
+    run: dict,
+    dossier_data: dict,
+    credibility_summary: dict,
+    triangulation_summary: dict,
+    tool_action_map: dict,
+    execution_order: int,
+    tools_called: int,
+) -> tuple:
+    """Review dossier through 3 lenses iteratively and run follow-up tools for gaps.
+
+    Runs up to ``CRITIQUE_ROUNDS`` rounds. Each round: (1) one Gemini critique
+    call (no tools), then (2) up to 5 parallel follow-up tool calls for the
+    gaps it surfaces. The ``tools_called_set`` (including tools already called
+    before the critique phase) persists across all rounds so we never call the
+    same tool twice. Stops early when Gemini returns zero gaps, when none of
+    the suggested tools are actionable, or when a round exceeds
+    ``CRITIQUE_ROUND_TIMEOUT_S``.
+
+    Persists per-round results to ``research_runs.critique_result`` as
+    ``{"rounds": [...], "final_assessment": "..."}``.
+
+    Returns (updated_dossier_data, new_execution_order, new_tools_called).
+    """
+    body = dossier_data.get("dossier", {})
+    company_name = run.get("company_name", "Unknown")
+
+    # Build credibility/triangulation context for critique prompt (static across rounds)
+    cred_ctx = ""
+    if credibility_summary:
+        cred_ctx = (
+            f"Average source credibility: {credibility_summary.get('avg_score', 'N/A')}/100. "
+            f"{credibility_summary.get('low_credibility_count', 0)} facts scored below 40 (low credibility)."
+        )
+
+    tri_ctx = ""
+    flagged = triangulation_summary.get("flagged_claims", [])
+    if flagged:
+        tri_ctx = f"Single-source claims (need more corroboration): {', '.join(flagged)}"
+    elif triangulation_summary:
+        tri_ctx = "All major numeric claims have multiple independent sources."
+
+    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+
+    # tools_called_set persists across all rounds so round N+1 can't re-suggest a
+    # tool already called in round 1..N (or earlier in the pipeline).
+    tools_called_set = set(tool_action_map.keys())
+
+    rounds_payload: list = []
+    final_assessment = ""
+    max_rounds = max(1, CRITIQUE_ROUNDS)
+
+    async def _run_one_round(round_number: int) -> dict:
+        """Run a single critique round.
+
+        All mutations to shared state (``execution_order``, ``tools_called``,
+        ``final_assessment``, ``tools_called_set``, ``tool_action_map``, and
+        ``body`` section merges) are staged locally and applied atomically only
+        on successful round completion. If ``asyncio.wait_for`` fires its
+        timeout, this coroutine is cancelled and the staged mutations are
+        discarded — the next round starts from the same baseline as if this
+        round never ran. (Background threads launched via ``asyncio.to_thread``
+        may still finish and commit their own DB writes; those become orphan
+        rows rather than corrupting in-memory dossier state.)
+
+        A tool is added to ``tools_called_set`` only after it returned (even
+        returning ``{"found": False}`` counts as "ran"). Exceptions during the
+        tool call leave the tool eligible for retry in a later round.
+        """
+        nonlocal execution_order, tools_called, final_assessment
+
+        # Re-truncate from the (possibly updated) body each round — earlier
+        # rounds may have merged critique output into sections.
+        dossier_str = json.dumps(body, default=str)
+        if len(dossier_str) > 12000:
+            dossier_str = dossier_str[:12000] + "... [truncated]"
+
+        critique_prompt = f"""You are a quality reviewer for a labor research dossier about {company_name}.
+
+Review this dossier through 3 critical lenses:
+
+1. SKEPTICAL PRACTITIONER: Would a union organizer trust this information enough to act on it? Flag claims that seem unsupported or would raise eyebrows.
+
+2. ADVERSARIAL REVIEWER: What could an employer's lawyer disprove or challenge? Flag claims with weak sourcing.
+
+3. IMPLEMENTATION ENGINEER: Can someone actually USE this information to plan an organizing campaign? Flag missing actionable details.
+
+## Source Quality Context
+{cred_ctx}
+
+## Triangulation Context
+{tri_ctx}
+
+## Dossier Under Review
+{dossier_str}
+
+Return ONLY a JSON object (no markdown fencing) with this structure:
+{{
+  "gaps": [
+    {{
+      "lens": "practitioner|adversarial|engineer",
+      "section": "workforce|financial|labor|workplace|identity|corporate_structure|locations|leadership|assessment",
+      "description": "What is missing or weak",
+      "suggested_tool": "search_osha|search_nlrb|search_whd|search_sec|search_sam|search_990|search_contracts|search_mergent|search_company_enrich|search_brave_web|search_form5500|search_cbp_context|search_acs_workforce|scrape_employer_website"
+    }}
+  ],
+  "overall_assessment": "Brief 2-sentence quality assessment"
+}}
+
+Rules:
+- Only suggest tools from the list above
+- Maximum 5 gaps
+- Focus on the most impactful gaps, not minor details
+- If the dossier is strong, return an empty gaps list"""
+
+        # Phase A: Get critique from Gemini (no tools)
+        _log.info("Run %d: requesting critique round %d/%d from Gemini...", run_id, round_number, max_rounds)
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL,
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=critique_prompt)])],
+            config=types.GenerateContentConfig(max_output_tokens=4096),
+        )
+
+        critique_text = ""
+        if response.candidates:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "text") and part.text:
+                    critique_text += part.text
+
+        # Parse critique JSON
+        critique_result = _extract_dossier_json(critique_text)
+        if not critique_result:
+            try:
+                critique_result = json.loads(critique_text)
+            except (json.JSONDecodeError, TypeError):
+                _log.warning("Run %d: could not parse critique response (round %d)", run_id, round_number)
+                critique_result = {"gaps": [], "overall_assessment": "Critique parsing failed"}
+
+        gaps = critique_result.get("gaps", []) or []
+        assessment = critique_result.get("overall_assessment", "") or ""
+
+        # Filter to valid, not-yet-called tools (cap at 5). We additionally
+        # dedupe within this round via ``seen_this_round`` — the same tool is
+        # never fired twice in one round even if suggested twice. The
+        # permanent ``tools_called_set`` is NOT written here; a tool only
+        # becomes "permanently called" after it returns successfully below.
+        seen_this_round: set = set()
+        followup_tasks = []
+        for gap in gaps[:5]:
+            tool_name = gap.get("suggested_tool", "")
+            if (
+                tool_name in TOOL_REGISTRY
+                and tool_name not in tools_called_set
+                and tool_name not in seen_this_round
+            ):
+                followup_tasks.append((tool_name, gap))
+                seen_this_round.add(tool_name)
+
+        _log.info(
+            "Run %d: critique round %d/%d found %d gaps, %d actionable",
+            run_id, round_number, max_rounds, len(gaps), len(followup_tasks),
+        )
+
+        round_record = {
+            "round_number": round_number,
+            "gaps": gaps,
+            "overall_assessment": assessment,
+            "followups_executed": [],
+            "followups_failed": [],
+        }
+
+        if not followup_tasks:
+            # No tools to run — still commit the assessment on clean return.
+            final_assessment = assessment or final_assessment
+            return round_record
+
+        async def _run_followup(tool_name, gap):
+            kwargs = {"company_name": company_name}
+            if run.get("employer_id"):
+                kwargs["employer_id"] = run["employer_id"]
+            if run.get("company_state"):
+                kwargs["state"] = run["company_state"]
+            t0 = time.time()
+            res = await asyncio.to_thread(TOOL_REGISTRY[tool_name], **kwargs)
+            lat = int((time.time() - t0) * 1000)
+            return tool_name, res, lat, gap
+
+        results = await asyncio.gather(
+            *(_run_followup(tn, g) for tn, g in followup_tasks),
+            return_exceptions=True,
+        )
+
+        # Stage all mutations locally. Only applied at the bottom of this
+        # function, after every ``await`` point has returned. A cancellation
+        # during any await above discards these without touching nonlocals.
+        local_exec_order = execution_order
+        local_tools_called = tools_called
+        pending_tool_action_map: dict = {}
+        pending_tools_called_add: set = set()
+        pending_body_merges: dict = {}  # section -> merged value (replaces existing)
+
+        for r in results:
+            if isinstance(r, Exception):
+                # Transient failure (tool raised). Do NOT blacklist — tool
+                # remains eligible for retry in a later round.
+                _log.debug("Run %d: critique follow-up raised: %s", run_id, r)
+                continue
+            tool_name, res, lat, gap = r
+            # Tool returned something (even {"found": False}) — count it as run.
+            local_exec_order += 1
+            local_tools_called += 1
+            try:
+                aid = await asyncio.to_thread(
+                    _log_action, run_id, f"{tool_name} (critique)",
+                    {"company_name": company_name, "reason": gap.get("description", "")[:200]},
+                    local_exec_order, res, lat,
+                    {"phase": "critique_followup", "lens": gap.get("lens", ""), "round": round_number},
+                )
+            except Exception as log_err:  # pragma: no cover — defensive
+                _log.warning("Run %d: could not log critique action for %s: %s", run_id, tool_name, log_err)
+                # Still mark the tool called so we don't retry it repeatedly.
+                pending_tools_called_add.add(tool_name)
+                round_record["followups_failed"].append(tool_name)
+                continue
+
+            pending_tool_action_map[tool_name] = aid
+            pending_tools_called_add.add(tool_name)
+            round_record["followups_executed"].append(tool_name)
+
+            if res.get("found"):
+                section = gap.get("section", "")
+                if section and section in body:
+                    existing = pending_body_merges.get(section, body[section])
+                    if isinstance(existing, dict):
+                        merged = dict(existing)
+                        merged[f"critique_{tool_name}"] = res.get("summary", "")
+                        pending_body_merges[section] = merged
+                    elif isinstance(existing, str):
+                        pending_body_merges[section] = existing + "\n\n" + res.get("summary", "")
+
+        # Also record failed tasks (raised exceptions) in the round record
+        # so the persisted JSONB shows what was attempted but failed.
+        for tool_name, _gap in followup_tasks:
+            if (
+                tool_name not in round_record["followups_executed"]
+                and tool_name not in round_record["followups_failed"]
+            ):
+                round_record["followups_failed"].append(tool_name)
+
+        # ------------------------------------------------------------------
+        # Commit point. All staged mutations are applied below; if a
+        # cancellation fires before reaching here, none of these lines run
+        # and the nonlocals remain at the values they had on round entry.
+        # ------------------------------------------------------------------
+        for section, merged in pending_body_merges.items():
+            body[section] = merged
+        for tool_name, aid in pending_tool_action_map.items():
+            tool_action_map[tool_name] = aid
+        tools_called_set.update(pending_tools_called_add)
+        execution_order = local_exec_order
+        tools_called = local_tools_called
+        final_assessment = assessment or final_assessment
+
+        # NOTE: critique follow-up tool results are logged to
+        # ``research_actions`` and merged into the dossier body, but they are
+        # NOT extracted into ``research_facts``. Structured fact extraction
+        # would require a second Gemini call per tool result to normalize the
+        # summary into vocabulary-typed facts — out of scope for the critique
+        # loop. If future work wants credibility rescoring and contradiction
+        # detection to see critique follow-ups, add a ``_extract_facts_from_tool``
+        # pass here and feed the result through ``_save_facts``.
+
+        return round_record
+
+    # Outer iteration: up to max_rounds rounds, with per-round timeout and
+    # multiple stop conditions.
+    for round_number in range(1, max_rounds + 1):
+        try:
+            round_record = await asyncio.wait_for(
+                _run_one_round(round_number),
+                timeout=float(CRITIQUE_ROUND_TIMEOUT_S),
+            )
+        except asyncio.TimeoutError:
+            _log.warning(
+                "Run %d: critique round %d/%d exceeded %ds timeout",
+                run_id, round_number, max_rounds, CRITIQUE_ROUND_TIMEOUT_S,
+            )
+            # Continue with what we already have — no error.
+            break
+
+        rounds_payload.append(round_record)
+
+        # Stop conditions:
+        # 1) Zero gaps suggested → dossier passes critique, done.
+        # 2) Gaps suggested but zero tools actionable this round — i.e., every
+        #    suggested tool was already in ``tools_called_set`` (exhausted) or
+        #    unregistered. Future rounds will see the same state, so stop.
+        # Transient failures (tools that raised exceptions) land in
+        # ``followups_failed`` and intentionally do NOT trigger stop — those
+        # tools remain eligible for retry next round.
+        if not round_record.get("gaps"):
+            break
+        if (
+            not round_record.get("followups_executed")
+            and not round_record.get("followups_failed")
+            and len(round_record.get("gaps", [])) > 0
+        ):
+            _log.info(
+                "Run %d: no actionable follow-up tools in round %d, stopping critique loop",
+                run_id, round_number,
+            )
+            break
+
+    # Persist the full iterative payload to research_runs.critique_result.
+    critique_payload = {
+        "rounds": rounds_payload,
+        "final_assessment": final_assessment,
+    }
+    _update_run(run_id, critique_result=json.dumps(critique_payload, default=str))
+
+    return dossier_data, execution_order, tools_called
+
+
+# ---------------------------------------------------------------------------
 # Async Research Engine
 # ---------------------------------------------------------------------------
 
@@ -718,10 +1496,10 @@ async def _run_research_async(run_id: int) -> dict:
     cur.execute("SELECT * FROM research_runs WHERE id = %s", (run_id,))
     run = cur.fetchone(); conn.close()
     if not run: raise ValueError(f"Run {run_id} not found")
-    
+
     start_time = time.time()
     _update_run(run_id, status="running", started_at=datetime.now(), current_step="Initializing...", progress_pct=0)
-    
+
     try:
         return await _run_agent_loop(run_id, dict(run), start_time)
     except Exception as exc:
@@ -730,25 +1508,61 @@ async def _run_research_async(run_id: int) -> dict:
         return {"status": "failed", "error": str(exc)}
 
 async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
+    # Pre-lookup: try to find a website URL from master_employers or mergent
+    # so Gemini and CompanyEnrich have the domain from the start
+    if not run.get("website_url"):
+        try:
+            _pc = _conn(); _pcur = _pc.cursor()
+            _pcur.execute(
+                "SELECT website FROM master_employers "
+                "WHERE canonical_name ILIKE %s AND website IS NOT NULL AND website != '' "
+                "LIMIT 1",
+                (f"%{run['company_name']}%",)
+            )
+            _row = _pcur.fetchone()
+            if _row and _row.get("website"):
+                run["website_url"] = _row["website"]
+                _log.info("Run %d: pre-looked up website '%s' from master_employers", run_id, run["website_url"])
+            _pc.close()
+        except Exception:
+            pass  # Non-critical: proceed without website
+
     vocabulary = _load_vocabulary()
     system_prompt = _build_system_prompt(run, vocabulary)
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
     gemini_tools = _build_gemini_tools()
-    
+
     contents = [types.Content(role="user", parts=[types.Part.from_text(text=f"Research {run['company_name']}")])]
     execution_order, tools_called = 0, 0
     tools_called_set = set(); tool_action_map = {}
     final_text = ""
+    _total_input_tokens = 0
+    _total_output_tokens = 0
+
+    def _track_tokens(resp):
+        nonlocal _total_input_tokens, _total_output_tokens
+        um = getattr(resp, "usage_metadata", None)
+        if um:
+            _total_input_tokens += getattr(um, "prompt_token_count", 0) or 0
+            _total_output_tokens += getattr(um, "candidates_token_count", 0) or 0
 
     # Phase 1: Gemini Multi-Turn Loop
     for turn in range(MAX_TOOL_TURNS):
         pct = min(int((turn / MAX_TOOL_TURNS) * 70), 70)
         _update_run(run_id, current_step=f"Turn {turn+1}: querying Gemini...", progress_pct=pct)
         response = await asyncio.to_thread(client.models.generate_content, model=MODEL, contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt, tools=gemini_tools, max_output_tokens=MAX_TOKENS))
+        _track_tokens(response)
         candidate = response.candidates[0]
         function_calls = [p for p in candidate.content.parts if p.function_call]
+        text_parts = [p.text for p in candidate.content.parts if p.text]
+
+        # Capture any text Gemini returns (even alongside tool calls)
+        if text_parts:
+            partial_text = "\n".join(text_parts)
+            if len(partial_text) > len(final_text):
+                final_text = partial_text
+
         if not function_calls:
-            final_text = "\n".join(p.text for p in candidate.content.parts if p.text)
             break
 
         tool_names = [p.function_call.name for p in function_calls]
@@ -775,6 +1589,28 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             tools_called_set.add(tname)
             f_resps.append(p_resp)
         contents.append(types.Content(role="user", parts=f_resps))
+
+    # If the loop exhausted all turns without Gemini producing a final dossier,
+    # make one more call WITHOUT tools to force synthesis
+    if not _extract_dossier_json(final_text):
+        _log.warning("Run %d: no dossier JSON after %d turns, forcing synthesis call", run_id, MAX_TOOL_TURNS)
+        _update_run(run_id, current_step="Forcing final synthesis...", progress_pct=71)
+        contents.append(types.Content(role="user", parts=[
+            types.Part.from_text(text="You have gathered enough data. Now produce your final JSON dossier report. Do NOT call any more tools. Return the dossier JSON immediately.")
+        ]))
+        try:
+            synth_response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=MODEL, contents=contents,
+                config=types.GenerateContentConfig(system_instruction=system_prompt, max_output_tokens=MAX_TOKENS)
+            )
+            _track_tokens(synth_response)
+            synth_text = "\n".join(p.text for p in synth_response.candidates[0].content.parts if p.text)
+            if synth_text and len(synth_text) > len(final_text):
+                final_text = synth_text
+                _log.info("Run %d: forced synthesis produced %d chars", run_id, len(final_text))
+        except Exception as synth_exc:
+            _log.error("Run %d: forced synthesis failed: %s", run_id, synth_exc)
 
     # Phase 1.5 & 1.6: Forced Enrichment (Parallel)
     # Load strategy to skip low-value tools for this industry/type/size
@@ -886,13 +1722,94 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         return None
     forced_tasks.append(_f_acs())
 
+    async def _f_company_enrich():
+        if "search_company_enrich" in tools_called_set: return None
+        if "search_company_enrich" in _skip_tools: return None
+        kwargs = {"company_name": run["company_name"]}
+        # Try to find a domain for better CompanyEnrich match accuracy
+        # Priority: dossier (from Gemini tools) > pre-looked-up website > run metadata
+        website = None
+        d = _extract_dossier_json(final_text)
+        if d:
+            try:
+                website = d.get("dossier", {}).get("identity", {}).get("website_url")
+            except Exception:
+                pass
+        if not website:
+            website = run.get("website_url")
+        if website and isinstance(website, str) and "." in website:
+            domain = website.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
+            kwargs["domain"] = domain
+        if run.get("linkedin_url"):
+            kwargs["linkedin_url"] = run["linkedin_url"]
+        res = await asyncio.to_thread(TOOL_REGISTRY["search_company_enrich"], **kwargs)
+        return ("company_enrich", res)
+    forced_tasks.append(_f_company_enrich())
+
+    async def _f_linkedin():
+        if "search_linkedin_company" in tools_called_set: return None
+        if "search_linkedin_company" not in TOOL_REGISTRY: return None
+        # Get LinkedIn URL from dossier (CompanyEnrich often provides it)
+        li_url = None
+        d = _extract_dossier_json(final_text)
+        if d:
+            try:
+                li_url = d.get("dossier", {}).get("identity", {}).get("linkedin_url")
+            except Exception:
+                pass
+        if not li_url:
+            li_url = run.get("linkedin_url")
+        if not li_url:
+            return None
+        res = await asyncio.to_thread(TOOL_REGISTRY["search_linkedin_company"],
+                                       company_name=run["company_name"], linkedin_url=li_url)
+        return ("linkedin", res)
+    forced_tasks.append(_f_linkedin())
+
     _update_run(run_id, current_step="Enriching with additional data sources...", progress_pct=72, total_tools_called=tools_called)
     enrich_res = await asyncio.gather(*(t for t in forced_tasks if t is not None))
-    
+
+    # Phase 1.8: Structured Dossier Extraction (response_schema)
+    _log.info("Run %d: structured dossier extraction...", run_id)
+    _update_run(run_id, current_step="Extracting structured dossier...", progress_pct=73)
+    dossier_schema = _build_dossier_schema(vocabulary)
+    extraction_prompt = (
+        "Reformat your research into the structured JSON schema. "
+        "Use ONLY the exact attribute names defined in the schema for facts. "
+        "Set confidence per the scoring rules. Null for fields not found.\n\n"
+        "RAW OUTPUT:\n" + final_text[:40000]
+    )
+    try:
+        extract_resp = await asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL,
+            contents=contents + [types.Content(role="user", parts=[types.Part.from_text(text=extraction_prompt)])],
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                response_schema=dossier_schema,
+                max_output_tokens=MAX_TOKENS,
+            ),
+        )
+        _track_tokens(extract_resp)
+        extract_text = ""
+        if extract_resp.candidates:
+            for part in extract_resp.candidates[0].content.parts:
+                if hasattr(part, "text") and part.text:
+                    extract_text += part.text
+        if extract_text:
+            dossier_data = json.loads(extract_text)
+            _log.info("Run %d: structured extraction OK (%d chars)", run_id, len(extract_text))
+        else:
+            _log.warning("Run %d: structured extraction empty, regex fallback", run_id)
+            dossier_data = _extract_dossier_json(final_text) or {"dossier": {}, "facts": []}
+    except Exception as exc:
+        _log.warning("Run %d: structured extraction failed (%s), regex fallback", run_id, exc)
+        dossier_data = _extract_dossier_json(final_text) or {"dossier": {}, "facts": []}
+
     # Patch Dossier with Enrichment Results
-    dossier_data = _extract_dossier_json(final_text) or {"dossier": {}, "facts": []}
-    body = dossier_data["dossier"]
-    
+    body = dossier_data.setdefault("dossier", {})
+
     for r in enrich_res:
         if not r or not r[1].get("found"): continue
         rtype, rdata = r[0], r[1]
@@ -906,14 +1823,227 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             body.setdefault("leadership", {})["registered_agent"] = rdata.get("data", {}).get("registered_agent")
         elif rtype == "acs_workforce":
             body.setdefault("workforce", {})["acs_demographics"] = rdata.get("data")
+        elif rtype == "company_enrich":
+            ce_data = rdata.get("data", {})
+            identity = body.setdefault("identity", {})
+            if ce_data.get("website") and not identity.get("website_url"):
+                identity["website_url"] = ce_data["website"]
+            if ce_data.get("linkedin_url") and not identity.get("linkedin_url"):
+                identity["linkedin_url"] = ce_data["linkedin_url"]
+            if ce_data.get("founded_year") and not identity.get("year_founded"):
+                identity["year_founded"] = ce_data["founded_year"]
+            if ce_data.get("industry") and not identity.get("naics_description"):
+                identity["naics_description"] = ce_data["industry"]
+            if ce_data.get("company_type") and not identity.get("company_type"):
+                identity["company_type"] = ce_data["company_type"]
+            financial = body.setdefault("financial", {})
+            if ce_data.get("employee_range") and not financial.get("employee_count"):
+                financial["employee_count"] = ce_data["employee_range"]
+            if ce_data.get("revenue_range") and not financial.get("revenue_range"):
+                financial["revenue_range"] = ce_data["revenue_range"]
+            if not identity.get("hq_address"):
+                loc_parts = [ce_data.get("location_city"), ce_data.get("location_state"), ce_data.get("location_country")]
+                loc_str = ", ".join(p for p in loc_parts if p)
+                if loc_str:
+                    identity["hq_address"] = loc_str
+
+        elif rtype == "linkedin":
+            li_data = rdata.get("data", {})
+            identity = body.setdefault("identity", {})
+            if li_data.get("industry") and not identity.get("naics_description"):
+                identity["naics_description"] = li_data["industry"]
+            if li_data.get("headquarters") and not identity.get("hq_address"):
+                identity["hq_address"] = li_data["headquarters"]
+            if li_data.get("founded") and not identity.get("year_founded"):
+                identity["year_founded"] = li_data["founded"]
+            if li_data.get("company_type") and not identity.get("company_type"):
+                identity["company_type"] = li_data["company_type"]
+            financial = body.setdefault("financial", {})
+            if li_data.get("company_size") and not financial.get("employee_count"):
+                financial["employee_count"] = li_data["company_size"]
+            if li_data.get("about"):
+                body.setdefault("identity", {}).setdefault("company_description", li_data["about"])
 
         execution_order += 1; tools_called += 1
         aid = await asyncio.to_thread(_log_action, run_id, f"search_{rtype} (forced)", {"company_name": run["company_name"]}, execution_order, rdata, 0)
         tool_action_map[f"search_{rtype}"] = aid
 
+    # Early termination check: assess dossier coverage after enrichment
+    _coverage_pct, _weak_sections = _assess_coverage(dossier_data)
+    _log.info("Run %d: post-enrichment coverage %.0f%%, weak sections: %s",
+              run_id, _coverage_pct, _weak_sections or "none")
+
+    # Phase 1.7: Variant Web Queries (fill gaps from missed DB tools)
+    # Skip if coverage is already very strong (saves Brave API calls + time)
+    _skip_variants = _coverage_pct >= 90 and not _weak_sections
+    if _skip_variants:
+        _log.info("Run %d: coverage %.0f%% >= 90%%, skipping variant queries", run_id, _coverage_pct)
+    else:
+        _update_run(run_id, current_step="Running variant web queries...", progress_pct=78, total_tools_called=tools_called)
+        try:
+            # Identify which DB tools actually returned NO data (genuine gaps).
+            # Prior bug: this collected every tool in `tool_action_map` --
+            # i.e., tools that RAN -- which inverts the semantics and causes
+            # variant queries to fire for gaps that are already filled.
+            # Fix: query `research_actions` for this run and filter to
+            # data_found=false rows.
+            db_gaps: list[str] = []
+            try:
+                _conn_a = _conn()
+                _cur_a = _conn_a.cursor()
+                _cur_a.execute(
+                    "SELECT tool_name, data_found FROM research_actions WHERE run_id = %s",
+                    (run_id,),
+                )
+                for row in _cur_a.fetchall():
+                    tn = row["tool_name"] if isinstance(row, dict) else row[0]
+                    found = row["data_found"] if isinstance(row, dict) else row[1]
+                    if found is False and tn in _TOOL_GAP_MAP and tn not in db_gaps:
+                        db_gaps.append(tn)
+                _conn_a.close()
+            except Exception as exc:
+                _log.debug("Run %d: could not read research_actions for db_gaps: %s", run_id, exc)
+            # Also capture enrichment misses (enrich_res is in-memory, fresher
+            # than the DB log for actions written later in the pipeline).
+            for r in enrich_res:
+                if r and not r[1].get("found"):
+                    gap_tool = f"search_{r[0]}"
+                    if gap_tool in _TOOL_GAP_MAP and gap_tool not in db_gaps:
+                        db_gaps.append(gap_tool)
+
+            if db_gaps or True:  # always run news/labor/conditions queries
+                queries, gap_types_used = _build_web_search_queries(
+                    run["company_name"],
+                    run.get("company_type"),
+                    run.get("company_state"),
+                    db_gaps,
+                    company_address=run.get("company_address"),
+                    weak_sections=_weak_sections,
+                )
+
+                if queries and "search_brave_web" in TOOL_REGISTRY:
+                    # Pair each query with its gap_type for downstream
+                    # attribution. `gap_types_used` is aligned 1:1 with
+                    # `queries`. Each element is a (gap_key, raw_template)
+                    # tuple -- we only need the gap_key here.
+                    _query_to_gap: dict[str, str] = {}
+                    for _q, _gt_pair in zip(queries, gap_types_used):
+                        _gt = _gt_pair[0] if isinstance(_gt_pair, tuple) else _gt_pair
+                        _query_to_gap[_q] = _gt
+
+                    async def _run_variant(q):
+                        res = await asyncio.to_thread(
+                            TOOL_REGISTRY["search_brave_web"],
+                            query=q, company_name=run["company_name"],
+                        )
+                        return (q, res)
+
+                    # Run up to 8 variant queries in parallel
+                    variant_results = await asyncio.gather(
+                        *(_run_variant(q) for q in queries[:8]),
+                        return_exceptions=True,
+                    )
+
+                    variant_found = 0
+                    # Build fact-count-by-gap-type as we iterate. Prior bug
+                    # passed an empty dict here, which silently logged every
+                    # variant query as 0-facts and poisoned the learning
+                    # table (research_query_effectiveness).
+                    web_facts_by_gap: dict[str, int] = {}
+                    for vr in variant_results:
+                        if isinstance(vr, Exception):
+                            continue
+                        query_str, res = vr
+                        if res.get("found"):
+                            variant_found += 1
+                            execution_order += 1; tools_called += 1
+                            aid = await asyncio.to_thread(
+                                _log_action, run_id, "search_brave_web (variant)",
+                                {"query": query_str}, execution_order, res, 0,
+                            )
+                            # Attribute the returned result_count to this query's gap_type
+                            gt = _query_to_gap.get(query_str)
+                            if gt:
+                                n_results = 0
+                                try:
+                                    n_results = int((res.get("data") or {}).get("result_count") or 0)
+                                except (TypeError, ValueError):
+                                    n_results = 0
+                                web_facts_by_gap[gt] = web_facts_by_gap.get(gt, 0) + n_results
+
+                    if variant_found > 0:
+                        _log.info("Run %d: %d/%d variant queries returned results", run_id, variant_found, len(queries[:8]))
+
+                    # Update query effectiveness tracking with real attribution
+                    try:
+                        _update_query_effectiveness(gap_types_used, web_facts_by_gap, run.get("company_type") or "")
+                    except Exception as exc:
+                        _log.debug("Run %d: _update_query_effectiveness failed: %s", run_id, exc)
+        except Exception as exc:
+            _log.warning("Run %d: variant query phase failed: %s", run_id, exc)
+
     _update_run(run_id, current_step="Saving facts and checking coverage...", progress_pct=85, total_tools_called=tools_called)
     _ensure_exhaustive_coverage(run_id, dossier_data, vocabulary)
     facts_saved = _save_facts(run_id, run.get("employer_id"), dossier_data.get("facts", []), vocabulary, tool_action_map)
+
+    # Phase 2.5: Source Credibility Scoring
+    _update_run(run_id, current_step="Scoring source credibility...", progress_pct=86)
+    credibility_summary = {}
+    try:
+        from scripts.research.source_credibility import score_facts_credibility
+        cred_count = score_facts_credibility(run_id)
+        _log.info("Run %d: scored credibility for %d facts", run_id, cred_count)
+        conn_c = _conn(); cur_c = conn_c.cursor()
+        cur_c.execute(
+            "SELECT AVG(credibility_score) AS avg_cred, "
+            "COUNT(*) FILTER (WHERE credibility_score < 40) AS low_cred "
+            "FROM research_facts WHERE run_id = %s AND credibility_score IS NOT NULL",
+            (run_id,),
+        )
+        row = cur_c.fetchone()
+        credibility_summary = {
+            "avg_score": round(float(row["avg_cred"] or 0), 1),
+            "low_credibility_count": row["low_cred"] or 0,
+            "total_scored": cred_count,
+        }
+        conn_c.close()
+    except Exception as exc:
+        _log.warning("Run %d: credibility scoring failed: %s", run_id, exc)
+
+    # Phase 2.6: Triangulation
+    _update_run(run_id, current_step="Triangulating claims...", progress_pct=88)
+    triangulation_summary = {}
+    try:
+        from scripts.research.triangulation import triangulate_facts
+        triangulation_summary = triangulate_facts(run_id)
+        _log.info(
+            "Run %d: %d claims, %d single-source",
+            run_id,
+            triangulation_summary.get("total_claims", 0),
+            triangulation_summary.get("single_source_count", 0),
+        )
+    except Exception as exc:
+        _log.warning("Run %d: triangulation failed: %s", run_id, exc)
+
+    # Phase 2.7: Critique Loop (iterative — up to CRITIQUE_ROUNDS rounds)
+    _update_run(run_id, current_step="Running critique review...", progress_pct=90)
+    # Outer guard: rounds * per-round + 60s buffer. Per-round timeout is
+    # enforced inside _critique_and_followup; this is the belt-and-suspenders
+    # kill switch in case something hangs outside the round loop itself.
+    _critique_outer_timeout = float(max(1, CRITIQUE_ROUNDS) * CRITIQUE_ROUND_TIMEOUT_S + 60)
+    try:
+        dossier_data, execution_order, tools_called = await asyncio.wait_for(
+            _critique_and_followup(
+                run_id, run, dossier_data,
+                credibility_summary, triangulation_summary,
+                tool_action_map, execution_order, tools_called,
+            ),
+            timeout=_critique_outer_timeout,
+        )
+    except asyncio.TimeoutError:
+        _log.warning("Run %d: critique loop timed out at %ds", run_id, int(_critique_outer_timeout))
+    except Exception as exc:
+        _log.warning("Run %d: critique loop failed: %s", run_id, exc)
 
     # Detect contradictions before auto-grade (feeds into consistency score)
     try:
@@ -922,6 +2052,15 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
             _log.info("Run %d: flagged %d contradiction(s).", run_id, contradictions)
     except Exception as exc:
         _log.debug("Contradiction detection for run %d failed: %s", run_id, exc)
+
+    # Cross-run contradictions (compare against most recent prior run for same employer)
+    if run.get("employer_id"):
+        try:
+            cross = _resolve_cross_run_contradictions(run["employer_id"], run_id)
+            if cross:
+                _log.info("Run %d: flagged %d cross-run contradiction(s).", run_id, cross)
+        except Exception as exc:
+            _log.debug("Cross-run contradiction detection for run %d failed: %s", run_id, exc)
 
     # Count filled sections in the dossier
     _DOSSIER_SECTIONS = {
@@ -935,11 +2074,17 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         "workplace",
         "financial",
         "sources",
+        "adaptive_findings",
     }
     _body = dossier_data.get("dossier", {})
     _sections_filled = sum(1 for s in _DOSSIER_SECTIONS if _body.get(s))
 
-    _update_run(run_id, status="completed", completed_at=datetime.now(), duration_seconds=int(time.time()-start_time), dossier_json=json.dumps(dossier_data, default=str), total_facts_found=facts_saved, sections_filled=_sections_filled, total_tools_called=tools_called)
+    # Compute API cost
+    _total_cost = (_total_input_tokens / 1000 * _INPUT_COST_PER_1K +
+                   _total_output_tokens / 1000 * _OUTPUT_COST_PER_1K)
+    _log.info("Run %d: tokens in=%d out=%d cost=$%.4f", run_id, _total_input_tokens, _total_output_tokens, _total_cost)
+
+    _update_run(run_id, status="completed", completed_at=datetime.now(), duration_seconds=int(time.time()-start_time), dossier_json=json.dumps(dossier_data, default=str), total_facts_found=facts_saved, sections_filled=_sections_filled, total_tools_called=tools_called, total_input_tokens=_total_input_tokens, total_output_tokens=_total_output_tokens, total_cost_cents=round(_total_cost * 100, 2))
 
     _update_run(run_id, current_step="Auto-grading and updating strategy...", progress_pct=95, total_facts_found=facts_saved)
 
@@ -963,6 +2108,19 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
     except Exception as exc:
         _log.debug("Auto-linkage for run %d failed: %s", run_id, exc)
 
+    # Report validation (Phase 8: automated quality checks)
+    validation_report = None
+    try:
+        from scripts.research.report_validation import validate_dossier
+        validation_report = validate_dossier(run_id)
+        _log.info(
+            "Run %d: validation %d/%d checks passed",
+            run_id, validation_report.get("passed_count", 0),
+            validation_report.get("total_checks", 0),
+        )
+    except Exception as exc:
+        _log.debug("Validation for run %d failed: %s", run_id, exc)
+
     # Auto-grade and update strategy tables (learning loop)
     try:
         from scripts.research.auto_grader import grade_and_save, update_strategy_quality
@@ -977,11 +2135,33 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--company", required=True)
+    parser.add_argument("--company", help="Company name (required unless --run-id is provided).")
     parser.add_argument("--state")
+    parser.add_argument(
+        "--run-id",
+        type=int,
+        help=(
+            "Execute research on a pre-existing research_runs row. Useful for "
+            "A/B tests that need to control `triggered_by` or env vars like "
+            "RESEARCH_CRITIQUE_ROUNDS per run."
+        ),
+    )
     args = parser.parse_args()
-    conn = _conn(); cur = conn.cursor()
-    cur.execute("INSERT INTO research_runs (company_name, company_state, status) VALUES (%s, %s, 'pending') RETURNING id", (args.company, args.state))
-    rid = cur.fetchone()["id"]; conn.commit(); conn.close()
-    print(f"Created run {rid}")
+    if args.run_id:
+        rid = args.run_id
+        print(f"Using existing run {rid}")
+    else:
+        if not args.company:
+            parser.error("--company is required unless --run-id is provided")
+        conn = _conn()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO research_runs (company_name, company_state, status) "
+            "VALUES (%s, %s, 'pending') RETURNING id",
+            (args.company, args.state),
+        )
+        rid = cur.fetchone()["id"]
+        conn.commit()
+        conn.close()
+        print(f"Created run {rid}")
     print(run_research(rid))

@@ -1,9 +1,9 @@
+# test edit from vault
 """
 Labor Relations Platform API - Main application entry point.
 
 Run with: py -m uvicorn api.main:app --reload --port 8001
 """
-import os
 import logging
 
 from fastapi import FastAPI
@@ -38,10 +38,15 @@ from .routers import (
     unions,
     nlrb,
     osha,
+    epa,
+    executives,
+    institutional_owners,
+    lobbying,
     organizing,
     whd,
     trends,
     corporate,
+    financials,
     vr,
     public_sector,
     museums,
@@ -98,10 +103,15 @@ app.include_router(scorecard.router)
 app.include_router(unions.router)
 app.include_router(nlrb.router)
 app.include_router(osha.router)
+app.include_router(epa.router)
+app.include_router(executives.router)
+app.include_router(institutional_owners.router)
+app.include_router(lobbying.router)
 app.include_router(organizing.router)
 app.include_router(whd.router)
 app.include_router(trends.router)
 app.include_router(corporate.router)
+app.include_router(financials.router)
 app.include_router(vr.router)
 app.include_router(public_sector.router)
 app.include_router(museums.router)
@@ -114,11 +124,28 @@ app.include_router(demographics.router)
 app.include_router(campaigns.router)
 
 
-@app.exception_handler(psycopg2.Error)
-async def handle_db_error(_request, _exc):
+@app.exception_handler(psycopg2.OperationalError)
+async def handle_db_operational_error(_request, _exc):
     return JSONResponse(
         status_code=503,
         content={"detail": "Database unavailable"},
+    )
+
+
+@app.exception_handler(psycopg2.InterfaceError)
+async def handle_db_interface_error(_request, _exc):
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Database unavailable"},
+    )
+
+
+@app.exception_handler(psycopg2.Error)
+async def handle_db_error(_request, exc):
+    _log.error("Unhandled psycopg2 error: %s: %s", type(exc).__name__, exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
     )
 
 

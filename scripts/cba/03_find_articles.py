@@ -54,14 +54,24 @@ HEADING_PATTERNS = [
         r"^\s*[Ss][Ee][Cc][Tt][Ii][Oo][Nn]\s+(\d+(?:\.\d+)?)\s*[-:.\s]*\s*(.*)$",
         2, "section"
     ),
+    # Priority 3b: "SECTION I--RECOGNITION" / "SECTION III - WAGES" (roman numerals after SECTION)
+    (
+        rf"^\s*SECTION\s+({ROMAN_RE})\s*[-:.\s]+\s*(.+?)$",
+        2, "section_roman"
+    ),
     # Priority 4: "12.3 Overtime Provisions" (numbered heading)
     (
         r"^\s*(\d+\.\d+)\s+([A-Z][A-Za-z\s,&/-]{3,75})$",
         2, "numbered_heading"
     ),
+    # Priority 4b: "1. Recognition" (bare number.space.Title, no decimal)
+    (
+        r"^\s*(\d{1,2})\.\s+([A-Z][A-Za-z\s,&/()\-.']{3,75})$",
+        1, "bare_numbered"
+    ),
     # Priority 5: Roman numeral headings: "XII. WAGES"
     (
-        rf"^\s*({ROMAN_RE})\.\s+([A-Z][A-Z\s,&/-]{{2,75}})$",
+        rf"^\s*({ROMAN_RE})\.\s+([A-Z][A-Za-z\s,&/-]{{2,75}})$",
         1, "roman_heading"
     ),
 ]
@@ -172,7 +182,17 @@ def _match_heading(stripped: str, line_idx: int, lines: list[str]) -> dict | Non
             title = _clean_heading(groups[1]) if groups[1] else ""
             return {"number": num, "title": title, "level": level, "pattern": name, "line_idx": line_idx}
 
+        elif name == "section_roman":
+            num = _roman_to_str(groups[0])
+            title = _clean_heading(groups[1]) if groups[1] else ""
+            return {"number": num, "title": title, "level": level, "pattern": name, "line_idx": line_idx}
+
         elif name == "numbered_heading":
+            num = groups[0]
+            title = _clean_heading(groups[1])
+            return {"number": num, "title": title, "level": level, "pattern": name, "line_idx": line_idx}
+
+        elif name == "bare_numbered":
             num = groups[0]
             title = _clean_heading(groups[1])
             return {"number": num, "title": title, "level": level, "pattern": name, "line_idx": line_idx}
@@ -379,7 +399,7 @@ def main() -> None:
             print(f"    {indent}{c.number}. {c.title} {page_info}{parent_info}")
 
     save_structure(args.cba_id, chunks)
-    print(f"\n  Structure saved to cba_documents.structure_json")
+    print("\n  Structure saved to cba_documents.structure_json")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,17 @@ function renderWithProviders(ui) {
 
 const mockData = {
   employer_naics: '6216',
+  employer_state: 'TX',
+  qcew_benchmark: {
+    source: 'QCEW (BLS)',
+    year: 2023,
+    county_fips: '48201',
+    industry_code: '6216',
+    local_employment: 45000,
+    local_establishments: 1200,
+    avg_annual_pay: 52000,
+    avg_weekly_wage: 1000,
+  },
   top_occupations: [
     {
       occupation_code: '29-1141',
@@ -35,6 +46,14 @@ const mockData = {
         { name: 'Face-to-Face Discussions', value: 4.33 },
       ],
       job_zone: 4,
+      wages: {
+        median_annual: 86070,
+        pct10_annual: 63720,
+        pct25_annual: 72550,
+        pct75_annual: 101130,
+        pct90_annual: 132680,
+        median_hourly: 41.38,
+      },
     },
     {
       occupation_code: '31-1120',
@@ -45,6 +64,7 @@ const mockData = {
       top_knowledge: [],
       top_work_context: [],
       job_zone: 2,
+      wages: null,
     },
     {
       occupation_code: '43-6013',
@@ -55,6 +75,7 @@ const mockData = {
       top_knowledge: [],
       top_work_context: [],
       job_zone: null,
+      wages: { median_annual: 40350, pct10_annual: 28680, pct25_annual: 33050, pct75_annual: 48230, pct90_annual: 55960, median_hourly: 19.40 },
     },
     {
       occupation_code: '11-9111',
@@ -65,6 +86,7 @@ const mockData = {
       top_knowledge: [],
       top_work_context: [],
       job_zone: null,
+      wages: null,
     },
   ],
   similar_industries: [
@@ -170,5 +192,64 @@ describe('OccupationSection', () => {
     // Click again to collapse
     fireEvent.click(screen.getByText('Registered Nurses'))
     expect(screen.queryByText('Active Listening')).not.toBeInTheDocument()
+  })
+
+  // Wage data tests
+  it('renders QCEW benchmark banner', () => {
+    renderWithProviders(<OccupationSection data={mockData} isLoading={false} />)
+    fireEvent.click(screen.getByText('Workforce Occupations'))
+    expect(screen.getByText('Local industry benchmark:')).toBeInTheDocument()
+    expect(screen.getByText(/\$52,000\/yr/)).toBeInTheDocument()
+    expect(screen.getByText(/\$1,000\/wk/)).toBeInTheDocument()
+    expect(screen.getByText(/2023 QCEW/)).toBeInTheDocument()
+  })
+
+  it('hides QCEW banner when no benchmark data', () => {
+    const dataWithoutQcew = { ...mockData, qcew_benchmark: null }
+    renderWithProviders(<OccupationSection data={dataWithoutQcew} isLoading={false} />)
+    fireEvent.click(screen.getByText('Workforce Occupations'))
+    expect(screen.queryByText('Local industry benchmark:')).not.toBeInTheDocument()
+  })
+
+  it('renders Median Wage column header', () => {
+    renderWithProviders(<OccupationSection data={mockData} isLoading={false} />)
+    fireEvent.click(screen.getByText('Workforce Occupations'))
+    expect(screen.getByText('Median Wage')).toBeInTheDocument()
+  })
+
+  it('shows formatted wage in table cell', () => {
+    renderWithProviders(<OccupationSection data={mockData} isLoading={false} />)
+    fireEvent.click(screen.getByText('Workforce Occupations'))
+    expect(screen.getByText('$86,070')).toBeInTheDocument()
+  })
+
+  it('shows -- for occupations with null wages', () => {
+    renderWithProviders(<OccupationSection data={mockData} isLoading={false} />)
+    fireEvent.click(screen.getByText('Workforce Occupations'))
+    // Home Health Aides and Medical Managers have null wages - there should be -- indicators
+    const dashes = screen.getAllByText('--')
+    expect(dashes.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('shows wage percentiles in expanded detail row', () => {
+    renderWithProviders(<OccupationSection data={mockData} isLoading={false} />)
+    fireEvent.click(screen.getByText('Workforce Occupations'))
+    fireEvent.click(screen.getByText('Registered Nurses'))
+    expect(screen.getByText('Wage Range (TX)')).toBeInTheDocument()
+    expect(screen.getByText('10th pct')).toBeInTheDocument()
+    expect(screen.getByText('90th pct')).toBeInTheDocument()
+    expect(screen.getByText('$63,720')).toBeInTheDocument()
+    expect(screen.getByText('$132,680')).toBeInTheDocument()
+    expect(screen.getByText('$41.38/hr')).toBeInTheDocument()
+  })
+
+  it('makes rows with only wages expandable', () => {
+    renderWithProviders(<OccupationSection data={mockData} isLoading={false} />)
+    fireEvent.click(screen.getByText('Workforce Occupations'))
+    // Medical Secretaries has no O*NET but has wages - should be expandable
+    fireEvent.click(screen.getByText('Medical Secretaries'))
+    // $40,350 appears in both table cell and expanded detail
+    expect(screen.getAllByText('$40,350').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('$19.40/hr')).toBeInTheDocument()
   })
 })

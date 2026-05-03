@@ -16,48 +16,37 @@ function renderWithProviders(ui) {
 const MOCK_DATA = {
   file_number: '188',
   has_strike_fund: true,
+  group_definitions: {
+    representational: 'Contract negotiation, grievance handling, arbitration, and strike support.',
+    political_lobbying: 'Political activities and lobbying expenditures.',
+    staff_officers: 'Compensation and benefits for officers and staff.',
+    member_benefits: 'Direct benefits paid to members.',
+    operations: 'General overhead, supplies, and administrative costs.',
+    affiliation_dues: 'Per capita taxes and payments to affiliates.',
+    financial: 'Investments, loans, taxes, and other financial disbursements.',
+  },
   years: [
     {
       year: 2024,
-      organizing: 5000000,
-      compensation: 3000000,
-      benefits_members: 2000000,
-      administration: 1500000,
-      external: 500000,
+      representational: 4000000,
+      political_lobbying: 500000,
+      staff_officers: 3000000,
+      member_benefits: 1000000,
+      operations: 1500000,
+      affiliation_dues: 300000,
+      financial: 200000,
       total: 12000000,
-      categories: {
-        representational: 4000000,
-        political: 500000,
-        strike_benefits: 500000,
-        to_officers: 2000000,
-        to_employees: 1000000,
-        benefits: 1000000,
-        per_capita_tax: 200000,
-        general_overhead: 500000,
-        contributions: 500000,
-        affiliates: 100000,
-        union_administration: 400000,
-        supplies: 200000,
-        fees: 100000,
-        administration: 200000,
-        direct_taxes: 50000,
-        withheld: 50000,
-        members: 500000,
-        investments: 100000,
-        loans_made: 50000,
-        loans_payment: 50000,
-        other_disbursements: 0,
-      },
     },
     {
       year: 2023,
-      organizing: 4500000,
-      compensation: 2800000,
-      benefits_members: 1800000,
-      administration: 1400000,
-      external: 450000,
+      representational: 3500000,
+      political_lobbying: 450000,
+      staff_officers: 2800000,
+      member_benefits: 900000,
+      operations: 1400000,
+      affiliation_dues: 280000,
+      financial: 180000,
       total: 10950000,
-      categories: {},
     },
   ],
 }
@@ -81,8 +70,8 @@ describe('UnionDisbursementsSection', () => {
     expect(container.innerHTML).toContain('bg-amber-500')
     expect(container.innerHTML).toContain('bg-green-500')
     // Check legend labels (also appears in table headers, so use getAllByText)
-    expect(screen.getAllByText(/Organizing/).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText(/Compensation/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/Representational/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/Staff/).length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders strike fund badge', () => {
@@ -108,7 +97,7 @@ describe('UnionDisbursementsSection', () => {
       years: [
         {
           ...MOCK_DATA.years[0],
-          compensation: 4000000,
+          staff_officers: 4000000,
           total: 12000000,
         },
         ...MOCK_DATA.years.slice(1),

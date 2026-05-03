@@ -439,6 +439,15 @@ def build_acs(conn):
         return
 
     _execute(conn, "DROP TABLE IF EXISTS cur_acs_workforce_demographics CASCADE", "drop old")
+    # Filter at the source-aggregation step:
+    #   sample = '202303' picks the 2023 ACS 5-year (largest, most stable sample
+    #     with insurance vars). The IPUMS extract pulls 9 sample-years; without
+    #     this filter, weighted_count was summed across all samples and inflated
+    #     totals by ~9x (NY 16M -> 145M was R7-1's "impossible" number).
+    #   indnaics <> '0' AND occsoc <> '0' AND classwkr <> '0' drops not-in-labor
+    #     -force people. IPUMS codes them with the '0' sentinel; the prior build
+    #     script's filter was looking for "0000"/"000000" sentinels that don't
+    #     exist in this universe, so retirees / students / unemployed leaked in.
     _execute(conn, """
         CREATE TABLE cur_acs_workforce_demographics AS
         SELECT
@@ -454,7 +463,6 @@ def build_acs(conn):
             classwkr                        AS worker_class,
             SUM(weighted_count)             AS weighted_workers,
             COUNT(*)                        AS raw_cell_count,
-            -- Insurance rates (weighted insured / weighted total * 100)
             CASE WHEN SUM(weighted_count) > 0
                  THEN ROUND(SUM(weighted_hcovany::numeric) / SUM(weighted_count::numeric) * 100, 2)
                  ELSE NULL END              AS pct_any_insurance,
@@ -474,6 +482,10 @@ def build_acs(conn):
                  THEN ROUND(SUM(weighted_hcovsub2::numeric) / SUM(weighted_count::numeric) * 100, 2)
                  ELSE NULL END              AS pct_subsidized
         FROM newsrc_acs_occ_demo_profiles
+        WHERE sample = '202303'
+          AND indnaics <> '0'
+          AND occsoc <> '0'
+          AND classwkr <> '0'
         GROUP BY 1,2,3,4,5,6,7,8,9,10
     """, "create table")
 

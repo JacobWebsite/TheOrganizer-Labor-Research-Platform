@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/button'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 import { MiniStat } from '@/shared/components/MiniStat'
 import { SidebarTOC } from '@/shared/components/SidebarTOC'
-import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources, useEmployerMatches, useEmployerOccupations } from '@/shared/api/profile'
+import { parseCanonicalId, useEmployerProfile, useEmployerUnifiedDetail, useScorecardDetail, useEmployerDataSources, useEmployerMatches, useEmployerOccupations, useEmployerFinancials } from '@/shared/api/profile'
 import { useTargetDetail, useTargetScorecardDetail } from '@/shared/api/targets'
 import { ProfileHeader } from './ProfileHeader'
 import { ProfileActionButtons } from './ProfileActionButtons'
 import { ScorecardSection } from './ScorecardSection'
 import { SignalInventory } from './SignalInventory'
 import { OshaSection } from './OshaSection'
+import { EnvironmentalCard } from './EnvironmentalCard'
+import { ExecutivesCard } from './ExecutivesCard'
+import { InstitutionalOwnersCard } from './InstitutionalOwnersCard'
+import { LobbyingCard } from './LobbyingCard'
 import { NlrbSection } from './NlrbSection'
 import { CrossReferencesSection } from './CrossReferencesSection'
 import { BasicProfileView } from './BasicProfileView'
@@ -28,6 +32,7 @@ import { ResearchInsightsCard } from './ResearchInsightsCard'
 import { WorkforceDemographicsCard } from './WorkforceDemographicsCard'
 import { NycEnforcementSection } from './NycEnforcementSection'
 import { OccupationSection } from './OccupationSection'
+import { FamilyRollupSection } from './FamilyRollupSection'
 
 const PROFILE_SECTIONS = [
   { id: 'scorecard', label: 'Scorecard' },
@@ -39,6 +44,7 @@ const PROFILE_SECTIONS = [
   { id: 'occupations', label: 'Occupations' },
   { id: 'corporate', label: 'Corporate' },
   { id: 'comparables', label: 'Comparables' },
+  { id: 'family-rollup', label: 'Family Rollup' },
   { id: 'nlrb', label: 'NLRB' },
   { id: 'contracts', label: 'Contracts' },
   { id: 'osha', label: 'OSHA' },
@@ -88,6 +94,9 @@ export function EmployerProfilePage() {
 
   // Occupation data — F7 only, after profile loads
   const occupationsQuery = useEmployerOccupations(isF7 ? id : null)
+
+  // SEC/990 financials — F7 only, after profile loads
+  const financialsQuery = useEmployerFinancials(id, { enabled: isF7 && !!data })
 
   // Master employer scorecard — must be called unconditionally (Rules of Hooks)
   const masterScorecardQuery = useTargetScorecardDetail(rawId, { enabled: isMaster && !!data })
@@ -197,7 +206,7 @@ export function EmployerProfilePage() {
     )
   }
 
-  // Master employer path — enriched view with signal inventory
+  // Master employer path — enriched view with signal inventory + family rollup
   if (isMaster && data) {
     const masterEmployer = data.master || data
     const masterScorecard = masterScorecardQuery.data?.scorecard
@@ -216,6 +225,24 @@ export function EmployerProfilePage() {
           targetSignals={masterScorecard}
         />
         <SignalInventory scorecard={masterScorecard} signals={masterSignals} />
+        {/* Corporate-family rollup -- aggregates NLRB/OSHA/WHD/F-7 across all
+            name-variant siblings of this master. Self-gates on master_count > 5
+            OR NLRB cases > 20, so single-location employers stay clean. */}
+        <FamilyRollupSection masterId={rawId} />
+        {/* 24Q-31: EPA ECHO environmental enforcement. Self-fetches via
+            useMasterEpaEcho. Closes Q21 Environmental on the master path. */}
+        <EnvironmentalCard masterId={rawId} />
+        {/* 24Q-7: Mergent executive roster. Self-fetches via
+            useMasterExecutives. Moves Q8 Management Medium -> Strong. */}
+        <ExecutivesCard masterId={rawId} />
+        {/* 24Q-9: SEC Form 13F institutional owners. Self-fetches via
+            useMasterInstitutionalOwners. Moves Q9 Stockholders Missing
+            -> Strong for publicly-traded targets. */}
+        <InstitutionalOwnersCard masterId={rawId} />
+        {/* 24Q-39: LDA federal lobbying. Self-fetches via
+            useMasterLobbying. One pillar of Q24 Political alongside
+            FEC contributions. */}
+        <LobbyingCard masterId={rawId} />
         <BasicProfileView data={data} isMaster />
       </div>
     )
@@ -276,7 +303,7 @@ export function EmployerProfilePage() {
 
   // Build summary parts for hero banner
   const summaryParts = []
-  if (osha?.total_violations) summaryParts.push(`${formatNumber(osha.total_violations)} OSHA violations`)
+  if (osha?.summary?.total_violations) summaryParts.push(`${formatNumber(osha.summary.total_violations)} OSHA violations`)
   if (scorecard?.score_whd != null) summaryParts.push('Wage theft cases on file')
   const ds = dataSourcesQuery.data
   if (ds?.is_federal_contractor && ds?.federal_obligations) {
@@ -325,19 +352,38 @@ export function EmployerProfilePage() {
         isUnionReference={data.is_union_reference === true}
         summaryParts={summaryParts}
         dataSources={ds}
+        entityContext={data?.entity_context}
       />
 
       {/* MiniStat row - full width */}
       <div className="flex gap-3 flex-wrap">
         <MiniStat
           label="WORKERS"
-          value={formatNumber(employer.consolidated_workers || employer.unit_size || employer.total_workers)}
+          value={(() => {
+            const ec = data?.entity_context
+            // family_primary: show the range when SEC + Mergent agree, else the
+            // primary count. Respects the API's range-vs-flag decision so the
+            // hero MiniStat stays consistent with the EntityContextBlock below.
+            if (ec?.display_mode === 'family_primary' && ec.family?.primary_count != null) {
+              if (ec.family.range?.display) return ec.family.range.display
+              return formatNumber(ec.family.primary_count)
+            }
+            if (ec?.unit?.count != null) return formatNumber(ec.unit.count)
+            return formatNumber(employer.consolidated_workers || employer.unit_size || employer.total_workers)
+          })()}
+          sub={
+            data?.entity_context?.display_mode === 'family_primary'
+              ? 'Corp. family'
+              : data?.entity_context?.unit?.count != null
+              ? 'This unit'
+              : undefined
+          }
           accent="#1a6b5a"
         />
         <MiniStat
           label="OSHA VIOLATIONS"
-          value={osha?.total_violations != null ? formatNumber(osha.total_violations) : '--'}
-          sub={osha?.serious_count ? `${osha.serious_count} serious` : undefined}
+          value={osha?.summary?.total_violations != null ? formatNumber(osha.summary.total_violations) : '--'}
+          sub={osha?.summary?.serious_violations ? `${osha.summary.serious_violations} serious` : undefined}
           accent="#c23a22"
         />
         {scorecard?.score_whd != null && (
@@ -375,7 +421,7 @@ export function EmployerProfilePage() {
             <UnionRelationshipsCard employer={employer} />
           </div>
           <div id="financial">
-            <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} sourceAttribution={getFinancialAttribution()} />
+            <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} financials={financialsQuery.data} sourceAttribution={getFinancialAttribution()} />
           </div>
           <div id="demographics">
             <WorkforceDemographicsCard state={employer?.state} naics={scorecard?.naics || employer?.naics} employerId={id} />
@@ -389,6 +435,15 @@ export function EmployerProfilePage() {
           <div id="comparables">
             <ComparablesCard employerId={id} />
           </div>
+          {/* Corporate-family rollup for F-7 profiles: resolves the F-7's
+              name_standard to the same canonical stem the master variant uses,
+              so a per-store Starbucks F-7 profile sees the full 2,351-case
+              national rollup. Self-gates on master_count > 5 OR NLRB > 20. */}
+          {isF7 && (
+            <div id="family-rollup">
+              <FamilyRollupSection f7Id={id} />
+            </div>
+          )}
           <div id="nlrb">
             <NlrbSection nlrb={nlrb} sourceAttribution={getAttribution('nlrb')} scorecard={scorecard} dataSources={ds} docket={data?.nlrb_docket} />
           </div>
@@ -416,7 +471,7 @@ export function EmployerProfilePage() {
 
           {/* Action buttons at bottom */}
           <div className="flex gap-3 mt-6 pt-6 border-t border-[#d9cebb]">
-            <ProfileActionButtons employer={employer} scorecard={scorecard} />
+            <ProfileActionButtons employer={employer} scorecard={scorecard} entityContext={data?.entity_context} />
           </div>
         </div>
       </div>

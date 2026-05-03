@@ -21,8 +21,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from db_config import get_connection
 
-SOURCE_PRIORITY = {"f7": 0, "sam": 1, "mergent": 2, "bmf": 3}
-EMP_COUNT_PRIORITY = {"f7": 0, "mergent": 1, "sam": 2, "bmf": 3}
+SOURCE_PRIORITY = {"f7": 0, "sam": 1, "mergent": 2, "bmf": 3, "sec": 4, "990": 5, "gleif": 6}
+EMP_COUNT_PRIORITY = {"f7": 0, "mergent": 1, "sam": 2, "bmf": 3, "990": 4}
 
 
 @dataclass

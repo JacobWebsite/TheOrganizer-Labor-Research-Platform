@@ -8,6 +8,7 @@ vi.mock('@/shared/api/unions', () => ({
   useNationalUnionDetail: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionHierarchy: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionSearch: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
+  useUnionOverview: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionDetail: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useUnionMembershipHistory: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionOrganizingCapacity: vi.fn(() => ({ data: null, isLoading: false })),

@@ -11,6 +11,7 @@ vi.mock('@/shared/api/profile', () => ({
   useEmployerFlags: vi.fn(() => ({ data: { flags: [] }, isLoading: false })),
   useFlagEmployer: vi.fn(() => ({ mutate: vi.fn(), isPending: false, isError: false })),
   useEmployerDataSources: vi.fn(() => ({ data: null, isLoading: false })),
+  useEmployerFinancials: vi.fn(() => ({ data: null, isLoading: false })),
   parseCanonicalId: vi.fn((id) => ({ isF7: true, sourceType: 'F7', rawId: id })),
   useEmployerProfile: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useEmployerUnifiedDetail: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
@@ -87,9 +88,13 @@ describe('ProfileCards', () => {
     expect(screen.getByText('5')).toBeInTheDocument()
   })
 
-  it('GovernmentContractsCard returns null when not contractor', () => {
-    const { container } = renderWithProviders(<GovernmentContractsCard dataSources={{ is_federal_contractor: false }} />)
-    expect(container.innerHTML).toBe('')
+  it('GovernmentContractsCard shows amber warning when not contractor', () => {
+    renderWithProviders(<GovernmentContractsCard dataSources={{ is_federal_contractor: false }} />)
+    expect(screen.getByText('Government Contracts')).toBeInTheDocument()
+    expect(screen.getByText('No records matched')).toBeInTheDocument()
+    // Expand the card to see the amber warning content
+    fireEvent.click(screen.getByText('Government Contracts'))
+    expect(screen.getByText(/No government contract data has been matched/)).toBeInTheDocument()
   })
 
   // -- WhdCard --
