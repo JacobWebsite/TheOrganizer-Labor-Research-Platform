@@ -136,6 +136,19 @@ export function useMasterFecContributions(
   })
 }
 
+// 24Q-14: Board of directors (DEF14A roster + interlocks) on the master profile.
+// Endpoint returns { summary, directors, interlocks }. Pairs with
+// useMasterExecutives for the full Q8/Q10 management+board picture.
+export function useMasterBoard(masterId, { enabled = true, limit = 50 } = {}) {
+  return useQuery({
+    queryKey: ['master-board', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/board?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEmployerCorporate(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-corporate', id],

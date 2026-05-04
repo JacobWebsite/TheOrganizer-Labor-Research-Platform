@@ -183,7 +183,12 @@ SELECT
     f.latest_unit_size AS employee_count,
     CASE WHEN f.latest_unit_size IS NOT NULL THEN 'f7' ELSE NULL END AS employee_count_source,
     NULL::TEXT AS ein,
-    TRUE AS is_union,
+    -- f7_employers_deduped is the EMPLOYER side of LM-2 (companies the
+    -- union interacts with), NOT the union itself. Only the small subset
+    -- with f.is_labor_org=TRUE are actual labor organizations. Originally
+    -- hardcoded to TRUE which mis-flagged 144,907 employers and silently
+    -- excluded them from mv_target_data_sources (Open Problems / 2026-04-24).
+    COALESCE(f.is_labor_org, FALSE) AS is_union,
     FALSE AS is_public,
     FALSE AS is_federal_contractor,
     FALSE AS is_nonprofit,

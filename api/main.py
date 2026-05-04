@@ -42,6 +42,7 @@ from .routers import (
     executives,
     institutional_owners,
     fec_contributions,
+    board,
     lobbying,
     organizing,
     whd,
@@ -108,6 +109,7 @@ app.include_router(epa.router)
 app.include_router(executives.router)
 app.include_router(institutional_owners.router)
 app.include_router(fec_contributions.router)
+app.include_router(board.router)
 app.include_router(lobbying.router)
 app.include_router(organizing.router)
 app.include_router(whd.router)

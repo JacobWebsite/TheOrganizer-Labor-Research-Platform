@@ -14,6 +14,7 @@ import { SignalInventory } from './SignalInventory'
 import { OshaSection } from './OshaSection'
 import { EnvironmentalCard } from './EnvironmentalCard'
 import { ExecutivesCard } from './ExecutivesCard'
+import { BoardCard } from './BoardCard'
 import { InstitutionalOwnersCard } from './InstitutionalOwnersCard'
 import { LobbyingCard } from './LobbyingCard'
 import { FecContributionsCard } from './FecContributionsCard'
@@ -236,6 +237,10 @@ export function EmployerProfilePage() {
         {/* 24Q-7: Mergent executive roster. Self-fetches via
             useMasterExecutives. Moves Q8 Management Medium -> Strong. */}
         <ExecutivesCard masterId={rawId} />
+        {/* 24Q-14: Board of directors (DEF14A roster + cross-company
+            interlocks). Self-fetches via useMasterBoard. Closes Q10 Board
+            for SEC-filing employers. */}
+        <BoardCard masterId={rawId} />
         {/* 24Q-9: SEC Form 13F institutional owners. Self-fetches via
             useMasterInstitutionalOwners. Moves Q9 Stockholders Missing
             -> Strong for publicly-traded targets. */}
