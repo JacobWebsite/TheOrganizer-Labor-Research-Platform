@@ -42,3 +42,20 @@
 
 # Health endpoint (CI/uptime).
 /api/health
+
+# 24Q profile-card endpoints. Each backs a CollapsibleCard on the master
+# profile page. Dropping any of these silently removes that card. Added
+# 2026-05-04 after R7-6 / R7-9 / R7-15 patterns where new routes were
+# absent from running API despite being in the codebase.
+# Q21 Environmental
+/api/employers/master/{master_id}/epa-echo
+# Q8 Management
+/api/employers/master/{master_id}/executives
+# Q9 Stockholders
+/api/employers/master/{master_id}/institutional-owners
+# Q24 Political (LDA lobbying)
+/api/employers/master/{master_id}/lobbying
+# Q24 Political (FEC contributions)
+/api/employers/master/{master_id}/fec-contributions
+# Q10 Board (DEF14A roster + interlocks)
+/api/employers/master/{master_id}/board
