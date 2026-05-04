@@ -204,7 +204,14 @@ _AGE_RE = re.compile(r"\bage[:\s]+(?P<age>\d{2,3})\b", re.IGNORECASE)
 _SINCE_RE = re.compile(r"\bdirector\s+since[:\s]+(?P<year>\d{4})\b", re.IGNORECASE)
 _BIG_HEADER_NAME_RE = re.compile(r"\bname\b", re.IGNORECASE)
 _BIG_HEADER_AGE_RE = re.compile(r"\bage\b", re.IGNORECASE)
-_BIG_HEADER_SINCE_RE = re.compile(r"\bdirector\s+since\b", re.IGNORECASE)
+# Match the canonical "Director Since" plus the Air-Products-style
+# "Year First Elected (or Appointed)" / "Year Elected" variants. Used both
+# for table SCORING and for column-INDEX detection.
+_BIG_HEADER_SINCE_RE = re.compile(
+    r"\b(?:director\s+since|year\s+first\s+elected|first\s+elected|"
+    r"year\s+elected|elected\s+or\s+appointed)\b",
+    re.IGNORECASE,
+)
 _INDEPENDENT_RE = re.compile(r"\bindependent\b", re.IGNORECASE)
 _COMMITTEE_RE = re.compile(r"\b(audit|compensation|nominating|governance|finance|risk|technology|safety|sustainability)\b", re.IGNORECASE)
 
@@ -239,12 +246,31 @@ def _is_valid_director_name(s: str) -> bool:
                 "president", "vice", "executive", "board", "committee",
                 "independent", "lead", "principal", "founder", "skills",
                 "experience", "since", "qualifications", "tenure"}
+    # Reject section-heading false positives that the profile-block
+    # preceding-heading fallback can pick up (AAR/AEP cases like
+    # "Information about our directors", "Proposal 1 Election of Directors",
+    # "Professional Highlights", "Class II Directors").
+    section_words = {"information", "proposal", "highlights", "election",
+                     "about", "following", "below", "page", "section",
+                     "chapter", "table", "continued", "item", "professional",
+                     "class", "nominees", "summary", "background", "biographies",
+                     "biography", "compensation", "overview", "introduction",
+                     "election", "elections", "matter", "matters"}
     words = s.split()
     if len(words) < 2:
         return False
+    lower_words = [w.lower().rstrip(".,") for w in words]
+    if any(lw in section_words for lw in lower_words):
+        return False
     # If MORE THAN HALF the words are keywords, reject
-    keyword_hits = sum(1 for w in words if w.lower().rstrip(".,") in keywords)
+    keyword_hits = sum(1 for lw in lower_words if lw in keywords)
     if keyword_hits >= max(1, len(words) // 2):
+        return False
+    # Reject names ending in stop-word grammar fragments. Real names don't
+    # end in "of"/"and"/"the"/"our"/"to" — those are mid-sentence captures.
+    stop_endings = {"of", "and", "the", "our", "to", "for", "with",
+                    "in", "on", "by", "as", "at"}
+    if lower_words[-1] in stop_endings:
         return False
     # Must have at least one word that looks like a real name (capitalized,
     # 3+ chars, alphabetic) AND not a keyword
@@ -367,12 +393,22 @@ def _strategy_big_summary_table(soup) -> list[Director]:
     extract from the highest-scoring one with >=4 data rows.
     """
     best = None
+    best_header_idx = 0
     best_score = 0
     for table in soup.find_all("table"):
         rows = table.find_all("tr")
         if len(rows) < 5:
             continue
-        header_cells = _row_cells(rows[0])
+        # Find the first non-empty row -- some proxies (Air Products,
+        # CIK 2186) lead with a blank spacer row before the real header.
+        header_idx = 0
+        header_cells: list[str] = []
+        for hi, row in enumerate(rows[:3]):  # cap at first 3 in case of preface
+            cells = _row_cells(row)
+            if any(c.strip() for c in cells):
+                header_idx = hi
+                header_cells = [c for c in cells if c.strip()]  # drop spacers
+                break
         header_blob = " | ".join(header_cells).lower()
         score = 0
         if _BIG_HEADER_NAME_RE.search(header_blob): score += 1
@@ -385,12 +421,14 @@ def _strategy_big_summary_table(soup) -> list[Director]:
         if "compensation" in header_blob or "fees earned" in header_blob:
             continue
         if score >= 4 and score > best_score:
-            best, best_score = table, score
+            best, best_header_idx, best_score = table, header_idx, score
     if not best:
         return []
 
     rows = best.find_all("tr")
-    header_cells = [c.lower() for c in _row_cells(rows[0])]
+    # Re-derive header at the offset we found during scoring (drop spacers)
+    header_cells_raw = _row_cells(rows[best_header_idx])
+    header_cells = [c.lower() for c in header_cells_raw if c.strip()]
     # Best-effort column index detection
     def find_idx(predicate) -> int | None:
         for i, h in enumerate(header_cells):
@@ -399,7 +437,18 @@ def _strategy_big_summary_table(soup) -> list[Director]:
         return None
     name_idx = find_idx(lambda h: "name" in h)
     age_idx = find_idx(lambda h: h.strip() == "age" or h.startswith("age "))
-    since_idx = find_idx(lambda h: "director since" in h or "since" in h)
+    # "Director Since" is the canonical label, but Air-Products-style proxies
+    # use "Year First Elected or Appointed" and small filers sometimes use
+    # "appointed" alone. Accept all of those as the start-year column.
+    since_idx = find_idx(
+        lambda h: "director since" in h
+        or "year first elected" in h
+        or "first elected" in h
+        or "year elected" in h
+        or "elected or appointed" in h
+        or h.strip() == "appointed"
+        or "since" in h
+    )
     indep_idx = find_idx(lambda h: "independent" in h)
     cmte_idx = find_idx(lambda h: "committee" in h)
     if name_idx is None:
@@ -407,9 +456,10 @@ def _strategy_big_summary_table(soup) -> list[Director]:
 
     out: list[Director] = []
     seen = set()
-    for tr in rows[1:]:
-        cells = _row_cells(tr)
-        if name_idx >= len(cells):
+    for tr in rows[best_header_idx + 1:]:
+        cells_raw = _row_cells(tr)
+        cells = [c for c in cells_raw if c.strip()]  # drop empty spacer cells
+        if not cells or name_idx >= len(cells):
             continue
         name = _norm_director_name(cells[name_idx])
         if not name or name.lower() in seen or len(name) < 3:
@@ -541,6 +591,156 @@ def _strategy_director_comp_table(soup) -> list[Director]:
     return out
 
 
+_PROFILE_AGE_RE = re.compile(r"\bAge\s*[:\-]?\s*(\d{2,3})\b", re.IGNORECASE)
+_PROFILE_SINCE_RE = re.compile(
+    r"\bDirector\s+Since\s*[:\-]?\s*(?:[A-Z][a-z]+\s+)?(\d{4})\b", re.IGNORECASE
+)
+_PROFILE_INDEP_RE = re.compile(r"\bIndependent\s*[:\-]?\s*(Yes|No)\b", re.IGNORECASE)
+_PROFILE_COMMITTEES_RE = re.compile(
+    r"(?:[A-Z]{2,4}\s+)?Committees?\s*[:\-]?\s*(.{1,400}?)"
+    r"(?=Professional|Other Public|Prior Public|Skills|Qualifications|"
+    r"Experience|Independent\b|$)",
+    re.IGNORECASE | re.DOTALL,
+)
+_PROFILE_BULLET_RE = re.compile(r"[•·●\*]\s*([^•·●\*\n]{2,80})")
+_PROFILE_TITLE_BOUNDARY = re.compile(
+    r"\s+(?:Chair(?:man|woman|person)?|President|CEO|CFO|COO|Director|"
+    r"Vice|Senior|Executive|Lead|Independent|Founder|Co-Founder|"
+    r"Retired|Former|Other\s+Public|Prior\s+Public|"
+    r"Age\s*[:\-]|Director\s+Since|Skills|Qualifications)\b",
+    re.IGNORECASE,
+)
+
+
+def _strategy_profile_block(soup) -> list[Director]:
+    """AAR / AEP / Avery-style: each director's data lives in a single
+    block-level element (div / td / section) that contains both 'Age:' and
+    'Director Since:' anchors plus committee bullets, with the director's
+    name as the leading text. Independence often spelled 'Independent: Yes'.
+
+    Two name-extraction approaches, tried in order:
+      (A) The block's first 2-5 capitalised words preceding any title
+          boundary keyword (Chair / President / CEO / etc.). Works for AEP.
+      (B) When (A) yields garbage like 'Age: 64' or 'Information about',
+          fall back to the immediately preceding heading or strong tag.
+          Works for AAR.
+    """
+    out: list[Director] = []
+    seen = set()
+    for el in soup.find_all(["div", "td", "section", "article", "p"]):
+        text = el.get_text(" ", strip=True)
+        if len(text) < 50 or len(text) > 5000:
+            continue
+        if "age" not in text.lower() or "director since" not in text.lower():
+            continue
+        text = re.sub(r"\s+", " ", text).strip()
+        age_m = _PROFILE_AGE_RE.search(text)
+        since_m = _PROFILE_SINCE_RE.search(text)
+        if not (age_m and since_m):
+            continue
+        # (A) leading-name extraction
+        name = None
+        m = _PROFILE_TITLE_BOUNDARY.search(text)
+        if m and m.start() >= 4:
+            cand = text[: m.start()].strip(" ,;:.|")
+            if 4 <= len(cand) <= 60:
+                words = cand.split()
+                if 2 <= len(words) <= 5 and _is_valid_director_name(cand):
+                    name = cand
+        # (B) sibling-cell fallback for AAR-style markup where the profile
+        # data is in one <td> and the name is in a sibling <td> of the same
+        # <tr>. Try same-row siblings first (cheapest), then fall back to
+        # walking preceding headings/strong tags.
+        if not name:
+            cand = _find_sibling_cell_name(el, text)
+            if cand and _is_valid_director_name(cand):
+                name = cand
+        if not name:
+            cand = _find_preceding_name(el)
+            if cand and _is_valid_director_name(cand):
+                name = cand
+        if not name:
+            continue
+        norm = _norm_director_name(name)
+        if not norm or norm.lower() in seen:
+            continue
+        # Independence
+        indep_m = _PROFILE_INDEP_RE.search(text)
+        indep = indep_m.group(1).strip().lower() == "yes" if indep_m else None
+        # Committees
+        cmtes: list[str] = []
+        com_m = _PROFILE_COMMITTEES_RE.search(text)
+        if com_m:
+            for b in _PROFILE_BULLET_RE.findall(com_m.group(1)):
+                b = re.sub(r"\(.*?\)", "", b).strip(" ,;.•·●*")
+                if 2 <= len(b) <= 50 and b.lower() != "none":
+                    cmtes.append(b)
+            cmtes = sorted(set(cmtes))
+        out.append(Director(
+            name=norm,
+            age=int(age_m.group(1)),
+            director_since_year=int(since_m.group(1)),
+            is_independent=indep,
+            committees=cmtes,
+            parse_strategy="profile_block",
+        ))
+        seen.add(norm.lower())
+    return out
+
+
+def _find_sibling_cell_name(el, profile_text: str) -> str | None:
+    """For AAR-style proxies the profile data sits in one <td> and the
+    director's name sits in a SIBLING <td> of the same <tr>. Walk the
+    parent <tr> looking for a non-empty cell whose first 2-5 words are
+    a valid name (and that doesn't itself contain the profile text).
+    """
+    tr = el.find_parent("tr") if hasattr(el, "find_parent") else None
+    if not tr:
+        return None
+    for td in tr.find_all(["td", "th"]):
+        if td is el:
+            continue
+        text = td.get_text(" ", strip=True)
+        if not text:
+            continue
+        text = re.sub(r"\s+", " ", text).strip()
+        # Skip if this cell IS the profile cell (e.g. nested td)
+        if "Age:" in text and "Director since" in text:
+            continue
+        # Try to extract a leading name like "John M. Holmes ..."
+        m = _PROFILE_TITLE_BOUNDARY.search(text)
+        if m and m.start() >= 4:
+            cand = text[: m.start()].strip(" ,;:.|")
+            if 4 <= len(cand) <= 60:
+                words = cand.split()
+                if 2 <= len(words) <= 5 and _is_valid_director_name(cand):
+                    return cand
+    return None
+
+
+def _find_preceding_name(el) -> str | None:
+    """Walk previous siblings (and one level up) looking for a heading-like
+    element whose text reads like a director's name (2-4 words, capitalised,
+    no embedded keywords). Used as fallback when the profile block's leading
+    text doesn't contain the name (AAR pattern)."""
+    cur = el
+    for _ in range(4):  # up to 4 hops upward through parents
+        sib = cur.previous_sibling
+        for _ in range(15):  # up to 15 prior siblings at this level
+            if sib is None:
+                break
+            if hasattr(sib, "get_text"):
+                txt = sib.get_text(" ", strip=True)
+                txt = re.sub(r"\s+", " ", txt).strip(" ,;:.")
+                if 4 <= len(txt) <= 60 and _is_valid_director_name(txt):
+                    return txt
+            sib = getattr(sib, "previous_sibling", None) if sib else None
+        if not getattr(cur, "parent", None):
+            break
+        cur = cur.parent
+    return None
+
+
 def _merge_directors(*lists: list[Director]) -> list[Director]:
     """Combine results from multiple strategies. First non-None field wins
     so the strategy order in `parse_directors` is the priority order."""
@@ -588,8 +788,13 @@ def parse_directors(html: str) -> list[Director]:
     s1 = _strategy_per_director_minitable(soup)
     s2 = _strategy_big_summary_table(soup) if not s1 or len(s1) < 4 else []
     s4 = _strategy_bio_paragraph(soup) if (not s1 or len(s1) < 4) and (not s2 or len(s2) < 4) else []
+    # Profile-block strategy: each director gets a stand-alone div/td/section
+    # with Age + Director Since anchors. Catches AAR/AEP/Avery-style proxies
+    # the table-based strategies miss. Run only when earlier strategies
+    # didn't produce a complete roster.
+    s5 = _strategy_profile_block(soup) if (not s1 or len(s1) < 4) and (not s2 or len(s2) < 4) and (not s4 or len(s4) < 4) else []
     s3 = _strategy_director_comp_table(soup)
-    return _merge_directors(s1, s2, s4, s3)
+    return _merge_directors(s1, s2, s4, s5, s3)
 
 
 # --------------------------------------------------------------------------
