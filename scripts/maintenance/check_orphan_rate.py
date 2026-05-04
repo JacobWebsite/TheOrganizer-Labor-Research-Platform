@@ -54,7 +54,16 @@ DEFAULT_MAX_ORPHAN_PCT = 67.0
 
 
 def measure_orphan_rate() -> tuple[int, int, float]:
-    """Returns (total_f7, matched_count, orphan_pct)."""
+    """Returns (total_f7, matched_count, orphan_pct).
+
+    `matched` counts F7 rows that have an active UML match -- not just
+    `COUNT(DISTINCT target_id)` from unified_match_log, which would
+    include dangling target_ids (rows pointing at f7_employer_ids that
+    no longer exist in f7_employers_deduped). Dangling rows would
+    artificially lower the reported orphan rate and could let a real
+    regression slip past the deploy gate.
+    (Codex finding 2026-05-04, fixed same day.)
+    """
     conn = get_connection()
     try:
         cur = conn.cursor()
@@ -62,8 +71,13 @@ def measure_orphan_rate() -> tuple[int, int, float]:
             """
             SELECT
               (SELECT COUNT(*) FROM f7_employers_deduped) AS total,
-              (SELECT COUNT(DISTINCT target_id) FROM unified_match_log
-               WHERE target_system = 'f7' AND status = 'active') AS matched
+              (SELECT COUNT(*) FROM f7_employers_deduped f
+               WHERE EXISTS (
+                 SELECT 1 FROM unified_match_log uml
+                 WHERE uml.target_system = 'f7'
+                   AND uml.status = 'active'
+                   AND uml.target_id = f.employer_id
+               )) AS matched
             """
         )
         row = cur.fetchone()

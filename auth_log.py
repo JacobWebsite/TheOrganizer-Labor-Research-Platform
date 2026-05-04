@@ -48,6 +48,14 @@ def log_auth_event(
     is what's being investigated, in which case the caller will see
     the warning in the API logs.
     """
+    # Initialize before try so the finally can always close cleanly --
+    # without this, an exception between get_connection() and the close
+    # call (FK violation, invalid INET, missing table during deploy,
+    # network blip mid-INSERT) leaks the connection. Because we swallow
+    # all exceptions, repeated failures would silently exhaust the pool.
+    # (Codex finding 2026-05-04, fixed same day.)
+    conn = None
+    cur = None
     try:
         conn = get_connection()
         conn.autocommit = True
@@ -67,7 +75,16 @@ def log_auth_event(
                 json.dumps(metadata) if metadata is not None else None,
             ),
         )
-        cur.close()
-        conn.close()
     except Exception as exc:  # noqa: BLE001 — see docstring
         _log.warning("auth_audit_log write failed: %s", exc)
+    finally:
+        if cur is not None:
+            try:
+                cur.close()
+            except Exception:  # noqa: BLE001
+                pass
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:  # noqa: BLE001
+                pass

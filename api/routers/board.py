@@ -33,6 +33,11 @@ _OCCUPATION_TRUNCATE = 180
 
 
 def _tables_exist(cur) -> bool:
+    """Both `employer_directors` AND `director_interlocks` must be present.
+    The endpoint queries the interlocks view unconditionally when directors
+    exist, so a missing view would 500 instead of degrading gracefully.
+    (Codex finding 2026-05-04: original code only checked `d`.)
+    """
     cur.execute(
         """
         SELECT to_regclass('employer_directors') AS d,
@@ -40,7 +45,7 @@ def _tables_exist(cur) -> bool:
         """
     )
     row = cur.fetchone()
-    return bool(row and row.get("d"))
+    return bool(row and row.get("d") and row.get("i"))
 
 
 def _empty_shape() -> Dict[str, Any]:
@@ -87,6 +92,52 @@ def get_master_board(
             if not _tables_exist(cur):
                 return _empty_shape()
 
+            # Summary aggregates over the FULL roster, not just the page
+            # being returned. Without this, `summary.director_count` and
+            # `summary.independent_count` would silently report the LIMIT
+            # not the real total -- a caller passing limit=5 against a
+            # 30-director board would see "5 directors / 1 independent"
+            # instead of "30 / 8". Same for the source-freshness fields.
+            # (Codex finding 2026-05-04, fixed same day.)
+            cur.execute(
+                """
+                SELECT
+                  COUNT(*) AS director_count,
+                  COUNT(*) FILTER (WHERE is_independent IS TRUE) AS independent_count,
+                  MAX(fiscal_year) AS latest_fy
+                FROM employer_directors
+                WHERE master_id = %s
+                """,
+                [master_id],
+            )
+            agg_row = cur.fetchone() or {}
+            director_count = int(agg_row.get("director_count") or 0)
+            independent_count = int(agg_row.get("independent_count") or 0)
+            latest_fy: int | None = agg_row.get("latest_fy")
+
+            # Pull the parse_strategy / source_url / extracted_at from the
+            # row that has the latest fiscal year (most-recent filing).
+            # Separate query so we get the "freshest" metadata regardless
+            # of whether that row falls within the LIMIT page.
+            latest_strategy: str | None = None
+            latest_source_url: str | None = None
+            latest_extracted_at = None
+            if latest_fy is not None:
+                cur.execute(
+                    """
+                    SELECT parse_strategy, source_url, extracted_at
+                    FROM employer_directors
+                    WHERE master_id = %s AND fiscal_year = %s
+                    LIMIT 1
+                    """,
+                    [master_id, latest_fy],
+                )
+                fr = cur.fetchone()
+                if fr:
+                    latest_strategy = fr.get("parse_strategy")
+                    latest_source_url = fr.get("source_url")
+                    latest_extracted_at = fr.get("extracted_at")
+
             cur.execute(
                 """
                 SELECT
@@ -107,20 +158,7 @@ def get_master_board(
             rows = cur.fetchall() or []
 
             directors = []
-            independent_count = 0
-            latest_fy: int | None = None
-            latest_strategy: str | None = None
-            latest_source_url: str | None = None
-            latest_extracted_at = None
             for r in rows:
-                if r.get("is_independent") is True:
-                    independent_count += 1
-                fy = r.get("fiscal_year")
-                if fy is not None and (latest_fy is None or fy > latest_fy):
-                    latest_fy = fy
-                    latest_strategy = r.get("parse_strategy")
-                    latest_source_url = r.get("source_url")
-                    latest_extracted_at = r.get("extracted_at")
                 directors.append(
                     {
                         "name": r.get("director_name"),
@@ -135,7 +173,7 @@ def get_master_board(
                             if r.get("compensation_total") is not None
                             else None
                         ),
-                        "fiscal_year": fy,
+                        "fiscal_year": r.get("fiscal_year"),
                         "parse_strategy": r.get("parse_strategy"),
                     }
                 )
@@ -189,11 +227,14 @@ def get_master_board(
                         for r in raw_interlocks
                     ]
 
-    is_matched = len(directors) > 0
+    # is_matched + director_count both come from the FULL aggregate (not
+    # the limited roster), so a small `limit` doesn't make a board look
+    # smaller than it is. The directors[] array still respects `limit`.
+    is_matched = director_count > 0
     return {
         "summary": {
             "is_matched": is_matched,
-            "director_count": len(directors),
+            "director_count": director_count,
             "independent_count": independent_count,
             "fiscal_year": latest_fy,
             "parse_strategy": latest_strategy,

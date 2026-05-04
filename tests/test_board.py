@@ -178,3 +178,27 @@ def test_limit_respected():
     r = client.get("/api/employers/master/4036186/board?limit=3")
     assert r.status_code == 200
     assert len(r.json()["directors"]) <= 3
+
+
+@pytest.mark.skipif(not _has_director_data(), reason="employer_directors empty")
+def test_summary_counts_are_full_roster_not_limit():
+    # Codex finding 2026-05-04: summary aggregates were computed from the
+    # limited roster query, so a small limit reported a small director_count.
+    # Now they're computed from a separate aggregate over ALL rows.
+    # Abbott has 12 directors -- with limit=3, summary.director_count must
+    # still be 12, not 3.
+    r_small = client.get("/api/employers/master/4036186/board?limit=3")
+    r_full = client.get("/api/employers/master/4036186/board?limit=50")
+    assert r_small.status_code == 200
+    assert r_full.status_code == 200
+    s_small = r_small.json()["summary"]
+    s_full = r_full.json()["summary"]
+    # Summary counts must be identical regardless of page size
+    assert s_small["director_count"] == s_full["director_count"], (
+        f"director_count drifted with limit: small={s_small['director_count']} "
+        f"full={s_full['director_count']}"
+    )
+    assert s_small["independent_count"] == s_full["independent_count"]
+    # Directors array DOES respect the limit
+    assert len(r_small.json()["directors"]) <= 3
+    assert len(r_full.json()["directors"]) == s_full["director_count"]
