@@ -44,10 +44,14 @@ class TestToolRegistration:
         assert "search_lodes_workforce" in TOOL_REGISTRY
         assert callable(TOOL_REGISTRY["search_lodes_workforce"])
 
-    def test_abs_in_registry(self):
-        from scripts.research.tools import TOOL_REGISTRY
-        assert "search_abs_demographics" in TOOL_REGISTRY
-        assert callable(TOOL_REGISTRY["search_abs_demographics"])
+    def test_abs_deactivated_2026_05_03(self):
+        # search_abs_demographics removed 2026-05-03 (R7 dead-tool cleanup):
+        # cur_abs_geo_naics has rollup-only data (all naics='00'), so the
+        # tool always returned 'no data' while burning API tokens. Re-enable
+        # when industry-cross-tab ABS data is loaded.
+        from scripts.research.tools import TOOL_REGISTRY, TOOL_DEFINITIONS
+        assert "search_abs_demographics" not in TOOL_REGISTRY
+        assert not any(d.get("name") == "search_abs_demographics" for d in TOOL_DEFINITIONS)
 
 
 class TestToolDefinitions:
@@ -82,11 +86,11 @@ class TestToolDefinitions:
         assert td is not None
         assert "state" in td["input_schema"]["properties"]
 
-    def test_abs_definition(self):
+    def test_abs_definition_removed_2026_05_03(self):
+        # Removed when search_abs_demographics was deactivated -- see
+        # test_abs_deactivated_2026_05_03 above for context.
         td = self._get_def("search_abs_demographics")
-        assert td is not None
-        assert "naics" in td["input_schema"]["properties"]
-        assert "naics" in td["input_schema"]["required"]
+        assert td is None
 
 
 class TestToolResultFormat:
@@ -183,10 +187,13 @@ class TestAgentSystemPrompt:
         content = agent_path.read_text(encoding="utf-8")
         assert "search_lodes_workforce" in content
 
-    def test_abs_in_agent_prompt(self):
+    def test_abs_no_longer_in_agent_prompt_2026_05_03(self):
+        # Removed when search_abs_demographics was deactivated -- agent prompt
+        # no longer instructs Gemini to call this tool. Function still exists
+        # in tools.py for future re-enable.
         agent_path = ROOT / "scripts" / "research" / "agent.py"
         content = agent_path.read_text(encoding="utf-8")
-        assert "search_abs_demographics" in content
+        assert "search_abs_demographics" not in content
 
     def test_acs_in_agent_prompt(self):
         agent_path = ROOT / "scripts" / "research" / "agent.py"

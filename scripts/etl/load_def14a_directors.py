@@ -1,33 +1,36 @@
 """
-24Q-12 Board of Directors -- DEF14A proxy parser SKELETON.
+24Q-12 Board of Directors -- DEF14A proxy parser.
 
 Loads board-of-directors data from SEC DEF14A (proxy statement) filings.
 Mirrors the architecture of `load_sec_exhibit21.py`: discover the latest
 DEF14A per filer via EDGAR submissions JSON, fetch the document, then
 extract director rows via a sequence of parser strategies.
 
-THIS IS A SKELETON. The schema, EDGAR client, CLI, and parser harness
-are wired up but the actual director-row extraction logic in
-`parse_directors()` is intentionally minimal. DEF14A formats vary widely
-across filers and over time. Production-quality extraction will require
-iteration against real filings; this commit lays the foundation so that
-work can begin in a follow-up session without rebuilding the EDGAR
-plumbing.
+Three parser strategies (`parse_directors`):
+  1. per-director mini-table (Starbucks, Abbott patterns) -- per-director
+     small table with 'NAME age N director since YYYY' or
+     'NAME director since YYYY | age N OCCUPATION' in one cell.
+  2. big summary table -- one wide Name/Age/Director Since/Independent/
+     Committees table; classical proxy layout.
+  3. director-comp table -- catches directors missed by 1 + 2 and merges
+     compensation totals into existing rows.
 
-Usage (after schema migration is applied):
-    py scripts/etl/load_def14a_directors.py --cik 829224  # Starbucks (single)
+Validated 2026-05-03: Starbucks (12 dirs), Abbott (12 dirs), Worlds Inc
+(3 via comp table). Coverage on the first 10-CIK batch was 3/9 (excluding
+the 1 with no DEF14A). Remaining filers use one of several other layouts
+that future iterations should add (bio-paragraph regex, table-of-contents-
+linked director sections).
+
+Usage:
+    py scripts/etl/load_def14a_directors.py --cik 829224         # single
     py scripts/etl/load_def14a_directors.py --limit 5 --dry-run
     py scripts/etl/load_def14a_directors.py --limit 100 --commit
-    py scripts/etl/load_def14a_directors.py --all --commit  # full ~7800 filers, ~3 hr
+    py scripts/etl/load_def14a_directors.py --all --commit       # ~7800 filers, ~3 hr
+    py scripts/etl/load_def14a_directors.py --retry-failed       # retry parse_failed CIKs
 
 Verification:
     SELECT COUNT(*) FROM employer_directors;
     SELECT COUNT(*) FROM director_interlocks;  -- shared directors
-
-Status (2026-05-03): SKELETON. Real extraction strategies to implement
-are documented in parse_directors() docstring; the function currently
-returns an empty list, which the loader gracefully treats as
-'def14a_not_found' for skip tracking.
 """
 from __future__ import annotations
 
@@ -188,31 +191,405 @@ def fetch_def14a_html(cik: int, accession_no_dashes: str, primary_doc: str | Non
 # --------------------------------------------------------------------------
 
 
+# Two orderings observed in real proxies:
+#   (A) Starbucks: "NAME age N director since YYYY [title]"
+#   (B) Abbott:    "NAME director since YYYY | age N OCCUPATION"
+# Match the name once at the start, then locate age and director-since
+# anywhere in the text via the helpers below.
+_NAME_LEAD_RE = re.compile(
+    r"^\s*(?P<name>[A-Z][^|]{2,80}?)(?=\s+(?:age|director\s+since)\b)",
+    re.IGNORECASE,
+)
+_AGE_RE = re.compile(r"\bage[:\s]+(?P<age>\d{2,3})\b", re.IGNORECASE)
+_SINCE_RE = re.compile(r"\bdirector\s+since[:\s]+(?P<year>\d{4})\b", re.IGNORECASE)
+_BIG_HEADER_NAME_RE = re.compile(r"\bname\b", re.IGNORECASE)
+_BIG_HEADER_AGE_RE = re.compile(r"\bage\b", re.IGNORECASE)
+_BIG_HEADER_SINCE_RE = re.compile(r"\bdirector\s+since\b", re.IGNORECASE)
+_INDEPENDENT_RE = re.compile(r"\bindependent\b", re.IGNORECASE)
+_COMMITTEE_RE = re.compile(r"\b(audit|compensation|nominating|governance|finance|risk|technology|safety|sustainability)\b", re.IGNORECASE)
+
+
+_TRAILING_TITLE_RE = re.compile(
+    r"\s+(Lead\s+Independent\s+Director|Independent\s+Director|"
+    r"Lead\s+Director|Director|Chair(?:man|woman|person)?|"
+    r"President|CEO|CFO|COO|Vice\s+Chair(?:man|woman|person)?|"
+    r"Founder|Co-Founder|Retired|Senior|Vice|Chief|Executive)\s.*$",
+    re.IGNORECASE,
+)
+_NAME_LEAD_TITLE_BOUNDARY = re.compile(
+    r"\s+(Retired|Senior|Vice|Chief|Executive|President|CEO|CFO|COO|"
+    r"Chair(?:man|woman|person)?|Lead|Independent|Founder|Co-Founder|"
+    r"Skills\b|of\s+the\s+Board)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_valid_director_name(s: str) -> bool:
+    """A real director name has 2+ alphabetic words, no embedded keywords
+    like 'Age:'/'Chairman'/'Director', and no trailing colon. Rejects the
+    AAR-pattern false positives where the table layout puts 'Age: 64' and
+    'Chairman' into cells that the parser mistakes for names.
+    """
+    if not s or len(s) < 4 or len(s) > 60:
+        return False
+    if ":" in s:
+        return False
+    # Reject when it's all single-word title fragments
+    keywords = {"age", "since", "director", "chairman", "chief", "officer",
+                "president", "vice", "executive", "board", "committee",
+                "independent", "lead", "principal", "founder", "skills",
+                "experience", "since", "qualifications", "tenure"}
+    words = s.split()
+    if len(words) < 2:
+        return False
+    # If MORE THAN HALF the words are keywords, reject
+    keyword_hits = sum(1 for w in words if w.lower().rstrip(".,") in keywords)
+    if keyword_hits >= max(1, len(words) // 2):
+        return False
+    # Must have at least one word that looks like a real name (capitalized,
+    # 3+ chars, alphabetic) AND not a keyword
+    for w in words:
+        clean = w.rstrip(".,")
+        if (clean and clean[0].isupper() and len(clean) >= 3
+                and clean.replace("'", "").replace("-", "").isalpha()
+                and clean.lower() not in keywords):
+            return True
+    return False
+
+
+def _norm_director_name(s: str) -> str:
+    """Strip honorifics, suffixes, weird whitespace, and trailing title
+    fragments that leak in when a proxy's per-director cell is laid out as
+    'NAME President LAS Advisory Services Age 69...' (CECO pattern) or
+    'NAME LeadIndependentDirector Director Since YYYY...' (Abbott pattern).
+
+    The strategy:
+      1. Trim filler at the boundary words ("Retired"/"Senior"/"President"/
+         "Chief"/etc.) — anything from that point on is title/affiliation.
+      2. Iteratively strip trailing title fragments (Director / Chair / etc.).
+      3. Standard honorific + suffix cleanup.
+    """
+    s = re.sub(r"\s+", " ", s).strip(" ,;.|")
+    # Strip leading filler words that survive the bio_paragraph regex --
+    # "Since"/"Former"/"During"/"Effective" are common preface words.
+    leading_filler = re.compile(
+        r"^(?:Since|Former|During|Effective|Currently|Previously|Recently)\s+",
+        re.IGNORECASE,
+    )
+    while leading_filler.match(s):
+        s = leading_filler.sub("", s, count=1).strip()
+    # Strip trailing filler words ("Former"/"Retired"/"Current") that come
+    # after a name like "Munish Nanda Former" (CECO pattern).
+    trailing_status = re.compile(
+        r"\s+(?:Former|Retired|Current)\s*$",
+        re.IGNORECASE,
+    )
+    s = trailing_status.sub("", s).strip()
+    # Cut at the first title boundary keyword. This prevents "Laurie A. Siegel
+    # President LAS Advisory Services" from becoming the full name.
+    m = _NAME_LEAD_TITLE_BOUNDARY.search(s)
+    if m:
+        s = s[:m.start()].strip(" ,;.")
+    s = re.sub(r"^(Mr\.|Ms\.|Mrs\.|Dr\.|Sir|Hon\.)\s+", "", s, flags=re.IGNORECASE)
+    s = re.sub(r"\s+(Jr\.|Sr\.|II|III|IV|Ph\.D\.?|M\.D\.?)\.?$", "", s, flags=re.IGNORECASE)
+    # Iterate -- a name might have BOTH "Director" and "Lead Independent" in
+    # different orders; strip until stable.
+    prev = None
+    while prev != s:
+        prev = s
+        s = _TRAILING_TITLE_RE.sub("", s).strip(" ,;.")
+    return s.strip()
+
+
+def _row_cells(row) -> list[str]:
+    return [td.get_text(" ", strip=True) for td in row.find_all(["th", "td"])]
+
+
+def _strategy_per_director_minitable(soup) -> list[Director]:
+    """Each director gets their own small table whose key cell contains the
+    name plus 'age N' and 'director since YYYY' in either order. Two real-
+    world shapes are caught:
+      (A) Starbucks: "NAME age N director since YYYY [title]"
+      (B) Abbott:    "NAME director since YYYY | age N OCCUPATION"
+    Each table also typically has 'Independent' / 'Professional background'
+    cells we mine for context.
+    """
+    out: list[Director] = []
+    seen = set()
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr")
+        if not rows or len(rows) > 10:
+            continue
+        # Concatenate ALL cells in the table to find the director's data --
+        # Abbott-style hides the key text in a single nested cell while other
+        # cells are empty, so first-row-only scanning misses it.
+        full_text = " ".join(" ".join(_row_cells(r)) for r in rows)
+        # Collapse non-breaking-space and multiple whitespace
+        full_text = full_text.replace("\xa0", " ").replace("|", " ")
+        full_text = re.sub(r"\s+", " ", full_text).strip()
+        if not full_text:
+            continue
+        # Both age and director-since must be present for us to call this a
+        # director profile (avoids false positives on random tables).
+        m_age = _AGE_RE.search(full_text)
+        m_since = _SINCE_RE.search(full_text)
+        if not (m_age and m_since):
+            continue
+        m_name = _NAME_LEAD_RE.search(full_text)
+        if not m_name:
+            continue
+        name = _norm_director_name(m_name.group("name"))
+        # Skip section headers / boilerplate that just happen to mention 'age
+        # 50 director since 2018' inside an explanatory paragraph.
+        if not name or name.lower() in seen or not _is_valid_director_name(name):
+            continue
+        independent = bool(_INDEPENDENT_RE.search(full_text))
+        committees = sorted({c.group(0).title() for c in _COMMITTEE_RE.finditer(full_text)})
+        # Primary occupation: take the slice after director-since YYYY (most
+        # proxies put the bio there). Fall back to slice after age N.
+        tail_start = max(m_since.end(), m_age.end())
+        primary_occupation = full_text[tail_start:tail_start + 400].strip(" ,;.|")[:400] or None
+        out.append(Director(
+            name=name, age=int(m_age.group("age")),
+            director_since_year=int(m_since.group("year")),
+            primary_occupation=primary_occupation,
+            is_independent=independent or None,
+            committees=committees,
+            parse_strategy="per_director_minitable",
+        ))
+        seen.add(name.lower())
+    return out
+
+
+def _strategy_big_summary_table(soup) -> list[Director]:
+    """Classic style: one wide table with columns Name | Age | Director Since
+    | Independent | Committees. Score every table by header keyword presence;
+    extract from the highest-scoring one with >=4 data rows.
+    """
+    best = None
+    best_score = 0
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr")
+        if len(rows) < 5:
+            continue
+        header_cells = _row_cells(rows[0])
+        header_blob = " | ".join(header_cells).lower()
+        score = 0
+        if _BIG_HEADER_NAME_RE.search(header_blob): score += 1
+        if _BIG_HEADER_AGE_RE.search(header_blob): score += 2
+        if _BIG_HEADER_SINCE_RE.search(header_blob): score += 3
+        if "independent" in header_blob: score += 2
+        if "committee" in header_blob: score += 1
+        # Avoid director-compensation table (handled elsewhere); detected by a
+        # 'compensation' or 'fees earned' header word.
+        if "compensation" in header_blob or "fees earned" in header_blob:
+            continue
+        if score >= 4 and score > best_score:
+            best, best_score = table, score
+    if not best:
+        return []
+
+    rows = best.find_all("tr")
+    header_cells = [c.lower() for c in _row_cells(rows[0])]
+    # Best-effort column index detection
+    def find_idx(predicate) -> int | None:
+        for i, h in enumerate(header_cells):
+            if predicate(h):
+                return i
+        return None
+    name_idx = find_idx(lambda h: "name" in h)
+    age_idx = find_idx(lambda h: h.strip() == "age" or h.startswith("age "))
+    since_idx = find_idx(lambda h: "director since" in h or "since" in h)
+    indep_idx = find_idx(lambda h: "independent" in h)
+    cmte_idx = find_idx(lambda h: "committee" in h)
+    if name_idx is None:
+        return []
+
+    out: list[Director] = []
+    seen = set()
+    for tr in rows[1:]:
+        cells = _row_cells(tr)
+        if name_idx >= len(cells):
+            continue
+        name = _norm_director_name(cells[name_idx])
+        if not name or name.lower() in seen or len(name) < 3:
+            continue
+        # Reject names that look like bio sentences -- the Adams Diversified
+        # Equity Fund proxy embeds full director bios in the name cell, which
+        # produces garbage rows like "Kenneth J. Dale, 69, Chair of the
+        # Board...". A real director name is short, has no comma followed by
+        # an age, and doesn't include 'director' / 'committee' keywords.
+        if len(name) > 50:
+            continue
+        if re.search(r",\s*\d{2,3}\b", name):
+            continue
+        if re.search(r"\b(director|committee|chair|board|nominee|class\s+[ivx]+)\b", name, re.IGNORECASE):
+            continue
+        age = None
+        if age_idx is not None and age_idx < len(cells):
+            m = re.search(r"\b(\d{2,3})\b", cells[age_idx])
+            if m: age = int(m.group(1))
+        since = None
+        if since_idx is not None and since_idx < len(cells):
+            m = re.search(r"(\d{4})", cells[since_idx])
+            if m: since = int(m.group(1))
+        indep = None
+        if indep_idx is not None and indep_idx < len(cells):
+            indep = "yes" in cells[indep_idx].lower() or "x" == cells[indep_idx].strip().lower()
+        cmtes: list[str] = []
+        if cmte_idx is not None and cmte_idx < len(cells):
+            cmtes = sorted({c.group(0).title() for c in _COMMITTEE_RE.finditer(cells[cmte_idx])})
+        out.append(Director(
+            name=name, age=age, director_since_year=since,
+            is_independent=indep, committees=cmtes,
+            parse_strategy="big_summary_table",
+        ))
+        seen.add(name.lower())
+    return out
+
+
+_BIO_PARAGRAPH_RE = re.compile(
+    r"(?P<name>[A-Z][A-Za-z][A-Za-z\.\-' ,]{2,60}?)\s*\(\s*[Aa]ge\s+(?P<age>\d{2,3})\s*\)",
+)
+
+
+def _strategy_bio_paragraph(soup) -> list[Director]:
+    """Acme-United-style: directors listed in continuous bio paragraphs as
+    'NAME (age N) BIO sentences. Director since YYYY...'. Common in smaller
+    proxies that don't use per-director tables. Iterates the parenthesised
+    age markers in the document text and extracts the name from the 60 chars
+    immediately preceding each one.
+    """
+    out: list[Director] = []
+    seen = set()
+    text = soup.get_text(" ", strip=True).replace("\xa0", " ")
+    text = re.sub(r"\s+", " ", text)
+    # Match the LAST plausible name in the captured text -- typically 2-4
+    # capitalized name-like tokens immediately preceding "(age N)". This
+    # rejects leading filler like "Relevant Skills Director Since" / page
+    # headers / column titles that the lazy regex captures alongside the
+    # actual name.
+    rightmost_name_re = re.compile(
+        r"((?:[A-Z][a-zA-Z'\.\-]+(?:,)?\s+){1,3}[A-Z][a-zA-Z'\.\-]+(?:,?\s+(?:Jr\.?|Sr\.?|II|III|IV))?)\s*$",
+    )
+    for m in _BIO_PARAGRAPH_RE.finditer(text):
+        raw_name = m.group("name").rstrip(" ,;.")
+        rm = rightmost_name_re.search(raw_name)
+        candidate = rm.group(1) if rm else raw_name
+        name = _norm_director_name(candidate)
+        if not name or name.lower() in seen or not _is_valid_director_name(name):
+            continue
+        # Bio = 300 chars after the (age N) marker
+        bio_start = m.end()
+        bio = text[bio_start:bio_start + 400].strip(" ,;.")
+        # Optional director-since year in the bio (loose pattern)
+        since_year = None
+        m_since = re.search(r"\b(?:director|board)\s+(?:since|of\s+the\s+Company\s+since)\s+(\d{4})\b", bio, re.IGNORECASE)
+        if m_since:
+            since_year = int(m_since.group(1))
+        out.append(Director(
+            name=name, age=int(m.group("age")),
+            director_since_year=since_year,
+            primary_occupation=bio[:400] or None,
+            parse_strategy="bio_paragraph",
+        ))
+        seen.add(name.lower())
+    return out
+
+
+def _strategy_director_comp_table(soup) -> list[Director]:
+    """Director-compensation table almost always lists every non-employee
+    director by name (col 1) with total comp (last numeric col). Useful as
+    a fallback when no biographical table exists, and as a comp augmenter.
+    """
+    out: list[Director] = []
+    for table in soup.find_all("table"):
+        rows = table.find_all("tr")
+        if len(rows) < 4:
+            continue
+        header_blob = " ".join(_row_cells(rows[0])).lower()
+        if not (("director" in header_blob and "compensation" in header_blob)
+                or ("name" in header_blob and ("total" in header_blob or "fees earned" in header_blob))):
+            continue
+        seen = set()
+        for tr in rows[1:]:
+            cells = _row_cells(tr)
+            if not cells:
+                continue
+            name = _norm_director_name(cells[0])
+            if not name or len(name) < 3 or name.lower() in seen:
+                continue
+            # Total = last cell that parses as a dollar amount
+            total = None
+            for cell in reversed(cells[1:]):
+                m = re.search(r"\$?\s*([\d,]{3,})", cell)
+                if m:
+                    try:
+                        total = float(m.group(1).replace(",", ""))
+                        break
+                    except ValueError:
+                        pass
+            if total is None:
+                continue
+            out.append(Director(
+                name=name, compensation_total=total,
+                parse_strategy="director_comp_table",
+            ))
+            seen.add(name.lower())
+        if out:
+            return out  # use the first matching table
+    return out
+
+
+def _merge_directors(*lists: list[Director]) -> list[Director]:
+    """Combine results from multiple strategies. First non-None field wins
+    so the strategy order in `parse_directors` is the priority order."""
+    merged: dict[str, Director] = {}
+    for src in lists:
+        for d in src:
+            key = _norm_director_name(d.name).lower()
+            if not key:
+                continue
+            if key not in merged:
+                merged[key] = d
+                continue
+            cur = merged[key]
+            for field_name in (
+                "age", "position", "director_since_year", "primary_occupation",
+                "is_independent", "compensation_total",
+            ):
+                if getattr(cur, field_name) is None:
+                    setattr(cur, field_name, getattr(d, field_name))
+            # Merge committees
+            cur_set = set(cur.committees or [])
+            cur_set.update(d.committees or [])
+            cur.committees = sorted(cur_set)
+            cur_set2 = set(cur.other_directorships or [])
+            cur_set2.update(d.other_directorships or [])
+            cur.other_directorships = sorted(cur_set2)
+    return list(merged.values())
+
+
 def parse_directors(html: str) -> list[Director]:
     """Extract director rows from a DEF14A HTML document.
 
-    SKELETON. Production strategies to implement (in order of priority):
-
-    1. Director-summary table. DEF14As frequently include a tabular summary
-       like "Name | Age | Director Since | Independent | Committees".
-       Parse with BeautifulSoup find_all('table'), score by header row
-       presence of {Name, Age, Independent, Committee*}, extract <tr>s.
-
-    2. Director bio sections. Many proxies have a "Directors and Executive
-       Officers" section with bio paragraphs starting "<NAME>, age <N>".
-       Regex: r"(?P<name>[A-Z][a-zA-Z\\s\\.]+),\\s+age\\s+(?P<age>\\d+)".
-
-    3. Director-comp table. Annual director compensation table reliably
-       lists every director name (column 1) with total comp (last col).
-
-    4. Heuristic prose. Sentences like "Mr. Smith was elected as a
-       Director in 2018" -- weakest, used as fallback.
-
-    For now this returns an empty list; downstream code treats that as
-    "no DEF14A found" via load_def14a_progress.status.
+    Runs three strategies and merges. The order matters: Strategy 1
+    (per-director mini-table) gives the richest data when present; Strategy 2
+    (big summary table) is the fallback for traditional proxies; Strategy 3
+    (director-comp table) augments with compensation totals and catches
+    directors missed by 1+2.
     """
-    # Production: BeautifulSoup parse + 4 strategies above
-    return []
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        _log.warning("bs4 not installed; cannot parse DEF14A")
+        return []
+    soup = BeautifulSoup(html, "html.parser")
+    s1 = _strategy_per_director_minitable(soup)
+    s2 = _strategy_big_summary_table(soup) if not s1 or len(s1) < 4 else []
+    s4 = _strategy_bio_paragraph(soup) if (not s1 or len(s1) < 4) and (not s2 or len(s2) < 4) else []
+    s3 = _strategy_director_comp_table(soup)
+    return _merge_directors(s1, s2, s4, s3)
 
 
 # --------------------------------------------------------------------------
@@ -352,7 +729,7 @@ def process_filer(conn, cik: int, name: str, commit: bool) -> dict:
     directors = parse_directors(html)
     result["directors_found"] = len(directors)
     if not directors:
-        result["note"] = "parser returned 0 rows (skeleton parse_directors is a stub)"
+        result["note"] = "parser returned 0 rows -- proxy uses an unrecognized layout"
         record_progress(conn, cik, "parse_failed", 0, result["note"], commit=commit)
         return result
 

@@ -513,7 +513,6 @@ def _build_system_prompt(run: dict, vocabulary: dict[str, dict]) -> str:
    - Taxpayer Subsidies (search_local_subsidies) -- Call if relevant to the employer. Returns local tax breaks and grants.
    - CBP industry context (search_cbp_context) -- ALWAYS call this if NAICS is known. Returns local establishment counts, employment, and avg wages.
    - LODES workforce data (search_lodes_workforce) -- Call if state/county is known. Returns job counts, earnings tiers, and industry mix.
-   - ABS firm demographics (search_abs_demographics) -- Call if NAICS is known. Returns firm owner demographics by industry.
    - ACS workforce demographics (search_acs_workforce) -- ALWAYS call this if state is known. Returns gender, race, age, education, and worker class breakdowns for the workforce in this state/industry.
 
 3. **Get additional enrichment** (these tools fill critical gaps):
@@ -1085,6 +1084,65 @@ def _log_action(run_id: int, tool_name: str, tool_params: dict, order: int, resu
     aid = cur.fetchone()["id"]; conn.commit(); conn.close()
     return aid
 
+def _resolve_action_id(source_name: str | None, tool_action_map: dict) -> int | None:
+    """Resolve a fact's source_name to an action_id with three strategies.
+
+    Historical facts are 89% NULL on action_id (6,226 rows / 661 with id) -- a
+    direct consequence of the LLM returning source_name strings like 'OSHA
+    database' or 'company website' that never match the tool_action_map keys
+    (search_osha, scrape_employer_website, etc.). Strategies, in order:
+
+    1. Exact match (the original behavior).
+    2. Substring match: any tool name appearing inside source_name (case-
+       insensitive). Catches 'search_osha tool' / 'OSHA via search_osha'.
+    3. Reverse substring: source_name appearing inside a tool name. Catches
+       'OSHA' -> search_osha, 'NLRB' -> search_nlrb.
+
+    Returns None if nothing matches; the caller decides whether to skip or
+    log+save based on REQUIRE_FACT_ACTION_ID.
+    """
+    if not source_name or not tool_action_map:
+        return None
+    aid = tool_action_map.get(source_name)
+    if aid is not None:
+        return aid
+    # Normalize separators so 'CompanyEnrich' matches 'search_company_enrich':
+    # strip non-alphanumerics from both sides, and strip the 'search'/'get'/
+    # 'scrape'/'compare' tool-name prefixes that the LLM almost always omits
+    # when naming a source.
+    def _alnum(s: str) -> str:
+        return "".join(c for c in s.lower() if c.isalnum())
+
+    def _strip_prefix(s: str) -> str:
+        for pfx in ("search", "get", "scrape", "compare"):
+            if s.startswith(pfx) and len(s) > len(pfx):
+                return s[len(pfx):]
+        return s
+
+    src_alnum = _strip_prefix(_alnum(source_name))
+    if not src_alnum:
+        return None
+    # Strategy 2: tool key (prefix-stripped, alnum) appears inside source_name.
+    # Catches 'OSHA via search_osha tool', 'CompanyEnrich response'.
+    for tname, tid in tool_action_map.items():
+        if not tname:
+            continue
+        tkey = _strip_prefix(_alnum(tname))
+        if tkey and tkey in src_alnum:
+            return tid
+    # Strategy 3: source_name appears inside a tool key. Catches the LLM
+    # emitting bare 'osha' / 'nlrb' / 'whd'. Three-char floor avoids
+    # meaningless two-char matches.
+    if len(src_alnum) >= 3:
+        for tname, tid in tool_action_map.items():
+            if not tname:
+                continue
+            tkey = _strip_prefix(_alnum(tname))
+            if tkey and src_alnum in tkey:
+                return tid
+    return None
+
+
 def _save_facts(run_id: int, employer_id: str, facts: list, vocabulary: dict, tool_action_map: dict) -> int:
     """Persist facts to research_facts.
 
@@ -1094,16 +1152,36 @@ def _save_facts(run_id: int, employer_id: str, facts: list, vocabulary: dict, to
     undid every successful row up to that point while the `saved` counter
     kept incrementing -- so `total_facts_found` could report many facts
     that were no longer in the table.
+
+    Action-id traceability (2026-05-03): every fact should be tied to the
+    tool action that produced it. _resolve_action_id() now applies three
+    matching strategies (exact / substring / reverse-substring). When set,
+    REQUIRE_FACT_ACTION_ID=true makes unresolvable facts skip rather than
+    save with NULL -- enforces the R7 traceability requirement on new runs.
+    Default off so existing pipelines keep saving (with a WARN log).
     """
     if not facts: return 0
+    require_aid = os.environ.get("REQUIRE_FACT_ACTION_ID", "").lower() in ("1", "true", "yes")
     conn = _conn(); cur = conn.cursor()
     saved = 0
+    skipped_no_aid = 0
     for f in facts:
         attr = f.get("attribute_name")
         if attr not in vocabulary:
             _log.debug("Run %d: dropping fact with unknown attr '%s'", run_id, attr)
             continue
-        aid = tool_action_map.get(f.get("source_name"))
+        aid = _resolve_action_id(f.get("source_name"), tool_action_map)
+        if aid is None:
+            if require_aid:
+                _log.warning("Run %d: skipping fact attr=%s source_name=%r -- "
+                             "no resolvable action_id (REQUIRE_FACT_ACTION_ID=true)",
+                             run_id, attr, f.get("source_name"))
+                skipped_no_aid += 1
+                continue
+            else:
+                _log.warning("Run %d: fact attr=%s source_name=%r saved with NULL "
+                             "action_id (no match in tool_action_map)",
+                             run_id, attr, f.get("source_name"))
         # Truncate varchar fields to match column limits
         section = (f.get("dossier_section") or "")[:50]
         src_type = (f.get("source_type") or "")[:30]
@@ -1134,6 +1212,10 @@ def _save_facts(run_id: int, employer_id: str, facts: list, vocabulary: dict, to
             _log.warning("Run %d: failed to save fact %s: %s", run_id, attr, e)
             cur.execute("ROLLBACK TO SAVEPOINT fact_insert")
     conn.commit(); conn.close()
+    if skipped_no_aid:
+        _log.warning("Run %d: %d fact(s) skipped because no action_id could "
+                     "be resolved (REQUIRE_FACT_ACTION_ID=true)",
+                     run_id, skipped_no_aid)
     return saved
 
 # ---------------------------------------------------------------------------

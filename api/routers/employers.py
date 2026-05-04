@@ -417,26 +417,50 @@ def unified_employer_search(
                 "COALESCE(consolidated_workers, unit_size, 0) DESC, "
                 "unit_size DESC NULLS LAST"
             )
+            canonical_patterns: list[str] = []
 
             if name:
                 conditions.append("similarity(search_name, %s) > 0.3")
                 params.append(name.lower())
-                order_clause = (
-                    "similarity(search_name, %s) DESC, "
-                    "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
-                    "COALESCE(consolidated_workers, unit_size, 0) DESC, "
-                    "unit_size DESC NULLS LAST"
-                )
                 # R7-7 alias guard: when the query matches a known alias entry,
-                # exclude rows containing collision terms (e.g. "cleveland clinic"
-                # query excludes "cleveland-cliffs"). Fail-open if the JSON is
-                # missing or malformed.
+                # (a) exclude rows containing collision terms (e.g. "cleveland
+                # clinic" query excludes "cleveland-cliffs"), and (b) collect
+                # canonical-name patterns so flat-MASTER fragments like
+                # 'walmart' (similarity=1.0, unit_size=25K per store) get out-
+                # ranked by 'walmart inc' (similarity=0.667, unit_size=10M).
                 name_lower = name.lower()
                 for entry in _load_aliases():
                     if any(alias in name_lower for alias in entry.get("aliases", [])):
                         for excl in entry.get("exclude_terms", []):
                             conditions.append("LOWER(search_name) NOT LIKE %s")
                             params.append(f"%{excl.lower()}%")
+                        for pat in entry.get("canonical_patterns", []):
+                            canonical_patterns.append(pat.lower())
+
+                # Default order: similarity, then canonical-group leader, then
+                # effective size. R7-7 heavy (2026-05-03): when the query is
+                # an alias, prepend a "matches canonical pattern" boost so the
+                # parent row beats per-store fragments regardless of trigram.
+                if canonical_patterns:
+                    canonical_case = (
+                        "CASE WHEN "
+                        + " OR ".join(["LOWER(search_name) LIKE %s"] * len(canonical_patterns))
+                        + " THEN 0 ELSE 1 END"
+                    )
+                    order_clause = (
+                        f"{canonical_case}, "
+                        "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
+                        "COALESCE(consolidated_workers, unit_size, 0) DESC, "
+                        "similarity(search_name, %s) DESC, "
+                        "unit_size DESC NULLS LAST"
+                    )
+                else:
+                    order_clause = (
+                        "similarity(search_name, %s) DESC, "
+                        "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
+                        "COALESCE(consolidated_workers, unit_size, 0) DESC, "
+                        "unit_size DESC NULLS LAST"
+                    )
             if state:
                 conditions.append("state = %s")
                 params.append(state.upper())
@@ -484,8 +508,14 @@ def unified_employer_search(
             cur.execute(f"SELECT COUNT(*) FROM mv_employer_search m WHERE {where_clause}", params)
             total = cur.fetchone()['count']
 
-            # Results with flag count and group info
-            order_params = [name.lower()] if name else []
+            # Results with flag count and group info. ORDER BY param order must
+            # mirror the order_clause %s positions: canonical-pattern LIKE first
+            # (one param per pattern), then similarity (one). Build accordingly.
+            order_params: list = []
+            if name:
+                if canonical_patterns:
+                    order_params.extend(f"%{p}%" for p in canonical_patterns)
+                order_params.append(name.lower())
             cur.execute(f"""
                 SELECT m.canonical_id, m.source_type, m.employer_name, m.city, m.state,
                        m.zip, m.naics, m.unit_size, m.union_name, m.union_fnum,

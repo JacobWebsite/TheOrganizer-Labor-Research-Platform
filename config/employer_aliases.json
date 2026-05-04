@@ -1,32 +1,54 @@
 {
-  "_doc": "Employer name aliases + collision exclusions for unified employer search. Loaded by api/routers/employers.py::_load_aliases() and applied as WHERE LOWER(search_name) NOT LIKE %s%% guards when the user's query matches one of an entry's aliases. R7-7 (2026-04-28). To add a new entry: pick a canonical_name (display only), list lowercase aliases the user might type, list lowercase exclude_terms that should NOT appear in results when those aliases match. Fail-open if this file is missing or malformed.",
+  "_doc": "Employer name aliases + collision exclusions + canonical-row preference for unified employer search. Loaded by api/routers/employers.py::_load_aliases(). When the user's query matches one of an entry's aliases: (a) `exclude_terms` add WHERE LOWER(search_name) NOT LIKE %s guards; (b) `canonical_patterns` add an ORDER BY boost so search_name LIKE the canonical pattern wins regardless of trigram score (R7-7 heavy, 2026-05-03 -- needed for flat-MASTER fragments where 'walmart' per-store rows have similarity=1.0 vs 'walmart inc.' canonical at 0.667). Fail-open if this file is missing or malformed.",
   "aliases": [
     {
       "canonical_name": "Cleveland Clinic Foundation",
       "aliases": ["cleveland clinic", "ccf"],
       "exclude_terms": ["cleveland-cliffs", "cleveland cliffs"],
+      "canonical_patterns": ["cleveland clinic"],
       "notes": "Trigram similarity ranks Cleveland-Cliffs Inc (steel/mining) high on 'cleveland clinic' queries because of the shared prefix. Distinct entities."
     },
     {
       "canonical_name": "New York City Health and Hospitals Corporation",
       "aliases": ["nyc health and hospitals", "nyc health + hospitals", "nyc hhc", "h+h"],
       "exclude_terms": ["nyu langone", "nyu hospital", "nyu medical"],
+      "canonical_patterns": ["nyc health", "new york city health", "h+h"],
       "notes": "NYC public hospital system; NYU Langone is a separate private system. Audit cited NYC Hospitals query returning NYU Langone."
     },
     {
       "canonical_name": "Health Care Service Corporation",
       "aliases": ["hcsc"],
-      "notes": "Multi-state Blue Cross plan. The acronym 'HCSC' is a known organizer-target lookup; the trigram score for 'hcsc' against the long form is low so users often miss it. No exclude_terms today; entry kept for documentation and future expansion."
+      "canonical_patterns": ["health care service corp"],
+      "notes": "Multi-state Blue Cross plan. The acronym 'HCSC' is a known organizer-target lookup; the trigram score for 'hcsc' against the long form is low so users often miss it."
     },
     {
       "canonical_name": "Walmart Inc",
       "aliases": ["walmart", "wal-mart", "walmart stores"],
-      "notes": "Trigram + new tiebreak (canonical_group_id + consolidated_workers) ranks Walmart Inc parent above per-store fragments. Entry kept for documentation; no exclude_terms needed."
+      "canonical_patterns": ["walmart inc", "wal-mart inc", "wal-mart stores inc"],
+      "notes": "Flat-MASTER fragments ('walmart' alone, similarity=1.0, 25K-25K-employee per-store rows) drown out the canonical 'walmart inc.' (similarity=0.667, unit_size=10M). canonical_patterns boost pushes the parent to the top regardless of trigram score."
     },
     {
       "canonical_name": "Amazon.com Inc",
       "aliases": ["amazon"],
-      "notes": "Same as Walmart -- tiebreak handles Amazon parent vs warehouse fragments. Entry kept for documentation."
+      "canonical_patterns": ["amazon.com inc", "amazon com inc", "amazon inc"],
+      "notes": "Same flat-MASTER pattern as Walmart -- 'amazon' per-warehouse fragments at similarity=1.0 beat Amazon.com Inc parent."
+    },
+    {
+      "canonical_name": "Target Corporation",
+      "aliases": ["target", "target corp"],
+      "canonical_patterns": ["target corporation", "target corp"],
+      "notes": "Per-store Target rows beat parent on 'target' trigram. Same fix."
+    },
+    {
+      "canonical_name": "The Kroger Co",
+      "aliases": ["kroger", "the kroger company"],
+      "canonical_patterns": ["the kroger co", "kroger co", "kroger company"],
+      "notes": "Per-store Kroger fragments (similarity=1.0 on 'kroger') drown out parent."
+    },
+    {
+      "canonical_name": "Starbucks Corporation",
+      "aliases": ["starbucks", "starbucks coffee"],
+      "notes": "No canonical_patterns: the 2026-04-23 family rollup put the Starbucks F7 canonical-group leader (search_name='starbucks', cw=119) above flat MASTER per-store rows already. Adding a 'starbucks corp' pattern boost would demote that F7 leader behind WA-state-prefixed MASTER rows (e.g. 'wa317942390 - starbucks corp')."
     }
   ]
 }

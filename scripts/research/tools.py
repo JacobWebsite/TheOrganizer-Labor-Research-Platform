@@ -5276,7 +5276,12 @@ TOOL_REGISTRY: dict[str, callable] = {
     "search_ppp_loans": search_ppp_loans,
     "search_cbp_context": search_cbp_context,
     "search_lodes_workforce": search_lodes_workforce,
-    "search_abs_demographics": search_abs_demographics,
+    # search_abs_demographics REMOVED 2026-05-03 (R7 dead-tools cleanup): the
+    # cur_abs_geo_naics view has 112,483 rows but ALL with naics='00' (rollup
+    # only, no industry-specific data). The tool always returned "no data
+    # found" and burned API tokens. Re-enable when ABS industry-cross-tab
+    # data is loaded; the function definition is preserved at lines ~3404+
+    # for that future restoration.
     "search_acs_workforce": search_acs_workforce,
     "compare_employer_wages": compare_employer_wages,
     "search_nyc_enforcement": search_nyc_enforcement,
@@ -5646,19 +5651,8 @@ TOOL_DEFINITIONS = [
             "required": ["company_name"],
         },
     },
-    {
-        "name": "search_abs_demographics",
-        "description": "Search Annual Business Survey for firm demographics by industry. Returns firm counts by owner race, sex, veteran status, and firm size distribution. Provides diversity context for the employer's industry.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "company_name": {"type": "string", "description": "Company name (for context)"},
-                "naics": {"type": "string", "description": "NAICS code (2-6 digits). Required."},
-                "state": {"type": "string", "description": "2-letter state code for state-level data"},
-            },
-            "required": ["company_name", "naics"],
-        },
-    },
+    # search_abs_demographics definition removed 2026-05-03 -- see TOOL_REGISTRY
+    # comment for context. Re-add when industry-specific ABS data is loaded.
     {
         "name": "search_acs_workforce",
         "description": "Search ACS (American Community Survey) workforce demographics for a state and optional industry/occupation. Returns gender split, race/ethnicity breakdown, age distribution, education profile, and worker class (private/govt/self-employed). Answers 'who works in this industry here?'",

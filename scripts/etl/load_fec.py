@@ -217,13 +217,19 @@ def _norm_decimal(v):
 
 
 def _norm_date(v):
-    """FEC dates are MMDDYYYY string."""
+    """FEC dates are MMDDYYYY string. Reject years outside [1980, today+1] --
+    FEC bulk only covers 1980-present, and a contribution dated more than
+    one year ahead is a data-entry typo (we've seen 3312, 2031, 2029).
+    """
     if not v or len(v) != 8:
         return None
     try:
-        return datetime.strptime(v, "%m%d%Y").date()
+        d = datetime.strptime(v, "%m%d%Y").date()
     except (ValueError, TypeError):
         return None
+    if d.year < 1980 or d.year > date.today().year + 1:
+        return None
+    return d
 
 
 def _norm_state(v):
