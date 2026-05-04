@@ -16,6 +16,12 @@ Run this checklist before any deploy or beta launch. If a step fails, do not shi
   ```
   Manifest: `config/critical_mvs.txt`. **Why this exists:** 2026-04-30 incident -- `mv_target_scorecard` silently disappeared between R7 baseline (2026-04-25, 5.38M rows) and the next verification run. API returned 503 on every `/api/targets/scorecard*` call; master scoring was dead in the UI; no alert fired. The route check above is "is the code mounted"; this is "is the data behind the API actually present."
 
+- [ ] **F7 orphan rate within tolerance.**
+  ```
+  py scripts/maintenance/check_orphan_rate.py
+  ```
+  Default ceiling: 67.0% (R7-era regression number). Override with `--max-orphan-pct N`. **Why this exists:** Splink retirement (2026-04) pushed F7 orphan rate from R6 baseline 64.7% to 68.1% before the problem was noticed; current state ~65.2% is within 0.5pp of R6. This gate prevents future matching deactivations from silently pushing orphans back toward R7 levels (recommendation #5 from `Open Problems/F7 Orphan Rate Regression.md`).
+
 - [ ] **API is reachable.** `curl http://localhost:8001/api/health` returns `{"status":"ok","db":true}`.
 
 - [ ] **Frontend builds clean.** `cd frontend && npx vite build` exits 0.
