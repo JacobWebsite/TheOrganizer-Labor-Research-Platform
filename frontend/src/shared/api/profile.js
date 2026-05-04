@@ -117,6 +117,25 @@ export function useMasterLobbying(masterId, { enabled = true } = {}) {
   })
 }
 
+// 24Q-41: FEC contributions (PAC + employee individual) on the master profile.
+// Endpoint returns { summary, top_pac_recipients, top_employee_donors,
+// yearly_breakdown }. Pairs with useMasterLobbying for the full Q24
+// political-activity picture.
+export function useMasterFecContributions(
+  masterId,
+  { enabled = true, topRecipients = 10, topDonors = 10 } = {},
+) {
+  return useQuery({
+    queryKey: ['master-fec-contributions', masterId, topRecipients, topDonors],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/fec-contributions?top_recipients=${topRecipients}&top_donors=${topDonors}`,
+      ),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEmployerCorporate(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-corporate', id],

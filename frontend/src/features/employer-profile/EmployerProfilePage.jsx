@@ -16,6 +16,7 @@ import { EnvironmentalCard } from './EnvironmentalCard'
 import { ExecutivesCard } from './ExecutivesCard'
 import { InstitutionalOwnersCard } from './InstitutionalOwnersCard'
 import { LobbyingCard } from './LobbyingCard'
+import { FecContributionsCard } from './FecContributionsCard'
 import { NlrbSection } from './NlrbSection'
 import { CrossReferencesSection } from './CrossReferencesSection'
 import { BasicProfileView } from './BasicProfileView'
@@ -243,6 +244,9 @@ export function EmployerProfilePage() {
             useMasterLobbying. One pillar of Q24 Political alongside
             FEC contributions. */}
         <LobbyingCard masterId={rawId} />
+        {/* 24Q-41: FEC contributions (PAC + employee). Self-fetches via
+            useMasterFecContributions. Second pillar of Q24 Political. */}
+        <FecContributionsCard masterId={rawId} />
         <BasicProfileView data={data} isMaster />
       </div>
     )
