@@ -9,6 +9,11 @@ import { useMasterBoard } from '@/shared/api/profile'
 // board). Pairs with ExecutivesCard (24Q-7) for the full Q8/Q10
 // management+board view.
 //
+// Coverage as of 2026-05-04 (full DEF14A batch complete): 23,956 directors
+// across 3,256 masters / 3,257 CIKs, with 62,899 cross-company interlocks.
+// Reach is concentrated in SEC-filing public companies (~0.64% of SEC-linked
+// masters); private companies + non-profits show the empty state below.
+//
 // UX matches LobbyingCard / FecContributionsCard / InstitutionalOwnersCard:
 // minimal chrome, expandable tables, no tier badges. Independent directors
 // surface first because lack of independence is the labor-relations red flag
