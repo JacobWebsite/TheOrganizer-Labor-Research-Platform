@@ -330,31 +330,66 @@ def refresh_token(request: Request):
         )
         raise HTTPException(401, "Authentication required")
 
-    token, expires_in = _create_token(current["username"], current["role"])
-    # Look up user_id by username for the audit row. Cheap; refresh
-    # is much rarer than login.
+    # Refresh MUST verify the user still exists in platform_users (not
+    # deleted/disabled) and use the CURRENT DB role for the new token.
+    # Otherwise: a deleted user could keep refreshing indefinitely with
+    # the old role; a downgraded admin/researcher would retain elevated
+    # privileges; a stolen JWT could extend itself forever.
+    # (Codex finding 2026-05-05.)
     user_id: Optional[int] = None
+    db_role: Optional[str] = None
     try:
         with get_db() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT id FROM platform_users WHERE username = %s",
+                "SELECT id, role FROM platform_users WHERE username = %s",
                 (current["username"],),
             )
             row = cur.fetchone()
             if row:
                 user_id = row["id"] if isinstance(row, dict) else row[0]
-    except Exception:  # noqa: BLE001 — audit logging must never break auth
-        pass
+                db_role = row["role"] if isinstance(row, dict) else row[1]
+    except Exception as exc:  # noqa: BLE001
+        # DB error during refresh -- fail closed, NOT silently ignored.
+        # Better to force re-login than to issue a token from stale
+        # JWT-claim data.
+        log.warning("refresh: DB lookup failed for %s: %s",
+                    current["username"], exc)
+        log_auth_event(
+            action="token_refresh_fail",
+            ip_address=_client_ip_for_audit(request),
+            user_agent=request.headers.get("user-agent"),
+            metadata={"reason": "db_error", "username": current["username"]},
+        )
+        raise HTTPException(503, "Authentication service unavailable")
+
+    if user_id is None or db_role is None:
+        # User was deleted between issuance and refresh. Hard 401 — they
+        # need to re-authenticate (and won't be able to, which is correct).
+        log_auth_event(
+            action="token_refresh_fail",
+            ip_address=_client_ip_for_audit(request),
+            user_agent=request.headers.get("user-agent"),
+            metadata={"reason": "user_deleted", "username": current["username"]},
+        )
+        raise HTTPException(401, "User no longer exists")
+
+    # Issue token with CURRENT DB role, not the role from the old JWT.
+    # If admin -> read demotion happened, the new token reflects read.
+    token, expires_in = _create_token(current["username"], db_role)
     log_auth_event(
         user_id=user_id,
         action="token_refresh_success",
         ip_address=_client_ip_for_audit(request),
         user_agent=request.headers.get("user-agent"),
-        metadata={"role": current["role"]},
+        metadata={
+            "role": db_role,
+            "role_in_old_token": current["role"],
+            "role_changed": db_role != current["role"],
+        },
     )
     return TokenResponse(
-        access_token=token, expires_in=expires_in, role=current["role"]
+        access_token=token, expires_in=expires_in, role=db_role
     )
 
 

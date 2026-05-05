@@ -47,23 +47,40 @@ except Exception as exc:  # pragma: no cover
 
 
 def measure_coverage(cur) -> tuple[int, int, int]:
-    """Returns (total_masters, with_naics, sec_with_naics)."""
-    cur.execute("SELECT COUNT(*) FILTER (WHERE naics IS NOT NULL), COUNT(*) FROM master_employers")
+    """Returns (total_masters, with_naics, sec_with_naics).
+
+    Aliases the COUNT() columns explicitly because dict-style cursors
+    collapse duplicate `count` keys and would silently return
+    with_naics == total. (Codex finding 2026-05-05.)
+    """
+    cur.execute(
+        """
+        SELECT
+          COUNT(*) FILTER (WHERE naics IS NOT NULL) AS with_naics_count,
+          COUNT(*) AS total_count
+        FROM master_employers
+        """
+    )
     row = cur.fetchone()
     if isinstance(row, dict):
-        with_naics, total = int(row.get("count") or 0), int(row.get("count_1") or 0)
+        with_naics = int(row.get("with_naics_count") or 0)
+        total = int(row.get("total_count") or 0)
     else:
         with_naics, total = int(row[0] or 0), int(row[1] or 0)
     cur.execute(
         """
-        SELECT COUNT(*) FROM master_employers m
+        SELECT COUNT(*) AS sec_with_naics_count
+        FROM master_employers m
         WHERE m.naics IS NOT NULL
           AND EXISTS (SELECT 1 FROM master_employer_source_ids s
                       WHERE s.master_id = m.master_id AND s.source_system = 'sec')
         """
     )
     row = cur.fetchone()
-    sec_with = int((row[0] if isinstance(row, tuple) else row.get("count")) or 0)
+    if isinstance(row, dict):
+        sec_with = int(row.get("sec_with_naics_count") or 0)
+    else:
+        sec_with = int(row[0] or 0)
     return total, with_naics, sec_with
 
 
@@ -158,23 +175,37 @@ def main() -> int:
 
     if args.dry_run:
         # Measure-only: count rows that WOULD be filled
+        # Dry-run must apply the SAME filters as the real backfill, or
+        # it overstates recoverable coverage. The real path takes only
+        # the first NAICS via SPLIT_PART then rejects values > 10 chars
+        # (the master_employers.naics column width).
+        # (Codex finding 2026-05-05.)
         cur.execute(
             """
-            SELECT COUNT(DISTINCT s.master_id)
-            FROM master_employer_source_ids s
-            JOIN mergent_employers me
-                ON me.id::text = s.source_id OR me.duns = s.source_id
-            JOIN master_employers m ON m.master_id = s.master_id
-            WHERE s.source_system = 'mergent'
-              AND COALESCE(me.naics_primary, me.naics_secondary) IS NOT NULL
-              AND m.naics IS NULL
+            WITH cand AS (
+                SELECT DISTINCT s.master_id,
+                    TRIM(SPLIT_PART(
+                        COALESCE(me.naics_primary, me.naics_secondary), ',', 1)) AS naics
+                FROM master_employer_source_ids s
+                JOIN mergent_employers me
+                    ON me.id::text = s.source_id OR me.duns = s.source_id
+                JOIN master_employers m ON m.master_id = s.master_id
+                WHERE s.source_system = 'mergent'
+                  AND COALESCE(me.naics_primary, me.naics_secondary) IS NOT NULL
+                  AND m.naics IS NULL
+            )
+            SELECT COUNT(*) AS merg_n FROM cand
+            WHERE naics IS NOT NULL AND LENGTH(naics) <= 10 AND naics <> ''
             """
         )
         row = cur.fetchone()
-        merg_n = int((row[0] if isinstance(row, tuple) else row.get("count")) or 0)
+        if isinstance(row, dict):
+            merg_n = int(row.get("merg_n") or 0)
+        else:
+            merg_n = int(row[0] or 0)
         cur.execute(
             """
-            SELECT COUNT(DISTINCT s.master_id)
+            SELECT COUNT(DISTINCT s.master_id) AS sec_n
             FROM master_employer_source_ids s
             JOIN sec_companies sc ON sc.cik::text = s.source_id
             JOIN naics_sic_crosswalk x ON x.sic_code = sc.sic_code
@@ -186,7 +217,10 @@ def main() -> int:
             """
         )
         row = cur.fetchone()
-        sec_n = int((row[0] if isinstance(row, tuple) else row.get("count")) or 0)
+        if isinstance(row, dict):
+            sec_n = int(row.get("sec_n") or 0)
+        else:
+            sec_n = int(row[0] or 0)
         print(f"Dry-run: would fill {merg_n:,} via Mergent, then up to {sec_n:,} via SEC SIC")
         print("(SEC count overlaps with Mergent — the second path only runs on rows still NULL)")
         conn.close()

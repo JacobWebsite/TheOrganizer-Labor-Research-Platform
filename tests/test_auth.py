@@ -607,3 +607,95 @@ def test_audit_login_fail_no_such_user_writes_row(auth_client):
     assert r.status_code == 401
     after = _count_audit_rows("login_fail")
     assert after == before + 1
+
+
+# ============================================================================
+# Refresh token security (B.1.5 hardening — Codex finding 2026-05-05)
+# ============================================================================
+
+def test_refresh_rejects_deleted_user(auth_client):
+    """If a user's row is removed from platform_users between issuance
+    and refresh, /api/auth/refresh MUST return 401 — not silently mint
+    a new token from the JWT claims (the original bug)."""
+    from db_config import get_connection
+    # Create a temp user, log them in, then DELETE the row, then try
+    # to refresh with the still-valid JWT.
+    admin_token = _get_admin_token(auth_client)
+    auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_deletable",
+            "password": "deletablepass1234",
+            "role": "read",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    login_r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_deletable", "password": "deletablepass1234"},
+    )
+    assert login_r.status_code == 200
+    user_token = login_r.json()["access_token"]
+
+    # Delete the user from the DB
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM platform_users WHERE username = 'test_deletable'")
+    conn.commit()
+    conn.close()
+
+    # Refresh must now fail
+    r = auth_client.post(
+        "/api/auth/refresh",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert r.status_code == 401, (
+        f"refresh should reject deleted user, got {r.status_code}: {r.text}"
+    )
+    assert "no longer exists" in r.text.lower() or "user" in r.text.lower()
+
+
+def test_refresh_uses_current_db_role_not_jwt_role(auth_client):
+    """If a user is downgraded admin -> read between token issuance and
+    refresh, the new token MUST reflect the current DB role, not the
+    role baked into the JWT. Otherwise a demoted admin retains
+    privileges until natural expiry."""
+    from db_config import get_connection
+    admin_token = _get_admin_token(auth_client)
+    # Register as researcher
+    auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_demotable",
+            "password": "demotablepass1234",
+            "role": "researcher",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    # Log in as researcher
+    login_r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_demotable", "password": "demotablepass1234"},
+    )
+    assert login_r.status_code == 200
+    assert login_r.json()["role"] == "researcher"
+    user_token = login_r.json()["access_token"]
+
+    # Demote them to read in the DB
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE platform_users SET role = 'read' WHERE username = 'test_demotable'"
+    )
+    conn.commit()
+    conn.close()
+
+    # Refresh: returned role MUST be 'read', not 'researcher'
+    r = auth_client.post(
+        "/api/auth/refresh",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["role"] == "read", (
+        f"refresh kept the old researcher role despite DB demotion: {r.json()}"
+    )
