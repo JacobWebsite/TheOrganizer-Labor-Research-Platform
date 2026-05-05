@@ -212,28 +212,46 @@ async def get_employer_demographics(master_id: int):
         # Get state FIPS
         state_fips = _get_state_fips(cur, state_abbr)
 
-        # Get county FIPS from ZIP if available
+        # Get county FIPS from ZIP if available. Strip the ZIP+4 suffix —
+        # master_employers.zip stores values like '60064-3500' but the
+        # zip_county_crosswalk table is keyed on 5-digit ZIPs only. Without
+        # this strip, V12 falls back to ACS for every employer that has
+        # a hyphenated ZIP+4 (most SEC filers, including Abbott which
+        # carries '60064-3500'). Found while testing 2026-05-05.
+        zipcode_5 = (zipcode or "").strip().split("-", 1)[0][:5]
         county_fips = None
-        if zipcode:
+        if zipcode_5:
             cur.execute(
                 "SELECT county_fips FROM zip_county_crosswalk WHERE zip_code = %s LIMIT 1",
-                (zipcode,))
+                (zipcode_5,))
             row = cur.fetchone()
             if row:
                 county_fips = row["county_fips"]
 
-        # Try V12 QWI model first
+        # Try V12 QWI model first.
+        # Pass zipcode_5 (5-digit) instead of the raw `zipcode` (which can
+        # carry a -1234 suffix). V12 itself only uses zipcode for trace
+        # logging, but consistency keeps things clean.
         v12_result = None
         method = "acs_fallback"
         try:
             from api.services.demographics_v12 import estimate_demographics_v12
             v12_result = estimate_demographics_v12(
                 cur, naics_code or "00", state_fips,
-                zipcode or "00000", county_fips or "00000",
+                zipcode_5 or "00000", county_fips or "00000",
                 state_abbr=state_abbr, total_employees=100)
             if v12_result and v12_result.get("race"):
                 method = v12_result.get("metadata", {}).get("model", "v12_qwi")
-        except Exception:
+        except Exception as exc:
+            # Don't silently fall back to ACS without a trace -- this swallow
+            # hid two real bugs (cursor type mismatch, ZIP+4 county lookup).
+            # Log at warning level so deploy logs surface the issue but
+            # don't fail the response.
+            import logging
+            logging.getLogger("labor_api.demographics").warning(
+                "V12 estimation failed for master_id=%s naics=%s county=%s: %s",
+                master_id, naics_code, county_fips, exc, exc_info=True,
+            )
             v12_result = None
 
         if v12_result and v12_result.get("race"):
