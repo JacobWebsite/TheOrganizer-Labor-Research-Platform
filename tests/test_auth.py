@@ -371,3 +371,167 @@ def test_write_endpoints_require_auth(auth_client):
 
     r = auth_client.delete("/api/employers/flags/99999")
     assert r.status_code == 401
+
+
+# ============================================================================
+# Researcher role (B.1.1, added 2026-05-05)
+# ============================================================================
+
+def test_register_researcher_role_accepted(auth_client):
+    """The new 'researcher' role registers successfully (was rejected by
+    the original `^(admin|read)$` pattern)."""
+    admin_token = _get_admin_token(auth_client)
+    r = auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_researcher",
+            "password": "researcherpass1",
+            "role": "researcher",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200, f"unexpected: {r.status_code} {r.text}"
+    assert r.json()["role"] == "researcher"
+
+
+def test_register_invalid_role_rejected(auth_client):
+    """Roles outside admin/researcher/read are still rejected by the regex."""
+    admin_token = _get_admin_token(auth_client)
+    r = auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_baduser",
+            "password": "validpass1",
+            "role": "superuser",  # not in the allowed set
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 422  # Pydantic validation error
+
+
+def _get_researcher_token(auth_client):
+    """Helper: log in as the test_researcher user from the test above."""
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_researcher", "password": "researcherpass1"},
+    )
+    return r.json()["access_token"]
+
+
+def test_login_researcher_returns_role(auth_client):
+    """Login as researcher returns role='researcher' in the token response."""
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_researcher", "password": "researcherpass1"},
+    )
+    assert r.status_code == 200
+    assert r.json()["role"] == "researcher"
+
+
+# ============================================================================
+# require_researcher dependency function (called directly, not via endpoint)
+# ============================================================================
+
+class _FakeRequest:
+    """Minimal Request stand-in for direct dependency-function tests.
+
+    require_* dependencies only access request.state.{user, role}, so a
+    SimpleNamespace-shaped object is enough — no need to spin up an
+    actual ASGI request.
+    """
+    def __init__(self, user=None, role=None):
+        from types import SimpleNamespace
+        self.state = SimpleNamespace(user=user, role=role)
+
+
+def test_require_researcher_accepts_researcher_role(auth_client):
+    from api.dependencies import require_researcher
+    out = require_researcher(_FakeRequest(user="alice", role="researcher"))
+    assert out == {"username": "alice", "role": "researcher"}
+
+
+def test_require_researcher_accepts_admin_role(auth_client):
+    """Admins implicitly have researcher permissions."""
+    from api.dependencies import require_researcher
+    out = require_researcher(_FakeRequest(user="root", role="admin"))
+    assert out == {"username": "root", "role": "admin"}
+
+
+def test_require_researcher_rejects_read_role(auth_client):
+    from fastapi import HTTPException
+    from api.dependencies import require_researcher
+    with pytest.raises(HTTPException) as ei:
+        require_researcher(_FakeRequest(user="bob", role="read"))
+    assert ei.value.status_code == 403
+    assert "Researcher" in ei.value.detail or "researcher" in ei.value.detail
+
+
+def test_require_researcher_rejects_anonymous(auth_client):
+    from fastapi import HTTPException
+    from api.dependencies import require_researcher
+    with pytest.raises(HTTPException) as ei:
+        require_researcher(_FakeRequest(user="anonymous", role=None))
+    assert ei.value.status_code == 401
+
+
+# ============================================================================
+# Audit log writes (B.1.4, added 2026-05-05)
+# ============================================================================
+
+def _count_audit_rows(action: str, since_seconds: int = 60) -> int:
+    """Count rows in auth_audit_log matching `action`, written in the last
+    `since_seconds`. Used to verify auth events are being recorded."""
+    from db_config import get_connection
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT COUNT(*) FROM auth_audit_log
+            WHERE action = %s
+              AND occurred_at >= NOW() - (%s || ' seconds')::interval
+            """,
+            (action, str(since_seconds)),
+        )
+        row = cur.fetchone()
+        return int(row[0] if isinstance(row, tuple) else row.get("count", 0))
+    finally:
+        conn.close()
+
+
+def test_audit_login_success_writes_row(auth_client):
+    """A successful login writes an audit row with action='login_success'."""
+    before = _count_audit_rows("login_success")
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_admin", "password": "adminpass123"},
+    )
+    assert r.status_code == 200
+    after = _count_audit_rows("login_success")
+    assert after == before + 1, (
+        f"expected exactly 1 new login_success row; before={before} after={after}"
+    )
+
+
+def test_audit_login_fail_wrong_password_writes_row(auth_client):
+    """A wrong-password login writes an audit row with action='login_fail'."""
+    before = _count_audit_rows("login_fail")
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_admin", "password": "wrong-password-on-purpose"},
+    )
+    assert r.status_code == 401
+    after = _count_audit_rows("login_fail")
+    assert after == before + 1
+
+
+def test_audit_login_fail_no_such_user_writes_row(auth_client):
+    """A login attempt on a nonexistent user writes an audit row too."""
+    before = _count_audit_rows("login_fail")
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_does_not_exist_xyzzy", "password": "anything"},
+    )
+    assert r.status_code == 401
+    after = _count_audit_rows("login_fail")
+    assert after == before + 1
