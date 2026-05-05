@@ -127,19 +127,19 @@ def test_register_requires_admin(auth_client):
 
     # Create read user
     auth_client.post("/api/auth/register",
-        json={"username": "test_reader", "password": "readerpass1", "role": "read"},
+        json={"username": "test_reader", "password": "readerpass123", "role": "read"},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     # Login as read user
     read_r = auth_client.post("/api/auth/login", json={
-        "username": "test_reader", "password": "readerpass1"
+        "username": "test_reader", "password": "readerpass123"
     })
     read_token = read_r.json()["access_token"]
 
     # Try to register -- should fail
     r = auth_client.post("/api/auth/register",
-        json={"username": "test_sneaky", "password": "sneakypass1", "role": "read"},
+        json={"username": "test_sneaky", "password": "sneakypass123", "role": "read"},
         headers={"Authorization": f"Bearer {read_token}"}
     )
     assert r.status_code == 403
@@ -148,7 +148,7 @@ def test_register_requires_admin(auth_client):
 def test_register_unauthenticated_after_first_user(auth_client):
     """Unauthenticated registration fails when users already exist."""
     r = auth_client.post("/api/auth/register", json={
-        "username": "test_anon", "password": "anonpass123", "role": "read"
+        "username": "test_anon", "password": "anonpass1234", "role": "read"
     })
     assert r.status_code == 403
 
@@ -167,7 +167,11 @@ def test_login_success(auth_client):
     assert "access_token" in data
     assert data["token_type"] == "bearer"
     assert data["role"] == "admin"
-    assert data["expires_in"] > 0
+    # 2026-05-05: JWT lifetime dropped 8h -> 1h. expires_in should be 3600
+    # (one hour) -- assert tightly so a future revert can't slip through.
+    assert data["expires_in"] == 3600, (
+        f"expected 3600s (1hr) JWT lifetime, got {data['expires_in']}s"
+    )
 
 
 def test_login_wrong_password(auth_client):
@@ -205,7 +209,48 @@ def test_refresh_token(auth_client):
     data = r.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert data["expires_in"] > 0
+    # Refresh issues a fresh 1-hour token, not a partial-life "extend".
+    assert data["expires_in"] == 3600
+    # Note: the refreshed token MAY be byte-identical to the original when
+    # both issuances land in the same second (iat collision -> same payload
+    # -> same signature). That's fine -- the meaningful invariant is that
+    # the new token's exp is at or after the original's, validated by
+    # test_refresh_token_exp_claim_is_one_hour below.
+
+
+def test_refresh_token_exp_claim_is_one_hour(auth_client):
+    """JWT exp claim is now+3600s (regression guard for the 2026-05-05
+    JWT_EXPIRY_HOURS change). Decodes the token and validates the exp
+    timestamp directly rather than trusting the response field."""
+    import time
+    import json
+    import base64
+
+    login_r = auth_client.post("/api/auth/login", json={
+        "username": "test_admin", "password": "adminpass123"
+    })
+    token = login_r.json()["access_token"]
+
+    # JWT payload is base64url-encoded JSON in the middle segment
+    parts = token.split(".")
+    assert len(parts) == 3, "JWT should have 3 dot-separated segments"
+    # Pad b64 to a multiple of 4
+    pad = "=" * ((4 - len(parts[1]) % 4) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad))
+    exp = payload.get("exp")
+    iat = payload.get("iat")
+    assert exp is not None and iat is not None
+    # exp - iat should equal 3600 seconds (1 hour)
+    assert exp - iat == 3600, (
+        f"exp-iat should be 3600s (1hr), got {exp - iat}s. "
+        f"Has JWT_EXPIRY_HOURS reverted?"
+    )
+    # Sanity: exp should be ~now + 1hr, not days away
+    delta = exp - int(time.time())
+    assert 3500 < delta < 3700, (
+        f"token exp is {delta}s from now; expected ~3600s (1hr). "
+        f"Delta from 3600: {delta - 3600}s"
+    )
 
 
 def test_me_endpoint(auth_client):
@@ -273,17 +318,44 @@ def test_invalid_token_returns_401(auth_client):
 # ============================================================================
 
 def test_register_short_password(auth_client):
-    """Password under 8 chars is rejected."""
+    """Password under 12 chars is rejected (policy bumped 8 -> 12 on 2026-05-05)."""
     login_r = auth_client.post("/api/auth/login", json={
         "username": "test_admin", "password": "adminpass123"
     })
     token = login_r.json()["access_token"]
 
+    # 5 chars — was rejected under the old 8-char minimum, still rejected under 12
     r = auth_client.post("/api/auth/register",
         json={"username": "test_short", "password": "short", "role": "read"},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 422  # Validation error
+
+    # 11 chars — passed under the old 8-char minimum, MUST now be rejected.
+    # This is the regression-guard for the 2026-05-05 policy change.
+    r = auth_client.post("/api/auth/register",
+        json={"username": "test_eleven", "password": "elevenchars", "role": "read"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 422
+    # Pydantic error mentions the min_length (string-length detail)
+    assert "12" in r.text or "min" in r.text.lower()
+
+
+def test_register_password_at_12_char_minimum_accepted(auth_client):
+    """Password at exactly 12 chars (the new minimum) is accepted."""
+    login_r = auth_client.post("/api/auth/login", json={
+        "username": "test_admin", "password": "adminpass123"
+    })
+    token = login_r.json()["access_token"]
+
+    twelve_char = "abcde1234567"  # exactly 12 chars
+    assert len(twelve_char) == 12
+    r = auth_client.post("/api/auth/register",
+        json={"username": "test_twelvech", "password": twelve_char, "role": "read"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 200, f"got {r.status_code} {r.text}"
 
 
 def test_register_invalid_username(auth_client):
@@ -294,7 +366,7 @@ def test_register_invalid_username(auth_client):
     token = login_r.json()["access_token"]
 
     r = auth_client.post("/api/auth/register",
-        json={"username": "test user!", "password": "validpass1", "role": "read"},
+        json={"username": "test user!", "password": "validpass1234", "role": "read"},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 422
@@ -313,7 +385,7 @@ def _get_admin_token(auth_client):
 
 def _get_reader_token(auth_client):
     r = auth_client.post("/api/auth/login", json={
-        "username": "test_reader", "password": "readerpass1"
+        "username": "test_reader", "password": "readerpass123"
     })
     return r.json()["access_token"]
 
@@ -401,7 +473,7 @@ def test_register_invalid_role_rejected(auth_client):
         "/api/auth/register",
         json={
             "username": "test_baduser",
-            "password": "validpass1",
+            "password": "validpass1234",
             "role": "superuser",  # not in the allowed set
         },
         headers={"Authorization": f"Bearer {admin_token}"},

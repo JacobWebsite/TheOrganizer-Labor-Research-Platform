@@ -69,7 +69,14 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=100, pattern=r'^[a-zA-Z0-9_-]+$')
-    password: str = Field(..., min_length=8)
+    # 12-char minimum (2026-05-05; was 8). Industry guidance for any
+    # multi-user platform with admin tier; brings us in line with NIST
+    # recommendations and significantly reduces the attack surface for
+    # offline brute force should the password_hash table ever leak.
+    # LoginRequest still accepts min_length=1 so existing accounts with
+    # shorter passwords from the pre-policy era can still authenticate
+    # — they only hit the new rule on next reset.
+    password: str = Field(..., min_length=12)
     # Three-tier role hierarchy per spec:
     #   admin       — user management, MV refreshes, scorecard rebuilds
     #   researcher  — flag employers, CSV export, trigger research runs
