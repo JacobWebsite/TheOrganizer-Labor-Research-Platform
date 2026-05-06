@@ -175,6 +175,23 @@ export function useTopDirectors({ enabled = true, limit = 25 } = {}) {
   })
 }
 
+// 24Q-14 C.2-3: Director network. Returns the corporate-power-map view
+// for a master — 1-hop neighbors (companies sharing a director directly)
+// and 2-hop neighbors (companies connected via a shared director with
+// a 1-hop neighbor). See api/routers/director_network.py for shape.
+// Pairs with BoardCard — usually rendered as a section right below it.
+export function useDirectorNetwork(masterId, { enabled = true, depth = 2, topTwoHop = 50 } = {}) {
+  return useQuery({
+    queryKey: ['director-network', masterId, depth, topTwoHop],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/director-network?depth=${depth}&top_two_hop=${topTwoHop}`,
+      ),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEmployerCorporate(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-corporate', id],

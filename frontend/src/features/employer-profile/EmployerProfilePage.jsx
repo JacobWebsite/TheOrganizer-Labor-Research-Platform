@@ -15,6 +15,7 @@ import { OshaSection } from './OshaSection'
 import { EnvironmentalCard } from './EnvironmentalCard'
 import { ExecutivesCard } from './ExecutivesCard'
 import { BoardCard } from './BoardCard'
+import { DirectorNetworkSection } from './DirectorNetworkSection'
 import { InstitutionalOwnersCard } from './InstitutionalOwnersCard'
 import { LobbyingCard } from './LobbyingCard'
 import { FecContributionsCard } from './FecContributionsCard'
@@ -241,6 +242,10 @@ export function EmployerProfilePage() {
             interlocks). Self-fetches via useMasterBoard. Closes Q10 Board
             for SEC-filing employers. */}
         <BoardCard masterId={rawId} />
+        {/* 24Q-14 C.2-3: Director-network 1-hop + 2-hop view. Self-gates
+            on stats.should_surface (>= 3 1-hop neighbors); private
+            companies + recent IPOs render nothing. */}
+        <DirectorNetworkSection masterId={rawId} />
         {/* 24Q-9: SEC Form 13F institutional owners. Self-fetches via
             useMasterInstitutionalOwners. Moves Q9 Stockholders Missing
             -> Strong for publicly-traded targets. */}
