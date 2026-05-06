@@ -845,13 +845,23 @@ SELECT
     CASE
         -- Guardrail: min 3 factors for Priority AND Strong (D3) +
         -- Task #38: Priority and Strong also require >=1 direct factor
-        -- (OSHA/NLRB/WHD/contracts/financial). Thin-data rows (0 direct
-        -- factors) cap at Promising no matter how high modeled signals push
-        -- their percentile.
+        -- (OSHA/NLRB/WHD/contracts/financial).
+        --
+        -- 2026-05-06 P0 #5 fix: the original 'Promising' tier collapsed
+        -- two distinct populations:
+        --   * thin-data 85+ percentile (model thinks they're high but
+        --     no direct enforcement signals — 87% of "Promising", 0.5%
+        --     enforcement rate)
+        --   * scored 60-84 percentile WITH direct factors (real mid-
+        --     tier signals — 13% of "Promising", 71% enforcement rate)
+        -- Averaging them produced 9.8% enforcement for "Promising" while
+        -- "Low" had 61% — the audit-flagged "tier inversion at the
+        -- bottom." Splitting them gives organizers a meaningful signal
+        -- on each subgroup.
         WHEN r.score_percentile >= 0.97 AND r.factors_available >= 3 AND r.direct_factors_available >= 1 THEN 'Priority'
         WHEN r.score_percentile >= 0.85 AND r.factors_available >= 3 AND r.direct_factors_available >= 1 THEN 'Strong'
-        WHEN r.score_percentile >= 0.85 THEN 'Promising'
-        WHEN r.score_percentile >= 0.60 THEN 'Promising'
+        WHEN r.score_percentile >= 0.60 AND r.direct_factors_available >= 1 THEN 'Promising'
+        WHEN r.score_percentile >= 0.85 THEN 'Speculative'
         WHEN r.score_percentile >= 0.25 THEN 'Moderate'
         ELSE 'Low'
     END AS score_tier,

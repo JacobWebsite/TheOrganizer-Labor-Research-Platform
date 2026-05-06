@@ -12,13 +12,16 @@ import { SourceBadge } from './SourceBadge'
 
 const PAGE_SIZE = 25
 
-// Aged Broadsheet tier colors (keep in sync with SearchResultCard).
+// Aged Broadsheet tier colors (keep in sync with ProfileHeader + TargetsPage).
 const TIER_COLORS = {
   Priority: '#c23a22',
   Strong: '#1a6b5a',
   Promising: '#c78c4e',
   Moderate: '#8a7e6b',
   Low: '#d9cebb',
+  // Speculative (added 2026-05-06): muted gray-blue. Distinct from Low
+  // (which has real enforcement) to signal "modeled, unverified."
+  Speculative: '#7a8b9a',
 }
 
 function ScoreCell({ score, tier, thin }) {

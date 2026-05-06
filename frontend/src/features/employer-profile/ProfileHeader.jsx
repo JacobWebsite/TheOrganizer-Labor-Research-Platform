@@ -10,6 +10,10 @@ const TIER_COLORS = {
   Promising: 'border border-[#c78c4e]/60 text-[#c78c4e]',
   Moderate: 'border border-[#faf6ef]/30 text-[#faf6ef]/60',
   Low: 'border border-[#faf6ef]/20 text-[#faf6ef]/40',
+  // Speculative (2026-05-06): muted gray-blue + dashed border to
+  // visually distinguish from Low (which has real enforcement) and
+  // signal "modeled, unverified."
+  Speculative: 'border border-dashed border-[#7a8b9a]/60 text-[#7a8b9a]',
 }
 
 const DATA_SOURCE_KEYS = [

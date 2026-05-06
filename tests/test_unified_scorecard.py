@@ -203,13 +203,19 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_score_tier_values(self):
-        """score_tier should be one of Priority/Strong/Promising/Moderate/Low."""
+        """score_tier ∈ {Priority, Strong, Promising, Moderate, Low, Speculative}.
+
+        Speculative was added 2026-05-06 (P0 #5 fix) — it's the thin-data
+        85+-percentile subset that was previously bundled into 'Promising'
+        and dragged that tier's enforcement rate to 9.8%.
+        """
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(*) FROM mv_unified_scorecard
-                    WHERE score_tier NOT IN ('Priority', 'Strong', 'Promising', 'Moderate', 'Low')
+                    WHERE score_tier NOT IN
+                      ('Priority', 'Strong', 'Promising', 'Moderate', 'Low', 'Speculative')
                 """)
                 bad = cur.fetchone()[0]
                 assert bad == 0, f"{bad} rows have invalid score_tier"
