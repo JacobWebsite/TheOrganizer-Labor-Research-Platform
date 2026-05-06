@@ -289,55 +289,93 @@ def run_dry_run(args):
     conn.close()
 
 
+def _confidence_band(method: str) -> str:
+    """Map V2 method name to the canonical confidence_band convention
+    used elsewhere in unified_match_log. Aligns with how
+    NAME_CITY_STATE_EXACT / NAME_AGGRESSIVE_STATE / etc. are already
+    classified in the existing F7 active matches."""
+    if method == "NAME_AGGRESSIVE_STATE_EXACT":
+        return "MEDIUM"
+    return "HIGH"
+
+
 def _commit_writes(conn, matches):
-    """Write matches to unified_match_log. Skips orphans that already
-    have an active match (race-protection)."""
+    """Write matches to unified_match_log atomically.
+
+    Schema (verified vs `unified_match_log` definition 2026-05-06):
+        run_id, source_system, source_id, target_system, target_id,
+        match_method, match_tier (deterministic|probabilistic),
+        confidence_band (HIGH|MEDIUM|LOW), confidence_score, evidence,
+        status, created_at.
+
+    Race protection: an `INSERT ... SELECT ... WHERE NOT EXISTS` form
+    that's TOCTOU-safe vs concurrent rematch / nightly cron runs.
+    Two parallel commit runs cannot double-insert the same target_id
+    because the WHERE-NOT-EXISTS check happens inside the same SQL
+    statement as the INSERT.
+
+    (Codex finding 2026-05-06: prior check-then-insert was racy; prior
+    INSERT used `match_score` + `matched_at` columns that don't exist
+    in the actual schema -- would have failed at runtime in commit
+    mode. Both fixed here.)
+    """
     cur = conn.cursor()
+    run_id = f"orphan_rematch_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+    print(f"\nrun_id: {run_id}")
     written = 0
     skipped_existing = 0
     t0 = time.time()
     for i, m in enumerate(matches):
-        # Race-protection: re-check active status right before insert.
-        cur.execute(
-            """
-            SELECT 1 FROM unified_match_log
-            WHERE target_system = 'f7' AND target_id = %s AND status = 'active'
-            LIMIT 1
-            """,
-            [m["f7_employer_id"]],
-        )
-        if cur.fetchone():
-            skipped_existing += 1
-            continue
         cur.execute(
             """
             INSERT INTO unified_match_log (
-                source_system, source_id,
+                run_id, source_system, source_id,
                 target_system, target_id,
-                match_method, match_score,
-                status, matched_at,
-                evidence
-            ) VALUES (%s, %s, 'f7', %s, %s, %s, 'active', NOW(), %s)
-            ON CONFLICT DO NOTHING
+                match_method, match_tier, confidence_band, confidence_score,
+                status, evidence, created_at
+            )
+            SELECT %(run_id)s, %(src)s, %(src_id)s,
+                   'f7', %(tgt)s,
+                   %(method)s, 'deterministic', %(band)s, %(score)s,
+                   'active', %(evidence)s::jsonb, NOW()
+            WHERE NOT EXISTS (
+                SELECT 1 FROM unified_match_log existing
+                WHERE existing.target_system = 'f7'
+                  AND existing.target_id = %(tgt)s
+                  AND existing.status = 'active'
+            )
             """,
-            [
-                m["source"], m["source_id"],
-                m["f7_employer_id"], m["method"],
-                float(m["score"]),
-                json.dumps({
+            {
+                "run_id":   run_id,
+                "src":      m["source"],
+                "src_id":   m["source_id"],
+                "tgt":      m["f7_employer_id"],
+                "method":   m["method"],
+                "band":     _confidence_band(m["method"]),
+                "score":    float(m["score"]),
+                "evidence": json.dumps({
                     "source_name_norm": m["source_name_norm"],
-                    "rematch_run": "B.3.x_orphan_recovery_dryrun_2026_05_06",
+                    "rematch_run":      "B.3.x_orphan_recovery_2026_05_06",
                 }),
-            ],
+            },
         )
-        written += cur.rowcount
+        if cur.rowcount == 1:
+            written += 1
+        else:
+            # WHERE NOT EXISTS short-circuited (or the unique index on
+            # (run_id, source_system, source_id, target_id) blocked).
+            skipped_existing += 1
         if (i + 1) % 1000 == 0:
             conn.commit()
-            print(f"  ... committed {i + 1:,} rows, written so far: {written:,}")
+            print(f"  ... committed {i + 1:,} rows; written={written:,} skipped_existing={skipped_existing:,}")
     conn.commit()
     print(f"\nWritten: {written:,} new rows")
-    print(f"Skipped (already had active match): {skipped_existing:,}")
+    print(f"Skipped (target already had active match): {skipped_existing:,}")
     print(f"Time: {time.time() - t0:.1f}s")
+    print()
+    print("Roll-back if needed:")
+    print("  UPDATE unified_match_log SET status='superseded'")
+    print(f"   WHERE run_id = '{run_id}' AND status = 'active';")
 
 
 def main():

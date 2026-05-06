@@ -195,10 +195,15 @@ def get_master_board(
             ]
             risk_by_name: dict[str, dict] = {}
             if director_names:
+                # CTE MUST be DISTINCT on (director_name, master_id) before
+                # the scorecard JOIN — otherwise duplicate fiscal-year rows
+                # for the same director on the same other board sum the
+                # SAME scorecard metrics N times, inflating risk scores.
+                # (Codex finding 2026-05-06.)
                 cur.execute(
                     """
                     WITH other_boards AS (
-                        SELECT d.director_name, d.master_id AS other_master_id
+                        SELECT DISTINCT d.director_name, d.master_id AS other_master_id
                         FROM employer_directors d
                         WHERE d.director_name = ANY(%s)
                           AND d.master_id <> %s

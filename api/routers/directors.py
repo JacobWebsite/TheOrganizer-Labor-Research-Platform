@@ -71,14 +71,15 @@ def get_director_profile(
 
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Pull every director row whose slug matches. We can't index
-            # the slug directly (it's a derived string), so we filter by
-            # a cheap LIKE prefix first then re-check in Python.
-            # The first non-hyphen token of the slug equals the
-            # lowercased first token of the name (modulo punctuation).
-            first_token = slug.split("-", 1)[0]
-            if not first_token:
-                raise HTTPException(status_code=400, detail="Malformed slug")
+            # Slug equality computed at query time, not at fetch time.
+            # The previous version used a `LIKE first_token%` prefix
+            # filter then capped at LIMIT 100 — for common first tokens
+            # ("john", "michael", etc) the cap could drop valid slugs
+            # that landed past the limit, producing false 404s.
+            # (Codex finding 2026-05-06.)
+            #
+            # `employer_directors` is ~24K rows. A full-table regex
+            # comparison runs in <50ms — fine without an index.
             cur.execute(
                 """
                 SELECT
@@ -98,11 +99,13 @@ def get_director_profile(
                     m.naics AS master_naics
                 FROM employer_directors d
                 LEFT JOIN master_employers m ON m.master_id = d.master_id
-                WHERE LOWER(d.director_name) LIKE %s
+                WHERE TRIM(BOTH '-' FROM REGEXP_REPLACE(
+                          LOWER(d.director_name), '[^a-z0-9]+', '-', 'g'
+                      )) = %s
                 ORDER BY d.director_name, d.fiscal_year DESC NULLS LAST
                 LIMIT %s
                 """,
-                [f"{first_token}%", limit * 5],  # over-fetch; filter below
+                [slug, limit],
             )
             rows = cur.fetchall() or []
 
