@@ -149,6 +149,32 @@ export function useMasterBoard(masterId, { enabled = true, limit = 50 } = {}) {
   })
 }
 
+// 24Q-14 sister: director permalink. Returns all boards a director sits
+// on. Endpoint shape: { slug, names_matched, summary, boards }.
+// Pairs with the BoardCard interlock rows — clicking a director name
+// navigates to /directors/{slug} which calls this hook.
+export function useDirectorProfile(slug, { enabled = true, limit = 100 } = {}) {
+  return useQuery({
+    queryKey: ['director-profile', slug, limit],
+    queryFn: () =>
+      apiClient.get(`/api/directors/${encodeURIComponent(slug)}?limit=${limit}`),
+    enabled: enabled && !!slug,
+    staleTime: 10 * 60 * 1000,
+    retry: false, // 404 = director-not-found, don't burn retries
+  })
+}
+
+// Top-N most-connected directors. Used by the directors index page.
+// Endpoint shape: { directors: [{name, slug, boards_count}, ...], limit }.
+export function useTopDirectors({ enabled = true, limit = 25 } = {}) {
+  return useQuery({
+    queryKey: ['top-directors', limit],
+    queryFn: () => apiClient.get(`/api/directors?limit=${limit}`),
+    enabled,
+    staleTime: 30 * 60 * 1000,
+  })
+}
+
 export function useEmployerCorporate(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-corporate', id],

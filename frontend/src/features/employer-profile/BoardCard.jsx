@@ -217,26 +217,44 @@ export function BoardCard({ masterId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleInterlocks.map((il, i) => (
-                    <tr key={`${il.director_name}-${il.other_master_id}-${i}`} className="border-b">
-                      <td className="px-3 py-2 font-medium">{il.director_name}</td>
-                      <td className="px-3 py-2">
-                        {il.other_master_id ? (
-                          <a
-                            href={`/employer/MASTER-${il.other_master_id}`}
-                            className="inline-flex items-center gap-1 text-blue-700 hover:underline"
-                          >
-                            {il.other_canonical_name || `Master ${il.other_master_id}`}
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {il.other_canonical_name || '—'}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {visibleInterlocks.map((il, i) => {
+                    const dirSlug = (il.director_name || '')
+                      .toLowerCase()
+                      .replace(/[^a-z0-9]+/g, '-')
+                      .replace(/^-+|-+$/g, '')
+                    return (
+                      <tr key={`${il.director_name}-${il.other_master_id}-${i}`} className="border-b">
+                        <td className="px-3 py-2 font-medium">
+                          {dirSlug ? (
+                            <a
+                              href={`/directors/${dirSlug}`}
+                              className="text-blue-700 hover:underline"
+                              title={`See all boards ${il.director_name} serves on`}
+                            >
+                              {il.director_name}
+                            </a>
+                          ) : (
+                            il.director_name
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {il.other_master_id ? (
+                            <a
+                              href={`/employer/MASTER-${il.other_master_id}`}
+                              className="inline-flex items-center gap-1 text-blue-700 hover:underline"
+                            >
+                              {il.other_canonical_name || `Master ${il.other_master_id}`}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {il.other_canonical_name || '—'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

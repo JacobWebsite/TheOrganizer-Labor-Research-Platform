@@ -43,6 +43,7 @@ from .routers import (
     institutional_owners,
     fec_contributions,
     board,
+    directors,  # noqa: F401  (used as `directors.router` below; keep above any reformat)
     lobbying,
     organizing,
     whd,
@@ -110,6 +111,7 @@ app.include_router(executives.router)
 app.include_router(institutional_owners.router)
 app.include_router(fec_contributions.router)
 app.include_router(board.router)
+app.include_router(directors.router)
 app.include_router(lobbying.router)
 app.include_router(organizing.router)
 app.include_router(whd.router)

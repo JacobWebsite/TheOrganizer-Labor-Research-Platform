@@ -18,6 +18,7 @@ const TargetsPage = lazy(() => import('@/features/scorecard/TargetsPage').then(m
 const CompareEmployersPage = lazy(() => import('@/features/scorecard/CompareEmployersPage').then(m => ({ default: m.CompareEmployersPage })))
 const UnionsPage = lazy(() => import('@/features/union-explorer/UnionsPage').then(m => ({ default: m.UnionsPage })))
 const UnionProfilePage = lazy(() => import('@/features/union-explorer/UnionProfilePage').then(m => ({ default: m.UnionProfilePage })))
+const DirectorProfilePage = lazy(() => import('@/features/directors/DirectorProfilePage').then(m => ({ default: m.DirectorProfilePage })))
 const SettingsPage = lazy(() => import('@/features/admin/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const ResearchPage = lazy(() => import('@/features/research/ResearchPage').then(m => ({ default: m.ResearchPage })))
 const ResearchResultPage = lazy(() => import('@/features/research/ResearchResultPage').then(m => ({ default: m.ResearchResultPage })))
@@ -60,6 +61,7 @@ export default function App() {
                 <Route path="compare" element={<Suspense fallback={<PageSkeleton />}><CompareEmployersPage /></Suspense>} />
                 <Route path="unions" element={<Suspense fallback={<PageSkeleton variant="unions" />}><UnionsPage /></Suspense>} />
                 <Route path="unions/:fnum" element={<Suspense fallback={<PageSkeleton variant="union-profile" />}><UnionProfilePage /></Suspense>} />
+                <Route path="directors/:slug" element={<Suspense fallback={<PageSkeleton />}><DirectorProfilePage /></Suspense>} />
                 <Route path="research" element={<Suspense fallback={<PageSkeleton variant="research" />}><ResearchPage /></Suspense>} />
                 <Route path="research/review" element={<Suspense fallback={<PageSkeleton />}><ResearchReview /></Suspense>} />
                 <Route path="research/compare" element={<Suspense fallback={<PageSkeleton />}><CompareRunsPage /></Suspense>} />
