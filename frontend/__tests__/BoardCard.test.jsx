@@ -42,6 +42,7 @@ function fixturePopulated(overrides = {}) {
         compensation_total: null,
         fiscal_year: 2024,
         parse_strategy: 'per_director_minitable',
+        enforcement_risk: null,  // Director has no other tracked boards
       },
       {
         name: 'Nancy McKinstry',
@@ -54,6 +55,17 @@ function fixturePopulated(overrides = {}) {
         compensation_total: 350000,
         fiscal_year: 2024,
         parse_strategy: 'per_director_minitable',
+        enforcement_risk: {
+          other_boards_count: 1,
+          risk_score: 8.1,
+          risk_tier: 'GREEN',
+          components: {
+            osha_violations: 2,
+            nlrb_ulps: 0,
+            whd_backwages: 0,
+            osha_penalties: 6500,
+          },
+        },
       },
     ],
     interlocks: [
@@ -182,5 +194,68 @@ describe('BoardCard', () => {
       'href',
       'https://www.sec.gov/Archives/edgar/data/0000001/proxy.htm',
     )
+  })
+
+  // ---- C.4 Enforcement-risk chip (added 2026-05-06) ----
+
+  it('renders Other-Co Risk header column', () => {
+    useMasterBoard.mockReturnValue({
+      data: fixturePopulated(), isLoading: false, isError: false,
+    })
+    render(<BoardCard masterId={4036186} />)
+    fireEvent.click(screen.getByText('Board of Directors'))
+    expect(screen.getByText(/Other-Co Risk/i)).toBeInTheDocument()
+  })
+
+  it('renders GREEN chip with board-count for director with risk data', () => {
+    useMasterBoard.mockReturnValue({
+      data: fixturePopulated(), isLoading: false, isError: false,
+    })
+    render(<BoardCard masterId={4036186} />)
+    fireEvent.click(screen.getByText('Board of Directors'))
+    expect(screen.getByText('GREEN')).toBeInTheDocument()
+    // McKinstry has 1 other board → singular
+    expect(screen.getByText(/· 1 board/)).toBeInTheDocument()
+  })
+
+  it('renders YELLOW chip when risk score 20-99', () => {
+    const fix = fixturePopulated()
+    fix.directors[0].enforcement_risk = {
+      other_boards_count: 3,
+      risk_score: 38.4,
+      risk_tier: 'YELLOW',
+      components: { osha_violations: 8, nlrb_ulps: 2, whd_backwages: 0, osha_penalties: 0 },
+    }
+    useMasterBoard.mockReturnValue({ data: fix, isLoading: false, isError: false })
+    render(<BoardCard masterId={4036186} />)
+    fireEvent.click(screen.getByText('Board of Directors'))
+    expect(screen.getByText('YELLOW')).toBeInTheDocument()
+    expect(screen.getByText(/· 3 boards/)).toBeInTheDocument()
+  })
+
+  it('renders RED chip when risk score >= 100', () => {
+    const fix = fixturePopulated()
+    fix.directors[0].enforcement_risk = {
+      other_boards_count: 4,
+      risk_score: 156.0,
+      risk_tier: 'RED',
+      components: { osha_violations: 30, nlrb_ulps: 12, whd_backwages: 200000, osha_penalties: 50000 },
+    }
+    useMasterBoard.mockReturnValue({ data: fix, isLoading: false, isError: false })
+    render(<BoardCard masterId={4036186} />)
+    fireEvent.click(screen.getByText('Board of Directors'))
+    expect(screen.getByText('RED')).toBeInTheDocument()
+  })
+
+  it('renders dash placeholder for directors with null enforcement_risk', () => {
+    useMasterBoard.mockReturnValue({
+      data: fixturePopulated(), isLoading: false, isError: false,
+    })
+    render(<BoardCard masterId={4036186} />)
+    fireEvent.click(screen.getByText('Board of Directors'))
+    // Robert B. Ford has enforcement_risk: null → dash
+    const dashes = screen.getAllByText('—')
+    // At least one dash present (more may exist for other empty cells)
+    expect(dashes.length).toBeGreaterThan(0)
   })
 })

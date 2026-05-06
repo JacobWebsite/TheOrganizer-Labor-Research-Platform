@@ -202,3 +202,87 @@ def test_summary_counts_are_full_roster_not_limit():
     # Directors array DOES respect the limit
     assert len(r_small.json()["directors"]) <= 3
     assert len(r_full.json()["directors"]) == s_full["director_count"]
+
+
+# ---------------------------------------------------------------------------
+# C.4 Enforcement-risk per director (added 2026-05-06)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not _has_director_data(), reason="employer_directors empty")
+def test_each_director_carries_enforcement_risk_or_null():
+    """Every director row must carry either an enforcement_risk dict or
+    None. None means the director sits on no other tracked boards (no
+    overlap signal); a dict means risk score + components were computed."""
+    r = client.get("/api/employers/master/4036186/board")
+    assert r.status_code == 200
+    for d in r.json()["directors"]:
+        # Key exists on every row
+        assert "enforcement_risk" in d
+        er = d["enforcement_risk"]
+        if er is None:
+            continue
+        # Schema check
+        assert "other_boards_count" in er
+        assert "risk_score" in er
+        assert "risk_tier" in er
+        assert "components" in er
+        assert er["risk_tier"] in {"GREEN", "YELLOW", "RED"}
+        assert er["other_boards_count"] >= 1
+        assert er["risk_score"] >= 0
+        for k in ("osha_violations", "nlrb_ulps", "whd_backwages", "osha_penalties"):
+            assert k in er["components"]
+
+
+@pytest.mark.skipif(not _has_director_data(), reason="employer_directors empty")
+def test_enforcement_risk_tiers_calibrated():
+    """Tier thresholds: GREEN < 20 <= YELLOW < 100 <= RED."""
+    r = client.get("/api/employers/master/4036186/board")
+    for d in r.json()["directors"]:
+        er = d.get("enforcement_risk")
+        if er is None:
+            continue
+        score = er["risk_score"]
+        tier = er["risk_tier"]
+        if tier == "GREEN":
+            assert score < 20, f"GREEN with score {score}"
+        elif tier == "YELLOW":
+            assert 20 <= score < 100, f"YELLOW with score {score}"
+        elif tier == "RED":
+            assert score >= 100, f"RED with score {score}"
+
+
+@pytest.mark.skipif(not _has_director_data(), reason="employer_directors empty")
+def test_garbage_director_names_get_no_risk_computation():
+    """Parser-garbage names ("Chief", "DEF 14A", etc) are filtered out
+    of the risk-score query at the Python level. They MAY still appear
+    in the directors array (the page-level filter doesn't drop them
+    here — that's the directors-permalink filter's job) but their
+    enforcement_risk should always be None.
+
+    This is a regression guard: without the filter, "DEF 14A" with 169
+    boards would dominate every BoardCard with a fake YELLOW/RED chip.
+    """
+    # Pick any master that has directors
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT master_id FROM employer_directors
+        WHERE director_name IN ('Chief', 'DEF 14A', 'Continuing Directors')
+        LIMIT 1
+        """
+    )
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        pytest.skip("no master with garbage-name directors found")
+    mid = row["master_id"] if isinstance(row, dict) else row[0]
+    r = client.get(f"/api/employers/master/{mid}/board")
+    assert r.status_code == 200
+    bad_names = {"Chief", "DEF 14A", "Continuing Directors"}
+    for d in r.json()["directors"]:
+        if d["name"] in bad_names:
+            assert d.get("enforcement_risk") is None, (
+                f"garbage name {d['name']!r} got risk computed: {d['enforcement_risk']}"
+            )

@@ -34,6 +34,44 @@ function formatCurrency(n) {
   }).format(n)
 }
 
+// 24Q-14 C.4: enforcement-risk chip. Backend returns:
+//   { other_boards_count, risk_score, risk_tier: 'GREEN'|'YELLOW'|'RED',
+//     components: { osha_violations, nlrb_ulps, whd_backwages, osha_penalties } }
+// or null when the director has no other boards.
+function enforcementRiskChip(risk) {
+  if (!risk || risk.other_boards_count === 0) {
+    return (
+      <span className="text-xs text-muted-foreground" title="Director sits on no other tracked boards">
+        —
+      </span>
+    )
+  }
+  const tier = risk.risk_tier
+  const other = risk.other_boards_count
+  const c = risk.components || {}
+  // Verbose tooltip explains the components so a power-user can see
+  // why a director is flagged YELLOW or RED.
+  const tooltip = [
+    `Aggregate enforcement across ${other} other board${other === 1 ? '' : 's'}:`,
+    c.osha_violations ? `${c.osha_violations} OSHA violations` : null,
+    c.nlrb_ulps ? `${c.nlrb_ulps} NLRB ULPs` : null,
+    c.whd_backwages ? `$${Math.round(c.whd_backwages).toLocaleString()} WHD backwages` : null,
+    c.osha_penalties ? `$${Math.round(c.osha_penalties).toLocaleString()} OSHA penalties` : null,
+  ].filter(Boolean).join('\n')
+  let cls = 'bg-emerald-100 text-emerald-900'
+  if (tier === 'YELLOW') cls = 'bg-amber-100 text-amber-900'
+  else if (tier === 'RED') cls = 'bg-red-100 text-red-900'
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] ${cls}`}
+      title={tooltip || `Risk tier: ${tier}`}
+    >
+      <span>{tier}</span>
+      <span className="opacity-70">· {other} board{other === 1 ? '' : 's'}</span>
+    </span>
+  )
+}
+
 function independenceBadge(isIndependent) {
   if (isIndependent === true) {
     return (
@@ -159,6 +197,9 @@ export function BoardCard({ masterId }) {
                     <th className="px-3 py-2 text-right font-medium text-muted-foreground">Age</th>
                     <th className="px-3 py-2 text-right font-medium text-muted-foreground">Since</th>
                     <th className="px-3 py-2 text-left font-medium text-muted-foreground">Committees</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground" title="Aggregate enforcement signal across this director's OTHER boards">
+                      Other-Co Risk
+                    </th>
                     <th className="px-3 py-2 text-right font-medium text-muted-foreground">Comp</th>
                   </tr>
                 </thead>
@@ -180,6 +221,9 @@ export function BoardCard({ masterId }) {
                         {d.committees && d.committees.length > 0
                           ? d.committees.join(', ')
                           : '—'}
+                      </td>
+                      <td className="px-3 py-2">
+                        {enforcementRiskChip(d.enforcement_risk)}
                       </td>
                       <td className="px-3 py-2 text-right">
                         {formatCurrency(d.compensation_total)}

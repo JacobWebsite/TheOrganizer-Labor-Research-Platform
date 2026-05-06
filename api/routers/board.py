@@ -20,6 +20,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, HTTPException, Query
 
 from ..database import get_db
+from ..services.director_name_filter import is_likely_real_director_name
 
 
 router = APIRouter()
@@ -177,6 +178,90 @@ def get_master_board(
                         "parse_strategy": r.get("parse_strategy"),
                     }
                 )
+
+            # 24Q-14 C.4 (2026-05-06): per-director enforcement-risk score.
+            # For each director on this master's board, sum the enforcement
+            # signals from the OTHER boards they serve on. A director who
+            # sits on 4 companies and 3 of them have major OSHA / NLRB ULP
+            # / WHD enforcement is signal that THIS company's governance
+            # may be shaped by the same playbook.
+            #
+            # Filter through `is_likely_real_director_name` (Python predicate
+            # applied at write-time below) so parser-garbage names don't
+            # contribute fake "Chief sits on 200 companies" signals.
+            director_names = [
+                d["name"] for d in directors
+                if d.get("name") and is_likely_real_director_name(d["name"])
+            ]
+            risk_by_name: dict[str, dict] = {}
+            if director_names:
+                cur.execute(
+                    """
+                    WITH other_boards AS (
+                        SELECT d.director_name, d.master_id AS other_master_id
+                        FROM employer_directors d
+                        WHERE d.director_name = ANY(%s)
+                          AND d.master_id <> %s
+                    )
+                    SELECT
+                        ob.director_name,
+                        COUNT(DISTINCT ob.other_master_id) AS other_boards_count,
+                        SUM(COALESCE(ts.osha_total_violations, 0))::int AS osha_violations,
+                        SUM(COALESCE(ts.nlrb_ulp_count, 0))::int AS nlrb_ulps,
+                        SUM(COALESCE(ts.whd_total_backwages, 0))::numeric AS whd_backwages,
+                        SUM(COALESCE(ts.osha_total_penalties, 0))::numeric AS osha_penalties
+                    FROM other_boards ob
+                    LEFT JOIN mv_target_scorecard ts ON ts.master_id = ob.other_master_id
+                    GROUP BY ob.director_name
+                    """,
+                    [director_names, master_id],
+                )
+                for r in cur.fetchall() or []:
+                    nm = r["director_name"]
+                    osha_v = int(r.get("osha_violations") or 0)
+                    nlrb_u = int(r.get("nlrb_ulps") or 0)
+                    whd_bw = float(r.get("whd_backwages") or 0)
+                    osha_p = float(r.get("osha_penalties") or 0)
+                    # Risk-score formula. Weights chosen so:
+                    #   - 1 OSHA violation contributes 3 points
+                    #   - 1 NLRB ULP contributes 5 points (heavier, ULPs
+                    #     are intentional employer behavior whereas OSHA
+                    #     violations can be near-miss reporting)
+                    #   - $50K WHD backwages contributes 1 point
+                    #   - $5K OSHA penalties contributes 1 point
+                    score = (
+                        osha_v * 3.0
+                        + nlrb_u * 5.0
+                        + whd_bw / 50_000.0
+                        + osha_p / 5_000.0
+                    )
+                    # Tier thresholds. GREEN < 20, YELLOW 20-100, RED > 100.
+                    # Calibrated against current data: ~70% of real
+                    # directors with >= 2 boards land GREEN; only the
+                    # most-egregious enforcement-overlap directors hit RED.
+                    if score >= 100:
+                        tier = "RED"
+                    elif score >= 20:
+                        tier = "YELLOW"
+                    else:
+                        tier = "GREEN"
+                    risk_by_name[nm] = {
+                        "other_boards_count": int(r.get("other_boards_count") or 0),
+                        "risk_score": round(score, 1),
+                        "risk_tier": tier,
+                        "components": {
+                            "osha_violations": osha_v,
+                            "nlrb_ulps": nlrb_u,
+                            "whd_backwages": round(whd_bw, 0),
+                            "osha_penalties": round(osha_p, 0),
+                        },
+                    }
+
+            # Attach risk to each director row. Directors with only one
+            # board (this one) get null risk — they don't have an
+            # enforcement-overlap signal.
+            for d in directors:
+                d["enforcement_risk"] = risk_by_name.get(d["name"])
 
             interlocks: list = []
             if directors:
