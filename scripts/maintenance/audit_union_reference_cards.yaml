@@ -1,0 +1,380 @@
+# Union Explorer Audit -- Reference Cards
+#
+# Hand-curated facts about major U.S. labor affiliations so the DeepSeek-V3
+# advisory layer (Layer 4) can spot-check API responses against expected
+# order-of-magnitude reality WITHOUT having to recall Wikipedia or hallucinate
+# numbers from training data.
+#
+# Schema:
+#   aff_abbr:                       OLMS affiliation abbreviation in unions_master
+#   full_name:                      canonical union name
+#   approx_active_members:          [low, high] order-of-magnitude bounds (LM-2 reported)
+#   expected_industries:            rough list of organizing sectors
+#   nlrb_jurisdiction:              full | mostly | partial | none
+#                                   (FULL = private sector, expect lots of NLRB elections;
+#                                    NONE = public sector / federal / RLA, expect zero NLRB matches)
+#   expected_election_volume:       high (>100/yr) | medium (10-100/yr) | low (<10/yr) | none
+#   federation:                     AFL-CIO | CtW | independent (informational, not enforcement)
+#   notes:                          1-2 sentences of color
+#
+# When a card doesn't exist for an affiliation in the audit sample, the LLM is
+# instructed to flag it as "no reference" rather than make up facts.
+#
+# Last updated: 2026-05-05
+
+cards:
+  - aff_abbr: NEA
+    full_name: National Education Association
+    approx_active_members: [2_500_000, 3_500_000]
+    expected_industries: [public_education, k12, higher_ed]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: independent
+    notes: |
+      Largest union in the U.S. by membership. Almost entirely public-sector teachers,
+      so NLRB elections are zero by design (state PERBs handle public-sector cert).
+      Expect zero NLRB matches across virtually every NEA local; this is correct.
+
+  - aff_abbr: AFT
+    full_name: American Federation of Teachers
+    approx_active_members: [1_500_000, 1_800_000]
+    expected_industries: [public_education, k12, higher_ed, healthcare, public_sector]
+    nlrb_jurisdiction: partial
+    expected_election_volume: medium
+    federation: AFL-CIO
+    notes: |
+      Teachers + nurses/healthcare workers (especially after AFT Healthcare expansion).
+      Some private-sector locals (private universities, nonprofit hospitals) so a few
+      hundred NLRB elections is normal. Public-sector dominance still applies.
+
+  - aff_abbr: SEIU
+    full_name: Service Employees International Union
+    approx_active_members: [1_800_000, 2_100_000]
+    expected_industries: [healthcare, janitorial, security, public_sector, home_care]
+    nlrb_jurisdiction: partial
+    expected_election_volume: high
+    federation: CtW
+    notes: |
+      Split from AFL-CIO in 2005 (Change to Win). Massive in healthcare (1199, UHW),
+      janitorial (Justice for Janitors), security guards. Heavy NLRB activity in
+      private hospitals and contractors; public-sector locals (homecare/public employees)
+      have zero NLRB.
+
+  - aff_abbr: AFSCME
+    full_name: American Federation of State, County and Municipal Employees
+    approx_active_members: [1_300_000, 1_500_000]
+    expected_industries: [public_sector, state_government, local_government, healthcare]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: AFL-CIO
+    notes: |
+      State + city + county employees. Almost entirely public-sector — zero NLRB
+      jurisdiction except for a handful of private nonprofit human-services locals.
+      Janus v AFSCME (2018) cut agency fees.
+
+  - aff_abbr: IBT
+    full_name: International Brotherhood of Teamsters
+    approx_active_members: [1_200_000, 1_400_000]
+    expected_industries: [freight, logistics, package_delivery, warehouse, healthcare, public_sector]
+    nlrb_jurisdiction: full
+    expected_election_volume: high
+    federation: independent
+    notes: |
+      Diverse organizing — UPS contract is the flagship. Amazon driver organizing
+      activity recent. Heavy NLRB election volume. Carey/Hoffa generation politics.
+
+  - aff_abbr: UFCW
+    full_name: United Food and Commercial Workers
+    approx_active_members: [1_000_000, 1_300_000]
+    expected_industries: [grocery, retail, meatpacking, food_processing, cannabis]
+    nlrb_jurisdiction: full
+    expected_election_volume: high
+    federation: independent
+    notes: |
+      Grocery (Kroger, Albertsons, Safeway) + meatpacking (Tyson, JBS) + emerging
+      cannabis. Very NLRB-heavy. Some healthcare from RWDSU absorption.
+
+  - aff_abbr: UAW
+    full_name: International Union, United Automobile, Aerospace and Agricultural Implement Workers of America
+    approx_active_members: [350_000, 450_000]
+    expected_industries: [auto_manufacturing, higher_ed_grad_students, casinos, healthcare]
+    nlrb_jurisdiction: full
+    expected_election_volume: high
+    federation: AFL-CIO
+    notes: |
+      Big 3 automakers historically. 2023 stand-up strike + record contracts.
+      Massive recent expansion into graduate-student unionization at private
+      universities. Active drives at Mercedes/Toyota/VW with mixed results.
+      Member count fell from 1.5M peak to ~370K active.
+
+  - aff_abbr: IBEW
+    full_name: International Brotherhood of Electrical Workers
+    approx_active_members: [700_000, 800_000]
+    expected_industries: [construction_electricians, utility, broadcasting, telecom]
+    nlrb_jurisdiction: full
+    expected_election_volume: medium
+    federation: AFL-CIO
+    notes: |
+      Construction trades (inside wiremen) + utility + broadcast/telecom. Strong
+      apprenticeship pipeline. Medium NLRB volume (lots of construction is
+      pre-hire/Section 8(f) outside NLRB scope).
+
+  - aff_abbr: CWA
+    full_name: Communications Workers of America
+    approx_active_members: [350_000, 700_000]
+    expected_industries: [telecom, media, journalism, customer_service, public_sector_NJ]
+    nlrb_jurisdiction: partial
+    expected_election_volume: medium
+    federation: AFL-CIO
+    notes: |
+      AT&T/Verizon historically. NewsGuild (TNG-CWA) journalism organizing wave
+      since 2018. Public sector via CWA NJ. Recent push at Apple/Microsoft white-collar.
+
+  - aff_abbr: IAM
+    full_name: International Association of Machinists and Aerospace Workers
+    approx_active_members: [550_000, 650_000]
+    expected_industries: [aerospace_manufacturing, airlines, defense, public_transit]
+    nlrb_jurisdiction: partial
+    expected_election_volume: medium
+    federation: AFL-CIO
+    notes: |
+      Boeing is the marquee employer (machinists). Airline mechanics under Railway
+      Labor Act (NMB jurisdiction, NOT NLRB) — expect mixed NLRB coverage.
+      2024 Boeing strike notable.
+
+  - aff_abbr: IUOE
+    full_name: International Union of Operating Engineers
+    approx_active_members: [350_000, 450_000]
+    expected_industries: [construction_heavy_equipment, stationary_engineers, public_sector]
+    nlrb_jurisdiction: full
+    expected_election_volume: medium
+    federation: AFL-CIO
+    notes: |
+      Heavy equipment operators (construction) + stationary engineers (building
+      operations). Like IBEW, lots of pre-hire 8(f) construction agreements.
+
+  - aff_abbr: LIUNA
+    full_name: Laborers' International Union of North America
+    approx_active_members: [400_000, 550_000]
+    expected_industries: [construction, demolition, hazmat, environmental_remediation]
+    nlrb_jurisdiction: full
+    expected_election_volume: medium
+    federation: independent
+    notes: |
+      Construction laborers — entry trade in the building trades hierarchy.
+      Heavy regional concentration (NYC, Chicago, NJ).
+
+  - aff_abbr: CJA
+    full_name: United Brotherhood of Carpenters and Joiners of America
+    approx_active_members: [400_000, 550_000]
+    expected_industries: [construction_carpentry, millwrights, floor_covering, scaffold]
+    nlrb_jurisdiction: full
+    expected_election_volume: medium
+    federation: independent
+    notes: |
+      Carpenters union. Left AFL-CIO in 2001. Strong in metropolitan markets.
+
+  - aff_abbr: IATSE
+    full_name: International Alliance of Theatrical Stage Employees
+    approx_active_members: [150_000, 180_000]
+    expected_industries: [film_production, tv_production, live_theater, broadcast, exhibition]
+    nlrb_jurisdiction: full
+    expected_election_volume: low
+    federation: AFL-CIO
+    notes: |
+      Below-the-line entertainment crew. 2021 contract fight notable.
+      Most contracts are negotiated centrally with studios (not local-by-local
+      NLRB elections), so election volume per local is low.
+
+  - aff_abbr: USW
+    full_name: United Steelworkers
+    approx_active_members: [800_000, 1_100_000]
+    expected_industries: [steel, paper, mining, glass, healthcare, oil_refining]
+    nlrb_jurisdiction: full
+    expected_election_volume: high
+    federation: AFL-CIO
+    notes: |
+      Steel + paper + much else after PACE merger. Active NLRB volume.
+      Strong in Pittsburgh region; Canadian membership too (counted in some totals).
+
+  - aff_abbr: AFGE
+    full_name: American Federation of Government Employees
+    approx_active_members: [600_000, 800_000]
+    expected_industries: [federal_civil_service, va, dod, social_security, ssa, prison_guards]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: AFL-CIO
+    notes: |
+      Federal civil-service workers. FLRA jurisdiction, NOT NLRB. Expect zero
+      NLRB matches; this is correct, not a data gap.
+
+  - aff_abbr: NALC
+    full_name: National Association of Letter Carriers
+    approx_active_members: [200_000, 300_000]
+    expected_industries: [usps_letter_carriers]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: AFL-CIO
+    notes: |
+      USPS letter carriers. Postal Reorganization Act 1970 governance, NOT NLRB.
+
+  - aff_abbr: APWU
+    full_name: American Postal Workers Union
+    approx_active_members: [180_000, 230_000]
+    expected_industries: [usps_clerks, usps_maintenance, usps_motor_vehicle]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: AFL-CIO
+    notes: |
+      USPS non-carrier postal workers. PRA jurisdiction, not NLRB.
+
+  - aff_abbr: NTEU
+    full_name: National Treasury Employees Union
+    approx_active_members: [120_000, 160_000]
+    expected_industries: [federal_civil_service, irs, customs, treasury]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: independent
+    notes: |
+      IRS + Customs + Treasury Department employees. FLRA jurisdiction.
+
+  - aff_abbr: ATU
+    full_name: Amalgamated Transit Union
+    approx_active_members: [180_000, 220_000]
+    expected_industries: [public_transit, school_bus, paratransit]
+    nlrb_jurisdiction: partial
+    expected_election_volume: low
+    federation: AFL-CIO
+    notes: |
+      Bus + light rail operators. Mostly public-sector but some private contractors
+      (school bus, paratransit) under NLRB.
+
+  - aff_abbr: SMART
+    full_name: International Association of Sheet Metal, Air, Rail and Transportation Workers
+    approx_active_members: [200_000, 250_000]
+    expected_industries: [sheet_metal_construction, hvac, railroad_transportation]
+    nlrb_jurisdiction: partial
+    expected_election_volume: low
+    federation: AFL-CIO
+    notes: |
+      Sheet metal trades + railroad operators (legacy UTU). Railroad portion
+      under RLA/NMB, not NLRB.
+
+  - aff_abbr: UNITHE
+    full_name: UNITE HERE
+    approx_active_members: [250_000, 320_000]
+    expected_industries: [hotels, restaurants, casinos, food_service, airport_concessions, laundry]
+    nlrb_jurisdiction: full
+    expected_election_volume: high
+    federation: AFL-CIO (rejoined 2009)
+    notes: |
+      Hospitality industry. Vegas casinos + major-city hotels. Heavy NLRB
+      activity. Note: TWO separate parents existed (Workers United split off in 2009);
+      OLMS records may be partial.
+
+  - aff_abbr: PPF
+    full_name: United Association of Plumbers and Pipefitters
+    approx_active_members: [300_000, 400_000]
+    expected_industries: [construction_plumbing, pipefitting, hvac_service, sprinkler_fitters]
+    nlrb_jurisdiction: full
+    expected_election_volume: low
+    federation: AFL-CIO
+    notes: |
+      Plumbers and pipefitters. Strong apprenticeship pipeline.
+      Most agreements are pre-hire 8(f) so NLRB election volume is low.
+
+  - aff_abbr: BCTD
+    full_name: North America's Building Trades Unions
+    approx_active_members: [3_000_000, 4_000_000]
+    expected_industries: [building_trades_federation]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: AFL-CIO
+    notes: |
+      A federation/department, NOT a single union. Aggregates the construction
+      trades. Members reported is the rollup of constituent unions; election
+      volume should be zero (it's a federation, not a bargaining agent).
+
+  - aff_abbr: IAFF
+    full_name: International Association of Fire Fighters
+    approx_active_members: [320_000, 360_000]
+    expected_industries: [firefighters, fire_paramedics]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: AFL-CIO
+    notes: |
+      Municipal/state firefighters and EMS. Public sector — state PERBs.
+
+  - aff_abbr: SAGAFTRA
+    full_name: SAG-AFTRA
+    approx_active_members: [150_000, 170_000]
+    expected_industries: [actors, voice_actors, broadcasters, journalists, recording_artists]
+    nlrb_jurisdiction: full
+    expected_election_volume: low
+    federation: AFL-CIO
+    notes: |
+      Performers' union. 2023 strike was historic. Most contracts are master
+      agreements with studios (not NLRB elections per local), so election count low.
+
+  - aff_abbr: NFOP
+    full_name: National Fraternal Order of Police (Lodges)
+    approx_active_members: [330_000, 380_000]
+    expected_industries: [police, sheriff_deputies, corrections]
+    nlrb_jurisdiction: none
+    expected_election_volume: none
+    federation: independent
+    notes: |
+      Local police lodges. Public-sector — state PERBs.
+      OLMS LM filings reflect treasury/finances; expect zero NLRB.
+
+  - aff_abbr: NNU
+    full_name: National Nurses United / California Nurses Association
+    approx_active_members: [200_000, 250_000]
+    expected_industries: [nurses, registered_nurses, hospital]
+    nlrb_jurisdiction: full
+    expected_election_volume: high
+    federation: AFL-CIO
+    notes: |
+      RN union (especially Kaiser Permanente, Sutter, HCA hospitals). Active
+      NLRB volume — RNs are heavily organized in private hospitals.
+
+  - aff_abbr: WGAW
+    full_name: Writers Guild of America, West
+    approx_active_members: [10_000, 15_000]
+    expected_industries: [tv_writers, film_writers, streaming_writers]
+    nlrb_jurisdiction: full
+    expected_election_volume: low
+    federation: independent
+    notes: |
+      West Coast TV/film writers. Master agreements with AMPTP — election
+      volume per local is near zero.
+
+  - aff_abbr: WGAE
+    full_name: Writers Guild of America, East
+    approx_active_members: [4_000, 7_000]
+    expected_industries: [tv_writers, film_writers, journalism, digital_media]
+    nlrb_jurisdiction: full
+    expected_election_volume: low
+    federation: AFL-CIO
+    notes: |
+      East Coast writers + recent expansion to digital media (Vox, Vice, etc).
+      A few high-profile NLRB filings but generally master agreements.
+
+  - aff_abbr: TWU
+    full_name: Transport Workers Union
+    approx_active_members: [130_000, 160_000]
+    expected_industries: [transit_NYC, airline_ground, railroad]
+    nlrb_jurisdiction: partial
+    expected_election_volume: low
+    federation: AFL-CIO
+    notes: |
+      NYC MTA workers (large bloc) + American Airlines flight attendants and
+      mechanics (RLA). Mixed jurisdiction.
+
+# Standalone independent unions / federations (no aff_abbr rollup)
+standalones:
+  - notes: |
+      For unions whose canonical name doesn't fit an affiliation rollup
+      (e.g., independent locals), the LLM should fall back to general sanity
+      checks (member count plausible for org of that name, election volume
+      consistent with industry, etc.) without a specific reference card.

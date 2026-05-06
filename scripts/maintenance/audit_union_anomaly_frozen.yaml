@@ -1,0 +1,78 @@
+# Union Explorer Audit -- Frozen Anomaly Corpus
+#
+# Curated list of "known-weird, expected" anomalies that should NOT trigger
+# audit alerts. These are flagged by the deterministic anomaly queries but
+# are intentional or structurally inevitable, not bugs.
+#
+# Per Codex review 2026-05-04: keep both frozen + re-derived anomaly sets.
+# This file is the frozen part. New anomalies appearing in re-derived runs
+# that are NOT covered here become "unexplained" and get surfaced.
+#
+# Format:
+#   suppress_aff_abbr:   suppress an entire affiliation for a given category
+#   suppress_f_num:      suppress a specific union's appearance in a category
+#
+# Last updated: 2026-05-05
+
+# Whole-affiliation suppressions (apply to all f_nums under that aff_abbr).
+# Most are public-sector / RLA / federal unions where NLRB jurisdiction does
+# not apply -- so "large active union with zero NLRB matches" is correct.
+suppress_aff_abbr:
+  - aff_abbr: NEA
+    categories: [large_active_zero_nlrb, anomaly_active_with_no_recent_filing]
+    reason: "Public-sector teachers, no NLRB jurisdiction; some locals don't file LM-2 (state law)"
+
+  - aff_abbr: AFSCME
+    categories: [large_active_zero_nlrb]
+    reason: "Public-sector state/county/municipal employees; zero NLRB expected"
+
+  - aff_abbr: AFGE
+    categories: [large_active_zero_nlrb]
+    reason: "Federal civil service; FLRA jurisdiction, not NLRB"
+
+  - aff_abbr: NALC
+    categories: [large_active_zero_nlrb]
+    reason: "USPS letter carriers; PRA jurisdiction, not NLRB"
+
+  - aff_abbr: APWU
+    categories: [large_active_zero_nlrb]
+    reason: "USPS non-carrier postal workers; PRA jurisdiction"
+
+  - aff_abbr: NTEU
+    categories: [large_active_zero_nlrb]
+    reason: "Federal Treasury/IRS/Customs employees; FLRA jurisdiction"
+
+  - aff_abbr: NFFE
+    categories: [large_active_zero_nlrb]
+    reason: "National Federation of Federal Employees; FLRA jurisdiction"
+
+  - aff_abbr: IAFF
+    categories: [large_active_zero_nlrb]
+    reason: "Public-sector firefighters; state PERB jurisdiction"
+
+  - aff_abbr: NFOP
+    categories: [large_active_zero_nlrb]
+    reason: "Public-sector police lodges; state PERB jurisdiction"
+
+  - aff_abbr: BCTD
+    categories: [large_active_zero_nlrb]
+    reason: "Building & Construction Trades department; federation, not bargaining agent"
+
+  - aff_abbr: TTD
+    categories: [large_active_zero_nlrb]
+    reason: "Transportation Trades Department; federation, not bargaining agent"
+
+  - aff_abbr: AFLCIO
+    categories: [large_active_zero_nlrb]
+    reason: "AFL-CIO federation; not a bargaining agent itself"
+
+  - aff_abbr: ACT
+    categories: [large_active_zero_nlrb]
+    reason: "AFL-CIO federation member rollup"
+
+# Per-f_num suppressions (use sparingly; prefer aff_abbr-level when applicable).
+suppress_f_num: []
+  # Example:
+  # - f_num: "12590"
+  #   categories: [no_recent_filing, parentless_local]
+  #   reason: "CWA District 7 -- devolved to 5 successor locals 2026-03-19, see [[138 Unresolved Union File Numbers]]"

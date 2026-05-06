@@ -239,6 +239,8 @@ def get_national_unions(
     with get_db() as conn:
         with conn.cursor() as cur:
             inactive_filter = "" if include_inactive else "AND (NOT is_likely_inactive OR is_likely_inactive IS NULL)"
+            excluded_placeholders = ",".join(["%s"] * len(EXCLUDED_AFFILIATIONS))
+            params = list(sorted(EXCLUDED_AFFILIATIONS)) + [limit]
             cur.execute(f"""
                 SELECT um.aff_abbr,
                        MAX(um.union_name) as example_name,
@@ -252,13 +254,13 @@ def get_national_unions(
                 FROM unions_master um
                 LEFT JOIN union_hierarchy uh ON um.f_num = uh.f_num
                 WHERE um.aff_abbr IS NOT NULL AND um.aff_abbr != ''
-                  AND um.aff_abbr NOT IN ('SOC')
+                  AND um.aff_abbr NOT IN ({excluded_placeholders})
                   {inactive_filter.replace('is_likely_inactive', 'um.is_likely_inactive')}
                 GROUP BY um.aff_abbr
                 HAVING SUM(um.members) > 0
                 ORDER BY SUM(CASE WHEN uh.count_members THEN um.members ELSE 0 END) DESC NULLS LAST
                 LIMIT %s
-            """, [limit])
+            """, params)
             return {"national_unions": cur.fetchall()}
 
 
@@ -297,6 +299,8 @@ def get_union_overview():
 @router.get("/api/unions/national/{aff_abbr}")
 def get_national_union_detail(aff_abbr: str, include_inactive: bool = False):
     """Get detailed info for a national union affiliation"""
+    if aff_abbr.upper() in EXCLUDED_AFFILIATIONS:
+        raise HTTPException(status_code=404, detail="Affiliation not found")
     with get_db() as conn:
         with conn.cursor() as cur:
             inactive_filter = "" if include_inactive else "AND (NOT is_likely_inactive OR is_likely_inactive IS NULL)"
@@ -944,17 +948,29 @@ def get_union_detail(f_num: str, consolidated: bool = True):
                 elections = cur.fetchall()
                 elections_source = "affiliate"
 
-            # Financial trends (used by profile charts)
+            # Financial trends (used by profile charts).
+            # Pre-aggregate ar_membership in a CTE so the LEFT JOIN to lm_data is
+            # 1-to-1. Without this, lm.ttl_* (which are pre-aggregated annual
+            # totals, one row per rpt_id) get multiplied by the number of
+            # membership category rows for that rpt_id when the outer SUM runs.
+            # E.g., SEIU Local 1 (rpt_id with 18 ar_membership rows) previously
+            # reported $262M assets in 2023 vs the true $14.6M.
             cur.execute("""
+                WITH members_per_rpt AS (
+                    SELECT rpt_id,
+                           SUM(number) FILTER (WHERE voting_eligibility = 'T') AS members
+                    FROM ar_membership
+                    GROUP BY rpt_id
+                )
                 SELECT lm.yr_covered AS year,
-                       SUM(am.number) FILTER (WHERE am.voting_eligibility = 'T') AS members,
+                       SUM(mp.members) AS members,
                        SUM(COALESCE(lm.ttl_assets, 0)) AS assets,
                        SUM(COALESCE(lm.ttl_liabilities, 0)) AS liabilities,
                        SUM(COALESCE(lm.ttl_assets, 0)) - SUM(COALESCE(lm.ttl_liabilities, 0)) AS net_assets,
                        SUM(COALESCE(lm.ttl_receipts, 0)) AS receipts,
                        SUM(COALESCE(lm.ttl_disbursements, 0)) AS disbursements
                 FROM lm_data lm
-                LEFT JOIN ar_membership am ON am.rpt_id = lm.rpt_id
+                LEFT JOIN members_per_rpt mp ON mp.rpt_id = lm.rpt_id
                 WHERE lm.f_num = %s
                 GROUP BY lm.yr_covered
                 ORDER BY lm.yr_covered DESC

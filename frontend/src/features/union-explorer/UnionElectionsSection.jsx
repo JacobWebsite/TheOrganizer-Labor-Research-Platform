@@ -78,8 +78,9 @@ export function UnionElectionsSection({ elections, summary: summaryProp }) {
   const hasData = (summary && (summary.wins != null || summary.losses != null || summary.total_elections != null))
     || list.length > 0
 
-  // Show election_note as warning card when no elections exist
-  if (!hasData && electionNote) {
+  if (!hasData) {
+    const fallbackNote = electionNote
+      || 'No NLRB election data available for this union. This may mean the union has not held NLRB elections recently, the data has not yet been matched, or the union is outside NLRB jurisdiction.'
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -88,14 +89,12 @@ export function UnionElectionsSection({ elections, summary: summaryProp }) {
         <CardContent>
           <div className="flex items-start gap-2 p-3 bg-[#f5f0e8] border border-[#d9cebb] rounded-md text-sm text-[#2c2418]">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-[#c78c4e]" />
-            <span>{electionNote}</span>
+            <span>{fallbackNote}</span>
           </div>
         </CardContent>
       </Card>
     )
   }
-
-  if (!hasData) return null
 
   // Ensure sort by latest_election_date DESC (defensive; backend already orders).
   const sortedList = [...list].sort((a, b) => {
