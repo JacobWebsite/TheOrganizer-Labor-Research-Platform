@@ -47,10 +47,22 @@ COMMA_SECOND_CLAUSE_RE = re.compile(
 )
 
 ROMAN = r'(?:i{1,3}|iv|v|vi{0,3}|ix|x{1,3}|xi{0,3}|xiv|xv|xvi{0,3}|xix|xx)'
+# 2026-05-08 fix: tightened `\s*` -> `\s+` between the keyword and the
+# identifier in series/ser/fund/trust/chapter/local. The original
+# `ser\s*[a-z0-9]+` over-broadly matched ANY word starting with "ser"
+# (services, served, serial) because `\s*` allows zero whitespace,
+# letting the engine treat "Universal Dedicated Services" / "UNIVERSAL
+# DEDICATED" as an H4 series-fragment match and incorrectly veto real
+# duplicates. Same pattern: `fund\s*` ate "funded", `trust\s*` ate
+# "trustees", `chapter\s*` ate "chapters". Requiring `\s+` keeps
+# legitimate "series 1" / "ser 1" / "fund A" / etc. matching while
+# rejecting suffix-extension over-matches.
+# Surfaced in the 2026-05-08 B.3.x rematch dry-run vetoed-pair audit
+# (4 of 13 vetoes were Services/Service tokens incorrectly stripped).
 TRAILING_TOKEN = re.compile(
     rf'\s+(?:'
-    rf'\d+|{ROMAN}|series\s*[a-z0-9]+|ser\s*[a-z0-9]+|fund\s*[a-z0-9]+|'
-    rf'trust\s*[a-z0-9]+|chapter\s*[a-z0-9]+|local\s*\d+|[a-z]'
+    rf'\d+|{ROMAN}|series\s+[a-z0-9]+|ser\s+[a-z0-9]+|fund\s+[a-z0-9]+|'
+    rf'trust\s+[a-z0-9]+|chapter\s+[a-z0-9]+|local\s+\d+|[a-z]'
     rf')$', re.IGNORECASE,
 )
 

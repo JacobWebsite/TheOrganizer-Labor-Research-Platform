@@ -222,6 +222,79 @@ def _import_rematch():
     return importlib.import_module("scripts.matching.rematch_recoverable_orphans")
 
 
+def test_rule_engine_h4_does_not_eat_services_token():
+    """Regression guard for the 2026-05-08 over-broad regex fix.
+
+    The TRAILING_TOKEN regex previously had `ser\\s*[a-z0-9]+` (zero or
+    more whitespace between 'ser' and the trailing alphanumerics) which
+    over-broadly stripped multi-letter words starting with 'ser', most
+    notably 'Services'. Result: pairs like 'Universal Dedicated
+    Services' (F7) vs 'UNIVERSAL DEDICATED' (OSHA) were H4-vetoed as if
+    'Services' were a series identifier — incorrectly blocking real
+    duplicates.
+
+    Fix: tightened to `ser\\s+[a-z0-9]+` (require whitespace), which
+    matches the original intent ('ser 1', 'ser A') without eating
+    suffix extensions ('services', 'served', 'serial'). Same
+    tightening applied to fund/trust/chapter/local/series.
+
+    Surfaced in the B.3.x rematch dry-run vetoed-pair audit
+    (4 of 13 vetoes were Services tokens).
+    """
+    rematch = _import_rematch()
+    # Pre-fix this pair was H4-vetoed because 'Services' got stripped.
+    # Post-fix the names diverge after normalization, so no rule can
+    # demote-as-series; the rule engine falls through to other rules.
+    match = {
+        "f7_employer_id": "f7_services_test",
+        "f7_name":        "Universal Dedicated Services",
+        "f7_state":       "MI",
+        "f7_zip":         "48089",
+        "f7_city":        None,
+        "source":         "osha",
+        "source_id":      "osha_xyz",
+        "source_name_norm": "universal dedicated",
+        "source_zip":     "48174",
+        "source_display": "UNIVERSAL DEDICATED",
+        "source_city":    None,
+        "source_ein":     None,
+        "method":         "NAME_AGGRESSIVE_STATE_EXACT",
+        "score":          0.92,
+    }
+    out = rematch.classify_with_rule_engine(match)
+    assert out["rule_engine_tier"] != "tier_series_demoted", (
+        f"H4 incorrectly fired on a Services-token pair: rule={out['rule_engine_rule']}. "
+        "This is the 2026-05-08 over-broad regex regression."
+    )
+
+    # Same regression for Fund / Trust / Chapter
+    for f7n, srcn in [
+        ("Big Funded Project",    "big funded"),
+        ("ABC Trustees Union",    "abc trustees"),
+        ("Regional Chapters Inc", "regional chapters"),
+    ]:
+        m = {
+            "f7_employer_id":   "f7_x",
+            "f7_name":          f7n,
+            "f7_state":         "NY",
+            "f7_zip":           "10001",
+            "f7_city":          None,
+            "source":           "osha",
+            "source_id":        "osha_x",
+            "source_name_norm": srcn,
+            "source_zip":       "10001",
+            "source_display":   srcn.upper(),
+            "source_city":      None,
+            "source_ein":       None,
+            "method":           "NAME_AGGRESSIVE_STATE_EXACT",
+            "score":            0.92,
+        }
+        out = rematch.classify_with_rule_engine(m)
+        assert out["rule_engine_tier"] != "tier_series_demoted", (
+            f"H4 over-broad strip regression on {f7n!r}: rule={out['rule_engine_rule']}"
+        )
+
+
 def test_rule_engine_vetoes_h4_series_fragment():
     """Rule engine VETO path: a candidate where both names are
     'XYZ INC SERIES n' differing only by trailing series identifier
