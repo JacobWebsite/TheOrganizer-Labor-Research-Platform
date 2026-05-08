@@ -49,17 +49,26 @@ def auth_client():
 
 @pytest.fixture(scope="module", autouse=True)
 def cleanup_test_users():
-    """Remove test users after all auth tests complete."""
-    yield
+    """Remove test users before and after all auth tests complete.
+
+    Pre-cleanup handles leftover users from previous runs or other test
+    modules that may have created users via auth fixtures.
+    """
     from db_config import get_connection
-    conn = get_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("DELETE FROM platform_users WHERE username LIKE 'test_%'")
-        conn.commit()
-    except Exception:
-        conn.rollback()
-    conn.close()
+
+    def _delete():
+        conn = get_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute("DELETE FROM platform_users WHERE username LIKE 'test_%'")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        conn.close()
+
+    _delete()  # pre-cleanup
+    yield
+    _delete()  # post-cleanup
 
 
 # ============================================================================
@@ -118,19 +127,19 @@ def test_register_requires_admin(auth_client):
 
     # Create read user
     auth_client.post("/api/auth/register",
-        json={"username": "test_reader", "password": "readerpass1", "role": "read"},
+        json={"username": "test_reader", "password": "readerpass123", "role": "read"},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
 
     # Login as read user
     read_r = auth_client.post("/api/auth/login", json={
-        "username": "test_reader", "password": "readerpass1"
+        "username": "test_reader", "password": "readerpass123"
     })
     read_token = read_r.json()["access_token"]
 
     # Try to register -- should fail
     r = auth_client.post("/api/auth/register",
-        json={"username": "test_sneaky", "password": "sneakypass1", "role": "read"},
+        json={"username": "test_sneaky", "password": "sneakypass123", "role": "read"},
         headers={"Authorization": f"Bearer {read_token}"}
     )
     assert r.status_code == 403
@@ -139,7 +148,7 @@ def test_register_requires_admin(auth_client):
 def test_register_unauthenticated_after_first_user(auth_client):
     """Unauthenticated registration fails when users already exist."""
     r = auth_client.post("/api/auth/register", json={
-        "username": "test_anon", "password": "anonpass123", "role": "read"
+        "username": "test_anon", "password": "anonpass1234", "role": "read"
     })
     assert r.status_code == 403
 
@@ -158,7 +167,11 @@ def test_login_success(auth_client):
     assert "access_token" in data
     assert data["token_type"] == "bearer"
     assert data["role"] == "admin"
-    assert data["expires_in"] > 0
+    # 2026-05-05: JWT lifetime dropped 8h -> 1h. expires_in should be 3600
+    # (one hour) -- assert tightly so a future revert can't slip through.
+    assert data["expires_in"] == 3600, (
+        f"expected 3600s (1hr) JWT lifetime, got {data['expires_in']}s"
+    )
 
 
 def test_login_wrong_password(auth_client):
@@ -196,7 +209,48 @@ def test_refresh_token(auth_client):
     data = r.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert data["expires_in"] > 0
+    # Refresh issues a fresh 1-hour token, not a partial-life "extend".
+    assert data["expires_in"] == 3600
+    # Note: the refreshed token MAY be byte-identical to the original when
+    # both issuances land in the same second (iat collision -> same payload
+    # -> same signature). That's fine -- the meaningful invariant is that
+    # the new token's exp is at or after the original's, validated by
+    # test_refresh_token_exp_claim_is_one_hour below.
+
+
+def test_refresh_token_exp_claim_is_one_hour(auth_client):
+    """JWT exp claim is now+3600s (regression guard for the 2026-05-05
+    JWT_EXPIRY_HOURS change). Decodes the token and validates the exp
+    timestamp directly rather than trusting the response field."""
+    import time
+    import json
+    import base64
+
+    login_r = auth_client.post("/api/auth/login", json={
+        "username": "test_admin", "password": "adminpass123"
+    })
+    token = login_r.json()["access_token"]
+
+    # JWT payload is base64url-encoded JSON in the middle segment
+    parts = token.split(".")
+    assert len(parts) == 3, "JWT should have 3 dot-separated segments"
+    # Pad b64 to a multiple of 4
+    pad = "=" * ((4 - len(parts[1]) % 4) % 4)
+    payload = json.loads(base64.urlsafe_b64decode(parts[1] + pad))
+    exp = payload.get("exp")
+    iat = payload.get("iat")
+    assert exp is not None and iat is not None
+    # exp - iat should equal 3600 seconds (1 hour)
+    assert exp - iat == 3600, (
+        f"exp-iat should be 3600s (1hr), got {exp - iat}s. "
+        f"Has JWT_EXPIRY_HOURS reverted?"
+    )
+    # Sanity: exp should be ~now + 1hr, not days away
+    delta = exp - int(time.time())
+    assert 3500 < delta < 3700, (
+        f"token exp is {delta}s from now; expected ~3600s (1hr). "
+        f"Delta from 3600: {delta - 3600}s"
+    )
 
 
 def test_me_endpoint(auth_client):
@@ -264,17 +318,44 @@ def test_invalid_token_returns_401(auth_client):
 # ============================================================================
 
 def test_register_short_password(auth_client):
-    """Password under 8 chars is rejected."""
+    """Password under 12 chars is rejected (policy bumped 8 -> 12 on 2026-05-05)."""
     login_r = auth_client.post("/api/auth/login", json={
         "username": "test_admin", "password": "adminpass123"
     })
     token = login_r.json()["access_token"]
 
+    # 5 chars — was rejected under the old 8-char minimum, still rejected under 12
     r = auth_client.post("/api/auth/register",
         json={"username": "test_short", "password": "short", "role": "read"},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 422  # Validation error
+
+    # 11 chars — passed under the old 8-char minimum, MUST now be rejected.
+    # This is the regression-guard for the 2026-05-05 policy change.
+    r = auth_client.post("/api/auth/register",
+        json={"username": "test_eleven", "password": "elevenchars", "role": "read"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 422
+    # Pydantic error mentions the min_length (string-length detail)
+    assert "12" in r.text or "min" in r.text.lower()
+
+
+def test_register_password_at_12_char_minimum_accepted(auth_client):
+    """Password at exactly 12 chars (the new minimum) is accepted."""
+    login_r = auth_client.post("/api/auth/login", json={
+        "username": "test_admin", "password": "adminpass123"
+    })
+    token = login_r.json()["access_token"]
+
+    twelve_char = "abcde1234567"  # exactly 12 chars
+    assert len(twelve_char) == 12
+    r = auth_client.post("/api/auth/register",
+        json={"username": "test_twelvech", "password": twelve_char, "role": "read"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 200, f"got {r.status_code} {r.text}"
 
 
 def test_register_invalid_username(auth_client):
@@ -285,7 +366,7 @@ def test_register_invalid_username(auth_client):
     token = login_r.json()["access_token"]
 
     r = auth_client.post("/api/auth/register",
-        json={"username": "test user!", "password": "validpass1", "role": "read"},
+        json={"username": "test user!", "password": "validpass1234", "role": "read"},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 422
@@ -304,7 +385,7 @@ def _get_admin_token(auth_client):
 
 def _get_reader_token(auth_client):
     r = auth_client.post("/api/auth/login", json={
-        "username": "test_reader", "password": "readerpass1"
+        "username": "test_reader", "password": "readerpass123"
     })
     return r.json()["access_token"]
 
@@ -362,3 +443,259 @@ def test_write_endpoints_require_auth(auth_client):
 
     r = auth_client.delete("/api/employers/flags/99999")
     assert r.status_code == 401
+
+
+# ============================================================================
+# Researcher role (B.1.1, added 2026-05-05)
+# ============================================================================
+
+def test_register_researcher_role_accepted(auth_client):
+    """The new 'researcher' role registers successfully (was rejected by
+    the original `^(admin|read)$` pattern)."""
+    admin_token = _get_admin_token(auth_client)
+    r = auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_researcher",
+            "password": "researcherpass1",
+            "role": "researcher",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200, f"unexpected: {r.status_code} {r.text}"
+    assert r.json()["role"] == "researcher"
+
+
+def test_register_invalid_role_rejected(auth_client):
+    """Roles outside admin/researcher/read are still rejected by the regex."""
+    admin_token = _get_admin_token(auth_client)
+    r = auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_baduser",
+            "password": "validpass1234",
+            "role": "superuser",  # not in the allowed set
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 422  # Pydantic validation error
+
+
+def _get_researcher_token(auth_client):
+    """Helper: log in as the test_researcher user from the test above."""
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_researcher", "password": "researcherpass1"},
+    )
+    return r.json()["access_token"]
+
+
+def test_login_researcher_returns_role(auth_client):
+    """Login as researcher returns role='researcher' in the token response."""
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_researcher", "password": "researcherpass1"},
+    )
+    assert r.status_code == 200
+    assert r.json()["role"] == "researcher"
+
+
+# ============================================================================
+# require_researcher dependency function (called directly, not via endpoint)
+# ============================================================================
+
+class _FakeRequest:
+    """Minimal Request stand-in for direct dependency-function tests.
+
+    require_* dependencies only access request.state.{user, role}, so a
+    SimpleNamespace-shaped object is enough — no need to spin up an
+    actual ASGI request.
+    """
+    def __init__(self, user=None, role=None):
+        from types import SimpleNamespace
+        self.state = SimpleNamespace(user=user, role=role)
+
+
+def test_require_researcher_accepts_researcher_role(auth_client):
+    from api.dependencies import require_researcher
+    out = require_researcher(_FakeRequest(user="alice", role="researcher"))
+    assert out == {"username": "alice", "role": "researcher"}
+
+
+def test_require_researcher_accepts_admin_role(auth_client):
+    """Admins implicitly have researcher permissions."""
+    from api.dependencies import require_researcher
+    out = require_researcher(_FakeRequest(user="root", role="admin"))
+    assert out == {"username": "root", "role": "admin"}
+
+
+def test_require_researcher_rejects_read_role(auth_client):
+    from fastapi import HTTPException
+    from api.dependencies import require_researcher
+    with pytest.raises(HTTPException) as ei:
+        require_researcher(_FakeRequest(user="bob", role="read"))
+    assert ei.value.status_code == 403
+    assert "Researcher" in ei.value.detail or "researcher" in ei.value.detail
+
+
+def test_require_researcher_rejects_anonymous(auth_client):
+    from fastapi import HTTPException
+    from api.dependencies import require_researcher
+    with pytest.raises(HTTPException) as ei:
+        require_researcher(_FakeRequest(user="anonymous", role=None))
+    assert ei.value.status_code == 401
+
+
+# ============================================================================
+# Audit log writes (B.1.4, added 2026-05-05)
+# ============================================================================
+
+def _count_audit_rows(action: str, since_seconds: int = 60) -> int:
+    """Count rows in auth_audit_log matching `action`, written in the last
+    `since_seconds`. Used to verify auth events are being recorded."""
+    from db_config import get_connection
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT COUNT(*) FROM auth_audit_log
+            WHERE action = %s
+              AND occurred_at >= NOW() - (%s || ' seconds')::interval
+            """,
+            (action, str(since_seconds)),
+        )
+        row = cur.fetchone()
+        return int(row[0] if isinstance(row, tuple) else row.get("count", 0))
+    finally:
+        conn.close()
+
+
+def test_audit_login_success_writes_row(auth_client):
+    """A successful login writes an audit row with action='login_success'."""
+    before = _count_audit_rows("login_success")
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_admin", "password": "adminpass123"},
+    )
+    assert r.status_code == 200
+    after = _count_audit_rows("login_success")
+    assert after == before + 1, (
+        f"expected exactly 1 new login_success row; before={before} after={after}"
+    )
+
+
+def test_audit_login_fail_wrong_password_writes_row(auth_client):
+    """A wrong-password login writes an audit row with action='login_fail'."""
+    before = _count_audit_rows("login_fail")
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_admin", "password": "wrong-password-on-purpose"},
+    )
+    assert r.status_code == 401
+    after = _count_audit_rows("login_fail")
+    assert after == before + 1
+
+
+def test_audit_login_fail_no_such_user_writes_row(auth_client):
+    """A login attempt on a nonexistent user writes an audit row too."""
+    before = _count_audit_rows("login_fail")
+    r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_does_not_exist_xyzzy", "password": "anything"},
+    )
+    assert r.status_code == 401
+    after = _count_audit_rows("login_fail")
+    assert after == before + 1
+
+
+# ============================================================================
+# Refresh token security (B.1.5 hardening — Codex finding 2026-05-05)
+# ============================================================================
+
+def test_refresh_rejects_deleted_user(auth_client):
+    """If a user's row is removed from platform_users between issuance
+    and refresh, /api/auth/refresh MUST return 401 — not silently mint
+    a new token from the JWT claims (the original bug)."""
+    from db_config import get_connection
+    # Create a temp user, log them in, then DELETE the row, then try
+    # to refresh with the still-valid JWT.
+    admin_token = _get_admin_token(auth_client)
+    auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_deletable",
+            "password": "deletablepass1234",
+            "role": "read",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    login_r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_deletable", "password": "deletablepass1234"},
+    )
+    assert login_r.status_code == 200
+    user_token = login_r.json()["access_token"]
+
+    # Delete the user from the DB
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM platform_users WHERE username = 'test_deletable'")
+    conn.commit()
+    conn.close()
+
+    # Refresh must now fail
+    r = auth_client.post(
+        "/api/auth/refresh",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert r.status_code == 401, (
+        f"refresh should reject deleted user, got {r.status_code}: {r.text}"
+    )
+    assert "no longer exists" in r.text.lower() or "user" in r.text.lower()
+
+
+def test_refresh_uses_current_db_role_not_jwt_role(auth_client):
+    """If a user is downgraded admin -> read between token issuance and
+    refresh, the new token MUST reflect the current DB role, not the
+    role baked into the JWT. Otherwise a demoted admin retains
+    privileges until natural expiry."""
+    from db_config import get_connection
+    admin_token = _get_admin_token(auth_client)
+    # Register as researcher
+    auth_client.post(
+        "/api/auth/register",
+        json={
+            "username": "test_demotable",
+            "password": "demotablepass1234",
+            "role": "researcher",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    # Log in as researcher
+    login_r = auth_client.post(
+        "/api/auth/login",
+        json={"username": "test_demotable", "password": "demotablepass1234"},
+    )
+    assert login_r.status_code == 200
+    assert login_r.json()["role"] == "researcher"
+    user_token = login_r.json()["access_token"]
+
+    # Demote them to read in the DB
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE platform_users SET role = 'read' WHERE username = 'test_demotable'"
+    )
+    conn.commit()
+    conn.close()
+
+    # Refresh: returned role MUST be 'read', not 'researcher'
+    r = auth_client.post(
+        "/api/auth/refresh",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["role"] == "read", (
+        f"refresh kept the old researcher role despite DB demotion: {r.json()}"
+    )

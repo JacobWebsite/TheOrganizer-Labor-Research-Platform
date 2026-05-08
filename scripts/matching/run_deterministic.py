@@ -25,7 +25,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from db_config import get_connection
 from scripts.matching.deterministic_matcher import DeterministicMatcher
-from scripts.matching.adapters import osha_adapter, whd_adapter, n990_adapter, sam_adapter, sec_adapter_module, bmf_adapter_module, corpwatch_adapter
+from scripts.matching.adapters import osha_adapter, whd_adapter, n990_adapter, sam_adapter, sec_adapter_module, bmf_adapter_module, corpwatch_adapter, mergent_adapter
 
 ADAPTERS = {
     "osha": osha_adapter,
@@ -35,6 +35,7 @@ ADAPTERS = {
     "sec": sec_adapter_module,
     "bmf": bmf_adapter_module,
     "corpwatch": corpwatch_adapter,
+    "mergent": mergent_adapter,
 }
 
 CHECKPOINT_DIR = Path(__file__).resolve().parent.parent.parent / "checkpoints"
@@ -205,7 +206,7 @@ def run_source(conn, source_name, adapter, args):
         cp = _load_checkpoint(source_name)
         if cp and cp.get("total_records", 0) > 0 and cp["total_records"] != total:
             print(f"  WARNING: Record count changed ({cp['total_records']:,} -> {total:,}).")
-            print(f"  Previous checkpoint was for a different dataset. Starting fresh.")
+            print("  Previous checkpoint was for a different dataset. Starting fresh.")
             cp = {}
 
         # Calculate batch boundaries
@@ -332,7 +333,7 @@ def _print_quality_report(source_name, batch_num, total_batches, matcher, matche
     quality = high + medium
     quality_rate = quality / max(total, 1) * 100
 
-    print(f"\n  This batch:")
+    print("\n  This batch:")
     print(f"    Records:        {total:>10,}")
     print(f"    Total matched:  {matched:>10,} ({rate:.1f}%)")
     print(f"    HIGH+MEDIUM:    {quality:>10,} ({quality_rate:.1f}%)")
@@ -349,20 +350,20 @@ def _print_quality_report(source_name, batch_num, total_batches, matcher, matche
         warnings.append(f"Only {quality_rate:.1f}% quality match rate -- very low")
 
     if warnings:
-        print(f"\n  WARNINGS:")
+        print("\n  WARNINGS:")
         for w in warnings:
             print(f"    ** {w}")
 
     # Method breakdown
     if matcher.stats["by_method"]:
-        print(f"\n  Method breakdown:")
+        print("\n  Method breakdown:")
         for method, count in sorted(matcher.stats["by_method"].items(), key=lambda x: -x[1]):
             pct = count / max(matched, 1) * 100
             print(f"    {method:40s} {count:>8,} ({pct:5.1f}%)")
 
     # Cross-batch comparison
     if len(batches) > 1:
-        print(f"\n  Cross-batch comparison:")
+        print("\n  Cross-batch comparison:")
         print(f"    {'Batch':<10} {'Records':>10} {'Matched':>10} {'Rate':>8} {'H+M':>10} {'LOW':>10}")
         print(f"    {'-'*8:<10} {'-'*10:>10} {'-'*10:>10} {'-'*8:>8} {'-'*10:>10} {'-'*10:>10}")
         for i in range(1, total_batches + 1):
@@ -392,7 +393,7 @@ def _print_quality_report(source_name, batch_num, total_batches, matcher, matche
 
 def main():
     parser = argparse.ArgumentParser(description="Run deterministic matching")
-    parser.add_argument("source", choices=["osha", "whd", "990", "sam", "sec", "bmf", "corpwatch", "all"],
+    parser.add_argument("source", choices=["osha", "whd", "990", "sam", "sec", "bmf", "corpwatch", "mergent", "all"],
                         help="Source system to match")
     parser.add_argument("--limit", type=int, help="Limit number of source records")
     parser.add_argument("--dry-run", action="store_true", help="Don't write to database")
@@ -433,7 +434,7 @@ def main():
     conn = get_connection()
     try:
         if args.source == "all":
-            for name in ["osha", "whd", "990", "sam", "sec", "bmf", "corpwatch"]:
+            for name in ["osha", "whd", "990", "sam", "sec", "bmf", "corpwatch", "mergent"]:
                 run_source(conn, name, ADAPTERS[name], args)
         else:
             run_source(conn, args.source, ADAPTERS[args.source], args)

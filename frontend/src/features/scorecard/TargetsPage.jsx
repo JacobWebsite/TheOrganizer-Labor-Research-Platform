@@ -18,6 +18,10 @@ const TIER_COLORS = {
   Promising: '#c78c4e',
   Moderate: '#8a7e6d',
   Low: '#d9cebb',
+  // Speculative (2026-05-06): muted gray-blue. See ResultsTable +
+  // ProfileHeader for the distinct visual treatment ("modeled,
+  // unverified" signal).
+  Speculative: '#7a8b9a',
 }
 
 export function TargetsPage() {
@@ -158,11 +162,12 @@ export function TargetsPage() {
         <p><strong>What this page is for:</strong> This page shows organizing targets -- employers ranked by their potential for a successful organizing campaign. These are employers where the available data suggests favorable conditions for workers to organize.</p>
         <p><strong>Tier summary cards:</strong> The cards at the top show how many employers fall into each tier. Click a tier card to filter the table below to only that tier.</p>
         <ul className="list-disc pl-5 space-y-1 text-sm">
-          <li><strong>Priority (top 3%):</strong> Highest-value targets. Start here when planning campaigns.</li>
-          <li><strong>Strong (next 12%):</strong> Very promising. Worth detailed assessment.</li>
-          <li><strong>Promising (next 25%):</strong> Good potential. Investigate further.</li>
-          <li><strong>Moderate (next 35%):</strong> Some signals. Keep on the radar.</li>
-          <li><strong>Low (bottom 25%):</strong> Few signals in current data.</li>
+          <li><strong>Priority (top 3%):</strong> Highest-value targets, with strong direct enforcement signals. Start here when planning campaigns.</li>
+          <li><strong>Strong:</strong> Very promising, with direct enforcement signals. Worth detailed assessment.</li>
+          <li><strong>Promising:</strong> Real signals at mid-percentile. Investigate further.</li>
+          <li><strong>Moderate:</strong> Some signals. Keep on the radar.</li>
+          <li><strong>Low:</strong> Long-tail employers with at least one direct enforcement signal but low overall score.</li>
+          <li><strong>Speculative:</strong> The model thinks these are high-priority but we have no direct enforcement records to confirm — investigate only if you want to surface unverified leads. (Added 2026-05-06; previously included silently in "Promising" which dragged that tier's verified-enforcement rate down to 9.8%.)</li>
         </ul>
         <p>Tier counts update whenever new data is loaded into the system. The same employer may shift tiers over time as new information becomes available.</p>
         <p><strong>Bulk actions:</strong> Select multiple employers using the checkboxes, then use the action bar to export CSV or flag all for follow-up.</p>

@@ -23,7 +23,7 @@
     },
     {
       "name": "overtime_rate",
-      "pattern": "\\b(?:time\\s+and\\s+(?:one[- ])?half|one\\s+and\\s+one[- ]half|1\\.5|1\\s*1/2|double\\s+time|2x|twice\\s+(?:the\\s+)?(?:regular|straight[- ]time))\\b",
+      "pattern": "\\b(?:time\\s+and\\s+(?:one[- ])?half|one\\s+and\\s+one[- ]half|1\\.5\\s*(?:times?|x)|1\\s*1/2|double\\s+time|2x|twice\\s+(?:the\\s+)?(?:regular|straight[- ]time))\\b",
       "confidence": 0.90,
       "provision_class": "overtime_rate",
       "summary": "Overtime rate"
@@ -85,7 +85,9 @@
       "summary": "Anti-pyramiding clause"
     }
   ],
-  "negative_patterns": [],
+  "negative_patterns": [
+    {"pattern": "\\d+\\.?\\d*%\\s*(?:increase|raise|adjustment|effective|wage|salary)", "note": "Wage percentage increase, not overtime rate"}
+  ],
   "heading_exclusions": [
     {"pattern": "\\b(grievance|arbitration|dispute)\\b", "note": "penalty clauses"},
     {"pattern": "\\b(enforcement|penalty|penalties|fine)\\b", "note": "fund enforcement"},

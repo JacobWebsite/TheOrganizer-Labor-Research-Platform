@@ -13,7 +13,6 @@ Phase 2+ (scaffolded but not active yet):
 """
 import logging
 import os
-from datetime import datetime
 from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
@@ -58,6 +57,13 @@ class SectionReviewRequest(BaseModel):
     """Approve/reject all facts in a dossier section at once."""
     verdict: Literal["confirmed", "rejected"]
     notes: Optional[str] = None
+
+
+class GoldSectionReviewRequest(BaseModel):
+    """Review a single dossier section for gold standard reports."""
+    review_action: Literal["approve", "reject", "correct"]
+    reviewer_notes: Optional[str] = None
+    corrected_content: Optional[dict] = None
 
 
 class ComparisonVerdictRequest(BaseModel):
@@ -145,7 +151,7 @@ async def start_research_run(request: ResearchRequest, background_tasks: Backgro
 
             # Dedup check: warn if recent high-quality run exists
             dedup_days = int(os.environ.get("RESEARCH_DEDUP_DAYS", "30"))
-            dedup_quality = float(os.environ.get("RESEARCH_DEDUP_MIN_QUALITY", "7.0"))
+            dedup_quality = float(os.environ.get("RESEARCH_DEDUP_MIN_QUALITY", "6.0"))
             dedup_warning = None
 
             if employer_id and dedup_days > 0:
@@ -230,7 +236,7 @@ def _run_research_background(run_id: int):
 # GET /api/research/status/{run_id} — Check progress
 # ---------------------------------------------------------------------------
 @router.get("/status/{run_id}")
-def get_research_status(run_id: int):
+def get_research_status(run_id: int, background_tasks: BackgroundTasks):
     """
     Check the current status of a research run.
 
@@ -243,7 +249,8 @@ def get_research_status(run_id: int):
                 SELECT id, company_name, company_address, status, current_step, progress_pct,
                        started_at, completed_at, duration_seconds,
                        total_tools_called, total_facts_found, sections_filled,
-                       total_cost_cents, overall_quality_score, quality_dimensions
+                       total_cost_cents, overall_quality_score, quality_dimensions,
+                       retry_count
                 FROM research_runs
                 WHERE id = %s
             """, (run_id,))
@@ -252,25 +259,44 @@ def get_research_status(run_id: int):
     if not run:
         raise HTTPException(status_code=404, detail=f"Research run {run_id} not found")
 
-    # Stale run recovery: if "running" for >10 min, mark as failed (background task died)
+    # Stale run recovery: if "running" for >10 min, retry or mark failed
     row = dict(run)
     if row["status"] == "running" and row.get("started_at"):
-        from datetime import datetime, timezone
+        from datetime import datetime
         age_seconds = (datetime.now() - row["started_at"]).total_seconds()
         if age_seconds > 600:  # 10 minutes
-            _log.warning("Run %d stale (%ds), marking as failed", run_id, int(age_seconds))
-            with get_db() as conn2:
-                with conn2.cursor() as cur2:
-                    cur2.execute("""
-                        UPDATE research_runs
-                        SET status = 'failed',
-                            current_step = 'FAILED: Background task timed out (server may have restarted)',
-                            completed_at = NOW(),
-                            duration_seconds = EXTRACT(EPOCH FROM NOW() - started_at)::int
-                        WHERE id = %s AND status = 'running'
-                    """, (run_id,))
-            row["status"] = "failed"
-            row["current_step"] = "FAILED: Background task timed out (server may have restarted)"
+            retry_count = row.get("retry_count") or 0
+            if retry_count < 2:
+                _log.warning("Run %d stale (%ds), retrying (attempt %d/2)", run_id, int(age_seconds), retry_count + 1)
+                with get_db() as conn2:
+                    with conn2.cursor() as cur2:
+                        cur2.execute("""
+                            UPDATE research_runs
+                            SET status = 'pending',
+                                current_step = %s,
+                                retry_count = %s,
+                                started_at = NULL,
+                                progress_pct = 0
+                            WHERE id = %s AND status = 'running'
+                        """, (f"Retrying (attempt {retry_count + 2})...", retry_count + 1, run_id))
+                background_tasks.add_task(_run_research_background, run_id)
+                row["status"] = "pending"
+                row["current_step"] = f"Retrying (attempt {retry_count + 2})..."
+                row["retry_count"] = retry_count + 1
+            else:
+                _log.warning("Run %d stale (%ds), max retries exhausted, marking failed", run_id, int(age_seconds))
+                with get_db() as conn2:
+                    with conn2.cursor() as cur2:
+                        cur2.execute("""
+                            UPDATE research_runs
+                            SET status = 'failed',
+                                current_step = 'FAILED: Max retries exhausted (server may have restarted)',
+                                completed_at = NOW(),
+                                duration_seconds = EXTRACT(EPOCH FROM NOW() - started_at)::int
+                            WHERE id = %s AND status = 'running'
+                        """, (run_id,))
+                row["status"] = "failed"
+                row["current_step"] = "FAILED: Max retries exhausted (server may have restarted)"
 
     return row
 
@@ -1062,3 +1088,279 @@ def get_tool_effectiveness():
             "latency_skip_min_tries": latency_skip_min_tries,
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Gold Standard Review Endpoints
+# ---------------------------------------------------------------------------
+
+_VALID_SECTIONS = {
+    'identity', 'corporate_structure', 'locations', 'leadership',
+    'labor', 'workforce', 'workplace', 'financial', 'assessment', 'sources',
+}
+
+
+@router.get("/review/queue")
+def get_review_queue(
+    review_status: Optional[str] = Query(None, description="unreviewed, partial, complete, gold"),
+    q: Optional[str] = Query(None, description="Search company name"),
+    min_quality: Optional[float] = Query(None, description="Min auto quality score"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """List completed research runs for gold standard review.
+
+    Returns runs with their section review progress so the reviewer can
+    see which runs need attention and which are fully reviewed.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            conditions = ["rr.status = 'completed'"]
+            params = []
+
+            if q:
+                conditions.append("rr.company_name ILIKE %s")
+                params.append(f"%{q}%")
+            if min_quality is not None:
+                conditions.append("rr.overall_quality_score >= %s")
+                params.append(min_quality)
+            if review_status == "gold":
+                conditions.append("rr.is_gold_standard = TRUE")
+            elif review_status == "unreviewed":
+                conditions.append("""
+                    NOT EXISTS (
+                        SELECT 1 FROM research_section_reviews sr
+                        WHERE sr.run_id = rr.id
+                    )
+                """)
+            elif review_status == "partial":
+                conditions.append("""
+                    EXISTS (
+                        SELECT 1 FROM research_section_reviews sr
+                        WHERE sr.run_id = rr.id
+                    ) AND rr.is_gold_standard = FALSE
+                """)
+            elif review_status == "complete":
+                # All 10 sections reviewed but not yet marked gold
+                conditions.append("""
+                    (SELECT COUNT(*) FROM research_section_reviews sr
+                     WHERE sr.run_id = rr.id) >= 10
+                    AND rr.is_gold_standard = FALSE
+                """)
+
+            where = "WHERE " + " AND ".join(conditions)
+            offset = (page - 1) * limit
+
+            cur.execute(f"""
+                SELECT rr.id, rr.company_name, rr.company_address,
+                       rr.employer_id, rr.industry_naics, rr.company_type,
+                       rr.overall_quality_score, rr.human_quality_score,
+                       rr.total_facts_found, rr.sections_filled,
+                       rr.duration_seconds, rr.completed_at,
+                       rr.is_gold_standard, rr.gold_standard_at,
+                       (SELECT COUNT(*) FROM research_section_reviews sr
+                        WHERE sr.run_id = rr.id) AS sections_reviewed,
+                       (SELECT COUNT(*) FROM research_section_reviews sr
+                        WHERE sr.run_id = rr.id AND sr.review_action = 'approve') AS sections_approved,
+                       (SELECT COUNT(*) FROM research_section_reviews sr
+                        WHERE sr.run_id = rr.id AND sr.review_action = 'reject') AS sections_rejected,
+                       (SELECT COUNT(*) FROM research_section_reviews sr
+                        WHERE sr.run_id = rr.id AND sr.review_action = 'correct') AS sections_corrected
+                FROM research_runs rr
+                {where}
+                ORDER BY rr.is_gold_standard DESC, rr.overall_quality_score DESC NULLS LAST,
+                         rr.completed_at DESC
+                LIMIT %s OFFSET %s
+            """, params + [limit, offset])
+            runs = cur.fetchall()
+
+            cur.execute(f"SELECT COUNT(*) AS cnt FROM research_runs rr {where}", params)
+            total = cur.fetchone()['cnt']
+
+    return {
+        "results": [dict(r) for r in runs],
+        "total": total,
+        "page": page,
+        "pages": (total + limit - 1) // limit if total > 0 else 0,
+    }
+
+
+@router.get("/review/stats")
+def get_review_stats():
+    """Overall gold standard review progress."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    COUNT(*) FILTER (WHERE status = 'completed') AS total_completed,
+                    COUNT(*) FILTER (WHERE is_gold_standard = TRUE) AS gold_standard_count,
+                    COUNT(*) FILTER (
+                        WHERE status = 'completed'
+                        AND is_gold_standard = FALSE
+                        AND EXISTS (
+                            SELECT 1 FROM research_section_reviews sr
+                            WHERE sr.run_id = research_runs.id
+                        )
+                    ) AS in_progress_count,
+                    COUNT(*) FILTER (
+                        WHERE status = 'completed'
+                        AND is_gold_standard = FALSE
+                        AND NOT EXISTS (
+                            SELECT 1 FROM research_section_reviews sr
+                            WHERE sr.run_id = research_runs.id
+                        )
+                    ) AS unreviewed_count
+                FROM research_runs
+            """)
+            counts = dict(cur.fetchone())
+
+            # Per-section stats across all reviewed runs
+            cur.execute("""
+                SELECT section_name, review_action, COUNT(*) AS cnt
+                FROM research_section_reviews
+                GROUP BY section_name, review_action
+                ORDER BY section_name, review_action
+            """)
+            section_rows = cur.fetchall()
+
+    # Pivot section stats
+    by_section = {}
+    for row in section_rows:
+        sn = row['section_name']
+        if sn not in by_section:
+            by_section[sn] = {'approve': 0, 'reject': 0, 'correct': 0, 'total': 0}
+        by_section[sn][row['review_action']] = row['cnt']
+        by_section[sn]['total'] += row['cnt']
+
+    return {
+        **counts,
+        "goal": 20,
+        "by_section": by_section,
+    }
+
+
+@router.get("/runs/{run_id}/section-reviews")
+def get_section_reviews(run_id: int):
+    """Get all section-level reviews for a run."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM research_runs WHERE id = %s", (run_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail=f"Research run {run_id} not found")
+
+            cur.execute("""
+                SELECT id, section_name, review_action, reviewer_notes,
+                       corrected_content, reviewer, reviewed_at
+                FROM research_section_reviews
+                WHERE run_id = %s
+                ORDER BY section_name
+            """, (run_id,))
+            reviews = cur.fetchall()
+
+    return {
+        "run_id": run_id,
+        "reviews": [dict(r) for r in reviews],
+        "sections_reviewed": len(reviews),
+    }
+
+
+@router.post("/runs/{run_id}/section-review/{section}")
+def submit_section_review(run_id: int, section: str, request: GoldSectionReviewRequest):
+    """Submit a gold standard review for a single dossier section.
+
+    Upserts into research_section_reviews (one review per run+section).
+    """
+    if section not in _VALID_SECTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid section '{section}'. Must be one of: {', '.join(sorted(_VALID_SECTIONS))}"
+        )
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM research_runs WHERE id = %s", (run_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail=f"Research run {run_id} not found")
+
+            cur.execute("""
+                INSERT INTO research_section_reviews
+                    (run_id, section_name, review_action, reviewer_notes,
+                     corrected_content, reviewer, reviewed_at)
+                VALUES (%s, %s, %s, %s, %s, 'admin', NOW())
+                ON CONFLICT (run_id, section_name) DO UPDATE SET
+                    review_action = EXCLUDED.review_action,
+                    reviewer_notes = EXCLUDED.reviewer_notes,
+                    corrected_content = EXCLUDED.corrected_content,
+                    reviewer = EXCLUDED.reviewer,
+                    reviewed_at = NOW()
+                RETURNING id
+            """, (
+                run_id, section, request.review_action,
+                request.reviewer_notes,
+                request.corrected_content if request.corrected_content else None,
+            ))
+            review_id = cur.fetchone()['id']
+
+    return {
+        "review_id": review_id,
+        "run_id": run_id,
+        "section": section,
+        "review_action": request.review_action,
+        "message": "Section review saved",
+    }
+
+
+@router.post("/runs/{run_id}/gold-standard")
+def mark_gold_standard(run_id: int):
+    """Mark a research run as gold standard after all sections are reviewed."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, status, is_gold_standard FROM research_runs WHERE id = %s",
+                (run_id,),
+            )
+            run = cur.fetchone()
+            if not run:
+                raise HTTPException(status_code=404, detail=f"Research run {run_id} not found")
+            if run['status'] != 'completed':
+                raise HTTPException(status_code=400, detail="Can only mark completed runs as gold standard")
+
+            # Check how many sections are reviewed
+            cur.execute(
+                "SELECT COUNT(*) AS cnt FROM research_section_reviews WHERE run_id = %s",
+                (run_id,),
+            )
+            reviewed = cur.fetchone()['cnt']
+
+            cur.execute("""
+                UPDATE research_runs
+                SET is_gold_standard = TRUE,
+                    gold_standard_at = NOW()
+                WHERE id = %s
+            """, (run_id,))
+
+    return {
+        "run_id": run_id,
+        "is_gold_standard": True,
+        "sections_reviewed": reviewed,
+        "message": "Run marked as gold standard",
+    }
+
+
+@router.delete("/runs/{run_id}/gold-standard")
+def unmark_gold_standard(run_id: int):
+    """Remove gold standard designation from a research run."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM research_runs WHERE id = %s", (run_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail=f"Research run {run_id} not found")
+
+            cur.execute("""
+                UPDATE research_runs
+                SET is_gold_standard = FALSE,
+                    gold_standard_at = NULL
+                WHERE id = %s
+            """, (run_id,))
+
+    return {"run_id": run_id, "is_gold_standard": False, "message": "Gold standard removed"}

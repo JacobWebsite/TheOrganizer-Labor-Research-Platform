@@ -1,5 +1,6 @@
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { FactRow } from './FactRow'
+import { labelFor, questionFor, isNotFoundValue } from './questionMap'
 import {
   Building2, Users, HardHat, DollarSign, Briefcase, ClipboardCheck, Database,
   CheckCircle, XCircle, MapPin, Crown, Network,
@@ -18,38 +19,6 @@ const SECTION_META = {
   sources:             { icon: Database,       label: 'Data Sources',        defaultOpen: false },
 }
 
-// Labels for known keys so they render nicely
-const KEY_LABELS = {
-  legal_name: 'Legal Name', dba_names: 'DBA Names', naics_code: 'NAICS', naics_description: 'Industry',
-  company_type: 'Type', union_names: 'Unions Present', nlrb_election_count: 'NLRB Elections',
-  nlrb_ulp_count: 'ULP Charges', existing_contracts: 'Union Contracts',
-  nlrb_election_details: 'Election Details', voluntary_recognition: 'Voluntary Recognitions',
-  osha_violation_count: 'OSHA Violations', osha_serious_count: 'Serious Violations',
-  osha_penalty_total: 'Total Penalties', osha_violation_details: 'Violation Details',
-  whd_case_count: 'WHD Cases', workforce_composition: 'Workforce Composition',
-  demographic_profile: 'Demographics', federal_contract_count: 'Federal Contracts',
-  federal_obligations: 'Federal Obligations', organizing_summary: 'Summary',
-  campaign_strengths: 'Strengths', campaign_challenges: 'Challenges',
-  recommended_approach: 'Recommended Approach', similar_organized: 'Similar Organized Employers',
-  source_list: 'Sources Used', data_gaps: 'Data Gaps', section_confidence: 'Confidence by Section',
-  data_summary: 'Data Summary', web_intelligence: 'Web Intelligence',
-  source_contradictions: 'Source Contradictions',
-  registered_agent: 'Registered Agent', company_officers: 'Company Officers',
-  competitor_wages: 'Competitor Wage Comparison', solidarity_network: 'Solidarity Network',
-  local_subsidies: 'Taxpayer Subsidies', political_donations: 'Political Donations',
-  warn_notices: 'WARN Act Notices',
-  parent_company: 'Parent Company', parent_type: 'Parent Type',
-  subsidiaries: 'Subsidiaries', investors: 'Investors',
-  corporate_family: 'Corporate Family', ownership_chain: 'Ownership Chain',
-  locations: 'Known Locations', total_locations: 'Total Locations',
-  headquarters: 'Headquarters', location_states: 'States with Presence',
-  ceo: 'CEO/President', executives: 'Executive Team',
-  local_leadership: 'Local Management', board_of_directors: 'Board of Directors',
-}
-
-function labelFor(key) {
-  return KEY_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-}
 
 /** Render a single value — handles strings, numbers, arrays, objects. */
 function RenderValue({ value }) {
@@ -149,8 +118,9 @@ export function DossierSection({ sectionKey, facts, dossierData, onReviewFact, o
   const meta = SECTION_META[sectionKey] || { icon: Database, label: labelFor(sectionKey), defaultOpen: false }
   const narrative = dossierData?.[sectionKey]
 
-  // Count displayable items
-  const factCount = facts?.length || 0
+  // Count displayable items (exclude not-found facts)
+  const realFacts = facts?.filter(f => !isNotFoundValue(f.attribute_value)) || []
+  const factCount = realFacts.length
   const narrativeKeys = narrative && typeof narrative === 'object' && !Array.isArray(narrative)
     ? Object.keys(narrative).length : 0
   const itemCount = factCount + narrativeKeys
@@ -204,55 +174,52 @@ export function DossierSection({ sectionKey, facts, dossierData, onReviewFact, o
         </div>
       )}
 
-      {/* String narrative (e.g. assessment.organizing_summary at top level) */}
-      {narrative && typeof narrative === 'string' && (
-        <p className="text-sm whitespace-pre-wrap mb-3">{narrative}</p>
-      )}
+      {/* Unified Q&A display: narrative data + structured facts as Q&A cards */}
+      <div className="space-y-2">
+        {/* String narrative (e.g. assessment summary as a single block) */}
+        {narrative && typeof narrative === 'string' && (
+          <div className="border-l-4 border-l-[#3a7d44] bg-[#f5f0e8] rounded-r-md p-3 space-y-1">
+            <h4 className="text-sm font-medium text-[#2c2417]">{questionFor(sectionKey === 'assessment' ? 'organizing_summary' : sectionKey)}</h4>
+            <p className="text-sm whitespace-pre-wrap text-[#2c2417]">{narrative}</p>
+          </div>
+        )}
 
-      {/* Object narrative — render each key/value with smart formatting */}
-      {narrative && typeof narrative === 'object' && !Array.isArray(narrative) && (
-        <div className="space-y-4 mb-3">
-          {Object.entries(narrative).map(([key, val]) => (
-            <div key={key}>
-              <h4 className="text-sm font-semibold mb-1">{labelFor(key)}</h4>
-              <div className="pl-1">
-                <RenderValue value={val} />
+        {/* Object narrative — each key becomes a Q&A card */}
+        {narrative && typeof narrative === 'object' && !Array.isArray(narrative) &&
+          Object.entries(narrative).map(([key, val]) => {
+            if (val == null) return null
+            const strVal = typeof val === 'string' ? val : ''
+            const notFound = typeof val === 'string' && isNotFoundValue(val)
+            if (notFound) return null
+            return (
+              <div key={key} className="border-l-4 border-l-[#3a7d44] bg-[#f5f0e8] rounded-r-md p-3 space-y-1">
+                <h4 className="text-sm font-medium text-[#2c2417]">{questionFor(key)}</h4>
+                <div className="text-sm text-[#2c2417]">
+                  <RenderValue value={val} />
+                </div>
+                <div className="text-[11px] text-[#8a7e6d]">Source: dossier narrative</div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            )
+          })
+        }
 
-      {/* Array narrative (rare, e.g. skipped_tools) */}
-      {narrative && Array.isArray(narrative) && (
-        <div className="mb-3">
-          <RenderValue value={narrative} />
-        </div>
-      )}
+        {/* Array narrative (rare) */}
+        {narrative && Array.isArray(narrative) && (
+          <div className="border-l-4 border-l-[#d9cebb] bg-[#f5f0e8] rounded-r-md p-3">
+            <RenderValue value={narrative} />
+          </div>
+        )}
 
-      {/* Facts table from research_facts */}
-      {facts && facts.length > 0 && (
-        <div className="overflow-x-auto mt-2">
-          <h4 className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Verified Facts</h4>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Attribute</th>
-                <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Value</th>
-                <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Source</th>
-                <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Confidence</th>
-                <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">As Of</th>
-                <th className="px-3 py-1.5 text-left font-medium text-xs text-muted-foreground">Review</th>
-              </tr>
-            </thead>
-            <tbody>
-              {facts.map((fact, i) => (
-                <FactRow key={`${fact.attribute_name}-${i}`} fact={fact} onReview={onReviewFact} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {/* Structured facts from research_facts — only show real data */}
+        {facts && facts.length > 0 && (() => {
+          const displayFacts = facts.filter(f => !isNotFoundValue(f.attribute_value))
+          return displayFacts.length > 0 ? (
+            displayFacts.map((fact, i) => (
+              <FactRow key={`fact-${fact.attribute_name}-${i}`} fact={fact} onReview={onReviewFact} />
+            ))
+          ) : null
+        })()}
+      </div>
     </CollapsibleCard>
   )
 }

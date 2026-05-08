@@ -1,0 +1,34 @@
+# Materialized views that must exist with non-trivial row counts.
+# Used by scripts/maintenance/check_critical_mvs.py.
+#
+# Format: <mv_name> <min_rows>
+# - mv_name: the materialized view name in the public schema
+# - min_rows: minimum acceptable row count (release-blocking floor)
+#
+# Provenance: each entry should cite the audit/regression finding that
+# put it on this list. The bar to add an entry is "if this MV is gone,
+# something user-visible breaks."
+
+# 2026-04-30 incident: mv_target_scorecard silently disappeared between
+# R7 baseline (2026-04-25, 5.38M rows) and rebuild (2026-04-30). API
+# returned 503 for /api/targets/scorecard*; master scoring was dead.
+# Floor: 1M (legitimate range is 5-6M, but a partial rebuild leaves >1M).
+mv_target_scorecard 1000000
+
+# F7 (union reference) scorecard — 1:1 with f7_employers_deduped.
+# Floor: 100K (legitimate range ~146K).
+mv_unified_scorecard 100000
+
+# Source-availability flags MV that the unified scorecard joins to.
+# Same row count as mv_unified_scorecard.
+mv_employer_data_sources 100000
+
+# Search index spanning F7 / MASTER / NLRB / VR / MANUAL rows.
+# Floor: 100K (legitimate range ~474K). Empty MV would kill /api/employers/search.
+mv_employer_search 100000
+
+# Target-side source-availability flags. Floor: 1M (legit ~5.39M).
+mv_target_data_sources 1000000
+
+# Gower similarity comparables. Floor: 1M (legit ~18M). Drives ComparablesCard.
+employer_comparables 1000000

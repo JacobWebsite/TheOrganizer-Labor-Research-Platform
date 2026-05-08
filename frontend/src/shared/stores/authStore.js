@@ -48,6 +48,21 @@ export const useAuthStore = create((set) => ({
     set({ user: null, token: null, isAuthenticated: false })
   },
 
+  // Silent token refresh — called by useAuthCheck when the current token
+  // is within ~10 min of expiring. Keeps the session alive as long as
+  // the user is still active. Returns the new token on success, throws
+  // on failure (caller should logout()). 2026-05-05.
+  refreshToken: async () => {
+    const data = await apiClient.post('/api/auth/refresh', {})
+    const token = data.access_token
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    const user = { username: payload.sub, role: payload.role || 'user' }
+    localStorage.setItem('auth_token', token)
+    localStorage.setItem('auth_user', JSON.stringify(user))
+    set({ user, token, isAuthenticated: true })
+    return token
+  },
+
   isAdmin: () => {
     const user = loadUser()
     return user?.role === 'admin'

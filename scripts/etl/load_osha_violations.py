@@ -9,6 +9,7 @@ import sqlite3
 import psycopg2
 from psycopg2.extras import execute_values
 import hashlib
+import time
 from datetime import datetime
 
 # Configuration
@@ -35,6 +36,7 @@ def generate_establishment_id(estab_name, site_address, site_city, site_state):
     return hashlib.md5(key.encode('utf-8')).hexdigest()
 
 def main():
+    _start = time.time()
     print(f"[{datetime.now().strftime('%H:%M:%S')}] OSHA Phase 4: Load Violation Details")
     print(f"Start date filter: {START_DATE}")
     print("=" * 60)
@@ -191,6 +193,14 @@ def main():
     for row in pg_cursor.fetchall():
         print(f"  {row[0] or 'NULL':5} : {row[1]:>10,} violations, ${row[2] or 0:>15,.2f} penalties")
     
+    try:
+        from etl_log import log_etl_run
+        log_etl_run('osha', 'osha_violations_detail', pg_count, 'success',
+                     'scripts/etl/load_osha_violations.py',
+                     duration_seconds=round(time.time() - _start, 2))
+    except Exception as log_err:
+        print(f"WARNING: ETL log failed: {log_err}")
+
     sqlite_conn.close()
     pg_conn.close()
 

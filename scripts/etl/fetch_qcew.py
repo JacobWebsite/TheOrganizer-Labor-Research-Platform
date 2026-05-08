@@ -15,10 +15,9 @@ URL pattern: https://data.bls.gov/cew/data/files/{year}/csv/{year}_annual_single
 import os
 import csv
 import io
-import zipfile
 import time
+import zipfile
 import requests
-import psycopg2
 from psycopg2.extras import execute_values
 
 from db_config import get_connection
@@ -259,28 +258,54 @@ def print_summary(conn):
 
 
 def main():
-    conn = get_connection()
-    conn.autocommit = False
-    create_table(conn)
+    from etl_log import log_etl_run  # local to avoid formatter stripping
 
+    _start = time.time()
     total_rows = 0
-    years = [2023, 2022, 2021, 2020]  # 2024 may not be available yet
+    status = 'success'
+    err_msg = None
+    conn = None
 
-    for year in years:
-        print(f"\n=== QCEW {year} ===")
+    try:
+        conn = get_connection()
+        conn.autocommit = False
+        create_table(conn)
+
+        years = [2024, 2023, 2022, 2021, 2020]
+
+        for year in years:
+            print(f"\n=== QCEW {year} ===")
+            try:
+                zip_path = download_qcew_year(year)
+                rows = load_qcew_year(conn, zip_path, year)
+                total_rows += rows
+            except requests.HTTPError as e:
+                print(f"  Year {year} not available: {e}")
+                status = 'partial'
+                err_msg = (err_msg or '') + f"{year}: {e}; "
+                continue
+
+        create_indexes(conn)
+        print_summary(conn)
+
+        print(f"\n=== TOTAL LOADED: {total_rows:,} rows ===")
+    except Exception as e:
+        status = 'error'
+        err_msg = str(e)
+        raise
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        duration = round(time.time() - _start, 2)
         try:
-            zip_path = download_qcew_year(year)
-            rows = load_qcew_year(conn, zip_path, year)
-            total_rows += rows
-        except requests.HTTPError as e:
-            print(f"  Year {year} not available: {e}")
-            continue
-
-    create_indexes(conn)
-    print_summary(conn)
-
-    print(f"\n=== TOTAL LOADED: {total_rows:,} rows ===")
-    conn.close()
+            log_etl_run('qcew', 'qcew_annual', total_rows, status,
+                        'scripts/etl/fetch_qcew.py',
+                        error_message=err_msg, duration_seconds=duration)
+        except Exception as log_err:
+            print(f"WARNING: ETL log failed: {log_err}")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,6 @@ import argparse
 import os
 import sys
 import tempfile
-import time
 import zipfile
 from datetime import datetime
 
@@ -79,12 +78,13 @@ INDEX_SQLS = [
 
 MV_SQL = """
 CREATE MATERIALIZED VIEW mv_oes_area_wages AS
-SELECT area, area_title, prim_state, occ_code, occ_title,
+SELECT area, area_title, area_type, prim_state, occ_code, occ_title,
        tot_emp, a_mean, a_median, a_pct10, a_pct25, a_pct75, a_pct90,
        h_median, loc_quotient
 FROM oes_occupation_wages
 WHERE i_group = 'cross-industry'
-  AND o_group = 'detailed';
+  AND o_group = 'detailed'
+  AND area_type IN (2, 4);
 """
 
 # Column name -> xlsx header mapping

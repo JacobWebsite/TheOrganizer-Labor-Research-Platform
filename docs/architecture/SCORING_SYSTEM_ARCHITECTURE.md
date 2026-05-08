@@ -1,6 +1,6 @@
 # Scoring System Architecture
 
-The scoring system evaluates employers for organizing potential across two pools: **union employers** (F7-based, 146K) scored in `mv_unified_scorecard`, and **non-union targets** (master-based, 4.3M) inventoried in `mv_target_scorecard`. Both are materialized views rebuilt from upstream data source MVs, with optional research enhancement.
+The scoring system evaluates employers for organizing potential across two pools: **union employers** (F7-based, 146K) scored in `mv_unified_scorecard`, and **non-union targets** (master-based, 5.3M) inventoried in `mv_target_scorecard`. Both are materialized views rebuilt from upstream data source MVs, with optional research enhancement.
 
 ---
 
@@ -9,7 +9,7 @@ The scoring system evaluates employers for organizing potential across two pools
 ```
 1. build_employer_data_sources.py  →  mv_employer_data_sources   (146K F7 employers)
 2. build_unified_scorecard.py      →  mv_unified_scorecard        (depends on #1)
-3. build_target_data_sources.py    →  mv_target_data_sources      (4.3M non-union masters)
+3. build_target_data_sources.py    →  mv_target_data_sources      (5.3M non-union masters)
 4. build_target_scorecard.py       →  mv_target_scorecard          (depends on #3)
 5. rebuild_search_mv.py            →  mv_employer_search           (independent, 107K)
 6. compute_gower_similarity.py     →  mv_employer_features +       (optional, currently broken)
@@ -135,9 +135,9 @@ Employer size sweet spot. **Weight is zero** — size is a filter dimension, not
 
 - Uses `company_size` (consolidated) or `latest_unit_size` (BU-level)
 
-#### 8. score_similarity (weight=0x, coverage=0.1%)
+#### 8. score_similarity (weight=0x, coverage=80.4%)
 
-Gower distance to unionized comparables. **Weight is zero** — broken pipeline (name+state bridge only matches 833/146K employers). Column kept for future repair.
+Gower distance to unionized comparables. **Weight is zero** — coverage fixed from 0.1% to 80.4% after Gower overhaul (5-tier NAICS hybrid blocking). Weight remains zero pending predictive validation.
 
 ```
 unionized_comparable_count: 5→10, 4→8, 3→6, 2→4, 1→2, 0→0
@@ -194,28 +194,38 @@ Else:
 
 #### Pillar 2: STABILITY (Winnability) — "Can they maintain a committee?"
 
+**Weight = 0 (demoted to flags per D13, 2026-04-03).** Stability signals are stored as metadata but excluded from the composite score formula. The pillar column is still computed for informational display.
+
 ```
 If research-provided score_stability exists → use it
 If turnover_rate_found exists → 10 - turnover_rate
-Else → 5.0 (baseline)
+Else → NULL (no fake baseline)
 ```
 
 #### Pillar 3: LEVERAGE (Power) — "What structural power exists?"
 
+Dynamic denominator — only counts sub-factors that have data. Size is excluded (weight=0).
+
 ```
 LEAST(10,
-    score_union_proximity * 0.3
-    + enh_score_contracts * 0.2
-    + enh_score_financial * 0.2
-    + score_industry_growth * 0.15
-    + enh_score_size * 0.15
-    + RPE_bonus)              -- +1 if revenue_per_employee > $500K
+    (score_union_proximity * 10
+    + score_similarity * 15
+    + enh_score_contracts * 25
+    + enh_score_financial * 25
+    + score_industry_growth * 10
+    + RPE_bonus)              -- +10 if revenue_per_employee > $500K
+    / sum_of_weights_for_non_null_subfactors)
 ```
+
+Sub-factor weights: proximity=10, similarity=15, contracts=25, financial=25, growth=10 (updated per D12, 2026-04-03).
 
 ### Final Weighted Score
 
+Stability pillar is zeroed (weight=0) and demoted to flags (D13, 2026-04-03). Excluded from the formula entirely. Denominator is dynamic — only counts pillars that have data.
+
 ```
-weighted_score = (score_anger * 3 + score_stability * 3 + score_leverage * 4) / 10
+weighted_score = (score_anger * 3 + score_leverage * 4)
+                 / (3 if anger non-null else 0) + (4 if leverage non-null else 0)
 ```
 
 ### Legacy Weighted Score (backward compat)
@@ -267,7 +277,7 @@ idx_mv_us_strategic_delta (strategic_delta DESC NULLS LAST)
 ## Target Scorecard (`mv_target_scorecard`)
 
 **Script:** `scripts/scoring/build_target_scorecard.py`
-**Rows:** 4,381,582 (non-union employers with >= 1 data source)
+**Rows:** ~5,340,000 (non-union employers with >= 1 data source)
 **Rebuild:** `PYTHONPATH=. py scripts/scoring/build_target_scorecard.py` (~120s)
 
 ### Key Difference from Unified
@@ -403,7 +413,7 @@ From `employer_canonical_groups`: `company_size` (consolidated workers across gr
 ## Target Data Sources (`mv_target_data_sources`)
 
 **Script:** `scripts/scoring/build_target_data_sources.py`
-**Rows:** 4,381,582
+**Rows:** ~5,340,000
 **Rebuild:** `PYTHONPATH=. py scripts/scoring/build_target_data_sources.py`
 
 Foundation MV for the target scorecard. Uses `master_employer_source_ids` instead of F7 match tables.
@@ -414,7 +424,7 @@ Foundation MV for the target scorecard. Uses `master_employer_source_ids` instea
 |---------|----------------------|---------------------|
 | Base table | f7_employers_deduped | master_employers (non-union) |
 | Join path | Legacy F7 match tables | master_employer_source_ids |
-| Row count | 146K | 4.3M |
+| Row count | 146K | 5.3M |
 | Quality gate | None | data_quality_score >= 20 |
 | Extra flags | has_gleif | has_bmf, has_corpwatch |
 | Source origin | Always 'f7' | BMF/SAM/OSHA/CorpWatch/WHD/NLRB/Mergent |
@@ -468,7 +478,7 @@ Computes pairwise distances between all non-union targets and union references. 
 
 ### Current State
 
-Broken for the unified scorecard — the `feature_bridge` CTE joins `mv_employer_features` to `mv_employer_data_sources` via name+state, which only matches 833/146K F7 employers. `score_similarity` weight is zeroed.
+Overhauled (2026-04-01): 5-tier NAICS hybrid blocking with QCEW wages and 10 comparables per employer (5 union + 5 non-union). Coverage now 80.4% (was 0.1% with old name+state bridge). `score_similarity` weight remains zero pending predictive validation.
 
 ---
 
@@ -593,7 +603,7 @@ Seven audit reports (Feb 2025-26, 3 AI tools, 2 rounds + synthesis) validated an
 | Score IS predictive: win rates monotonic by tier (Priority 90.9% → Low 74.1%) | Validated overall approach |
 | NLRB is strongest signal (+10.2pp), Industry Growth underweighted (+9.6pp) | NLRB gets 3x weight, growth gets 2x |
 | Size has zero predictive power (+0.2pp) | Weight set to 0 |
-| Similarity has zero predictive power | Weight set to 0 (also broken pipeline) |
+| Similarity has zero predictive power | Weight set to 0 (pipeline fixed to 80.4% coverage, weight still 0 pending validation) |
 | OSHA predicts losses (-0.6pp) | Weight reduced to 1x |
 | Fewer data factors = higher win rates (2-factor=88.2%, 8-factor=73.4%) | 3-factor guardrail for top tiers |
 | 86% of Priority tier lacks enforcement data | Enforcement gate rejected (D1/D7) |
@@ -607,6 +617,8 @@ Seven audit reports (Feb 2025-26, 3 AI tools, 2 rounds + synthesis) validated an
 - **D3:** Minimum 3 factors required for Priority and Strong tiers.
 - **D4:** Strategic pillars (Anger/Stability/Leverage) replace single composite heuristic.
 - **D5:** Research upgrades signals, never downgrades (GREATEST logic).
+- **D12:** Leverage sub-weight rebalance (2026-04-03): proximity 25->10, contracts 20->25, financial 20->25, similarity 10->15.
+- **D13:** Stability pillar demoted to flags (2026-04-03): weight 0, excluded from formula, signals stored as metadata only.
 
 ---
 

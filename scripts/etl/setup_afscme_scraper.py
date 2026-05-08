@@ -279,18 +279,28 @@ def match_olms(conn):
             # Try local-only match (some entries have wrong state, e.g. Council 61
             # listed under Kansas but OLMS has it under Iowa)
             local_candidates = olms_by_local.get(str(local_num).strip(), [])
-            if len(local_candidates) == 1:
-                f_num, olms_name, olms_st, members = local_candidates[0]
+            picked = False
+            if local_candidates:
+                # Phase 5.2 + codex-hardened: require 2x member dominance before
+                # auto-matching across states; else fall through to UNMATCHED.
+                # Tuple layout here: (f_num, olms_name, olms_st, members), so
+                # members is at index 3 (vs index 2 in the other 6 scrapers).
+                sorted_cands = sorted(local_candidates, key=lambda x: x[3] or 0, reverse=True)
+                top_members = sorted_cands[0][3] or 0
+                runner_up = sorted_cands[1][3] or 0 if len(sorted_cands) > 1 else 0
+                if len(sorted_cands) == 1 or top_members >= 2 * max(runner_up, 1):
+                    f_num, olms_name, olms_st, members = sorted_cands[0]
+                    cur.execute("""
+                        UPDATE web_union_profiles
+                        SET f_num = %s, match_status = 'MATCHED_OLMS_CROSS_STATE'
+                        WHERE id = %s
+                    """, (f_num, pid))
+                    matched += 1
+                    picked = True
+            if not picked:
                 cur.execute("""
                     UPDATE web_union_profiles
-                    SET f_num = %s, match_status = 'MATCHED_OLMS_CROSS_STATE'
-                    WHERE id = %s
-                """, (f_num, pid))
-                matched += 1
-            else:
-                cur.execute("""
-                    UPDATE web_union_profiles
-                    SET match_status = 'UNMATCHED'
+                    SET match_status = 'UNMATCHED', f_num = NULL
                     WHERE id = %s
                 """, (pid,))
                 unmatched_with_local += 1
@@ -303,7 +313,7 @@ def match_olms(conn):
     """)
 
     conn.commit()
-    print(f"\n=== OLMS Matching Results ===")
+    print("\n=== OLMS Matching Results ===")
     print(f"  Matched (state+local):       {matched - multi_match}")
     print(f"  Matched (multi, picked best): {multi_match}")
     print(f"  Unmatched (has local#):       {unmatched_with_local}")
@@ -397,7 +407,7 @@ def print_summary(conn):
     """)
     unmatched = cur.fetchall()
     if unmatched:
-        print(f"\nSample unmatched (with local#):")
+        print("\nSample unmatched (with local#):")
         print("-" * 90)
         for pid, name, local, st, url in unmatched:
             print(f"  [{pid}] {name[:50]:<50} L{local:<6} {st}  url={'Y' if url else 'N'}")

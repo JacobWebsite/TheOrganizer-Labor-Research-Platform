@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-from typing import Optional, List
+from typing import Optional
 from ..database import get_db
 
 router = APIRouter()
@@ -187,7 +187,7 @@ def get_whd_employer_cases(employer_id: str):
         with conn.cursor() as cur:
             # Try F7 first
             cur.execute("""
-                SELECT employer_name_aggressive, state, city,
+                SELECT employer_name_aggressive, employer_name, state, city,
                        whd_violation_count, whd_backwages, whd_employees_violated,
                        whd_penalties, whd_child_labor, whd_repeat_violator
                 FROM f7_employers_deduped
@@ -195,8 +195,15 @@ def get_whd_employer_cases(employer_id: str):
             """, [employer_id])
             f7 = cur.fetchone()
 
-            if f7 and f7['employer_name_aggressive']:
-                name_norm = f7['employer_name_aggressive']
+            mergent = None
+            if f7:
+                # R7-11 (2026-04-27): whd_cases.name_normalized is lowercase, but
+                # f7_employers_deduped.employer_name_aggressive is NULL on many
+                # large parents (e.g. Kroger), and the fallback employer_name is
+                # mixed-case ("Kroger Manufacturing") which never matches the
+                # lowercase WHD column. Lowercase on the way in.
+                raw_name = f7['employer_name_aggressive'] or f7.get('employer_name') or ''
+                name_norm = raw_name.lower().strip()
                 state = f7['state']
                 city = f7['city']
             else:
@@ -211,11 +218,12 @@ def get_whd_employer_cases(employer_id: str):
                 mergent = cur.fetchone()
                 if not mergent:
                     raise HTTPException(status_code=404, detail="Employer not found")
-                name_norm = mergent['company_name_normalized']
+                name_norm = (mergent['company_name_normalized'] or '').lower().strip()
                 state = mergent['state']
                 city = mergent['city']
 
-            # Find matching WHD cases
+            # Find matching WHD cases by normalized name + state so Mergent/DUNS
+            # callers work identically to F7 callers (whd_f7_matches only covers F7).
             cur.execute("""
                 SELECT case_id, trade_name, legal_name, city, state, naics_code,
                        total_violations, civil_penalties, employees_violated,
@@ -226,6 +234,17 @@ def get_whd_employer_cases(employer_id: str):
                 ORDER BY backwages_amount DESC NULLS LAST
             """, [name_norm, state])
             cases = cur.fetchall()
+
+            # Latest WHD record date for this employer (findings_end_date across
+            # the matched cases). Exclude sentinel >2100 dates.
+            cur.execute("""
+                SELECT MAX(findings_end_date) AS latest_record_date
+                FROM whd_cases
+                WHERE name_normalized = %s AND state = %s
+                  AND findings_end_date < '2100-01-01'
+            """, [name_norm, state])
+            latest_row = cur.fetchone()
+            latest_record_date = latest_row["latest_record_date"] if latest_row else None
 
             # Check if any whd matches for this employer are unverified
             has_unverified_match = False
@@ -248,6 +267,9 @@ def get_whd_employer_cases(employer_id: str):
                 "whd_summary": f7 or mergent,
                 "cases": cases,
                 "has_unverified_match": has_unverified_match,
+                "latest_record_date": (
+                    latest_record_date.isoformat() if latest_record_date else None
+                ),
             }
 
 

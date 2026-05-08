@@ -225,48 +225,10 @@ export function SignalInventory({ scorecard, signals }) {
                   <span className="font-semibold">{Number(scorecard.pillar_leverage).toFixed(1)}</span>
                 </div>
               )}
-              {scorecard.pillar_stability != null && (
-                <div className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-[#3a6b8c]" />
-                  <span className="text-muted-foreground">Stability:</span>
-                  <span className="font-semibold">{Number(scorecard.pillar_stability).toFixed(1)}</span>
-                </div>
-              )}
             </div>
           </div>
         )}
       </CardContent>
-      {/* Wage context */}
-      {scorecard.wage_ratio != null && (
-        <CardContent className="pt-0">
-          <div className="border rounded-lg overflow-hidden border-[#3a6b8c]/20">
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#3a6b8c]/10">
-              <Users className="h-4 w-4 text-[#3a6b8c]" />
-              <span className="text-sm font-semibold text-[#3a6b8c]">Wage Context</span>
-            </div>
-            <div className="px-3 py-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Employer annual pay</span>
-                <span className="font-medium">${Number(scorecard.employer_annual_pay || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-muted-foreground">Local industry avg (QCEW)</span>
-                <span className="font-medium">${Number(scorecard.qcew_avg_annual_pay || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-muted-foreground">Ratio</span>
-                <span className={cn('font-medium', scorecard.is_low_wage_outlier ? 'text-[#c23a22]' : '')}>
-                  {(Number(scorecard.wage_ratio) * 100).toFixed(0)}%
-                  {scorecard.is_low_wage_outlier && ' (below avg)'}
-                </span>
-              </div>
-              {signalExplanations.wage_context && (
-                <p className="text-[11px] text-[#3D2B1F]/60 mt-1.5 leading-tight">{signalExplanations.wage_context}</p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      )}
 
       <CardFooter>
         <p className="text-xs text-muted-foreground">

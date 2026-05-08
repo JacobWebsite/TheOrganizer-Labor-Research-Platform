@@ -8,7 +8,6 @@ Run with: py -m pytest tests/test_score_versioning.py -v
 """
 import os
 import sys
-import json
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -139,12 +138,12 @@ class TestScoreVersionApi:
 
     def test_get_score_versions(self, client):
         resp = client.get("/api/admin/score-versions")
-        assert resp.status_code == 503
+        assert resp.status_code == 403
         assert "Admin endpoints are disabled" in resp.json()["detail"]
 
     def test_score_versions_limit(self, client):
         resp = client.get("/api/admin/score-versions?limit=1")
-        assert resp.status_code == 503
+        assert resp.status_code == 403
         assert "Admin endpoints are disabled" in resp.json()["detail"]
 
 

@@ -20,7 +20,6 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from db_config import get_connection
-from psycopg2.extras import RealDictCursor
 
 try:
     import requests
@@ -234,8 +233,15 @@ def aggregate_education(row):
 
 
 def main():
+    from etl_log import log_etl_run  # local to avoid formatter stripping
+
+    _start = time.time()
+    inserted = 0
+    status = 'success'
+    err_msg = None
+
     api_key = None
-    year = 2022
+    year = 2024
     single_state = None
 
     args = sys.argv[1:]
@@ -261,144 +267,158 @@ def main():
         year, len(states), "provided" if api_key else "not set (rate-limited)"))
     print("=" * 70)
 
-    # Collect all tract data
-    all_tracts = {}
-    total_api_calls = 0
+    try:
+        # Collect all tract data
+        all_tracts = {}
+        total_api_calls = 0
 
-    for si, state_fips in enumerate(states):
-        print("\n[%d/%d] State %s..." % (si + 1, len(states), state_fips))
+        for si, state_fips in enumerate(states):
+            print("\n[%d/%d] State %s..." % (si + 1, len(states), state_fips))
 
-        for group_name, var_dict in ALL_GROUPS:
-            data = fetch_acs_data(year, state_fips, var_dict, api_key)
-            total_api_calls += 1
-            merge_tract_data(all_tracts, data)
+            for group_name, var_dict in ALL_GROUPS:
+                data = fetch_acs_data(year, state_fips, var_dict, api_key)
+                total_api_calls += 1
+                merge_tract_data(all_tracts, data)
 
-            # Rate limit if no API key
-            if not api_key:
-                time.sleep(0.5)
+                # Rate limit if no API key
+                if not api_key:
+                    time.sleep(0.5)
 
-        print("  Tracts so far: %d" % len(all_tracts))
+            print("  Tracts so far: %d" % len(all_tracts))
 
-    print("\n\nTotal tracts fetched: %d" % len(all_tracts))
-    print("Total API calls: %d" % total_api_calls)
+        print("\n\nTotal tracts fetched: %d" % len(all_tracts))
+        print("Total API calls: %d" % total_api_calls)
 
-    if not all_tracts:
-        print("No data fetched. Check API key and network.")
-        return
+        if not all_tracts:
+            print("No data fetched. Check API key and network.")
+            status = 'error'
+            err_msg = 'No data fetched from Census API'
+            return
 
-    # Process education aggregates and percentages
-    for tract_fips, row in all_tracts.items():
-        aggregate_education(row)
-        compute_percentages(row)
+        # Process education aggregates and percentages
+        for tract_fips, row in all_tracts.items():
+            aggregate_education(row)
+            compute_percentages(row)
 
-    # Load into database
-    print("\nLoading into acs_tract_demographics...")
-    conn = get_connection()
-    cur = conn.cursor()
+        # Load into database
+        print("\nLoading into acs_tract_demographics...")
+        conn = get_connection()
+        cur = conn.cursor()
 
-    # Clear existing data for this year
-    cur.execute("DELETE FROM acs_tract_demographics WHERE acs_year = %s", [year])
-    deleted = cur.rowcount
-    if deleted:
-        print("  Cleared %d existing rows for year %d" % (deleted, year))
+        # Clear existing data for this year
+        cur.execute("DELETE FROM acs_tract_demographics WHERE acs_year = %s", [year])
+        deleted = cur.rowcount
+        if deleted:
+            print("  Cleared %d existing rows for year %d" % (deleted, year))
 
-    inserted = 0
-    errors = 0
-    for tract_fips, row in all_tracts.items():
-        if len(tract_fips) != 11:
-            errors += 1
-            continue
+        errors = 0
+        for tract_fips, row in all_tracts.items():
+            if len(tract_fips) != 11:
+                errors += 1
+                continue
 
-        state_fips_code = tract_fips[:2]
-        county_fips_code = tract_fips[:5]
+            state_fips_code = tract_fips[:2]
+            county_fips_code = tract_fips[:5]
 
+            try:
+                cur.execute("""
+                    INSERT INTO acs_tract_demographics (
+                        tract_fips, state_fips, county_fips,
+                        total_population, pop_white, pop_black, pop_aian, pop_asian,
+                        pop_nhpi, pop_other_race, pop_two_plus,
+                        pop_hispanic, pop_not_hispanic,
+                        pop_male, pop_female, pop_25plus,
+                        edu_no_hs, edu_hs, edu_some_college, edu_bachelors, edu_graduate,
+                        median_household_income,
+                        labor_force, employed, unemployed,
+                        pct_female, pct_minority, pct_hispanic,
+                        pct_bachelors_plus, unemployment_rate,
+                        acs_year
+                    ) VALUES (
+                        %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s,
+                        %s, %s, %s,
+                        %s, %s, %s, %s, %s,
+                        %s,
+                        %s, %s, %s,
+                        %s, %s, %s,
+                        %s, %s,
+                        %s
+                    )
+                    ON CONFLICT (tract_fips) DO UPDATE SET
+                        total_population = EXCLUDED.total_population,
+                        pop_white = EXCLUDED.pop_white,
+                        pop_black = EXCLUDED.pop_black,
+                        pop_aian = EXCLUDED.pop_aian,
+                        pop_asian = EXCLUDED.pop_asian,
+                        pop_nhpi = EXCLUDED.pop_nhpi,
+                        pop_other_race = EXCLUDED.pop_other_race,
+                        pop_two_plus = EXCLUDED.pop_two_plus,
+                        pop_hispanic = EXCLUDED.pop_hispanic,
+                        pop_not_hispanic = EXCLUDED.pop_not_hispanic,
+                        pop_male = EXCLUDED.pop_male,
+                        pop_female = EXCLUDED.pop_female,
+                        pop_25plus = EXCLUDED.pop_25plus,
+                        edu_no_hs = EXCLUDED.edu_no_hs,
+                        edu_hs = EXCLUDED.edu_hs,
+                        edu_some_college = EXCLUDED.edu_some_college,
+                        edu_bachelors = EXCLUDED.edu_bachelors,
+                        edu_graduate = EXCLUDED.edu_graduate,
+                        median_household_income = EXCLUDED.median_household_income,
+                        labor_force = EXCLUDED.labor_force,
+                        employed = EXCLUDED.employed,
+                        unemployed = EXCLUDED.unemployed,
+                        pct_female = EXCLUDED.pct_female,
+                        pct_minority = EXCLUDED.pct_minority,
+                        pct_hispanic = EXCLUDED.pct_hispanic,
+                        pct_bachelors_plus = EXCLUDED.pct_bachelors_plus,
+                        unemployment_rate = EXCLUDED.unemployment_rate,
+                        acs_year = EXCLUDED.acs_year,
+                        loaded_at = CURRENT_TIMESTAMP
+                """, (
+                    tract_fips, state_fips_code, county_fips_code,
+                    row.get('total_population'), row.get('pop_white'), row.get('pop_black'),
+                    row.get('pop_aian'), row.get('pop_asian'),
+                    row.get('pop_nhpi'), row.get('pop_other_race'), row.get('pop_two_plus'),
+                    row.get('pop_hispanic'), row.get('pop_not_hispanic'),
+                    row.get('pop_male'), row.get('pop_female'), row.get('pop_25plus'),
+                    row.get('edu_no_hs'), row.get('edu_hs'), row.get('edu_some_college'),
+                    row.get('edu_bachelors'), row.get('edu_graduate'),
+                    row.get('median_household_income'),
+                    row.get('labor_force'), row.get('employed'), row.get('unemployed'),
+                    row.get('pct_female'), row.get('pct_minority'), row.get('pct_hispanic'),
+                    row.get('pct_bachelors_plus'), row.get('unemployment_rate'),
+                    year,
+                ))
+                inserted += 1
+            except Exception as e:
+                errors += 1
+                if errors <= 5:
+                    print("  Error on tract %s: %s" % (tract_fips, str(e)[:80]))
+
+        conn.commit()
+        conn.close()
+
+        print("\n" + "=" * 70)
+        print("LOAD COMPLETE")
+        print("=" * 70)
+        print("  Inserted/updated: %d" % inserted)
+        print("  Errors: %d" % errors)
+        print("  Total tracts: %d" % len(all_tracts))
+    except Exception as e:
+        status = 'error'
+        err_msg = str(e)
+        raise
+    finally:
+        duration = round(time.time() - _start, 2)
         try:
-            cur.execute("""
-                INSERT INTO acs_tract_demographics (
-                    tract_fips, state_fips, county_fips,
-                    total_population, pop_white, pop_black, pop_aian, pop_asian,
-                    pop_nhpi, pop_other_race, pop_two_plus,
-                    pop_hispanic, pop_not_hispanic,
-                    pop_male, pop_female, pop_25plus,
-                    edu_no_hs, edu_hs, edu_some_college, edu_bachelors, edu_graduate,
-                    median_household_income,
-                    labor_force, employed, unemployed,
-                    pct_female, pct_minority, pct_hispanic,
-                    pct_bachelors_plus, unemployment_rate,
-                    acs_year
-                ) VALUES (
-                    %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s,
-                    %s, %s,
-                    %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s,
-                    %s, %s, %s,
-                    %s, %s, %s,
-                    %s, %s,
-                    %s
-                )
-                ON CONFLICT (tract_fips) DO UPDATE SET
-                    total_population = EXCLUDED.total_population,
-                    pop_white = EXCLUDED.pop_white,
-                    pop_black = EXCLUDED.pop_black,
-                    pop_aian = EXCLUDED.pop_aian,
-                    pop_asian = EXCLUDED.pop_asian,
-                    pop_nhpi = EXCLUDED.pop_nhpi,
-                    pop_other_race = EXCLUDED.pop_other_race,
-                    pop_two_plus = EXCLUDED.pop_two_plus,
-                    pop_hispanic = EXCLUDED.pop_hispanic,
-                    pop_not_hispanic = EXCLUDED.pop_not_hispanic,
-                    pop_male = EXCLUDED.pop_male,
-                    pop_female = EXCLUDED.pop_female,
-                    pop_25plus = EXCLUDED.pop_25plus,
-                    edu_no_hs = EXCLUDED.edu_no_hs,
-                    edu_hs = EXCLUDED.edu_hs,
-                    edu_some_college = EXCLUDED.edu_some_college,
-                    edu_bachelors = EXCLUDED.edu_bachelors,
-                    edu_graduate = EXCLUDED.edu_graduate,
-                    median_household_income = EXCLUDED.median_household_income,
-                    labor_force = EXCLUDED.labor_force,
-                    employed = EXCLUDED.employed,
-                    unemployed = EXCLUDED.unemployed,
-                    pct_female = EXCLUDED.pct_female,
-                    pct_minority = EXCLUDED.pct_minority,
-                    pct_hispanic = EXCLUDED.pct_hispanic,
-                    pct_bachelors_plus = EXCLUDED.pct_bachelors_plus,
-                    unemployment_rate = EXCLUDED.unemployment_rate,
-                    acs_year = EXCLUDED.acs_year,
-                    loaded_at = CURRENT_TIMESTAMP
-            """, (
-                tract_fips, state_fips_code, county_fips_code,
-                row.get('total_population'), row.get('pop_white'), row.get('pop_black'),
-                row.get('pop_aian'), row.get('pop_asian'),
-                row.get('pop_nhpi'), row.get('pop_other_race'), row.get('pop_two_plus'),
-                row.get('pop_hispanic'), row.get('pop_not_hispanic'),
-                row.get('pop_male'), row.get('pop_female'), row.get('pop_25plus'),
-                row.get('edu_no_hs'), row.get('edu_hs'), row.get('edu_some_college'),
-                row.get('edu_bachelors'), row.get('edu_graduate'),
-                row.get('median_household_income'),
-                row.get('labor_force'), row.get('employed'), row.get('unemployed'),
-                row.get('pct_female'), row.get('pct_minority'), row.get('pct_hispanic'),
-                row.get('pct_bachelors_plus'), row.get('unemployment_rate'),
-                year,
-            ))
-            inserted += 1
-        except Exception as e:
-            errors += 1
-            if errors <= 5:
-                print("  Error on tract %s: %s" % (tract_fips, str(e)[:80]))
-
-    conn.commit()
-    conn.close()
-
-    print("\n" + "=" * 70)
-    print("LOAD COMPLETE")
-    print("=" * 70)
-    print("  Inserted/updated: %d" % inserted)
-    print("  Errors: %d" % errors)
-    print("  Total tracts: %d" % len(all_tracts))
+            log_etl_run('acs_tract', 'acs_tract_demographics', inserted, status,
+                        'scripts/etl/download_acs_tract_demographics.py',
+                        error_message=err_msg, duration_seconds=duration)
+        except Exception as log_err:
+            print(f"WARNING: ETL log failed: {log_err}")
 
 
 if __name__ == '__main__':

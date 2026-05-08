@@ -1,0 +1,61 @@
+# Critical API routes that must be present in the running API.
+# Used by scripts/maintenance/check_critical_routes.py.
+# One route per line. Blank lines and lines starting with # are ignored.
+# Routes are matched literally against keys in /openapi.json `paths`.
+#
+# Provenance: each entry should cite the audit/regression finding that put
+# it on this list, so future contributors know why it matters.
+
+# R7-6 (2026-04-26): Family-rollup routes were absent from the running API
+# on :8001 despite being in the codebase. Caught Starbucks 0-elections
+# regression in the wild before this check existed.
+/api/employers/f7/{employer_id}/family-rollup
+/api/employers/master/{master_id}/family-rollup
+
+# R7-9 (2026-04-26): State/local contracts endpoint absent — beta
+# differentiator data invisible to users.
+/api/employers/master/{master_id}/state-local-contracts
+
+# R7-15 (2026-04-26): Data-sources route returned 404 for master ids.
+# Single endpoint accepts both F7 and MASTER- prefixed ids.
+/api/employers/{employer_id}/data-sources
+
+# Demographics endpoints (R7-1/2/3 fixes 2026-04-27/28).
+/api/demographics/employer/{master_id}
+/api/demographics/{state}
+/api/demographics/{state}/{naics}
+
+# Master employer detail + search (core profile path).
+/api/master/{master_id}
+/api/master/search
+
+# Target scorecard endpoints (depend on mv_target_scorecard MV).
+/api/targets/scorecard/{master_id}
+
+# R7-14 (2026-04-26): Comparables route 404 for MASTER- ids was fixed by
+# stripping the MASTER- prefix server-side. One endpoint serves both.
+/api/employers/{employer_id}/comparables
+
+# Workplace demographics (frontend WorkforceDemographicsCard).
+# Mounted under /profile router, NOT /employers — see api/routers/profile.py.
+/api/profile/employers/{employer_id}/workplace-demographics
+
+# Health endpoint (CI/uptime).
+/api/health
+
+# 24Q profile-card endpoints. Each backs a CollapsibleCard on the master
+# profile page. Dropping any of these silently removes that card. Added
+# 2026-05-04 after R7-6 / R7-9 / R7-15 patterns where new routes were
+# absent from running API despite being in the codebase.
+# Q21 Environmental
+/api/employers/master/{master_id}/epa-echo
+# Q8 Management
+/api/employers/master/{master_id}/executives
+# Q9 Stockholders
+/api/employers/master/{master_id}/institutional-owners
+# Q24 Political (LDA lobbying)
+/api/employers/master/{master_id}/lobbying
+# Q24 Political (FEC contributions)
+/api/employers/master/{master_id}/fec-contributions
+# Q10 Board (DEF14A roster + interlocks)
+/api/employers/master/{master_id}/board

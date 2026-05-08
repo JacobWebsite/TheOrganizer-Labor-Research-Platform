@@ -34,7 +34,6 @@ Tables created:
 import argparse
 import csv
 import io
-import os
 import sys
 import time
 from pathlib import Path
@@ -944,54 +943,93 @@ def extend_crosswalk(conn):
 # ============================================================================
 
 def enrich_hierarchy(conn):
-    """Insert CorpWatch parent-child edges into corporate_hierarchy."""
+    """Insert CorpWatch parent-child edges into corporate_hierarchy.
+
+    Uses master_employer_source_ids to match CorpWatch companies to master
+    employers (673K matches), replacing the old approach that only used
+    corpwatch_f7_matches (3K matches). When a CorpWatch company also maps
+    to an F7 employer through the master bridge, child_f7_employer_id is
+    populated.
+    """
     print("\n=== Enriching corporate_hierarchy with CorpWatch data ===")
     cur = conn.cursor()
 
-    # Get latest year per parent-child edge from corpwatch_relationships
-    # Only include edges where at least one side has an F7 match
+    # Clean out any old CORPWATCH rows (re-runnable)
+    cur.execute("DELETE FROM corporate_hierarchy WHERE source = 'CORPWATCH'")
+    deleted = cur.rowcount
+    if deleted:
+        print(f"  Removed {deleted:,} old CORPWATCH rows")
+    conn.commit()
+
+    # Insert edges from corpwatch_relationships where at least one side
+    # has a master_employer link (via master_employer_source_ids).
+    # Get F7 employer_id through the master bridge when available.
     cur.execute("""
         INSERT INTO corporate_hierarchy
             (parent_name, parent_cik, child_name, child_f7_employer_id,
-             relationship_type, is_direct, source, confidence, created_at)
+             child_duns, relationship_type, is_direct, source, confidence,
+             created_at)
         SELECT
-            pc.company_name,
-            pc.cik,
-            cc.company_name,
-            COALESCE(cm.f7_employer_id, pm.f7_employer_id),
-            'subsidiary',
-            TRUE,
-            'CORPWATCH',
-            'HIGH',
-            NOW()
+            pc.company_name AS parent_name,
+            pc.cik AS parent_cik,
+            cc.company_name AS child_name,
+            -- Get F7 employer_id for child via master bridge
+            cf7.source_id AS child_f7_employer_id,
+            -- Get DUNS for child via Mergent if available
+            NULL AS child_duns,
+            'subsidiary' AS relationship_type,
+            TRUE AS is_direct,
+            'CORPWATCH' AS source,
+            CASE
+                WHEN cf7.source_id IS NOT NULL THEN 'HIGH'
+                WHEN cm.master_id IS NOT NULL THEN 'MEDIUM'
+                ELSE 'LOW'
+            END AS confidence,
+            NOW() AS created_at
         FROM (
-            -- Get latest year per edge
+            -- Deduplicate: latest year per edge
             SELECT DISTINCT ON (source_cw_id, target_cw_id)
                 source_cw_id, target_cw_id
             FROM corpwatch_relationships
             ORDER BY source_cw_id, target_cw_id, year DESC
-        ) latest_edges
-        JOIN corpwatch_companies pc ON pc.cw_id = latest_edges.source_cw_id
-        JOIN corpwatch_companies cc ON cc.cw_id = latest_edges.target_cw_id
-        -- At least one side matched to F7
-        LEFT JOIN corpwatch_f7_matches pm ON pm.cw_id = latest_edges.source_cw_id
-        LEFT JOIN corpwatch_f7_matches cm ON cm.cw_id = latest_edges.target_cw_id
-        WHERE (pm.cw_id IS NOT NULL OR cm.cw_id IS NOT NULL)
-          -- Skip if already exists from another source
-          AND NOT EXISTS (
-              SELECT 1 FROM corporate_hierarchy ch
-              WHERE ch.parent_cik = pc.cik
-                AND ch.child_f7_employer_id = COALESCE(cm.f7_employer_id, pm.f7_employer_id)
-                AND ch.parent_cik IS NOT NULL
-          )
+        ) edges
+        -- Parent and child company details
+        JOIN corpwatch_companies pc ON pc.cw_id = edges.source_cw_id
+        JOIN corpwatch_companies cc ON cc.cw_id = edges.target_cw_id
+        -- Match to master_employers via source_ids
+        LEFT JOIN master_employer_source_ids pm
+            ON pm.source_system = 'corpwatch'
+            AND pm.source_id = edges.source_cw_id::text
+        LEFT JOIN master_employer_source_ids cm
+            ON cm.source_system = 'corpwatch'
+            AND cm.source_id = edges.target_cw_id::text
+        -- Get F7 employer_id for child through master bridge
+        LEFT JOIN master_employer_source_ids cf7
+            ON cf7.master_id = cm.master_id
+            AND cf7.source_system = 'f7'
+        -- At least one side must have a master_employer link
+        WHERE pm.master_id IS NOT NULL OR cm.master_id IS NOT NULL
     """)
     new_edges = cur.rowcount
     conn.commit()
     print(f"  Added {new_edges:,} new hierarchy edges from CorpWatch")
 
-    cur.execute("SELECT COUNT(*) FROM corporate_hierarchy WHERE source = 'CORPWATCH'")
-    total_cw = cur.fetchone()[0]
-    print(f"  Total CORPWATCH edges in hierarchy: {total_cw:,}")
+    # Stats
+    cur.execute("""
+        SELECT confidence, COUNT(*)
+        FROM corporate_hierarchy WHERE source = 'CORPWATCH'
+        GROUP BY 1 ORDER BY 2 DESC
+    """)
+    print("  By confidence:")
+    for row in cur.fetchall():
+        print(f"    {row[0]}: {row[1]:,}")
+
+    cur.execute("""
+        SELECT COUNT(*) FROM corporate_hierarchy
+        WHERE source = 'CORPWATCH' AND child_f7_employer_id IS NOT NULL
+    """)
+    f7_linked = cur.fetchone()[0]
+    print(f"  With F7 employer link: {f7_linked:,}")
 
     cur.execute("SELECT COUNT(*) FROM corporate_hierarchy")
     total = cur.fetchone()[0]
@@ -1220,7 +1258,7 @@ def seed_master(conn):
     # Summary
     total_linked = stats["source_ids_from_f7_matches"] + stats["source_ids_ein"] \
         + stats["source_ids_name_state"] + stats["source_ids_for_new_rows"]
-    print(f"\n  Summary:")
+    print("\n  Summary:")
     print(f"    Total source IDs linked: {total_linked:,}")
     print(f"    New master rows: {stats['new_master_rows']:,}")
     print(f"    Public flag updates: {stats['is_public_updates']:,}")
@@ -1330,14 +1368,14 @@ def verify(conn):
         master_linked = cur.fetchone()[0]
         print(f"    master_employer_source_ids (corpwatch): {master_linked:,}")
     except Exception:
-        print(f"    master_employer_source_ids: not yet seeded")
+        print("    master_employer_source_ids: not yet seeded")
         conn.rollback()
     try:
         cur.execute("SELECT COUNT(*) FROM master_employers WHERE source_origin = 'corpwatch'")
         master_new = cur.fetchone()[0]
         print(f"    master_employers (source_origin=corpwatch): {master_new:,}")
     except Exception:
-        print(f"    master_employers (corpwatch): not yet seeded")
+        print("    master_employers (corpwatch): not yet seeded")
         conn.rollback()
 
     # Spot checks

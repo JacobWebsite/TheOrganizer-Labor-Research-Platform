@@ -4,11 +4,19 @@ Demographics API - ACS workforce demographics by state and industry.
 GET /api/demographics/{state}/{naics}  - Industry workforce demographics
 GET /api/demographics/{state}          - State-wide workforce demographics
 """
+import logging
+
 from fastapi import APIRouter, HTTPException
 from psycopg2.extras import RealDictCursor
 from db_config import get_connection
 
+from ..services.demographics_bounds import (
+    assert_demographics_plausible,
+    log_warnings,
+)
+
 router = APIRouter(prefix="/api/demographics", tags=["demographics"])
+_logger = logging.getLogger(__name__)
 
 # Decode maps for IPUMS ACS coded values
 SEX_LABELS = {"1": "Male", "2": "Female"}
@@ -36,7 +44,21 @@ EDUCATION_GROUPS = {
     "Bachelor's": ["12"],
     "Graduate/Professional": ["13", "14", "15"],
 }
-HISPANIC_LABELS = {"0": "Not Hispanic", "1": "Hispanic/Latino"}
+# IPUMS USA HISPAN encoding (used by cur_acs_workforce_demographics).
+# Codes 0 and 1 had labels; 2/3/4 were rendering raw (R7-3 fix 2026-04-27).
+HISPANIC_LABELS = {
+    "0": "Not Hispanic",
+    "1": "Mexican",
+    "2": "Puerto Rican",
+    "3": "Cuban",
+    "4": "Other Hispanic/Latino",
+}
+
+# Data vintage for the materialized inputs used by these endpoints.
+# Hardcoded for now; ETL is tracked in data_refresh_log but not all
+# loaders log there yet (see Apr 17 memory note for the gap).
+ACS_PUMS_VINTAGE = "2022"   # ACS 5-year PUMS feeding cur_acs_workforce_demographics
+QCEW_VINTAGE = "2024"        # QCEW annual loaded 2026-04-16 (includes 2024)
 
 
 def _get_state_fips(cur, state: str) -> str:
@@ -52,7 +74,14 @@ def _get_state_fips(cur, state: str) -> str:
 
 
 def _build_demographics(cur, state_fips: str, naics4: str = None):
-    """Query ACS and build decoded demographics response."""
+    """Query ACS and build decoded demographics response.
+
+    cur_acs_workforce_demographics is built from one IPUMS sample (2023 ACS
+    5-year) with not-in-labor-force people excluded — every row is a leaf
+    cell of the (state x metro x naics4 x soc x demographics x worker_class)
+    cube, scoped to employed wage workers + self-employed. Summing without
+    a grain filter gives the correct total. See newsrc_curate_all.build_acs.
+    """
     where = ["state_fips = %s"]
     params = [state_fips]
     if naics4:
@@ -143,7 +172,167 @@ def _build_demographics(cur, state_fips: str, naics4: str = None):
         "hispanic": hispanic,
         "age_distribution": age,
         "education": education,
+        # Data vintage for the ACS slice. R7-2 (2026-04-27) added these so
+        # the frontend stops hardcoding "ACS 2022".
+        "acs_year": ACS_PUMS_VINTAGE,
+        "qcew_year": QCEW_VINTAGE,
     }
+
+
+@router.get("/employer/{master_id}")
+async def get_employer_demographics(master_id: int):
+    """Estimate workforce demographics for any employer (F7 or target) by master_id.
+
+    Uses V5 Gate model if available, falls back to ACS industry x state data.
+    Requires the employer to have at least a state and NAICS code.
+    """
+    conn = get_connection(cursor_factory=RealDictCursor)
+    try:
+        cur = conn.cursor()
+
+        # Look up employer
+        cur.execute("""
+            SELECT canonical_name, naics, state, zip, city
+            FROM master_employers
+            WHERE master_id = %s
+        """, (master_id,))
+        emp = cur.fetchone()
+        if not emp:
+            raise HTTPException(status_code=404, detail=f"Employer {master_id} not found")
+
+        state_abbr = emp.get("state")
+        naics_code = emp.get("naics")
+        zipcode = emp.get("zip")
+
+        if not state_abbr:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Employer {master_id} has no state -- cannot estimate demographics")
+
+        # Get state FIPS
+        state_fips = _get_state_fips(cur, state_abbr)
+
+        # Get county FIPS from ZIP if available. Strip the ZIP+4 suffix —
+        # master_employers.zip stores values like '60064-3500' but the
+        # zip_county_crosswalk table is keyed on 5-digit ZIPs only. Without
+        # this strip, V12 falls back to ACS for every employer that has
+        # a hyphenated ZIP+4 (most SEC filers, including Abbott which
+        # carries '60064-3500'). Found while testing 2026-05-05.
+        zipcode_5 = (zipcode or "").strip().split("-", 1)[0][:5]
+        county_fips = None
+        if zipcode_5:
+            cur.execute(
+                "SELECT county_fips FROM zip_county_crosswalk WHERE zip_code = %s LIMIT 1",
+                (zipcode_5,))
+            row = cur.fetchone()
+            if row:
+                county_fips = row["county_fips"]
+
+        # Try V12 QWI model first.
+        # Pass zipcode_5 (5-digit) instead of the raw `zipcode` (which can
+        # carry a -1234 suffix). V12 itself only uses zipcode for trace
+        # logging, but consistency keeps things clean.
+        v12_result = None
+        method = "acs_fallback"
+        try:
+            from api.services.demographics_v12 import estimate_demographics_v12
+            v12_result = estimate_demographics_v12(
+                cur, naics_code or "00", state_fips,
+                zipcode_5 or "00000", county_fips or "00000",
+                state_abbr=state_abbr, total_employees=100)
+            if v12_result and v12_result.get("race"):
+                method = v12_result.get("metadata", {}).get("model", "v12_qwi")
+        except Exception as exc:
+            # Don't silently fall back to ACS without a trace -- this swallow
+            # hid two real bugs (cursor type mismatch, ZIP+4 county lookup).
+            # Log at warning level so deploy logs surface the issue but
+            # don't fail the response.
+            import logging
+            logging.getLogger("labor_api.demographics").warning(
+                "V12 estimation failed for master_id=%s naics=%s county=%s: %s",
+                master_id, naics_code, county_fips, exc, exc_info=True,
+            )
+            v12_result = None
+
+        if v12_result and v12_result.get("race"):
+            # Format V12 result
+            race_data = v12_result["race"]
+            hispanic_data = v12_result.get("hispanic", {}) or {}
+            gender_data = v12_result.get("gender", {}) or {}
+
+            race = [{"label": k, "pct": round(v, 1)}
+                    for k, v in sorted(race_data.items(), key=lambda x: -x[1])]
+            hispanic = [
+                {"label": "Hispanic/Latino",
+                 "pct": round(hispanic_data.get("Hispanic", 0), 1)},
+                {"label": "Not Hispanic",
+                 "pct": round(hispanic_data.get("Not Hispanic", 100), 1)},
+            ]
+            gender = [{"label": k, "pct": round(v, 1)}
+                      for k, v in sorted(gender_data.items(), key=lambda x: -x[1])]
+
+            meta = v12_result.get("metadata", {}) or {}
+            confidence = meta.get("confidence_tier", "YELLOW")
+
+            return {
+                "master_id": master_id,
+                "employer_name": emp["canonical_name"],
+                "state": state_abbr,
+                "naics": naics_code,
+                "method": method,
+                "methodology": (
+                    f"V12 QWI county x NAICS4 model "
+                    f"(QCEW {QCEW_VINTAGE} + ACS {ACS_PUMS_VINTAGE} fallback)"
+                ),
+                "acs_year": ACS_PUMS_VINTAGE,
+                "qcew_year": QCEW_VINTAGE,
+                "confidence": confidence,
+                "qwi_level": meta.get("qwi_level"),
+                "naics_group": meta.get("naics_group"),
+                "diversity_tier": meta.get("diversity_tier"),
+                "race": race,
+                "hispanic": hispanic,
+                "gender": gender,
+            }
+
+        # Fallback to ACS
+        naics4 = naics_code[:4] if naics_code and len(naics_code) >= 4 else None
+        result = _build_demographics(cur, state_fips, naics4)
+
+        if not result:
+            # Try state-wide
+            result = _build_demographics(cur, state_fips)
+
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No demographics data available for employer {master_id}")
+
+        payload = {
+            "master_id": master_id,
+            "employer_name": emp["canonical_name"],
+            "state": state_abbr,
+            "naics": naics_code,
+            "method": "acs_industry_state" if naics4 else "acs_state",
+            "methodology": (
+                f"ACS {ACS_PUMS_VINTAGE} 5-year PUMS aggregated by state x NAICS4"
+                if naics4 else
+                f"ACS {ACS_PUMS_VINTAGE} 5-year PUMS aggregated state-wide"
+            ),
+            "confidence": "YELLOW" if naics4 else "RED",
+            **result,
+        }
+        log_warnings(
+            assert_demographics_plausible(
+                payload,
+                state_abbr=state_abbr,
+                context=f"GET /api/demographics/employer/{master_id}",
+            ),
+            _logger,
+        )
+        return payload
+    finally:
+        conn.close()
 
 
 @router.get("/{state}/{naics}")
@@ -193,14 +382,28 @@ async def get_industry_demographics(state: str, naics: str):
             label = f"State-wide workforce baseline for {state.upper()}"
             naics_desc = None
 
-        return {
+        payload = {
             "state": state.upper(),
             "naics": naics,
             "naics_description": naics_desc,
             "fallback_level": fallback_level,
             "label": label,
+            "methodology": (
+                f"ACS {ACS_PUMS_VINTAGE} 5-year PUMS, state x NAICS{len(naics4)}"
+                if fallback_level != "state" else
+                f"ACS {ACS_PUMS_VINTAGE} 5-year PUMS, state-wide fallback"
+            ),
             **result,
         }
+        log_warnings(
+            assert_demographics_plausible(
+                payload,
+                state_abbr=state.upper(),
+                context=f"GET /api/demographics/{state}/{naics}",
+            ),
+            _logger,
+        )
+        return payload
     finally:
         conn.close()
 
@@ -220,12 +423,22 @@ async def get_state_demographics(state: str):
                 detail=f"No ACS workforce data for {state.upper()}",
             )
 
-        return {
+        payload = {
             "state": state.upper(),
             "naics": None,
             "naics_description": None,
             "label": f"Workforce baseline for {state.upper()}",
+            "methodology": f"ACS {ACS_PUMS_VINTAGE} 5-year PUMS, state-wide aggregate",
             **result,
         }
+        log_warnings(
+            assert_demographics_plausible(
+                payload,
+                state_abbr=state.upper(),
+                context=f"GET /api/demographics/{state}",
+            ),
+            _logger,
+        )
+        return payload
     finally:
         conn.close()

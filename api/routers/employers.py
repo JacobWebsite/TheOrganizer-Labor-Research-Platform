@@ -2,17 +2,55 @@
 Employer endpoints: search, detail, flags, NAICS stats, unified, comparables.
 Extracted from labor_api_v6.py.
 """
+import json
 import re
+from pathlib import Path
 
 import psycopg2.errors
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
-from typing import Optional, List
+from typing import Optional
 
 from ..database import get_db
 from ..dependencies import require_admin, require_auth
 from ..models.schemas import FlagCreate
+from ..services.entity_context import (
+    build_entity_context_for_f7,
+    build_entity_context_for_master,
+    build_entity_context_minimal,
+)
 
 router = APIRouter()
+
+
+# R7-7 (2026-04-28) alias dictionary -- loaded lazily on first use, cached for
+# the life of the process. Used by unified_employer_search to exclude known
+# cross-industry name collisions (e.g. "Cleveland Clinic" query should not
+# return Cleveland-Cliffs Inc).
+_ALIAS_PATH = Path(__file__).resolve().parents[2] / "config" / "employer_aliases.json"
+_ALIAS_CACHE: list[dict] | None = None
+
+
+def _load_aliases() -> list[dict]:
+    """Load alias dictionary on first call; cache in process memory.
+
+    Fail-open: if the JSON file is missing, malformed, has the wrong top-level
+    shape (e.g. a list or null instead of a dict with an "aliases" key), or
+    contains non-dict entries, returns an empty list so search behavior
+    reverts to the pre-alias default rather than crashing the search endpoint.
+    """
+    global _ALIAS_CACHE
+    if _ALIAS_CACHE is None:
+        _ALIAS_CACHE = []
+        try:
+            with _ALIAS_PATH.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            return _ALIAS_CACHE
+        if isinstance(data, dict):
+            entries = data.get("aliases", [])
+            if isinstance(entries, list):
+                _ALIAS_CACHE = [e for e in entries if isinstance(e, dict)]
+    return _ALIAS_CACHE
 
 
 # ============================================================================
@@ -38,8 +76,12 @@ def get_cities_for_state(
             return {"state": state.upper(), "cities": cur.fetchall()}
 
 
+_SEARCH_PARAMS = {"name", "state", "city", "naics", "aff_abbr", "metro", "sector", "has_nlrb", "limit", "offset"}
+
+
 @router.get("/api/employers/search")
 def search_employers(
+    request: Request,
     name: Optional[str] = None,
     state: Optional[str] = None,
     city: Optional[str] = None,
@@ -52,6 +94,13 @@ def search_employers(
     offset: int = 0
 ):
     """DEPRECATED: Superseded by /api/employers/unified-search. Kept for potential external consumers."""
+    unknown = set(request.query_params.keys()) - _SEARCH_PARAMS
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown query parameter(s): {', '.join(sorted(unknown))}. "
+                   f"Valid parameters: {', '.join(sorted(_SEARCH_PARAMS))}",
+        )
     with get_db() as conn:
         with conn.cursor() as cur:
             # Handle public sector search separately
@@ -338,28 +387,86 @@ def unified_employer_search(
             detail=f"Unknown query parameter(s): {', '.join(sorted(unknown))}. "
                    f"Valid parameters: {', '.join(sorted(_UNIFIED_SEARCH_PARAMS))}",
         )
+    if metro:
+        # mv_employer_search does not yet carry reliable CBSA for all sources.
+        # Checked before the empty-filter guard so callers passing only ?metro=
+        # still see the documented 422 instead of an empty array.
+        raise HTTPException(
+            status_code=422,
+            detail="metro filter is not supported on unified search yet",
+        )
+    filter_provided = any([
+        name, state, city, sector, naics, aff_abbr, source_type,
+        has_union is not None,
+        min_workers is not None, max_workers is not None,
+        score_tier,
+        min_factors is not None,
+    ])
+    if not filter_provided:
+        return {"total": 0, "employers": []}
     with get_db() as conn:
         with conn.cursor() as cur:
             conditions = ["1=1"]
             params = []
-            order_clause = "unit_size DESC NULLS LAST"
+            # R7-7 (2026-04-28): tiebreak now prefers canonical group leaders and
+            # parent-level consolidated_workers over per-store unit_size. Without this,
+            # a Walmart HI store (unit_size=50) ranked above Walmart Inc parent
+            # (unit_size=NULL, consolidated_workers=2.3M).
+            order_clause = (
+                "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
+                "COALESCE(consolidated_workers, unit_size, 0) DESC, "
+                "unit_size DESC NULLS LAST"
+            )
+            canonical_patterns: list[str] = []
 
             if name:
-                conditions.append("similarity(search_name, %s) > 0.2")
+                conditions.append("similarity(search_name, %s) > 0.3")
                 params.append(name.lower())
-                order_clause = "similarity(search_name, %s) DESC, unit_size DESC NULLS LAST"
+                # R7-7 alias guard: when the query matches a known alias entry,
+                # (a) exclude rows containing collision terms (e.g. "cleveland
+                # clinic" query excludes "cleveland-cliffs"), and (b) collect
+                # canonical-name patterns so flat-MASTER fragments like
+                # 'walmart' (similarity=1.0, unit_size=25K per store) get out-
+                # ranked by 'walmart inc' (similarity=0.667, unit_size=10M).
+                name_lower = name.lower()
+                for entry in _load_aliases():
+                    if any(alias in name_lower for alias in entry.get("aliases", [])):
+                        for excl in entry.get("exclude_terms", []):
+                            conditions.append("LOWER(search_name) NOT LIKE %s")
+                            params.append(f"%{excl.lower()}%")
+                        for pat in entry.get("canonical_patterns", []):
+                            canonical_patterns.append(pat.lower())
+
+                # Default order: similarity, then canonical-group leader, then
+                # effective size. R7-7 heavy (2026-05-03): when the query is
+                # an alias, prepend a "matches canonical pattern" boost so the
+                # parent row beats per-store fragments regardless of trigram.
+                if canonical_patterns:
+                    canonical_case = (
+                        "CASE WHEN "
+                        + " OR ".join(["LOWER(search_name) LIKE %s"] * len(canonical_patterns))
+                        + " THEN 0 ELSE 1 END"
+                    )
+                    order_clause = (
+                        f"{canonical_case}, "
+                        "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
+                        "COALESCE(consolidated_workers, unit_size, 0) DESC, "
+                        "similarity(search_name, %s) DESC, "
+                        "unit_size DESC NULLS LAST"
+                    )
+                else:
+                    order_clause = (
+                        "similarity(search_name, %s) DESC, "
+                        "CASE WHEN canonical_group_id IS NOT NULL THEN 0 ELSE 1 END, "
+                        "COALESCE(consolidated_workers, unit_size, 0) DESC, "
+                        "unit_size DESC NULLS LAST"
+                    )
             if state:
                 conditions.append("state = %s")
                 params.append(state.upper())
             if city:
                 conditions.append("UPPER(city) = %s")
                 params.append(city.upper())
-            if metro:
-                # mv_employer_search does not yet carry reliable CBSA for all sources.
-                raise HTTPException(
-                    status_code=422,
-                    detail="metro filter is not supported on unified search yet",
-                )
             if sector:
                 sv = sector.upper()
                 if sv == "PUBLIC_SECTOR":
@@ -401,8 +508,14 @@ def unified_employer_search(
             cur.execute(f"SELECT COUNT(*) FROM mv_employer_search m WHERE {where_clause}", params)
             total = cur.fetchone()['count']
 
-            # Results with flag count and group info
-            order_params = [name.lower()] if name else []
+            # Results with flag count and group info. ORDER BY param order must
+            # mirror the order_clause %s positions: canonical-pattern LIKE first
+            # (one param per pattern), then similarity (one). Build accordingly.
+            order_params: list = []
+            if name:
+                if canonical_patterns:
+                    order_params.extend(f"%{p}%" for p in canonical_patterns)
+                order_params.append(name.lower())
             cur.execute(f"""
                 SELECT m.canonical_id, m.source_type, m.employer_name, m.city, m.state,
                        m.zip, m.naics, m.unit_size, m.union_name, m.union_fnum,
@@ -411,6 +524,7 @@ def unified_employer_search(
                        m.consolidated_workers,
                        m.factors_available, m.factors_total,
                        m.weighted_score, m.score_tier,
+                       m.direct_factors_available, m.scorable_coverage_pct, m.has_thin_data,
                        COALESCE(f.flag_count, 0) AS flag_count
                 FROM mv_employer_search m
                 LEFT JOIN (
@@ -439,6 +553,8 @@ def unified_employer_detail(canonical_id: str):
                 source_type, source_id = "VR", canonical_id[3:]
             elif canonical_id.startswith("MANUAL-"):
                 source_type, source_id = "MANUAL", canonical_id[7:]
+            elif canonical_id.startswith("MASTER-"):
+                source_type, source_id = "MASTER", canonical_id[7:]
             else:
                 source_type, source_id = "F7", canonical_id
 
@@ -487,8 +603,11 @@ def unified_employer_detail(canonical_id: str):
                     cross_refs.extend(cur.fetchall())
 
             elif source_type == "NLRB":
+                # After rebuild_search_mv #43, canonical_id may be "NLRB-<pid>-<YYYYMMDD>"
+                # when election_date is non-null. Strip any trailing date suffix to
+                # recover the nlrb_participants.id integer.
                 try:
-                    source_id_int = int(source_id)
+                    source_id_int = int(source_id.split("-", 1)[0])
                 except (TypeError, ValueError):
                     raise HTTPException(status_code=404, detail="Employer not found")
                 cur.execute("""
@@ -539,6 +658,43 @@ def unified_employer_detail(canonical_id: str):
                 """, [source_id_int])
                 primary = cur.fetchone()
 
+            elif source_type == "MASTER":
+                try:
+                    master_id_int = int(source_id)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=404, detail="Employer not found")
+                cur.execute("""
+                    SELECT me.master_id, me.canonical_name, me.display_name,
+                           me.city, me.state, me.zip, me.naics,
+                           me.employee_count, me.employee_count_source,
+                           me.ein, me.is_union, me.is_public,
+                           me.is_federal_contractor, me.is_nonprofit,
+                           COALESCE(me.is_labor_org, FALSE) AS is_labor_org,
+                           me.source_origin, me.data_quality_score,
+                           me.website, me.industry_text, me.size_range,
+                           'MASTER' as source_type,
+                           me.display_name AS employer_name
+                    FROM master_employers me
+                    WHERE me.master_id = %s
+                """, [master_id_int])
+                primary = cur.fetchone()
+
+                if primary:
+                    # Fetch cross-references from linked source systems
+                    cur.execute("""
+                        SELECT source_system, source_id, match_confidence
+                        FROM master_employer_source_ids
+                        WHERE master_id = %s
+                        ORDER BY source_system
+                    """, [master_id_int])
+                    for row in cur.fetchall():
+                        cross_refs.append({
+                            "source_type": row["source_system"].upper(),
+                            "source_id": row["source_id"],
+                            "match_confidence": float(row["match_confidence"])
+                                if row["match_confidence"] is not None else None,
+                        })
+
             if not primary:
                 raise HTTPException(status_code=404, detail="Employer not found")
 
@@ -550,11 +706,28 @@ def unified_employer_detail(canonical_id: str):
             """, [source_type, source_id])
             flags = cur.fetchall()
 
+            # #44: entity-context summary (unit / group / corporate family)
+            entity_context = None
+            try:
+                if source_type == "F7":
+                    entity_context = build_entity_context_for_f7(cur, source_id, primary)
+                elif source_type == "MASTER":
+                    try:
+                        master_id_int = int(source_id)
+                        entity_context = build_entity_context_for_master(cur, master_id_int, primary)
+                    except (TypeError, ValueError):
+                        entity_context = None
+                else:
+                    entity_context = build_entity_context_minimal(primary, source_type)
+            except Exception:  # pragma: no cover - never fail detail on ctx error
+                entity_context = None
+
             return {
                 "employer": primary,
                 "source_type": source_type,
                 "cross_references": cross_refs,
-                "flags": flags
+                "flags": flags,
+                "entity_context": entity_context,
             }
 
 
@@ -916,17 +1089,77 @@ def get_similar_employers(
 
 @router.get("/api/employers/{employer_id}/data-sources")
 def get_employer_data_sources(employer_id: str):
-    """Get data source availability and corporate crosswalk for one employer."""
+    """Get data source availability for one employer.
+
+    Accepts F7 hex IDs (queries mv_employer_data_sources directly) AND integer
+    master IDs (with or without MASTER- prefix; mv_employer_data_sources is
+    F7-keyed, so the master path synthesizes a response from
+    mv_target_scorecard + state_local_contracts_master_matches). R7-15 fix.
+    """
+    is_master = False
+    if employer_id.startswith("MASTER-"):
+        employer_id = employer_id[len("MASTER-"):]
+        is_master = True
+    elif employer_id.isdigit():
+        # All-numeric IDs are master_ids; F7 IDs are 32-char hex. Catches calls
+        # like /api/employers/12345/data-sources without the prefix.
+        is_master = True
+
     with get_db() as conn:
         with conn.cursor() as cur:
+            if not is_master:
+                # F7 path (original behavior).
+                cur.execute("""
+                    SELECT * FROM mv_employer_data_sources
+                    WHERE employer_id = %s
+                """, [employer_id])
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail="Employer not found")
+                return dict(row)
+
+            # Master path -- synthesize. mv_target_scorecard is master-keyed and
+            # has the has_* flags + is_federal_contractor; state-local fields come
+            # from state_local_contracts_master_matches.
+            try:
+                master_id_int = int(employer_id)
+            except ValueError:
+                raise HTTPException(status_code=404, detail="Master ID must be integer")
             cur.execute("""
-                SELECT * FROM mv_employer_data_sources
-                WHERE employer_id = %s
-            """, [employer_id])
+                SELECT master_id, canonical_name AS employer_name, state, naics,
+                       has_osha, has_nlrb, has_whd, has_sam, has_990,
+                       has_sec, has_mergent, has_research,
+                       source_count, is_federal_contractor
+                FROM mv_target_scorecard
+                WHERE master_id = %s
+            """, [master_id_int])
             row = cur.fetchone()
             if not row:
-                raise HTTPException(status_code=404, detail="Employer not found")
-            return dict(row)
+                raise HTTPException(status_code=404, detail="Master employer not found")
+            result = dict(row)
+            # Synthesize fields the frontend expects but that mv_target_scorecard
+            # doesn't carry. None for unknown so the JSX falls through gracefully.
+            result["employer_id"] = f"MASTER-{master_id_int}"
+            result["federal_obligations"] = None
+            result["federal_contract_count"] = None
+
+            # Augment with state/local contract data (Tier A/B only).
+            cur.execute("""
+                SELECT contract_row_count, source_count AS state_local_source_count
+                FROM state_local_contracts_master_matches
+                WHERE master_id = %s
+                  AND match_tier IN ('tier_A_auto_merge', 'tier_B_high_conf')
+                LIMIT 1
+            """, [master_id_int])
+            sl = cur.fetchone()
+            result["is_state_local_contractor"] = bool(sl)
+            result["state_local_contract_count"] = (
+                sl["contract_row_count"] if sl else 0
+            )
+            result["state_local_source_count"] = (
+                sl["state_local_source_count"] if sl else 0
+            )
+            return result
 
 
 @router.get("/api/employers/{employer_id}/osha")
@@ -1025,19 +1258,32 @@ def get_employer_nlrb(employer_id: str):
             """, [employer_id])
             ulp_cases = cur.fetchall()
 
+            elections_summary = {
+                "total": len(elections),
+                "union_wins": sum(1 for e in elections if e['union_won']),
+                "union_losses": sum(1 for e in elections if e['union_won'] is False),
+                "win_rate": round(100.0 * sum(1 for e in elections if e['union_won']) / max(len(elections), 1), 1)
+            }
+            ulp_summary = {"total": len(ulp_cases)}
+
             return {
                 "employer_name": emp['employer_name'],
                 "elections": elections,
-                "elections_summary": {
-                    "total": len(elections),
-                    "union_wins": sum(1 for e in elections if e['union_won']),
-                    "union_losses": sum(1 for e in elections if e['union_won'] is False),
-                    "win_rate": round(100.0 * sum(1 for e in elections if e['union_won']) / max(len(elections), 1), 1)
-                },
+                "elections_summary": elections_summary,
                 "ulp_cases": ulp_cases,
-                "ulp_summary": {
-                    "total": len(ulp_cases)
-                }
+                "ulp_summary": ulp_summary,
+                # Flat `summary` alias keeps NlrbSection.jsx reading a single
+                # object (R7-12 contract). Both `total_elections`/`ulp_cases`
+                # *count* and `total_ulp_cases` keys are populated for the
+                # historical fallback chain in NlrbSection.
+                "summary": {
+                    "total_elections": elections_summary["total"],
+                    "union_wins": elections_summary["union_wins"],
+                    "union_losses": elections_summary["union_losses"],
+                    "win_rate": elections_summary["win_rate"],
+                    "ulp_cases": ulp_summary["total"],
+                    "total_ulp_cases": ulp_summary["total"],
+                },
             }
 
 
@@ -1510,56 +1756,64 @@ def get_unified_source_types():
 # ============================================================================
 
 @router.get("/api/employers/{employer_id}/comparables")
-def get_employer_comparables(employer_id: str):
-    """Get the top-5 most similar unionized employers.
-    Accepts F7 hex IDs (bridged via master_employer_source_ids → mergent) or integer mergent IDs."""
+def get_employer_comparables(employer_id: str, comparable_type: str = None):
+    """Get the top-10 most similar employers (5 union + 5 non-union).
+    Accepts F7 hex IDs (bridged via master_employer_source_ids) or integer master IDs.
+    Optional ?comparable_type=union|non_union filter."""
+    if employer_id.startswith("MASTER-"):
+        employer_id = employer_id[len("MASTER-"):]
     with get_db() as conn:
         with conn.cursor() as cur:
-            # employer_comparables uses mergent_employers.id as employer_id.
-            # Resolve the incoming ID to a mergent employer ID.
-            mergent_id = None
+            # employer_comparables uses master_id as employer_id.
+            # Resolve the incoming ID to a master_id.
+            master_id = None
             try:
-                mergent_id = int(employer_id)
+                master_id = int(employer_id)
             except ValueError:
-                # Hex F7 ID — bridge F7 → master_id → mergent
+                # Hex F7 ID -- bridge F7 -> master_id
                 cur.execute("""
-                    SELECT msi2.source_id::int AS mergent_id
-                    FROM master_employer_source_ids msi1
-                    JOIN master_employer_source_ids msi2
-                      ON msi2.master_id = msi1.master_id AND msi2.source_system = 'mergent'
-                    WHERE msi1.source_system = 'f7' AND msi1.source_id = %s
+                    SELECT msi.master_id
+                    FROM master_employer_source_ids msi
+                    WHERE msi.source_system = 'f7' AND msi.source_id = %s
                     LIMIT 1
                 """, [employer_id])
                 row = cur.fetchone()
                 if row:
-                    mergent_id = row['mergent_id']
+                    master_id = row['master_id']
 
-            if mergent_id is None:
+            if master_id is None:
                 raise HTTPException(status_code=404, detail="Employer not found in comparables index")
 
-            # Get the target employer from mergent_employers
+            # Get the target employer from master_employers
             cur.execute("""
-                SELECT id, company_name, state,
-                       naics_primary, employees_site,
-                       employees_all_sites, similarity_score
-                FROM mergent_employers WHERE id = %s
-            """, [mergent_id])
+                SELECT master_id, canonical_name, state, naics,
+                       employee_count
+                FROM master_employers WHERE master_id = %s
+            """, [master_id])
             employer = cur.fetchone()
             if not employer:
                 raise HTTPException(status_code=404, detail="Employer not found")
 
-            # Get comparables
-            cur.execute("""
+            # Get comparables (joined to master_employers for comparable info)
+            type_filter = ""
+            params = [master_id]
+            if comparable_type in ('union', 'non_union'):
+                type_filter = "AND ec.comparable_type = %s"
+                params.append(comparable_type)
+
+            cur.execute(f"""
                 SELECT ec.rank, ec.gower_distance, ec.feature_breakdown,
-                       me.id AS comparable_id, me.company_name AS comparable_name,
-                       me.state AS comparable_state, me.naics_primary AS comparable_naics,
-                       me.employees_site AS comparable_employees,
-                       NULL AS f7_union_name
+                       ec.comparable_type,
+                       me.master_id AS comparable_id,
+                       me.canonical_name AS comparable_name,
+                       me.state AS comparable_state,
+                       me.naics AS comparable_naics,
+                       me.employee_count AS comparable_employees
                 FROM employer_comparables ec
-                JOIN mergent_employers me ON me.id = ec.comparable_employer_id
-                WHERE ec.employer_id = %s
-                ORDER BY ec.rank
-            """, [mergent_id])
+                JOIN master_employers me ON me.master_id = ec.comparable_employer_id
+                WHERE ec.employer_id = %s {type_filter}
+                ORDER BY ec.comparable_type, ec.rank
+            """, params)
             rows = cur.fetchall()
 
             comparables = []
@@ -1571,44 +1825,61 @@ def get_employer_comparables(employer_id: str):
 
                 # Generate human-readable match reasons from feature breakdown
                 match_reasons = []
-                target_naics = employer.get('naics_primary') or ''
+                target_naics = employer.get('naics') or ''
                 comp_naics = r.get('comparable_naics') or ''
-                if breakdown.get('naics_4', 1) == 0:
-                    match_reasons.append(f"Same industry (NAICS {target_naics[:4]})")
-                elif breakdown.get('naics_4', 1) <= 0.3:
+
+                # Helper: coalesce None to a safe default. We cannot use
+                # `val or default` because 0 is falsy and would be replaced,
+                # hiding legitimate exact-match signals.  We also cannot use
+                # `.get(key, default)` because that only covers *missing* keys,
+                # not keys whose value is None (which psycopg2/JSONB produce).
+                def _v(val, default=1):
+                    return val if val is not None else default
+
+                naics_dist = _v(breakdown.get('naics_full'))
+                if naics_dist == 0:
+                    match_reasons.append(f"Same industry (NAICS {target_naics[:6]})")
+                elif naics_dist <= 0.2:
+                    match_reasons.append(f"Same sub-industry (NAICS {target_naics[:4]})")
+                elif naics_dist <= 0.4:
                     match_reasons.append(f"Same sector (NAICS {target_naics[:2]})")
 
-                if breakdown.get('state', 1) == 0:
+                if _v(breakdown.get('state')) == 0:
                     match_reasons.append(f"Same state ({employer.get('state')})")
 
-                if breakdown.get('employees_here_log', 1) < 0.15:
-                    t_emp = employer.get('employees_site') or employer.get('employees_all_sites')
+                if _v(breakdown.get('employees_here_log')) < 0.15:
+                    t_emp = employer.get('employee_count')
                     c_emp = r.get('comparable_employees')
                     if t_emp and c_emp:
                         match_reasons.append(f"Similar size ({t_emp:,} vs {c_emp:,} employees)")
                     else:
                         match_reasons.append("Similar workforce size")
 
-                if breakdown.get('county', 1) == 0:
-                    match_reasons.append("Same county")
+                if _v(breakdown.get('city')) == 0:
+                    match_reasons.append("Same city")
 
-                if breakdown.get('is_subsidiary', 1) == 0:
+                if _v(breakdown.get('is_subsidiary')) == 0:
                     match_reasons.append("Same corporate structure")
 
-                if breakdown.get('osha_violation_rate', 1) < 0.1:
+                if _v(breakdown.get('osha_violation_rate')) < 0.1:
                     match_reasons.append("Similar OSHA violation profile")
 
-                if breakdown.get('whd_violation_rate', 1) < 0.1:
+                if _v(breakdown.get('whd_violation_rate')) < 0.1:
                     match_reasons.append("Similar wage compliance profile")
 
-                if breakdown.get('is_federal_contractor', 1) == 0:
-                    match_reasons.append("Both federal contractors" if breakdown.get('is_federal_contractor', 1) == 0 else "")
+                if _v(breakdown.get('local_avg_pay')) < 0.1:
+                    match_reasons.append("Similar local wage environment")
+
+                if _v(breakdown.get('is_federal_contractor')) == 0:
+                    match_reasons.append("Both federal contractors")
 
                 comparables.append({
                     'rank': r['rank'],
+                    'comparable_type': r['comparable_type'],
                     'comparable_id': r['comparable_id'],
                     'comparable_name': r['comparable_name'],
-                    'union_name': r.get('f7_union_name'),
+                    'comparable_state': r.get('comparable_state'),
+                    'comparable_naics': r.get('comparable_naics'),
                     'gower_distance': float(r['gower_distance']),
                     'similarity_pct': round((1 - float(r['gower_distance'])) * 100),
                     'match_reasons': [m for m in match_reasons if m],
@@ -1617,7 +1888,109 @@ def get_employer_comparables(employer_id: str):
 
             return {
                 "employer_id": employer_id,
-                "employer_name": employer.get('company_name'),
-                "similarity_score": float(employer['similarity_score']) if employer.get('similarity_score') is not None else None,
+                "employer_name": employer.get('canonical_name'),
                 "comparables": comparables
             }
+
+
+# ============================================================================
+# CORPORATE FAMILY ROLLUP
+# ============================================================================
+#
+# For large multi-location employers (e.g. Starbucks, Lowe's, Dollar Tree),
+# NLRB elections and ULP cases are typically filed under many respondent-name
+# variants. The master_employers table holds a separate row per name variant,
+# so a direct master_id lookup undercounts the employer by orders of magnitude.
+#
+# This endpoint aggregates NLRB + OSHA + WHD + F-7 data across the full corporate
+# family via name-variant matching (canonical stem extraction). Given any
+# master_id in the family, returns the complete national picture.
+
+
+@router.get("/api/employers/master/{master_id}/family-rollup")
+def get_master_family_rollup(
+    master_id: int,
+    limit_recent_elections: int = Query(100, ge=1, le=500),
+):
+    """Corporate-family rollup for a master_employers row.
+
+    Aggregates NLRB cases, elections, allegations, OSHA establishments/violations,
+    WHD cases, and F-7 union locals across all name-variant siblings of the
+    given master. Useful for employers whose master_id-based linkage is
+    fragmented across many OSHA / NLRB / F-7 rows (e.g. Starbucks, Lowe's,
+    Dollar Tree).
+
+    The rollup uses canonical-stem extraction on the display_name and
+    ILIKE-matches against participant_name / estab_name / legal_name / name_standard
+    in each respective table. It therefore catches:
+    - Parent-name variants (Starbucks Corp vs Starbucks Corporation)
+    - D/b/a entries (STARBUCKS CORPORATION D/B/A STARBUCKS COFFEE COMPANY)
+    - Per-store variants (Starbucks Corporation, Easton Store #9534)
+    - CEO-prefixed ULP charges (Schultz, Howard\\nStarbucks Corporation)
+
+    Query parameters:
+    - limit_recent_elections (1-500, default 100): max recent elections to return
+      in the recent_elections array.
+    """
+    # Local import: linter strips module-level `from ..services.corporate_family_rollup import get_family_rollup`
+    # when auto-formatting. Import inside the function body to guarantee it survives.
+    import logging
+
+    from ..services.corporate_family_rollup import get_family_rollup
+
+    log = logging.getLogger("api.employers.family_rollup")
+
+    with get_db() as conn:
+        try:
+            rollup = get_family_rollup(
+                conn, master_id, limit_recent_elections=limit_recent_elections
+            )
+        except Exception:
+            # Log the full exception server-side but return a generic 500
+            # so backend internals (DB schema, runtime errors) aren't leaked
+            # over the wire.
+            log.exception(
+                "family-rollup failed for master_id=%s", master_id
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="family-rollup service failed -- see server logs",
+            )
+        if "error" in rollup and not rollup.get("family_stem"):
+            raise HTTPException(status_code=404, detail=rollup["error"])
+        return rollup
+
+
+@router.get("/api/employers/f7/{employer_id}/family-rollup")
+def get_f7_family_rollup(
+    employer_id: str,
+    limit_recent_elections: int = Query(100, ge=1, le=500),
+):
+    """Corporate-family rollup for an F-7 employer (e.g. one store's F-7 row).
+
+    F-7-sourced profiles previously couldn't render the family rollup (the
+    component gated on `isMaster`). This endpoint resolves the F-7's
+    `name_standard` to the same canonical stem used for master_id lookups
+    and runs identical aggregation, so a per-store Starbucks F-7 profile
+    gets the full 2,351-case national view.
+    """
+    import logging
+
+    from ..services.corporate_family_rollup import get_family_rollup_for_f7
+
+    log = logging.getLogger("api.employers.family_rollup_f7")
+
+    with get_db() as conn:
+        try:
+            rollup = get_family_rollup_for_f7(
+                conn, employer_id, limit_recent_elections=limit_recent_elections
+            )
+        except Exception:
+            log.exception("family-rollup failed for f7_id=%s", employer_id)
+            raise HTTPException(
+                status_code=500,
+                detail="family-rollup (f7) service failed -- see server logs",
+            )
+        if "error" in rollup and not rollup.get("family_stem"):
+            raise HTTPException(status_code=404, detail=rollup["error"])
+        return rollup

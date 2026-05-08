@@ -11,7 +11,6 @@ Validates:
 import sys
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -204,13 +203,19 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_score_tier_values(self):
-        """score_tier should be one of Priority/Strong/Promising/Moderate/Low."""
+        """score_tier ∈ {Priority, Strong, Promising, Moderate, Low, Speculative}.
+
+        Speculative was added 2026-05-06 (P0 #5 fix) — it's the thin-data
+        85+-percentile subset that was previously bundled into 'Promising'
+        and dragged that tier's enforcement rate to 9.8%.
+        """
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(*) FROM mv_unified_scorecard
-                    WHERE score_tier NOT IN ('Priority', 'Strong', 'Promising', 'Moderate', 'Low')
+                    WHERE score_tier NOT IN
+                      ('Priority', 'Strong', 'Promising', 'Moderate', 'Low', 'Speculative')
                 """)
                 bad = cur.fetchone()[0]
                 assert bad == 0, f"{bad} rows have invalid score_tier"
@@ -253,7 +258,14 @@ class TestUnifiedScorecardData:
             conn.close()
 
     def test_anger_null_when_no_subfactors(self):
-        """Anger pillar should be NULL when no OSHA, WHD, or ULP data."""
+        """Anger pillar should be NULL when none of the gating sub-factors are present.
+
+        R7-17 (2026-04-27): the gate was widened to include `enh_score_nlrb`
+        (NLRB elections, not just ULP cases) and `nlrb_ulp_count > 0`. So the
+        full set of triggering sub-factors is OSHA, WHD, NLRB elections, ULPs,
+        and the research-enhancement override `rse_score_anger`. If none are
+        present, score_anger must be NULL.
+        """
         conn = get_connection()
         try:
             with conn.cursor() as cur:
@@ -262,6 +274,7 @@ class TestUnifiedScorecardData:
                     WHERE score_anger IS NOT NULL
                       AND enh_score_osha IS NULL
                       AND enh_score_whd IS NULL
+                      AND enh_score_nlrb IS NULL
                       AND nlrb_ulp_count = 0
                       AND rse_score_anger IS NULL
                 """)
@@ -270,20 +283,17 @@ class TestUnifiedScorecardData:
         finally:
             conn.close()
 
-    def test_stability_no_fake_baseline(self):
-        """Stability should be NULL (not 5.0) when no turnover/wage data."""
+    def test_stability_pillar_removed(self):
+        """Stability pillar should always be NULL (D13: demoted to flags)."""
         conn = get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT COUNT(*) FROM mv_unified_scorecard
-                    WHERE score_stability = 5.0
-                      AND turnover_rate_found IS NULL
-                      AND wage_outlier_score IS NULL
-                      AND rse_score_stability IS NULL
+                    WHERE score_stability IS NOT NULL
                 """)
-                fake = cur.fetchone()[0]
-                assert fake == 0, f"{fake} employers still have fake 5.0 stability baseline"
+                non_null = cur.fetchone()[0]
+                assert non_null == 0, f"{non_null} employers still have non-NULL score_stability"
         finally:
             conn.close()
 

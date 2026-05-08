@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Users, SearchX, LayoutList, GitBranch } from 'lucide-react'
 import { useUnionsState } from './useUnionsState'
-import { useUnionSearch, useNationalUnions } from '@/shared/api/unions'
+import { useUnionSearch, useNationalUnions, useUnionOverview } from '@/shared/api/unions'
 import { NationalUnionsSummary } from './NationalUnionsSummary'
 import { UnionFilters } from './UnionFilters'
 import { UnionResultsTable } from './UnionResultsTable'
@@ -20,6 +20,7 @@ export function UnionsPage() {
   const [viewMode, setViewMode] = useState('list')
 
   const nationalQuery = useNationalUnions()
+  const overviewQuery = useUnionOverview()
 
   const { data, isLoading, isError, error } = useUnionSearch({
     name: filters.q || undefined,
@@ -28,6 +29,7 @@ export function UnionsPage() {
     state: filters.state || undefined,
     min_members: filters.min_members ? Number(filters.min_members) : undefined,
     has_employers: filters.has_employers ? filters.has_employers === 'true' : undefined,
+    include_inactive: filters.include_inactive === 'true' || undefined,
     page,
     limit: PAGE_SIZE,
   })
@@ -43,11 +45,11 @@ export function UnionsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-editorial text-3xl font-bold">Union Explorer</h1>
-          {nationalQuery.data?.national_unions && (
-            <p className="text-sm text-[#8a7e6d] mt-1">
-              {nationalQuery.data.national_unions.reduce((s, u) => s + (u.local_count || 0), 0).toLocaleString()} organizations
+          {overviewQuery.data && (
+            <p className="text-sm text-[#8a7e6b] mt-1">
+              {overviewQuery.data.active_unions?.toLocaleString()} organizations
               {' '}&middot;{' '}
-              {nationalQuery.data.national_unions.reduce((s, u) => s + (u.deduplicated_members ?? u.total_members ?? 0), 0).toLocaleString()} members
+              {overviewQuery.data.total_members?.toLocaleString()} members
             </p>
           )}
         </div>
@@ -88,8 +90,6 @@ export function UnionsPage() {
       </HelpSection>
 
       <NationalUnionsSummary
-        data={nationalQuery.data?.national_unions}
-        isLoading={nationalQuery.isLoading}
         onAffiliationClick={handleAffiliationClick}
       />
 

@@ -93,7 +93,7 @@ def test_docket_helper_empty_for_unknown():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     from api.routers.profile import _get_nlrb_docket_summary
-    result = _get_nlrb_docket_summary(cur, "NONEXISTENT_ID_99999")
+    result = _get_nlrb_docket_summary(cur, ["NONEXISTENT_ID_99999"])
 
     assert result["summary"]["cases_with_docket"] == 0
     assert result["summary"]["total_entries"] == 0

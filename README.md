@@ -16,7 +16,17 @@ cd C:\Users\jakew\Downloads\labor-data-project
 py -m uvicorn api.main:app --reload --port 8001
 ```
 
-Open `files/organizer_v5.html` in your browser.
+Start the React frontend:
+
+```cmd
+cd frontend
+set VITE_DISABLE_AUTH=true
+npx vite
+```
+
+Open http://localhost:5173 in your browser.
+
+> **Legacy:** `files/organizer_v5.html` is the original single-file HTML frontend (superseded by the React app).
 
 **API Docs:** http://localhost:8001/docs
 

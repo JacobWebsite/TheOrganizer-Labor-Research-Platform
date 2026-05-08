@@ -29,7 +29,6 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-import psycopg2
 from psycopg2.extras import RealDictCursor
 
 # Allow running from project root
@@ -60,8 +59,8 @@ SOURCE_TYPE_RANK = {
 
 # Known placeholder/generic values that shouldn't count as real data
 _PLACEHOLDER_VALUES = re.compile(
-    r'^(unknown|no data|not found|not available|n/a|none|null|'
-    r'not searched.*|'
+    r'^(unknown|no data|not found.*|not available|n/a|none|null|'
+    r'not searched.*|verified none.*|'
     r'no\s+(?:results?|information|data)\s+(?:found|available))$',
     re.IGNORECASE,
 )
@@ -136,15 +135,21 @@ def _score_coverage(facts_by_section: Dict[str, List[dict]],
 
 def _score_source_quality(facts: List[dict]) -> float:
     """Source Quality: based on source types and confidence levels."""
+    # Exclude synthetic exhaustive_coverage facts — they aren't real data
+    facts = [f for f in facts if f.get("source_name") != "exhaustive_coverage"]
     if not facts:
-        return 0.0
+        return 5.0  # neutral if only synthetic facts
 
-    # Average source type score
+    # Average source type score (prefer credibility_score when available)
     source_scores = []
     null_source_count = 0
     for f in facts:
-        st = (f.get("source_type") or "").lower()
-        source_scores.append(SOURCE_TYPE_RANK.get(st, 0.5))
+        cred = f.get("credibility_score")
+        if cred is not None:
+            source_scores.append(cred / 100.0)
+        else:
+            st = (f.get("source_type") or "").lower()
+            source_scores.append(SOURCE_TYPE_RANK.get(st, 0.5))
         if not f.get("source_name"):
             null_source_count += 1
 
@@ -271,6 +276,17 @@ def _score_consistency(facts: List[dict]) -> float:
         if _ORGANIZING_KEYWORDS.search(combined_web_org):
             score -= 0.5
 
+    # Triangulation: reward multi-sourced claims, penalize single-source numeric
+    tri_statuses = [f.get("triangulation_status") for f in facts if f.get("triangulation_status")]
+    if tri_statuses:
+        triple_count = sum(1 for t in tri_statuses if t == "triple-plus")
+        single_count = sum(1 for t in tri_statuses if t == "single-source")
+        # Bonus for well-triangulated claims: up to +2.0
+        if len(tri_statuses) > 0:
+            score += (triple_count / len(tri_statuses)) * 2.0
+        # Penalty for single-source numeric claims: -0.5 each, max -2.0
+        score -= min(single_count * 0.5, 2.0)
+
     return max(score, 0.0)
 
 
@@ -328,6 +344,8 @@ def _score_actionability(dossier_json: Optional[dict] = None) -> float:
 
 def _score_freshness(facts: List[dict], today: Optional[date] = None) -> float:
     """Freshness: how recent the fact data is."""
+    # Exclude synthetic exhaustive_coverage facts — they use today's date
+    facts = [f for f in facts if f.get("source_name") != "exhaustive_coverage"]
     if not facts:
         return 5.0  # neutral
 
@@ -435,7 +453,8 @@ def grade_research_run(run_id: int, conn=None) -> dict:
         # Get all facts
         cur.execute(
             "SELECT dossier_section, attribute_name, attribute_value, "
-            "source_type, source_name, confidence, as_of_date, contradicts_fact_id "
+            "source_type, source_name, confidence, as_of_date, contradicts_fact_id, "
+            "credibility_score, triangulation_status "
             "FROM research_facts WHERE run_id = %s",
             (run_id,),
         )
@@ -457,12 +476,13 @@ def grade_research_run(run_id: int, conn=None) -> dict:
         actions = [dict(r) for r in cur.fetchall()]
 
         # Compute each dimension
+        real_facts_count = sum(1 for f in all_facts if f.get("source_name") != "exhaustive_coverage")
         coverage = round(_score_coverage(facts_by_section, dossier_json=dossier_json), 2)
         source_quality = round(_score_source_quality(all_facts), 2)
         consistency = round(_score_consistency(all_facts), 2)
         actionability = round(_score_actionability(dossier_json=dossier_json), 2)
         freshness = round(_score_freshness(all_facts), 2)
-        efficiency = round(_score_efficiency(total_facts, total_tools, actions), 2)
+        efficiency = round(_score_efficiency(real_facts_count, total_tools, actions), 2)
 
         overall = round(
             coverage * WEIGHTS["coverage"]
@@ -657,8 +677,8 @@ def compute_research_enhancements(run_id: int, conn=None) -> Optional[int]:
         if quality < 5.0:
             _log.info("Enhancement skipped: run %d quality %.2f < 5.0 (rejected)", run_id, quality)
             return None
-        if quality < 7.0:
-            _log.info("Enhancement dual-gate: run %d quality %.2f in notes range (5.0-6.9)", run_id, quality)
+        if quality < 6.0:
+            _log.info("Enhancement dual-gate: run %d quality %.2f in notes range (5.0-5.9)", run_id, quality)
             _save_research_notes(run_id, run, quality, cur, conn)
             return None
 
@@ -1086,7 +1106,7 @@ def backfill_enhancements() -> int:
         cur = conn.cursor()
         cur.execute(
             "SELECT id FROM research_runs "
-            "WHERE status = 'completed' AND overall_quality_score >= 7.0 "
+            "WHERE status = 'completed' AND overall_quality_score >= 6.0 "
             "AND employer_id IS NOT NULL "
             "ORDER BY id"
         )

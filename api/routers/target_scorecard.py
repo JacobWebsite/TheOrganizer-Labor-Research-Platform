@@ -1,13 +1,16 @@
 """
-Target scorecard API — signal inventory for non-union employers.
+Target scorecard API -- signal inventory for non-union employers.
 
 No composite score. Discovery is filter-driven: state, industry, size,
 enforcement flags. Default sort is by signal count, then alphabetically.
+
+mv_target_scorecard MV-existence cache: cache only on True; re-query on
+False to recover from the 2026-04-30 missing-MV incident without restart.
 """
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -33,21 +36,29 @@ _MV_COLUMNS: Optional[set] = None
 
 
 def _check_mv(cur) -> bool:
+    """Check whether mv_target_scorecard exists. Cache only positive results.
+
+    Caching only on True is intentional: if the MV is missing at API startup
+    and gets rebuilt later (see Open Problems/mv_target_scorecard MV Missing.md
+    for the 2026-04-30 incident), a negative cache would force a process
+    restart to recover. Re-querying pg_matviews on each False result is cheap.
+    """
     global _MV_EXISTS, _MV_COLUMNS
-    if _MV_EXISTS is not None:
-        return _MV_EXISTS
+    if _MV_EXISTS is True:
+        return True
     cur.execute(
         "SELECT EXISTS (SELECT 1 FROM pg_matviews WHERE matviewname = 'mv_target_scorecard') AS e"
     )
-    _MV_EXISTS = bool(cur.fetchone()["e"])
-    if _MV_EXISTS:
+    exists = bool(cur.fetchone()["e"])
+    if exists:
+        _MV_EXISTS = True
         cur.execute("""
             SELECT attname FROM pg_attribute
             WHERE attrelid = 'mv_target_scorecard'::regclass
               AND attnum > 0 AND NOT attisdropped
         """)
         _MV_COLUMNS = {r["attname"] for r in cur.fetchall()}
-    return _MV_EXISTS
+    return exists
 
 
 def _has_col(name: str) -> bool:
@@ -57,8 +68,7 @@ def _has_col(name: str) -> bool:
 
 # Columns added after initial MV creation — only selected if present
 _OPTIONAL_COLS = [
-    "signal_similarity", "qcew_avg_annual_pay", "employer_annual_pay",
-    "wage_ratio", "is_low_wage_outlier", "wage_outlier_score",
+    "signal_similarity",
 ]
 
 
@@ -256,15 +266,6 @@ def target_scorecard_stats():
             cur.execute("SELECT COUNT(*) AS cnt FROM mv_target_scorecard WHERE has_recent_violations")
             recent_count = int(cur.fetchone()["cnt"])
 
-            # Wage context (if columns exist)
-            wage_compared = 0
-            low_wage_count = 0
-            if _has_col("wage_ratio"):
-                cur.execute("SELECT COUNT(*) AS cnt FROM mv_target_scorecard WHERE wage_ratio IS NOT NULL")
-                wage_compared = int(cur.fetchone()["cnt"])
-            if _has_col("is_low_wage_outlier"):
-                cur.execute("SELECT COUNT(*) AS cnt FROM mv_target_scorecard WHERE is_low_wage_outlier")
-                low_wage_count = int(cur.fetchone()["cnt"])
 
             # Top states
             cur.execute("""
@@ -321,10 +322,6 @@ def target_scorecard_stats():
                 },
                 "research_coverage": research_coverage,
                 "gold_standard_tiers": gold_tiers,
-                "wage_context": {
-                    "wage_compared": wage_compared,
-                    "low_wage_outliers": low_wage_count,
-                },
                 "top_states": top_states,
                 "top_industries": top_industries,
             }
@@ -411,22 +408,6 @@ def target_scorecard_detail(master_id: int):
                 _add_signal("Peer Similarity", "leverage", float(sim_val),
                             "Structural similarity to unionized employers based on industry, size, and location")
 
-            # Wage context (not a signal, but useful context)
-            wage_ratio = scorecard.get("wage_ratio")
-            if wage_ratio is not None:
-                emp_pay = scorecard.get("employer_annual_pay", 0) or 0
-                qcew_pay = scorecard.get("qcew_avg_annual_pay", 0) or 0
-                is_low = scorecard.get("is_low_wage_outlier", False)
-                wage_pct = round((1 - float(wage_ratio)) * 100, 1) if wage_ratio else 0
-                label = f"{'Below' if is_low else 'Near'} local industry average"
-                signals.append({
-                    "signal": "Wage Context",
-                    "category": "stability",
-                    "value": float(scorecard.get("wage_outlier_score") or 0),
-                    "strength": _strength(float(scorecard.get("wage_outlier_score") or 0)),
-                    "explanation": f"Employer ~${float(emp_pay):,.0f}/yr vs local avg ${float(qcew_pay):,.0f}/yr ({wage_pct:+.1f}%). {label}.",
-                })
-
             # Research section
             research = None
             if scorecard.get("has_research"):
@@ -473,7 +454,6 @@ def target_scorecard_detail(master_id: int):
                     "gold_standard_tier": scorecard.get("gold_standard_tier", "stub"),
                     "pillar_anger": scorecard.get("pillar_anger"),
                     "pillar_leverage": scorecard.get("pillar_leverage"),
-                    "pillar_stability": scorecard.get("pillar_stability"),
                 },
             }
 

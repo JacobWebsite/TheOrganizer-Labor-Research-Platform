@@ -2,17 +2,49 @@ import { useQuery } from '@tanstack/react-query'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { apiClient } from '@/shared/api/client'
 
-function StatBar({ label, pct, color = 'bg-[#8B6914]' }) {
+const CONFIDENCE_COLORS = {
+  GREEN: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300' },
+  YELLOW: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300' },
+  RED: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' },
+}
+
+function ConfidenceBadge({ tier, context }) {
+  if (!tier) return null
+  const colors = CONFIDENCE_COLORS[tier] || CONFIDENCE_COLORS.YELLOW
+  const cellLabel = context?.lookup_cell?.replace('|', ' / ') || ''
+  const n = context?.cell_n
+  return (
+    <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded border ${colors.bg} ${colors.text} ${colors.border} text-xs font-medium`}>
+      <span>{tier === 'GREEN' ? 'High' : tier === 'YELLOW' ? 'Moderate' : 'Low'} confidence</span>
+      {n && <span className="opacity-60">Based on {n.toLocaleString()} similar employers</span>}
+    </div>
+  )
+}
+
+function StatBar({ label, pct, rangeLow, rangeHigh, color = 'bg-[#8B6914]' }) {
+  const hasRange = rangeLow != null && rangeHigh != null
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className="w-40 text-[#3D2B1F]/70 truncate" title={label}>{label}</span>
-      <div className="flex-1 bg-[#E8DCC8] rounded h-4 overflow-hidden">
+      <div className="flex-1 bg-[#E8DCC8] rounded h-4 overflow-hidden relative">
+        {hasRange && (
+          <div
+            className="absolute bg-[#8B6914]/15 h-full rounded"
+            data-testid="range-band"
+            style={{
+              left: `${Math.min(rangeLow, 100)}%`,
+              width: `${Math.min(rangeHigh - rangeLow, 100 - rangeLow)}%`,
+            }}
+          />
+        )}
         <div
-          className={`${color} h-full rounded transition-all`}
+          className={`${color} h-full rounded transition-all relative z-10`}
           style={{ width: `${Math.min(pct, 100)}%` }}
         />
       </div>
-      <span className="w-12 text-right font-medium text-[#3D2B1F]">{pct}%</span>
+      <span className="w-20 text-right font-medium text-[#3D2B1F]">
+        {hasRange ? `${pct}% (${rangeLow}-${rangeHigh})` : `${pct}%`}
+      </span>
     </div>
   )
 }
@@ -24,7 +56,13 @@ function DemographicSection({ title, items }) {
       <h4 className="text-sm font-semibold text-[#3D2B1F] mb-2 uppercase tracking-wide">{title}</h4>
       <div className="space-y-1.5">
         {items.map((item, i) => (
-          <StatBar key={i} label={item.label || item.group || item.bucket} pct={item.pct} />
+          <StatBar
+            key={i}
+            label={item.label || item.group || item.bucket}
+            pct={item.pct}
+            rangeLow={item.range_low}
+            rangeHigh={item.range_high}
+          />
         ))}
       </div>
     </div>
@@ -155,7 +193,9 @@ function NeighborhoodSection({ tract }) {
         Neighborhood Demographics
       </h3>
       <p className="text-xs text-[#3D2B1F]/40 mb-4 italic">
-        Area average for census tract {tract.tract_fips} -- not employer-specific data
+        Area average for census tract {tract.tract_fips}
+        {tract.vintage_year ? ` (ACS ${tract.vintage_year} 5-year)` : ''}
+        {' '}-- not employer-specific data
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
@@ -215,6 +255,24 @@ function SourceBreakdownSection({ title, sourceData, sourceName }) {
   )
 }
 
+function getMethodDescription(est, acsVintage, lodesVintage) {
+  const acs = acsVintage || ''
+  const lodes = lodesVintage || ''
+  if (est.method === 'blended') {
+    return `Blended from ACS (industry ${acs}, ${Math.round(est.weights.acs * 100)}%) and LODES (county ${lodes}, ${Math.round(est.weights.lodes * 100)}%)`
+  }
+  if (est.method === 'acs_only') {
+    return `Based on ACS industry baseline (${acs} vintage, no LODES county data available)`
+  }
+  if (est.method === 'lodes_only') {
+    return `Based on LODES county data (${lodes} vintage, no ACS industry data available)`
+  }
+  if (est.method === 'gate_v1') {
+    return 'Model-based estimate calibrated against 14,000+ EEO-1 employers'
+  }
+  return ''
+}
+
 export function WorkforceDemographicsCard({ state, naics, employerId }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['workforce-profile', employerId],
@@ -264,26 +322,29 @@ export function WorkforceDemographicsCard({ state, naics, employerId }) {
       {/* Estimated composition - the headline */}
       {hasEstimate && (
         <div>
-          <h3 className="text-sm font-bold text-[#3D2B1F] mb-1 uppercase tracking-wider">
-            Estimated Workforce Composition
-          </h3>
-          <p className="text-xs text-[#3D2B1F]/50 mb-4 italic">
-            {est.method === 'blended'
-              ? `Blended from ACS (industry, ${Math.round(est.weights.acs * 100)}%) and LODES (county, ${Math.round(est.weights.lodes * 100)}%)`
-              : est.method === 'acs_only'
-                ? 'Based on ACS industry baseline (no LODES county data available)'
-                : 'Based on LODES county data (no ACS industry data available)'}
+          <div className="flex items-center gap-3 mb-1">
+            <h3 className="text-sm font-bold text-[#3D2B1F] uppercase tracking-wider">
+              Estimated Workforce Composition
+            </h3>
+            {est.confidence_tier && (
+              <ConfidenceBadge tier={est.confidence_tier} context={est.range_context} />
+            )}
+          </div>
+          <p className="text-xs text-[#3D2B1F]/50 mb-1 italic">
+            {getMethodDescription(est, data.acs?.vintage_year, data.lodes?.vintage_year)}
+          </p>
+          <p className="text-xs text-muted-foreground mb-4 pl-3 border-l-2 border-[#d9cebb]">
+            Race estimates typically within &plusmn;4.1pp. Gender estimates within &plusmn;9.7pp.
+            Hispanic within &plusmn;6.4pp. Based on V12 model validation (March 2026).
           </p>
 
-          {est.method === 'blended' || est.method === 'acs_only' || est.method === 'lodes_only' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <DemographicSection title="Gender" items={est.gender || est.demographics?.gender} />
-              <DemographicSection title="Race/Ethnicity" items={(est.race || est.demographics?.race)?.filter(r => r.pct > 0)} />
-              <DemographicSection title="Hispanic/Latino Origin" items={est.hispanic || est.demographics?.hispanic} />
-              <DemographicSection title="Age Distribution" items={est.age || est.demographics?.age} />
-              <DemographicSection title="Education" items={est.education || est.demographics?.education} />
-            </div>
-          ) : null}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <DemographicSection title="Gender" items={est.gender || est.demographics?.gender} />
+            <DemographicSection title="Race/Ethnicity" items={(est.race || est.demographics?.race)?.filter(r => r.pct > 0)} />
+            <DemographicSection title="Hispanic/Latino Origin" items={est.hispanic || est.demographics?.hispanic} />
+            <DemographicSection title="Age Distribution" items={est.age || est.demographics?.age} />
+            <DemographicSection title="Education" items={est.education || est.demographics?.education} />
+          </div>
         </div>
       )}
 
@@ -299,12 +360,12 @@ export function WorkforceDemographicsCard({ state, naics, employerId }) {
         <SourceBreakdownSection
           title="Industry Baseline"
           sourceData={data.acs}
-          sourceName={`ACS${data.acs?.naics_matched ? ` NAICS ${data.acs.naics_matched}` : ''}`}
+          sourceName={`ACS ${data.acs?.vintage_year || ''}${data.acs?.naics_matched ? ` NAICS ${data.acs.naics_matched}` : ''}`.trim()}
         />
         <SourceBreakdownSection
           title="County Workplace Average"
           sourceData={data.lodes}
-          sourceName={`LODES county ${data.lodes?.county_fips || ''}`}
+          sourceName={`LODES ${data.lodes?.vintage_year || ''} county ${data.lodes?.county_fips || ''}`.trim()}
         />
       </div>
     </CollapsibleCard>

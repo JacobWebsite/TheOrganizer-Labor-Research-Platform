@@ -30,7 +30,7 @@ export function OrganizingCapacitySection({ data }) {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Organizing Capacity</CardTitle>
+          <CardTitle className="text-lg">Representational Spend</CardTitle>
           {trend && (
             <Badge className={trend.color}>
               <trend.icon className="h-3 w-3 mr-1" />
@@ -40,6 +40,9 @@ export function OrganizingCapacitySection({ data }) {
         </div>
       </CardHeader>
       <CardContent>
+        <p className="text-sm text-muted-foreground mb-4">
+          Percentage of total spending devoted to representational activities (contract negotiation, grievance handling, arbitration) and strike support. Does not include political spending.
+        </p>
         <div className="flex flex-wrap gap-x-10 gap-y-3">
           <div>
             <div className="flex items-center gap-1.5 mb-1">

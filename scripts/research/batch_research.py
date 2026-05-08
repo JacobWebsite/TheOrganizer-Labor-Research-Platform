@@ -54,7 +54,7 @@ def _save_checkpoint(data: dict):
 def get_candidates(candidate_type: str, limit: int) -> list:
     """Fetch candidate employers from the database."""
     dedup_days = int(os.environ.get("RESEARCH_DEDUP_DAYS", "30"))
-    dedup_quality = float(os.environ.get("RESEARCH_DEDUP_MIN_QUALITY", "7.0"))
+    dedup_quality = float(os.environ.get("RESEARCH_DEDUP_MIN_QUALITY", "6.0"))
 
     conn = get_connection(cursor_factory=RealDictCursor)
     try:
@@ -145,7 +145,7 @@ def grade_and_enhance(run_id: int):
     try:
         result = grade_and_save(run_id)
         _log.info("  Graded: overall=%.2f", result["overall"])
-        if result["overall"] >= 7.0:
+        if result["overall"] >= 6.0:
             enh_id = compute_research_enhancements(run_id)
             if enh_id:
                 _log.info("  Enhancement saved (id=%d)", enh_id)
@@ -176,7 +176,7 @@ def backfill_grades_and_enhancements():
 
 
 def run_batch(candidate_type: str, limit: int, resume: bool = False,
-              dry_run: bool = False):
+              dry_run: bool = False, args=None):
     """Run research on a batch of candidate employers."""
     candidates = get_candidates(candidate_type, limit)
     print(f"\nFound {len(candidates)} candidates ({candidate_type}).")
@@ -209,9 +209,12 @@ def run_batch(candidate_type: str, limit: int, resume: bool = False,
             print(f"  ... and {len(candidates) - 20} more")
         return
 
+    max_consecutive_failures = getattr(args, "max_failures", 3) if args else 3
+
     print(f"\nSubmitting {len(candidates)} research runs...")
     completed = 0
     failed = 0
+    consecutive_failures = 0
     start = time.time()
 
     for i, c in enumerate(candidates):
@@ -233,16 +236,26 @@ def run_batch(candidate_type: str, limit: int, resume: bool = False,
 
             if status == "completed":
                 completed += 1
+                consecutive_failures = 0
                 print(f"  -> Completed (run #{run_id})")
                 grade_and_enhance(run_id)
             else:
                 failed += 1
+                consecutive_failures += 1
                 print(f"  -> {status}: {result.get('error', 'unknown error')[:100]}")
 
         except Exception as e:
             failed += 1
+            consecutive_failures += 1
             print(f"  -> ERROR: {str(e)[:100]}")
             _log.exception("Run failed for %s", name)
+
+        # Circuit breaker: halt after N consecutive failures
+        if max_consecutive_failures > 0 and consecutive_failures >= max_consecutive_failures:
+            print(f"\n*** CIRCUIT BREAKER: {consecutive_failures} consecutive failures. Halting batch. ***")
+            checkpoint["halted_reason"] = f"{consecutive_failures} consecutive failures"
+            _save_checkpoint(checkpoint)
+            break
 
         # Progress update
         elapsed = time.time() - start
@@ -251,7 +264,7 @@ def run_batch(candidate_type: str, limit: int, resume: bool = False,
         print(f"  Progress: {completed} ok, {failed} failed, "
               f"~{remaining/60:.0f}m remaining")
 
-    print(f"\n=== Batch Complete ===")
+    print("\n=== Batch Complete ===")
     print(f"  Completed: {completed}/{len(candidates)}")
     print(f"  Failed: {failed}/{len(candidates)}")
     print(f"  Duration: {(time.time() - start)/60:.1f} minutes")
@@ -269,7 +282,7 @@ def print_stats():
         cur.execute("SELECT COUNT(*) AS cnt FROM research_runs WHERE status = 'completed'")
         total_runs = cur.fetchone()["cnt"]
 
-        cur.execute("SELECT COUNT(*) AS cnt FROM research_runs WHERE status = 'completed' AND overall_quality_score >= 7.0")
+        cur.execute("SELECT COUNT(*) AS cnt FROM research_runs WHERE status = 'completed' AND overall_quality_score >= 6.0")
         publishable = cur.fetchone()["cnt"]
 
         cur.execute("SELECT COUNT(*) AS cnt FROM research_score_enhancements")
@@ -287,9 +300,9 @@ def print_stats():
         """)
         non_union = cur.fetchone()["cnt"]
 
-        print(f"\n=== Research Coverage Stats ===")
+        print("\n=== Research Coverage Stats ===")
         print(f"  Total completed runs: {total_runs}")
-        print(f"  Publishable (>= 7.0): {publishable} ({publishable*100//max(total_runs,1)}%)")
+        print(f"  Publishable (>= 6.0): {publishable} ({publishable*100//max(total_runs,1)}%)")
         print(f"  Score enhancements: {enhancements}")
         print(f"    Union reference (Path A): {union_ref}")
         print(f"    Non-union targets (Path B): {non_union}")
@@ -314,6 +327,8 @@ if __name__ == "__main__":
                         help="Show candidates without submitting")
     parser.add_argument("--backfill-only", action="store_true",
                         help="Only grade and backfill enhancements (no new runs)")
+    parser.add_argument("--max-failures", type=int, default=3,
+                        help="Halt after N consecutive failures (0=disabled)")
     parser.add_argument("--stats", action="store_true",
                         help="Show current research coverage stats")
     args = parser.parse_args()
@@ -324,4 +339,4 @@ if __name__ == "__main__":
         backfill_grades_and_enhancements()
         print_stats()
     else:
-        run_batch(args.type, args.limit, resume=args.resume, dry_run=args.dry_run)
+        run_batch(args.type, args.limit, resume=args.resume, dry_run=args.dry_run, args=args)

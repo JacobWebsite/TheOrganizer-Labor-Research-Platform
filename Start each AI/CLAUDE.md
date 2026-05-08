@@ -2,7 +2,7 @@
 
 > **For:** Claude Code, Codex, Gemini, and other AI tools. Technical reference with schema essentials, key gotchas, and dev workflow.
 > **For project status:** See `PROJECT_STATE.md`.
-> **For roadmap:** See `COMPLETE_PROJECT_ROADMAP_2026_03.md` (supersedes Feb 26 roadmap).
+> **For roadmap:** See `CONSOLIDATED_ROADMAP_2026_03_13.md` (supersedes all prior roadmaps).
 > **For redesign spec:** See `UNIFIED_PLATFORM_REDESIGN_SPEC.md`.
 
 **Last Updated:** 2026-03-03
@@ -36,7 +36,7 @@ Credentials in `.env` at project root. `db_config.py` (project root, 500+ import
 | `sec_companies` | 517,403 | cik | Has EIN (62.6%), LEI (0.1%). |
 | `mergent_employers` | 56,426 | duns | Column: `company_name` (NOT `employer_name`), `duns` (NOT `duns_number`). EIN ~55%. |
 | `national_990_filers` | 586,767 | — | Deduped by EIN. |
-| `corporate_identifier_crosswalk` | 17,111 | id | Links SEC/GLEIF/Mergent/CorpWatch/F7. USASpending tier needs re-run. |
+| `corporate_identifier_crosswalk` | 39,827 | id | Links SEC/GLEIF/Mergent/CorpWatch/F7. (Updated 2026-05-04: was 17,111.) |
 | `employer_canonical_groups` | 16,647 groups | — | 40,304 employers in groups. |
 
 ### Match Tables

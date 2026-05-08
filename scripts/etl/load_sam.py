@@ -389,6 +389,14 @@ def main():
     elapsed = time.time() - start
     print(f"\n[{ts()}] Done in {elapsed:.0f}s ({elapsed/60:.1f} min)")
 
+    try:
+        from etl_log import log_etl_run
+        log_etl_run('sam', 'sam_entities', total, 'success',
+                     'scripts/etl/load_sam.py',
+                     duration_seconds=round(elapsed, 2))
+    except Exception as log_err:
+        print(f"WARNING: ETL log failed: {log_err}")
+
     cur.close()
     conn.close()
 

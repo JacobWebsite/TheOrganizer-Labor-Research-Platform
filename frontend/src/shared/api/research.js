@@ -221,3 +221,99 @@ export function useSubmitComparison() {
     },
   })
 }
+
+// ---------------------------------------------------------------------------
+// Gold Standard Review Hooks
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the gold standard review queue (completed runs with review progress).
+ */
+export function useGoldReviewQueue({ review_status, q, min_quality, page = 1, limit = 20 } = {}) {
+  return useQuery({
+    queryKey: ['gold-review-queue', { review_status, q, min_quality, page, limit }],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (review_status) params.set('review_status', review_status)
+      if (q) params.set('q', q)
+      if (min_quality != null) params.set('min_quality', String(min_quality))
+      params.set('page', String(page))
+      params.set('limit', String(limit))
+      return apiClient.get(`/api/research/review/queue?${params}`)
+    },
+    placeholderData: (prev) => prev,
+  })
+}
+
+/**
+ * Fetch gold standard review progress stats.
+ */
+export function useGoldReviewStats() {
+  return useQuery({
+    queryKey: ['gold-review-stats'],
+    queryFn: () => apiClient.get('/api/research/review/stats'),
+    staleTime: 30 * 1000,
+  })
+}
+
+/**
+ * Fetch section-level reviews for a run.
+ */
+export function useSectionReviews(runId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['section-reviews', runId],
+    queryFn: () => apiClient.get(`/api/research/runs/${runId}/section-reviews`),
+    enabled: enabled && !!runId,
+  })
+}
+
+/**
+ * Submit a gold standard section review.
+ */
+export function useSubmitSectionReview() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId, section, review_action, reviewer_notes, corrected_content }) =>
+      apiClient.post(`/api/research/runs/${runId}/section-review/${section}`, {
+        review_action,
+        reviewer_notes: reviewer_notes || null,
+        corrected_content: corrected_content || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['section-reviews'] })
+      queryClient.invalidateQueries({ queryKey: ['gold-review-queue'] })
+      queryClient.invalidateQueries({ queryKey: ['gold-review-stats'] })
+    },
+  })
+}
+
+/**
+ * Mark a run as gold standard.
+ */
+export function useMarkGoldStandard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId }) =>
+      apiClient.post(`/api/research/runs/${runId}/gold-standard`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gold-review-queue'] })
+      queryClient.invalidateQueries({ queryKey: ['gold-review-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['section-reviews'] })
+    },
+  })
+}
+
+/**
+ * Remove gold standard designation.
+ */
+export function useUnmarkGoldStandard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ runId }) =>
+      apiClient.delete(`/api/research/runs/${runId}/gold-standard`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gold-review-queue'] })
+      queryClient.invalidateQueries({ queryKey: ['gold-review-stats'] })
+    },
+  })
+}

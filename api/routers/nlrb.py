@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-from typing import Optional, List
+from typing import Optional
 from ..database import get_db
 from ..helpers import is_likely_law_firm
 
@@ -288,7 +288,18 @@ def get_nlrb_election_detail(case_number: str):
             """, [case_number])
             tallies = cur.fetchall()
 
-            return {"election": election, "participants": participants, "tallies": tallies}
+            # Latest NLRB record date for this case (election_date). Used by
+            # frontend for "data current through ..." footer.
+            latest_record_date = election.get("election_date") if election else None
+
+            return {
+                "election": election,
+                "participants": participants,
+                "tallies": tallies,
+                "latest_record_date": (
+                    latest_record_date.isoformat() if latest_record_date else None
+                ),
+            }
 
 
 @router.get("/api/nlrb/ulp/search")

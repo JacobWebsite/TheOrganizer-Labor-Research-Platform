@@ -127,7 +127,10 @@ SELECT
     cw.is_public,
     cw.is_federal_contractor,
     cw.federal_obligations,
-    cw.federal_contract_count
+    cw.federal_contract_count,
+    cw.is_state_local_contractor,
+    cw.state_local_contract_count,
+    cw.state_local_source_count
 
 FROM f7_employers_deduped e
 
@@ -140,14 +143,18 @@ LEFT JOIN uml_sources u ON u.target_id = e.employer_id
 LEFT JOIN form5500_matched f5m ON f5m.f7_employer_id = e.employer_id
 LEFT JOIN ppp_matched pppm ON pppm.f7_employer_id = e.employer_id
 
--- Corporate crosswalk: pick the best row per employer (highest federal_obligations)
+-- Corporate crosswalk: pick the best row per employer (highest federal_obligations,
+-- then most state/local sources as tiebreaker for state/local-only contractors)
 LEFT JOIN LATERAL (
     SELECT corporate_family_id, sec_cik, gleif_lei, mergent_duns,
            ein, ticker, is_public, is_federal_contractor,
-           federal_obligations, federal_contract_count
+           federal_obligations, federal_contract_count,
+           is_state_local_contractor, state_local_contract_count, state_local_source_count
     FROM corporate_identifier_crosswalk
     WHERE f7_employer_id = e.employer_id
-    ORDER BY federal_obligations DESC NULLS LAST
+    ORDER BY federal_obligations DESC NULLS LAST,
+             state_local_source_count DESC NULLS LAST,
+             state_local_contract_count DESC NULLS LAST
     LIMIT 1
 ) cw ON TRUE
 """

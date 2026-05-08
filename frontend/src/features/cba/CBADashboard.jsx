@@ -35,13 +35,20 @@ export function CBADashboard() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="font-editorial text-3xl font-bold">Contracts</h1>
-        {stats.total_contracts != null && (
-          <p className="text-sm text-[#8a7e6d] mt-1">
-            {stats.total_contracts.toLocaleString()} collective bargaining agreements
-          </p>
-        )}
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="font-editorial text-3xl font-bold">Contracts</h1>
+          {stats.total_contracts != null && (
+            <p className="text-sm text-[#8a7e6d] mt-1">
+              {stats.total_contracts.toLocaleString()} collective bargaining agreements
+            </p>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Link to="/cbas/search" className="rounded px-3 py-1.5 text-sm font-medium border hover:bg-muted/30 transition-colors">Search</Link>
+          <Link to="/cbas/compare" className="rounded px-3 py-1.5 text-sm font-medium border hover:bg-muted/30 transition-colors">Compare</Link>
+          <Link to="/cbas/review" className="rounded px-3 py-1.5 text-sm font-medium border hover:bg-muted/30 transition-colors" style={{ backgroundColor: '#c78c4e', color: '#faf6ef', borderColor: '#c78c4e' }}>Rule Review</Link>
+        </div>
       </div>
 
       {/* Stats cards */}
@@ -152,14 +159,14 @@ export function CBADashboard() {
                   <th className="text-left px-4 py-2 font-medium">Effective</th>
                   <th className="text-left px-4 py-2 font-medium">Expiration</th>
                   <th className="text-right px-4 py-2 font-medium">Pages</th>
-                  <th className="text-left px-4 py-2 font-medium">Status</th>
+                  <th className="text-right px-4 py-2 font-medium">Articles</th>
                 </tr>
               </thead>
               <tbody>
                 {documents.map(doc => (
                   <tr key={doc.cba_id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-2">
-                      <Link to={`/cbas/${doc.cba_id}`} className="text-[#c78c4e] hover:underline font-medium">
+                      <Link to={`/cbas/${doc.cba_id}/articles`} className="text-[#c78c4e] hover:underline font-medium">
                         {doc.employer_name_raw || 'Unknown employer'}
                       </Link>
                     </td>
@@ -167,14 +174,8 @@ export function CBADashboard() {
                     <td className="px-4 py-2">{doc.effective_date || '-'}</td>
                     <td className="px-4 py-2">{doc.expiration_date || '-'}</td>
                     <td className="px-4 py-2 text-right">{doc.page_count ?? '-'}</td>
-                    <td className="px-4 py-2">
-                      <span className={
-                        doc.extraction_status === 'processed' ? 'text-green-700' :
-                        doc.extraction_status === 'error' ? 'text-red-600' :
-                        'text-[#8a7e6d]'
-                      }>
-                        {doc.extraction_status || 'pending'}
-                      </span>
+                    <td className="px-4 py-2 text-right">
+                      {doc.article_count > 0 ? doc.article_count : '-'}
                     </td>
                   </tr>
                 ))}

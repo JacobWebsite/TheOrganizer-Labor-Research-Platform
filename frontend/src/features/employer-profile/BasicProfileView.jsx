@@ -46,7 +46,7 @@ function MasterProfileView({ data }) {
 
   return (
     <div className="space-y-4">
-      <ProfileHeader employer={employer} sourceType="MASTER" />
+      <ProfileHeader employer={employer} sourceType="MASTER" entityContext={data.entity_context} />
 
       {/* Quality + metadata */}
       <Card>
@@ -171,7 +171,7 @@ export function BasicProfileView({ data, isMaster = false }) {
 
   return (
     <div className="space-y-4">
-      <ProfileHeader employer={employer} sourceType={sourceType} />
+      <ProfileHeader employer={employer} sourceType={sourceType} entityContext={data.entity_context} />
 
       <Card>
         <CardContent className="p-4">

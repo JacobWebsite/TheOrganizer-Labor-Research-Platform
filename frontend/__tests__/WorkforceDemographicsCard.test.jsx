@@ -314,4 +314,141 @@ describe('WorkforceDemographicsCard', () => {
     // Card renders nothing on error
     expect(container.querySelector('[data-testid]')).toBeNull()
   })
+
+  // --- gate_v1 method tests ---
+
+  it('renders gate_v1 method with description', async () => {
+    const gateV1Profile = {
+      ...mockWorkforceProfile,
+      estimated_composition: {
+        method: 'gate_v1',
+        race: [
+          { label: 'White', pct: 62.5, range_low: 55.0, range_high: 70.0 },
+          { label: 'Black', pct: 15.2, range_low: 8.0, range_high: 22.0 },
+          { label: 'Asian', pct: 12.0, range_low: 8.5, range_high: 16.0 },
+          { label: 'AIAN', pct: 0.5 },
+          { label: 'NHOPI', pct: 0.3 },
+          { label: 'Two+', pct: 1.5 },
+        ],
+        hispanic: [
+          { label: 'Hispanic', pct: 18.0, range_low: 12.0, range_high: 25.0 },
+          { label: 'Not Hispanic', pct: 82.0, range_low: 75.0, range_high: 88.0 },
+        ],
+        gender: [
+          { label: 'Female', pct: 45.0, range_low: 35.0, range_high: 55.0 },
+          { label: 'Male', pct: 55.0, range_low: 45.0, range_high: 65.0 },
+        ],
+        confidence_tier: 'GREEN',
+        range_context: {
+          interval: '70%',
+          lookup_cell: 'Finance/Insurance (52)|Med-Low',
+          cell_n: 709,
+        },
+      },
+    }
+    apiClient.get.mockResolvedValue(gateV1Profile)
+    renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-123" />
+    )
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    expect(await screen.findByText('Estimated Workforce Composition')).toBeInTheDocument()
+    expect(screen.getByText(/Model-based estimate/)).toBeInTheDocument()
+    expect(screen.getByText(/14,000/)).toBeInTheDocument()
+  })
+
+  it('renders range text for items with ranges', async () => {
+    const gateV1Profile = {
+      ...mockWorkforceProfile,
+      estimated_composition: {
+        method: 'gate_v1',
+        race: [
+          { label: 'White', pct: 62.5, range_low: 55.0, range_high: 70.0 },
+          { label: 'AIAN', pct: 0.5 },
+        ],
+        hispanic: null,
+        gender: null,
+      },
+    }
+    apiClient.get.mockResolvedValue(gateV1Profile)
+    renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-123" />
+    )
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    // White should show range text
+    expect(await screen.findByText('62.5% (55-70)')).toBeInTheDocument()
+    // AIAN has no range, shows pct only
+    expect(screen.getByText('0.5%')).toBeInTheDocument()
+  })
+
+  it('renders confidence badge', async () => {
+    const gateV1Profile = {
+      ...mockWorkforceProfile,
+      estimated_composition: {
+        method: 'gate_v1',
+        race: [{ label: 'White', pct: 60.0 }],
+        hispanic: null,
+        gender: null,
+        confidence_tier: 'GREEN',
+        range_context: { interval: '70%', lookup_cell: 'test|cell', cell_n: 500 },
+      },
+    }
+    apiClient.get.mockResolvedValue(gateV1Profile)
+    renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-123" />
+    )
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    expect(await screen.findByText('High confidence')).toBeInTheDocument()
+    expect(screen.getByText(/500 similar employers/)).toBeInTheDocument()
+  })
+
+  it('renders YELLOW confidence badge', async () => {
+    const gateV1Profile = {
+      ...mockWorkforceProfile,
+      estimated_composition: {
+        method: 'gate_v1',
+        race: [{ label: 'White', pct: 60.0 }],
+        hispanic: null,
+        gender: null,
+        confidence_tier: 'YELLOW',
+        range_context: { interval: '70%', lookup_cell: 'test|cell', cell_n: 200 },
+      },
+    }
+    apiClient.get.mockResolvedValue(gateV1Profile)
+    renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-123" />
+    )
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    expect(await screen.findByText('Moderate confidence')).toBeInTheDocument()
+  })
+
+  it('renders range band behind bar', async () => {
+    const gateV1Profile = {
+      ...mockWorkforceProfile,
+      estimated_composition: {
+        method: 'gate_v1',
+        race: [{ label: 'White', pct: 62.5, range_low: 55.0, range_high: 70.0 }],
+        hispanic: null,
+        gender: null,
+      },
+    }
+    apiClient.get.mockResolvedValue(gateV1Profile)
+    const { container } = renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-123" />
+    )
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    await screen.findByText('Estimated Workforce Composition')
+    const rangeBand = container.querySelector('[data-testid="range-band"]')
+    expect(rangeBand).not.toBeNull()
+  })
+
+  it('old responses without ranges still work', async () => {
+    // Original blended method without any range fields
+    apiClient.get.mockResolvedValue(mockWorkforceProfile)
+    renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-123" />
+    )
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    expect(await screen.findByText('Estimated Workforce Composition')).toBeInTheDocument()
+    expect(screen.getByText('72.5%')).toBeInTheDocument()
+  })
 })

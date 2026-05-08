@@ -8,6 +8,7 @@ import { UnionsPage } from '@/features/union-explorer/UnionsPage'
 vi.mock('@/shared/api/unions', () => ({
   useUnionSearch: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
   useNationalUnions: vi.fn(() => ({ data: null, isLoading: false })),
+  useUnionOverview: vi.fn(() => ({ data: null, isLoading: false })),
   useUnionSectors: vi.fn(() => ({ data: [] })),
   useUnionAffiliations: vi.fn(() => ({ data: [] })),
 }))
@@ -17,7 +18,7 @@ vi.mock('@/shared/api/lookups', () => ({
   useNaicsSectors: vi.fn(() => ({ data: { sectors: [] } })),
 }))
 
-import { useUnionSearch, useNationalUnions } from '@/shared/api/unions'
+import { useUnionSearch, useNationalUnions, useUnionOverview } from '@/shared/api/unions'
 
 const MOCK_NATIONAL = [
   { aff_abbr: 'SEIU', name: 'Service Employees International Union', total_members: 1500000, local_count: 150 },
@@ -47,6 +48,7 @@ describe('UnionsPage', () => {
   beforeEach(() => {
     useUnionSearch.mockReturnValue({ data: null, isLoading: false, isError: false })
     useNationalUnions.mockReturnValue({ data: null, isLoading: false })
+    useUnionOverview.mockReturnValue({ data: null, isLoading: false })
   })
 
   it('renders page title', () => {
@@ -56,9 +58,12 @@ describe('UnionsPage', () => {
 
   it('shows summary card with national data', () => {
     useNationalUnions.mockReturnValue({ data: { national_unions: MOCK_NATIONAL }, isLoading: false })
+    useUnionOverview.mockReturnValue({
+      data: { total_members: 2800000, active_unions: 270, total_employers: 5000, total_covered_workers: 2400000, recent_elections: 100, recent_wins: 78 },
+      isLoading: false,
+    })
     renderWithRoute()
-    // Summary now shows affiliation group cards (AFL-CIO, Change to Win, Independent)
-    // Subtitle shows aggregate counts
+    // Subtitle shows aggregate counts from overview endpoint
     expect(screen.getByText(/270 organizations/)).toBeInTheDocument()
     expect(screen.getByText(/2,800,000 members/)).toBeInTheDocument()
   })

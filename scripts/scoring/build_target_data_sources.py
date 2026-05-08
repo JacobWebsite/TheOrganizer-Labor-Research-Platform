@@ -43,6 +43,28 @@ source_flags AS (
         bool_or(source_system = 'ppp') AS has_ppp
     FROM master_employer_source_ids
     GROUP BY master_id
+),
+-- State/local contractor signal (added 2026-04-23). Pulls from
+-- state_local_contracts_master_matches built by
+-- scripts/etl/contracts/match_state_local_contracts_to_masters.py.
+-- Included tiers:
+--   tier_A_auto_merge     : rule engine >=96% precision
+--   tier_B_high_conf      : rule engine 90-95% precision
+--   tier_A_human_reviewed : originally tier_C, spot-checked 500/500 by Jacob
+--                           on 2026-04-23 -> promoted to the scoring pool.
+state_local_flags AS (
+    SELECT
+        master_id,
+        match_tier,
+        state_local_source_count
+    FROM (
+        SELECT
+            master_id,
+            match_tier,
+            source_count AS state_local_source_count
+        FROM state_local_contracts_master_matches
+        WHERE match_tier IN ('tier_A_auto_merge', 'tier_B_high_conf', 'tier_A_human_reviewed')
+    ) t
 )
 SELECT
     m.master_id,
@@ -76,6 +98,10 @@ SELECT
     COALESCE(sf.has_form5500, FALSE) AS has_form5500,
     COALESCE(sf.has_ppp, FALSE) AS has_ppp,
 
+    -- State/local contracting signal (rule-engine filtered, Tier A+B only)
+    (slf.master_id IS NOT NULL) AS is_state_local_contractor,
+    slf.state_local_source_count,
+
     -- Source count (enforcement + data sources)
     (CASE WHEN COALESCE(sf.has_osha, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_whd, FALSE) THEN 1 ELSE 0 END
@@ -93,6 +119,7 @@ SELECT
 
 FROM master_employers m
 LEFT JOIN source_flags sf ON sf.master_id = m.master_id
+LEFT JOIN state_local_flags slf ON slf.master_id = m.master_id
 WHERE m.is_union = FALSE
   AND m.data_quality_score >= 20
 """
@@ -109,6 +136,7 @@ INDEX_SQL = [
     "CREATE INDEX IF NOT EXISTS idx_mv_tds_has_nlrb ON mv_target_data_sources (master_id) WHERE has_nlrb",
     "CREATE INDEX IF NOT EXISTS idx_mv_tds_has_whd ON mv_target_data_sources (master_id) WHERE has_whd",
     "CREATE INDEX IF NOT EXISTS idx_mv_tds_federal ON mv_target_data_sources (master_id) WHERE is_federal_contractor",
+    "CREATE INDEX IF NOT EXISTS idx_mv_tds_state_local ON mv_target_data_sources (master_id) WHERE is_state_local_contractor",
 ]
 
 
@@ -159,7 +187,16 @@ def _print_stats(cur):
     fc = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM mv_target_data_sources WHERE is_nonprofit")
     np_cnt = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM mv_target_data_sources WHERE is_state_local_contractor")
+    sl_cnt = cur.fetchone()[0]
+    cur.execute("""
+        SELECT COUNT(*) FROM mv_target_data_sources
+        WHERE is_federal_contractor OR is_state_local_contractor
+    """)
+    any_contract = cur.fetchone()[0]
     print(f"\n  Federal contractors: {fc:,}")
+    print(f"  State/local contractors: {sl_cnt:,}")
+    print(f"  Any contractor (federal OR state/local): {any_contract:,}")
     print(f"  Nonprofits: {np_cnt:,}")
 
     return total

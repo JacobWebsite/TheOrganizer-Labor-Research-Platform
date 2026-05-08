@@ -5,11 +5,11 @@ import { apiClient } from './client'
  * Search unions with filters and server-side pagination.
  */
 export function useUnionSearch({
-  name, aff_abbr, sector, state, min_members, has_employers,
+  name, aff_abbr, sector, state, min_members, has_employers, include_inactive,
   page = 1, limit = 50, enabled = true,
 } = {}) {
   return useQuery({
-    queryKey: ['union-search', { name, aff_abbr, sector, state, min_members, has_employers, page, limit }],
+    queryKey: ['union-search', { name, aff_abbr, sector, state, min_members, has_employers, include_inactive, page, limit }],
     queryFn: () => {
       const params = new URLSearchParams()
       if (name) params.set('name', name)
@@ -18,12 +18,24 @@ export function useUnionSearch({
       if (state) params.set('state', state)
       if (min_members != null) params.set('min_members', String(min_members))
       if (has_employers != null) params.set('has_employers', String(has_employers))
+      if (include_inactive) params.set('include_inactive', 'true')
       params.set('limit', String(limit))
       params.set('offset', String((page - 1) * limit))
       return apiClient.get(`/api/unions/search?${params}`)
     },
     enabled,
     placeholderData: (prev) => prev,
+  })
+}
+
+/**
+ * Fetch high-level union overview metrics.
+ */
+export function useUnionOverview() {
+  return useQuery({
+    queryKey: ['union-overview'],
+    queryFn: () => apiClient.get('/api/unions/overview').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
   })
 }
 
@@ -146,5 +158,16 @@ export function useUnionHierarchy(affAbbr, { enabled = true } = {}) {
     queryKey: ['union-hierarchy', affAbbr],
     queryFn: () => apiClient.get(`/api/unions/hierarchy/${affAbbr}`),
     enabled: enabled && !!affAbbr,
+  })
+}
+
+/**
+ * Fetch detailed asset holdings and investment groups for a union.
+ */
+export function useUnionAssets(fileNumber) {
+  return useQuery({
+    queryKey: ['union-assets', fileNumber],
+    queryFn: () => apiClient.get(`/api/unions/${fileNumber}/assets`).then(r => r.data),
+    enabled: !!fileNumber,
   })
 }

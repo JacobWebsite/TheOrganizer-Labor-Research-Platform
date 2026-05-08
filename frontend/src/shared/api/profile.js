@@ -70,6 +70,128 @@ export function useEmployerWhd(id, { enabled = true } = {}) {
   })
 }
 
+// 24Q-31: EPA ECHO environmental enforcement on the master profile.
+// Endpoint returns { summary, facilities, latest_record_date }.
+export function useMasterEpaEcho(masterId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['master-epa-echo', masterId],
+    queryFn: () => apiClient.get(`/api/employers/master/${masterId}/epa-echo`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-7: Mergent executive roster on the master profile.
+// Endpoint returns { summary, executives, source_freshness }.
+export function useMasterExecutives(masterId, { enabled = true, limit = 25 } = {}) {
+  return useQuery({
+    queryKey: ['master-executives', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/executives?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-9: SEC 13F institutional ownership on the master profile.
+// Endpoint returns { summary, owners }.
+export function useMasterInstitutionalOwners(masterId, { enabled = true, limit = 25 } = {}) {
+  return useQuery({
+    queryKey: ['master-institutional-owners', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/institutional-owners?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-39: LDA federal lobbying disclosure on the master profile.
+// Endpoint returns { summary, quarterly_spend, top_issues, top_registrants }.
+export function useMasterLobbying(masterId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['master-lobbying', masterId],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/lobbying`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-41: FEC contributions (PAC + employee individual) on the master profile.
+// Endpoint returns { summary, top_pac_recipients, top_employee_donors,
+// yearly_breakdown }. Pairs with useMasterLobbying for the full Q24
+// political-activity picture.
+export function useMasterFecContributions(
+  masterId,
+  { enabled = true, topRecipients = 10, topDonors = 10 } = {},
+) {
+  return useQuery({
+    queryKey: ['master-fec-contributions', masterId, topRecipients, topDonors],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/fec-contributions?top_recipients=${topRecipients}&top_donors=${topDonors}`,
+      ),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-14: Board of directors (DEF14A roster + interlocks) on the master profile.
+// Endpoint returns { summary, directors, interlocks }. Pairs with
+// useMasterExecutives for the full Q8/Q10 management+board picture.
+export function useMasterBoard(masterId, { enabled = true, limit = 50 } = {}) {
+  return useQuery({
+    queryKey: ['master-board', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/board?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-14 sister: director permalink. Returns all boards a director sits
+// on. Endpoint shape: { slug, names_matched, summary, boards }.
+// Pairs with the BoardCard interlock rows — clicking a director name
+// navigates to /directors/{slug} which calls this hook.
+export function useDirectorProfile(slug, { enabled = true, limit = 100 } = {}) {
+  return useQuery({
+    queryKey: ['director-profile', slug, limit],
+    queryFn: () =>
+      apiClient.get(`/api/directors/${encodeURIComponent(slug)}?limit=${limit}`),
+    enabled: enabled && !!slug,
+    staleTime: 10 * 60 * 1000,
+    retry: false, // 404 = director-not-found, don't burn retries
+  })
+}
+
+// Top-N most-connected directors. Used by the directors index page.
+// Endpoint shape: { directors: [{name, slug, boards_count}, ...], limit }.
+export function useTopDirectors({ enabled = true, limit = 25 } = {}) {
+  return useQuery({
+    queryKey: ['top-directors', limit],
+    queryFn: () => apiClient.get(`/api/directors?limit=${limit}`),
+    enabled,
+    staleTime: 30 * 60 * 1000,
+  })
+}
+
+// 24Q-14 C.2-3: Director network. Returns the corporate-power-map view
+// for a master — 1-hop neighbors (companies sharing a director directly)
+// and 2-hop neighbors (companies connected via a shared director with
+// a 1-hop neighbor). See api/routers/director_network.py for shape.
+// Pairs with BoardCard — usually rendered as a section right below it.
+export function useDirectorNetwork(masterId, { enabled = true, depth = 2, topTwoHop = 50 } = {}) {
+  return useQuery({
+    queryKey: ['director-network', masterId, depth, topTwoHop],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/director-network?depth=${depth}&top_two_hop=${topTwoHop}`,
+      ),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 export function useEmployerCorporate(id, { enabled = true } = {}) {
   return useQuery({
     queryKey: ['employer-corporate', id],
@@ -83,6 +205,15 @@ export function useEmployerDataSources(id, { enabled = true } = {}) {
     queryKey: ['employer-data-sources', id],
     queryFn: () => apiClient.get(`/api/employers/${id}/data-sources`),
     enabled: enabled && !!id,
+  })
+}
+
+export function useEmployerFinancials(id, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['employer-financials', id],
+    queryFn: () => apiClient.get(`/api/employers/${id}/financials`),
+    enabled: enabled && !!id,
+    staleTime: 10 * 60 * 1000,
   })
 }
 
@@ -141,5 +272,77 @@ export function useFlagEmployer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employer-flags'] })
     },
+  })
+}
+
+/**
+ * Corporate-family rollup for a master_employers row.
+ *
+ * Aggregates NLRB + OSHA + WHD + F-7 data across all name-variant siblings of
+ * the given master_id, using canonical-stem extraction. This solves the
+ * "Starbucks has 380 masters but only 2 show direct linkage to the canonical
+ * parent" problem by name-matching across all family members.
+ *
+ * Returns: { family_stem, master_count, masters_by_source, nlrb: {...},
+ *           osha: {...}, whd: {...}, f7: {...} }
+ *
+ * Where nlrb = { totals, elections_summary, elections_by_year, elections_by_state,
+ *               recent_elections, allegations_by_section, respondent_variants }
+ */
+export function useEmployerFamilyRollup(masterId, { enabled = true, limit = 100 } = {}) {
+  return useQuery({
+    queryKey: ['employer-family-rollup', masterId, limit],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/family-rollup?limit_recent_elections=${limit}`,
+      ),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000, // 10 min — corporate hierarchy changes slowly
+  })
+}
+
+/**
+ * Same corporate-family rollup, but keyed on an F-7 employer_id (hex) rather
+ * than a master_id. The backend extracts the canonical stem from the F-7
+ * `name_standard` and runs identical aggregation. Used when the profile
+ * page is rendering an F-7-sourced employer (e.g. one Starbucks store's
+ * F-7 row) so that page also gets the full national-family view.
+ */
+export function useEmployerFamilyRollupForF7(f7Id, { enabled = true, limit = 100 } = {}) {
+  return useQuery({
+    queryKey: ['employer-family-rollup-f7', f7Id, limit],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/f7/${f7Id}/family-rollup?limit_recent_elections=${limit}`,
+      ),
+    enabled: enabled && !!f7Id,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+/**
+ * State and local government contracts (NY/VA/OH) matched to a master_id.
+ * Returns the row from state_local_contracts_master_matches with vendor name,
+ * source tables, match tier, and an amount_caveat field. (R7-9, 2026-04-27)
+ *
+ * Note: total_contract_amount is unreliable across sources (NY ABO has
+ * $1.2Q-class typos). Prefer source_count and contract_row_count for display.
+ */
+export function useEmployerMasterStateLocalContracts(
+  masterId,
+  { enabled = true, includeReviewTier = false } = {},
+) {
+  return useQuery({
+    queryKey: ['employer-state-local-contracts', masterId, includeReviewTier],
+    queryFn: () =>
+      apiClient.get(
+        `/api/employers/master/${masterId}/state-local-contracts` +
+          (includeReviewTier ? '?include_review_tier=true' : ''),
+      ),
+    enabled: enabled && !!masterId,
+    // 404 = "no state/local matches" — treated by TanStack as an error.
+    // Components should handle isError as well as isLoading/data.
+    retry: false,
+    staleTime: 10 * 60 * 1000,
   })
 }

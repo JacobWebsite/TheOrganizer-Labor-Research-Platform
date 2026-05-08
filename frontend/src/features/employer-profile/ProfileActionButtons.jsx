@@ -6,8 +6,13 @@ import { Button } from '@/components/ui/button'
 import { FlagModal } from './FlagModal'
 import { useStartResearch, useResearchStatus } from '@/shared/api/research'
 
-function exportProfileCsv(employer, scorecard) {
+function exportProfileCsv(employer, scorecard, entityContext) {
   const now = new Date().toISOString().split('T')[0]
+  const ec = entityContext || {}
+  const unit = ec.unit || {}
+  const group = ec.group || {}
+  const family = ec.family || {}
+  const conflict = family.conflict || {}
   const rows = [
     ['Field', 'Value'],
     ['Export Date', now],
@@ -17,6 +22,16 @@ function exportProfileCsv(employer, scorecard) {
     ['ZIP', employer?.zip || ''],
     ['Workers', employer?.consolidated_workers || employer?.unit_size || ''],
     ['Size Source', scorecard?.size_source || ''],
+    ['Unit Workers', unit.count ?? ''],
+    ['Unit Location', [unit.city, unit.state].filter(Boolean).join(', ')],
+    ['Group Workers', group.count ?? ''],
+    ['Group Member Count', group.member_count ?? ''],
+    ['Corp Family Primary', family.primary_count ?? ''],
+    ['Corp Family Source', family.primary_source ?? ''],
+    ['Corp Family SEC', family.sec_count ?? ''],
+    ['Corp Family Mergent', family.mergent_count ?? ''],
+    ['Ultimate Parent', family.ultimate_parent_name ?? ''],
+    ['Sources Conflict', conflict.present ? `Yes (${conflict.spread_pct}% spread)` : 'No'],
     ['NAICS', employer?.naics_code || employer?.naics || ''],
     ['Union', employer?.union_name || employer?.latest_union_name || 'None'],
     ['Score Tier', scorecard?.score_tier || ''],
@@ -53,7 +68,7 @@ function exportProfileCsv(employer, scorecard) {
   URL.revokeObjectURL(url)
 }
 
-export function ProfileActionButtons({ employer, scorecard }) {
+export function ProfileActionButtons({ employer, scorecard, entityContext }) {
   const [flagOpen, setFlagOpen] = useState(false)
   const [flagType, setFlagType] = useState(null)
   const [researchRunId, setResearchRunId] = useState(null)
@@ -137,7 +152,7 @@ export function ProfileActionButtons({ employer, scorecard }) {
           variant="outline"
           size="sm"
           className="gap-1.5"
-          onClick={() => exportProfileCsv(employer, scorecard)}
+          onClick={() => exportProfileCsv(employer, scorecard, entityContext)}
         >
           <Download className="h-3.5 w-3.5" />
           Export Data

@@ -27,6 +27,10 @@ const TIER_OPTIONS = [
   { value: 'Promising', label: 'Promising' },
   { value: 'Moderate', label: 'Moderate' },
   { value: 'Low', label: 'Low' },
+  // Speculative (added 2026-05-06): high modeled score but no direct
+  // enforcement signals — formerly the silent half of "Promising"
+  // that gave that tier a misleading 9.8% enforcement rate.
+  { value: 'Speculative', label: 'Speculative (modeled, unverified)' },
 ]
 
 /**

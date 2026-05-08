@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-const FILTER_KEYS = ['q', 'aff_abbr', 'sector', 'state', 'min_members', 'has_employers']
+const FILTER_KEYS = ['q', 'aff_abbr', 'sector', 'state', 'min_members', 'has_employers', 'include_inactive']
 
 /**
  * Syncs unions page filter/page state with URL search params.
@@ -16,6 +16,7 @@ export function useUnionsState() {
     state: searchParams.get('state') || '',
     min_members: searchParams.get('min_members') || '',
     has_employers: searchParams.get('has_employers') || '',
+    include_inactive: searchParams.get('include_inactive') || '',
   }), [searchParams])
 
   const page = Number(searchParams.get('page') || '1')

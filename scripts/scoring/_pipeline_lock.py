@@ -25,7 +25,6 @@ LOCK_IDS = {
     'scorecard_mv': 800007,
     'employer_groups': 800008,
     'nlrb_patterns': 800009,
-    'wage_outliers': 800010,
 }
 
 

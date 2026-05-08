@@ -17,16 +17,15 @@
 - **Skills:** `.claude/skills/` -- 6 user-invoked (start, ship, debug, schema-check, rebuild-mvs, union-research)
 - **Napkin:** `.claude/napkin.md` -- live correction log, rotate to canonical when confirmed
 
-## Current Status (2026-03-12)
+## Current Status (2026-03-18)
 - **All phases through R3:** DONE
-- **Roadmap audit (2026-03-06):** 15 more tasks found already done but unmarked. Roadmap updated.
-  - Newly marked: 0-2, 0-3, 1-1, 1-2, 1-8, 1-10, 1-14, 1-15, 3-3, 3-8, 3-8b, 3-11, 4-3, 7-1, 7-4
-- **Total:** ~66/83 tasks DONE, ~10 REMOVED, ~7 remaining open
-- **Remaining open tasks:** 0-1 (credential rotation), 2-11 (launch strategy), 3-1 (Form 5500), 5-2/5-3/5-5/5-6/5-7 (new data sources), 7-2/7-3 (union file cleanup), 7-7 (union explorer cleanup), 8-1 through 8-8 (long-term)
+- **Consolidated roadmap:** `CONSOLIDATED_ROADMAP_2026_03_13.md` (53 items, 9 priority tiers)
+- **Recently completed:** P0-1 (password rotation), P0-2 (Docker JWT), P1-3 (SEC dates), P1-4 (data refresh log), P2-1 (frontend cards), P2-2 (test fix)
+- **Next up:** P0-3 (backup), P1-1 (proximity weight, blocked D12), P1-2 (Gower), P2-3 (CLAUDE.md counts), P2-4 (doc contradictions)
 - **Task 3-12 (census tract):** DONE -- 85,396 tracts loaded, 120,929 employers backfilled (98.8%)
 - **Task 3-13 (blended demographics):** DONE -- V5 Gate v1 pipeline deployed. Beats M3b on all 5 acceptance criteria on fresh 208-company holdout.
 - **Task 4-9 (research benchmark):** DONE -- 30 methods compared on 997 companies + Gate v1 validated on 208 fresh holdout
-- **Tests:** 1260 backend (0 fail, 3 skip), 264 frontend
+- **Tests:** 1283 backend (0 fail, 4 skip), ~240 frontend
 - **Campaign outcomes table:** Not yet created -- run `py scripts/etl/create_campaign_outcomes.py`
 
 ## Completed Phase Details
@@ -53,6 +52,7 @@
 - Task 3-12 data load + Task 3-13 blended demographics prototype -> `memory/session_2026_03_07_blended_demographics.md`
 - Demographics methodology comparison (6 methods, 10 EEO-1 companies, M1 wins) -> `memory/session_2026_03_08_demographics_comparison.md`
 - V5 Demographics Pipeline execution (4 runs, Gate v1 deployed, all criteria pass) -> `memory/session_2026_03_09_v5_demographics.md`
+- Free Company Dataset enrichment (296K employers matched, 6 new columns, 238K employee_count filled) -> `memory/session_2026_03_16_company_enrichment.md`
 
 ## Active Decisions
 - D5: Industry Growth weight 3x? (Open)

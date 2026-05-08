@@ -23,6 +23,7 @@ if DEMO_DIR not in sys.path:
 # Lazy-loaded globals
 _gate_model = None
 _calibration = None
+_prediction_ranges = None
 _model_loaded = False
 
 RACE_CATS = ['White', 'Black', 'Asian', 'AIAN', 'NHOPI', 'Two+']
@@ -35,13 +36,15 @@ HARD_SEGMENTS = {
 
 
 def _load_models():
-    """Lazy-load Gate v1 model and calibration."""
-    global _gate_model, _calibration, _model_loaded
+    """Lazy-load Gate v1 model, calibration, and prediction ranges."""
+    global _gate_model, _calibration, _prediction_ranges, _model_loaded
     if _model_loaded:
         return
 
     model_path = os.path.join(DEMO_DIR, 'gate_v1.pkl')
     cal_path = os.path.join(DEMO_DIR, 'calibration_v1.json')
+    ranges_path = os.path.join(
+        os.path.dirname(__file__), '..', 'data', 'prediction_ranges_v11.json')
 
     try:
         if os.path.exists(model_path):
@@ -60,6 +63,17 @@ def _load_models():
             logger.info('Loaded calibration_v1.json')
     except Exception as e:
         logger.error('Failed to load calibration_v1.json: %s' % str(e))
+
+    try:
+        if os.path.exists(ranges_path):
+            with open(ranges_path, 'r', encoding='utf-8') as f:
+                _prediction_ranges = json.load(f)
+            logger.info('Loaded prediction_ranges_v11.json (%d cells)',
+                        len(_prediction_ranges))
+        else:
+            logger.warning('prediction_ranges_v11.json not found')
+    except Exception as e:
+        logger.error('Failed to load prediction_ranges_v11.json: %s' % str(e))
 
     _model_loaded = True
 
@@ -200,5 +214,115 @@ def estimate_demographics_v5(cur, naics, state_fips, zipcode, county_fips, total
             'data_source': data_source,
             'review_flag': len(review_reasons) > 0,
             'review_reasons': review_reasons,
+            'naics_group': naics_group,
         },
     }
+
+
+# Categories that get prediction ranges
+RANGE_CATS = {'White', 'Black', 'Asian', 'Hispanic', 'Female'}
+
+
+def get_diversity_tier(county_minority_pct):
+    """Classify county minority % into diversity tier."""
+    if county_minority_pct is None:
+        return "unknown"
+    if county_minority_pct < 15:
+        return "Low"
+    elif county_minority_pct < 30:
+        return "Med-Low"
+    elif county_minority_pct < 50:
+        return "Med-High"
+    else:
+        return "High"
+
+
+def compute_prediction_ranges(pred_dict, naics_group, diversity_tier):
+    """Compute prediction ranges for each demographic category.
+
+    Uses the hierarchical lookup: cell -> naics -> tier -> global.
+
+    Args:
+        pred_dict: dict with keys like 'race' (dict {cat: pct}),
+                   'hispanic' (dict), 'gender' (dict)
+        naics_group: str, e.g. "Healthcare/Social (62)"
+        diversity_tier: str, e.g. "Med-Low"
+
+    Returns:
+        tuple: (ranges_dict, range_context)
+          ranges_dict: {category: {"low": float, "high": float}} for RANGE_CATS only
+          range_context: {"interval": "70%", "lookup_cell": str, "cell_n": int}
+          Returns (None, None) if prediction ranges are not available.
+    """
+    _load_models()
+    if not _prediction_ranges:
+        return None, None
+
+    # Fallback hierarchy
+    keys = [
+        '%s|%s' % (naics_group, diversity_tier),
+        '%s|*' % naics_group,
+        '*|%s' % diversity_tier,
+        '*|*',
+    ]
+
+    cell = None
+    cell_key = None
+    for k in keys:
+        if k in _prediction_ranges:
+            cell = _prediction_ranges[k]
+            cell_key = k
+            break
+
+    if not cell:
+        return None, None
+
+    range_data = cell.get('ranges', {})
+
+    # Build flat pred lookup: {category: predicted_pct}
+    preds = {}
+    if pred_dict.get('race'):
+        preds.update(pred_dict['race'])
+    if pred_dict.get('hispanic'):
+        preds.update(pred_dict['hispanic'])
+    if pred_dict.get('gender'):
+        preds.update(pred_dict['gender'])
+
+    ranges = {}
+    for cat in RANGE_CATS:
+        if cat not in preds or cat not in range_data:
+            continue
+        predicted = preds[cat]
+        p15 = range_data[cat]['p15']
+        p85 = range_data[cat]['p85']
+        # low = predicted - p85_error, high = predicted - p15_error
+        low = max(0.0, round(predicted - p85, 1))
+        high = min(100.0, round(predicted - p15, 1))
+        # Ensure low <= predicted <= high
+        low = min(low, predicted)
+        high = max(high, predicted)
+        ranges[cat] = {"low": low, "high": high}
+
+    # Compute complement ranges
+    if 'Female' in ranges and 'Male' not in ranges:
+        male_pred = preds.get('Male')
+        if male_pred is not None:
+            ranges['Male'] = {
+                "low": round(100.0 - ranges['Female']['high'], 1),
+                "high": round(100.0 - ranges['Female']['low'], 1),
+            }
+    if 'Hispanic' in ranges and 'Not Hispanic' not in ranges:
+        nh_pred = preds.get('Not Hispanic')
+        if nh_pred is not None:
+            ranges['Not Hispanic'] = {
+                "low": round(100.0 - ranges['Hispanic']['high'], 1),
+                "high": round(100.0 - ranges['Hispanic']['low'], 1),
+            }
+
+    context = {
+        "interval": "70%",
+        "lookup_cell": cell_key,
+        "cell_n": cell.get('n', 0),
+    }
+
+    return ranges, context

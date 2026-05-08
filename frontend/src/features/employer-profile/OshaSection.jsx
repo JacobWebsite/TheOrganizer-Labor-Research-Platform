@@ -3,6 +3,7 @@ import { ShieldAlert, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
+import { SourceFreshnessFooter } from '@/shared/components/SourceFreshnessFooter'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,17 @@ function formatNumber(n) {
 function formatCurrency(n) {
   if (n == null) return '\u2014'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+}
+
+function formatVintageDate(d) {
+  if (!d) return null
+  try {
+    const parsed = new Date(d)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return null
+  }
 }
 
 function SeverityBadge({ label, count }) {
@@ -57,6 +69,7 @@ export function OshaSection({ osha, sourceAttribution, dataSources }) {
   const summaryText = `${formatNumber(summary.total_violations)} violations \u00b7 ${formatCurrency(summary.total_penalties)} penalties`
   const visibleEstablishments = expanded ? establishments : establishments.slice(0, VISIBLE_ROWS)
   const hasMore = establishments.length > VISIBLE_ROWS
+  const vintageDate = formatVintageDate(osha?.latest_record_date)
 
   return (
     <CollapsibleCard icon={ShieldAlert} title="OSHA Safety Record" summary={summaryText}>
@@ -146,6 +159,16 @@ export function OshaSection({ osha, sourceAttribution, dataSources }) {
             )}
           </>
         )}
+
+        {vintageDate && (
+          <p className="text-xs text-muted-foreground">
+            OSHA data current through {vintageDate}
+          </p>
+        )}
+        <SourceFreshnessFooter
+          sourceName="osha_workplace_safety"
+          latestRecordDate={osha?.latest_record_date}
+        />
       </div>
     </CollapsibleCard>
   )

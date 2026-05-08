@@ -1,10 +1,10 @@
 import os
-from fastapi import APIRouter, Depends, Query, HTTPException, Request
+from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Literal, Optional
 from pydantic import BaseModel
 from ..database import get_db
-from ..dependencies import require_admin, require_auth
-from ..helpers import safe_sort_col, safe_order_dir, TTLCache
+from ..dependencies import require_admin
+from ..helpers import TTLCache
 
 router = APIRouter()
 _match_quality_cache = TTLCache(ttl_seconds=600)  # 10-minute cache
@@ -272,22 +272,74 @@ def _build_explanations(row, is_rtw=None, win_rate=None):
 
 @router.get("/api/organizing/summary")
 def get_organizing_summary(year_from: int = 2020, year_to: int = 2025):
-    """Get combined organizing activity summary (Elections + VR)"""
+    """Get combined organizing activity summary (Elections + VR) by year."""
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT * FROM v_organizing_by_year
-                WHERE year >= %s AND year <= %s ORDER BY year
+                WITH events AS (
+                    SELECT EXTRACT(YEAR FROM e.election_date)::int AS yr,
+                           'election' AS src,
+                           e.union_won
+                    FROM nlrb_elections e
+                    WHERE e.election_date IS NOT NULL
+
+                    UNION ALL
+
+                    SELECT EXTRACT(YEAR FROM vr.date_voluntary_recognition)::int AS yr,
+                           'vr' AS src,
+                           true AS union_won
+                    FROM nlrb_voluntary_recognition vr
+                    WHERE vr.date_voluntary_recognition IS NOT NULL
+                )
+                SELECT yr                                          AS year,
+                       COUNT(*)                                    AS total_events,
+                       SUM(CASE WHEN src = 'election' THEN 1 ELSE 0 END) AS elections,
+                       SUM(CASE WHEN src = 'vr'       THEN 1 ELSE 0 END) AS vr_cases,
+                       SUM(CASE WHEN union_won THEN 1 ELSE 0 END) AS union_wins,
+                       ROUND(100.0 * SUM(CASE WHEN union_won THEN 1 ELSE 0 END)
+                             / NULLIF(COUNT(*), 0), 1)            AS win_rate
+                FROM events
+                WHERE yr >= %s AND yr <= %s
+                GROUP BY yr
+                ORDER BY yr
             """, [year_from, year_to])
             return {"years": cur.fetchall()}
 
 
 @router.get("/api/organizing/by-state")
 def get_organizing_by_state():
-    """Get combined organizing activity by state"""
+    """Get combined organizing activity by state."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM v_organizing_by_state ORDER BY total_events DESC")
+            cur.execute("""
+                WITH events AS (
+                    SELECT p.state,
+                           'election' AS src,
+                           e.union_won
+                    FROM nlrb_elections e
+                    JOIN nlrb_participants p ON e.case_number = p.case_number
+                        AND p.participant_type = 'Employer'
+                    WHERE p.state IS NOT NULL AND LENGTH(p.state) = 2
+
+                    UNION ALL
+
+                    SELECT vr.unit_state AS state,
+                           'vr' AS src,
+                           true AS union_won
+                    FROM nlrb_voluntary_recognition vr
+                    WHERE vr.unit_state IS NOT NULL AND LENGTH(vr.unit_state) = 2
+                )
+                SELECT state,
+                       COUNT(*)                                    AS total_events,
+                       SUM(CASE WHEN src = 'election' THEN 1 ELSE 0 END) AS elections,
+                       SUM(CASE WHEN src = 'vr'       THEN 1 ELSE 0 END) AS vr_cases,
+                       SUM(CASE WHEN union_won THEN 1 ELSE 0 END) AS union_wins,
+                       ROUND(100.0 * SUM(CASE WHEN union_won THEN 1 ELSE 0 END)
+                             / NULLIF(COUNT(*), 0), 1)            AS win_rate
+                FROM events
+                GROUP BY state
+                ORDER BY total_events DESC
+            """)
             return {"states": cur.fetchall()}
 
 

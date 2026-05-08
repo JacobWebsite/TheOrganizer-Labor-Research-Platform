@@ -16,6 +16,7 @@ import argparse
 import os
 import sqlite3
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from db_config import get_connection
@@ -802,6 +803,7 @@ def main():
 
     pg_conn = get_connection()
 
+    _start = time.time()
     try:
         print("=" * 70)
         print("NLRB SQLite -> PostgreSQL Sync")
@@ -837,8 +839,24 @@ def main():
         print("Sync complete.")
         print("=" * 70)
 
-    except Exception:
+        try:
+            from etl_log import log_etl_run
+            log_etl_run('nlrb', 'multiple', None, 'success',
+                         'scripts/etl/sync_nlrb_sqlite.py',
+                         duration_seconds=round(time.time() - _start, 2))
+        except Exception as log_err:
+            print("WARNING: ETL log failed: %s" % log_err)
+
+    except Exception as e:
         pg_conn.rollback()
+        try:
+            from etl_log import log_etl_run
+            log_etl_run('nlrb', 'multiple', None, 'error',
+                         'scripts/etl/sync_nlrb_sqlite.py',
+                         error_message=str(e),
+                         duration_seconds=round(time.time() - _start, 2))
+        except Exception:
+            pass
         raise
     finally:
         sqlite_conn.close()

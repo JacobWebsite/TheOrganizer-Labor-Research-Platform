@@ -84,7 +84,7 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~33,000 elections, ~478,000 cases, ~1.9M participants, ~716,000 allegations, ~2M docket entries",
         "description": "Election outcomes, ULP activity, participants, and procedural history.",
         "count_query": "SELECT (SELECT COUNT(*) FROM nlrb_elections) + (SELECT COUNT(*) FROM nlrb_cases) + (SELECT COUNT(*) FROM nlrb_participants) + (SELECT COUNT(*) FROM nlrb_allegations) + (SELECT COUNT(*) FROM nlrb_docket)",
-        "date_query": "SELECT MIN(d), MAX(d) FROM (SELECT MIN(election_date) AS d, MAX(election_date) AS x FROM nlrb_elections UNION ALL SELECT MIN(earliest_date), MAX(latest_date) FROM nlrb_cases) q",
+        "date_query": "SELECT MIN(d), MAX(x) FROM (SELECT MIN(election_date) AS d, MAX(election_date) AS x FROM nlrb_elections UNION ALL SELECT MIN(earliest_date) AS d, MAX(latest_date) AS x FROM nlrb_cases) q",
         "freshness_notes": "NLRB elections, cases, and allegations",
     },
     {
@@ -490,10 +490,15 @@ DATA_SOURCE_ENTRIES = [
         "source_name": "nyc_labor_data",
         "display_name": "NYC Labor Data",
         "group_id": "specialized_regional",
-        "tables": ["nyc_wage_theft_cases", "nyc_ulp_cases", "nyc_debarment_list", "nyc_osha_violations"],
-        "record_count_note": "~8,600 NYC violation records",
-        "description": "NYC-specific wage theft, ULP, debarment, and OSHA data.",
-        "count_query": "SELECT (SELECT COUNT(*) FROM nyc_wage_theft_cases) + (SELECT COUNT(*) FROM nyc_ulp_cases) + (SELECT COUNT(*) FROM nyc_debarment_list) + (SELECT COUNT(*) FROM nyc_osha_violations)",
+        # `nyc_wage_theft_cases` and `nyc_ulp_cases` were aspirational and
+        # never loaded; freshness refresh would silently skip the whole
+        # entry because the count_query referenced missing tables. Trimmed
+        # to the two tables that actually exist (debarment + OSHA).
+        # Discovered 2026-04-10 in P1 task #30, fixed 2026-05-04.
+        "tables": ["nyc_debarment_list", "nyc_osha_violations"],
+        "record_count_note": "~3,700 NYC enforcement records",
+        "description": "NYC-specific debarment list and OSHA violation data.",
+        "count_query": "SELECT (SELECT COUNT(*) FROM nyc_debarment_list) + (SELECT COUNT(*) FROM nyc_osha_violations)",
         "date_query": None,
         "freshness_notes": "NYC enforcement and contractor risk datasets",
     },

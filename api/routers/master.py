@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from ..database import get_db
 from ..helpers import safe_order_dir, safe_sort_col, TTLCache
 from ..match_labels import build_master_citation, SOURCE_LABELS
+from ..services.entity_context import build_entity_context_for_master
 
 router = APIRouter()
 
@@ -185,8 +186,7 @@ def _search_impl(
           ts.pillar_anger,
           ts.pillar_leverage,
           ts.pillar_stability,
-          ts.gold_standard_tier,
-          ts.is_low_wage_outlier"""
+          ts.gold_standard_tier"""
         ts_join = f"LEFT JOIN mv_target_scorecard ts ON ts.master_id = m.{pk_col}"
 
     # COUNT query needs the ts JOIN if filters reference ts columns
@@ -462,7 +462,19 @@ def master_detail(master_id: int):
                 s["citation"] = build_master_citation(s["source_system"], s["best_confidence"])
                 match_summary.append(s)
 
-            return {"master": master, "source_ids": source_ids, "enrichment": enrichment, "match_summary": match_summary}
+            # #44: entity-context summary (unit / group / corporate family)
+            try:
+                entity_context = build_entity_context_for_master(cur, master_id, master)
+            except Exception:  # pragma: no cover - defensive; never fail profile on ctx error
+                entity_context = None
+
+            return {
+                "master": master,
+                "source_ids": source_ids,
+                "enrichment": enrichment,
+                "match_summary": match_summary,
+                "entity_context": entity_context,
+            }
 
 
 @router.get("/api/master/stats")
@@ -549,3 +561,73 @@ def master_stats():
             }
             _stats_cache.set("master_stats", result)
             return result
+
+
+# ============================================================================
+# STATE & LOCAL CONTRACTS (R7-9, 2026-04-27)
+# ============================================================================
+#
+# The state_local_contracts_master_matches table aggregates 11 NY/VA/OH state-
+# and city-level contract sources to master_employers via a 16-rule heuristic
+# engine (see scripts/matching/match_state_local_contracts_to_masters.py).
+# 34,659 matches as of Apr 24: 20,244 Tier A (auto_merge), 6 Tier B
+# (high_conf), 14,409 Tier C (review).
+#
+# Note: total_contract_amount is unreliable across sources (NY ABO has
+# $1.2Q-class typos, NYC Awards has $97T-class typos). Use contract_row_count
+# and source_count for tiering. The frontend should display source_count
+# prominently and treat the dollar amount as advisory.
+
+@router.get("/api/employers/master/{master_id}/state-local-contracts")
+def get_master_state_local_contracts(
+    master_id: int,
+    include_review_tier: bool = Query(
+        False,
+        description="Include Tier C review-queue matches (lower confidence). Default Tier A+B only.",
+    ),
+):
+    """State and local government contracts for a master employer.
+
+    Returns the row from `state_local_contracts_master_matches` (one per
+    master_id, populated by the 16-rule heuristic engine across NY/VA/OH
+    state and city sources) plus a `note` flagging dollar-amount unreliability.
+
+    Returns 404 with `{"detail": "no state/local matches"}` if this master
+    has no Tier A/B (or A/B/C if include_review_tier=true) matches.
+    """
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            tier_filter = (
+                "match_tier IN ('tier_A_auto_merge', 'tier_B_high_conf', 'tier_C_review')"
+                if include_review_tier
+                else "match_tier IN ('tier_A_auto_merge', 'tier_B_high_conf')"
+            )
+            cur.execute(
+                f"""
+                SELECT master_id, master_display_name, master_state,
+                       vendor_name_norm, vendor_state, representative_vendor_name,
+                       total_contract_amount, contract_row_count, source_count,
+                       first_award_date, last_award_date,
+                       source_tables, match_tier, match_rule, match_confidence,
+                       match_method, match_source, matched_at
+                FROM state_local_contracts_master_matches
+                WHERE master_id = %s AND {tier_filter}
+                LIMIT 1
+                """,
+                [master_id],
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(
+                    status_code=404, detail="no state/local matches"
+                )
+            return {
+                **dict(row),
+                # Flag the well-known data quality caveat. See module docstring
+                # above and the 2026-04-22 state/local pipeline session memo.
+                "amount_caveat": (
+                    "total_contract_amount aggregates 11 source tables with "
+                    "known typos at the source (NY ABO, NYC Awards). Treat "
+                    "as advisory; trust source_count and contract_row_count."
+                ),
+            }

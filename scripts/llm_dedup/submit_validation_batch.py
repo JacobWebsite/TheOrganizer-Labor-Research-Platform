@@ -282,8 +282,13 @@ def cmd_fetch(args):
                 parse_fail += 1
                 continue
 
-            v = verdict_obj.get('verdict', 'UNKNOWN')
+            # v2.0 validation prompt returns 'label' + 'reasoning'; v1.0 returns
+            # 'verdict' + 'reason'. Accept either so the fetcher works against
+            # both schemas (fixes the silent UNKNOWN-everywhere bug from the
+            # 2026-04-21 batch).
+            v = verdict_obj.get('label') or verdict_obj.get('verdict', 'UNKNOWN')
             c = verdict_obj.get('confidence', 'UNKNOWN')
+            reason_text = verdict_obj.get('reasoning') or verdict_obj.get('reason', '')
             verdict_counts[v] += 1
             confidence_counts[c] += 1
 
@@ -301,7 +306,7 @@ def cmd_fetch(args):
                 f'{meta.get("composite", 0):.4f}' if meta.get('composite') is not None else '',
                 _csv(meta.get('src1')), _csv(meta.get('src2')),
                 _csv(meta.get('name1')), _csv(meta.get('name2')),
-                v, c, _csv(verdict_obj.get('reason', '')),
+                v, c, _csv(reason_text),
             ]) + '\n')
 
     print(f'\nFetched {n:,} entries')

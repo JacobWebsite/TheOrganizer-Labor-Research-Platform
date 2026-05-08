@@ -30,7 +30,9 @@
   "negative_patterns": [
     {"pattern": "\\bbulletin\\s+board\\b", "note": "Bulletin board section mentioning childcare incidentally"},
     {"pattern": "\\bvisitation\\b", "note": "Union visitation, not childcare provision"},
-    {"pattern": "\\btemporary\\s+employee", "note": "Temporary employee provisions, not childcare"}
+    {"pattern": "\\btemporary\\s+employee", "note": "Temporary employee provisions, not childcare"},
+    {"pattern": "(?:Article|Section)\\s+\\d+.*\\.{3,}", "note": "TOC entry with page references"},
+    {"pattern": "^(?:INDEX|TABLE\\s+OF\\s+CONTENTS)", "note": "Index/TOC header"}
   ],
   "heading_exclusions": []
 }

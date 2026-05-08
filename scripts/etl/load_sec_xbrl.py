@@ -12,23 +12,30 @@ Usage:
     py scripts/etl/load_sec_xbrl.py
     py scripts/etl/load_sec_xbrl.py --limit 100       # test with 100 companies
     py scripts/etl/load_sec_xbrl.py --dry-run          # parse only, no DB write
+    py scripts/etl/load_sec_xbrl.py --cleanup-only     # delete bad dates from existing table
 """
 
 import sys
 import os
 import json
-import re
 import io
 import time
 import zipfile
 import argparse
+from datetime import date
 
-import psycopg2
-import psycopg2.extras
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from db_config import get_connection
+
+# --- Date validation bounds (P1-3: SEC XBRL erroneous dates) ---
+# Lower bound: SEC EDGAR XBRL data realistically starts around 2009, but
+# some companies have fiscal years going back further. 1990 is a safe floor.
+FISCAL_YEAR_MIN = 1990
+# Upper bound: current calendar year. Any fiscal_year_end beyond Dec 31 of
+# this year is almost certainly a data-entry error (e.g., 2201-12-31).
+FISCAL_YEAR_MAX = date.today().year
 
 COMPANYFACTS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -112,17 +119,26 @@ COMMENT ON TABLE sec_xbrl_financials IS
 """
 
 
-def extract_annual_facts(company_data):
+def extract_annual_facts(company_data, date_reject_counter=None):
     """Extract annual financial facts for a single company.
 
     Returns list of dicts, one per fiscal year, with financial values
     and the specific tag used for each concept.
+
+    Args:
+        company_data: parsed JSON dict from SEC companyfacts
+        date_reject_counter: optional dict to accumulate rejected date counts
+                             (keys are the rejected end_date strings)
     """
     cik = company_data['cik']
     facts = company_data.get('facts', {})
     gaap = facts.get('us-gaap', {})
     dei = facts.get('dei', {})
     all_tags = {**gaap, **dei}
+
+    # Build dynamic date bounds from module-level constants
+    min_date = f'{FISCAL_YEAR_MIN}-01-01'
+    max_date = f'{FISCAL_YEAR_MAX}-12-31'
 
     # Collect all annual data points: {concept: {fiscal_year_end: (value, tag, form, filed)}}
     concept_data = {}
@@ -146,6 +162,14 @@ def extract_annual_facts(company_data):
 
                 end_date = entry.get('end')
                 if not end_date:
+                    continue
+
+                # P1-3 fix: reject dates outside plausible range.
+                # Catches erroneous dates like 2201-12-31 (175 years in
+                # the future) that break MAX() aggregations and charts.
+                if end_date < min_date or end_date > max_date:
+                    if date_reject_counter is not None:
+                        date_reject_counter[end_date] = date_reject_counter.get(end_date, 0) + 1
                     continue
 
                 val = entry.get('val')
@@ -220,8 +244,63 @@ def extract_annual_facts(company_data):
     return records
 
 
-def load_xbrl(limit=None, dry_run=False):
-    """Main ETL: parse companyfacts.zip and load into sec_xbrl_financials."""
+def cleanup_bad_dates():
+    """P1-3: Delete rows with fiscal_year_end outside the plausible range.
+
+    This fixes existing bad data in the table (e.g., 2201-12-31) that was
+    loaded before the date validation was added. Safe to run repeatedly --
+    if no bad rows exist, it deletes nothing.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # First, show what we'd delete
+    cur.execute("""
+        SELECT fiscal_year_end, COUNT(*) AS cnt
+        FROM sec_xbrl_financials
+        WHERE fiscal_year_end < %s OR fiscal_year_end > %s
+        GROUP BY fiscal_year_end
+        ORDER BY fiscal_year_end
+    """, (f'{FISCAL_YEAR_MIN}-01-01', f'{FISCAL_YEAR_MAX}-12-31'))
+    bad_rows = cur.fetchall()
+
+    if not bad_rows:
+        print("No rows with out-of-range fiscal_year_end found. Table is clean.")
+        conn.close()
+        return 0
+
+    total_bad = sum(r[1] for r in bad_rows)
+    print(f"Found {total_bad:,} rows with out-of-range fiscal_year_end:")
+    for fy_end, cnt in bad_rows:
+        print(f"  {fy_end}: {cnt:,} rows")
+
+    # Delete them
+    cur.execute("""
+        DELETE FROM sec_xbrl_financials
+        WHERE fiscal_year_end < %s OR fiscal_year_end > %s
+    """, (f'{FISCAL_YEAR_MIN}-01-01', f'{FISCAL_YEAR_MAX}-12-31'))
+    deleted = cur.rowcount
+    conn.commit()
+
+    # Verify MAX is now sane
+    cur.execute("SELECT MIN(fiscal_year_end), MAX(fiscal_year_end) FROM sec_xbrl_financials")
+    min_fy, max_fy = cur.fetchone()
+    print(f"Deleted {deleted:,} bad rows.")
+    print(f"Fiscal year range is now: {min_fy} to {max_fy}")
+
+    conn.close()
+    return deleted
+
+
+def load_xbrl(limit=None, dry_run=False, cleanup_only=False):
+    """Main ETL: parse companyfacts.zip and load into sec_xbrl_financials.
+
+    If cleanup_only=True, only run the bad-date cleanup (no reload)."""
+
+    # P1-3: Always clean up existing bad dates before a full reload
+    if cleanup_only:
+        cleanup_bad_dates()
+        return
     start = time.time()
 
     if not os.path.exists(COMPANYFACTS_PATH):
@@ -243,11 +322,15 @@ def load_xbrl(limit=None, dry_run=False):
     all_records = []
     companies_with_data = 0
     parse_errors = 0
+    date_rejects = {}  # P1-3: track rejected dates for reporting
+
+    print(f"  Date validation: accepting fiscal_year_end in "
+          f"{FISCAL_YEAR_MIN}-01-01 .. {FISCAL_YEAR_MAX}-12-31")
 
     for i, fname in enumerate(filenames):
         try:
             data = json.loads(z.read(fname))
-            records = extract_annual_facts(data)
+            records = extract_annual_facts(data, date_reject_counter=date_rejects)
             if records:
                 all_records.extend(records)
                 companies_with_data += 1
@@ -269,6 +352,17 @@ def load_xbrl(limit=None, dry_run=False):
     print(f"  Total annual records: {len(all_records):,}")
     print(f"  Parse errors: {parse_errors:,}")
 
+    # P1-3: report rejected dates
+    total_date_rejects = sum(date_rejects.values())
+    if total_date_rejects:
+        print(f"  Date-rejected entries: {total_date_rejects:,}")
+        # Show the worst offenders (up to 10)
+        worst = sorted(date_rejects.items(), key=lambda x: -x[1])[:10]
+        for bad_date, cnt in worst:
+            print(f"    {bad_date}: {cnt:,} entries rejected")
+    else:
+        print("  Date-rejected entries: 0")
+
     if not all_records:
         print("No records to load.")
         return
@@ -289,7 +383,7 @@ def load_xbrl(limit=None, dry_run=False):
         return
 
     # Load into PostgreSQL
-    print(f"\nLoading into sec_xbrl_financials...")
+    print("\nLoading into sec_xbrl_financials...")
     conn = get_connection()
     cur = conn.cursor()
 
@@ -369,8 +463,17 @@ def load_xbrl(limit=None, dry_run=False):
     """)
     linked_xwalk = cur.fetchone()[0]
 
-    conn.close()
     total_time = time.time() - start
+
+    try:
+        from etl_log import log_etl_run
+        log_etl_run('sec_xbrl', 'sec_xbrl_financials', row_count, 'success',
+                     'scripts/etl/load_sec_xbrl.py',
+                     duration_seconds=round(total_time, 2))
+    except Exception as log_err:
+        print(f"WARNING: ETL log failed: {log_err}")
+
+    conn.close()
 
     print(f"\n=== LOAD COMPLETE ({total_time:.1f}s) ===")
     print(f"  Rows loaded: {row_count:,}")
@@ -380,7 +483,7 @@ def load_xbrl(limit=None, dry_run=False):
     labels = ['revenue', 'net_income', 'assets', 'liabilities', 'cash', 'debt', 'employees']
     for label, count in zip(labels, cov):
         print(f"    {label:20s}: {count:8,} ({100*count/row_count:5.1f}%)")
-    print(f"\n  Union-linked companies:")
+    print("\n  Union-linked companies:")
     print(f"    Via match log: {linked_uml:,}")
     print(f"    Via crosswalk: {linked_xwalk:,}")
 
@@ -389,6 +492,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Load SEC XBRL financials from companyfacts.zip')
     parser.add_argument('--limit', type=int, help='Limit to N companies (for testing)')
     parser.add_argument('--dry-run', action='store_true', help='Parse only, no DB write')
+    parser.add_argument('--cleanup-only', action='store_true',
+                        help='Only delete rows with out-of-range fiscal_year_end (no reload)')
     args = parser.parse_args()
 
-    load_xbrl(limit=args.limit, dry_run=args.dry_run)
+    load_xbrl(limit=args.limit, dry_run=args.dry_run, cleanup_only=args.cleanup_only)

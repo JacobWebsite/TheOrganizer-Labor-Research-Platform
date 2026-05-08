@@ -4,11 +4,7 @@ import { FactRow } from '@/features/research/FactRow'
 
 function renderRow(fact, onReview) {
   return render(
-    <table>
-      <tbody>
-        <FactRow fact={fact} onReview={onReview} />
-      </tbody>
-    </table>
+    <FactRow fact={fact} onReview={onReview} />
   )
 }
 

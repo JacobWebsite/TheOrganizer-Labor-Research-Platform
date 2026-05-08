@@ -11,6 +11,7 @@ const ACTIVE_FACTORS = [
   'Financial',
   'Employer Size',
   'Industry Growth',
+  'Peer Similarity',
 ]
 
 describe('ScorecardSection', () => {
@@ -19,7 +20,7 @@ describe('ScorecardSection', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders all 8 active factor labels (Peer Similarity is skipped)', () => {
+  it('renders all 9 active factor labels including Peer Similarity', () => {
     const scorecard = {
       score_nlrb: 5.0,
       score_osha: 3.0,
@@ -36,17 +37,15 @@ describe('ScorecardSection', () => {
     for (const label of ACTIVE_FACTORS) {
       expect(screen.getByText(label)).toBeInTheDocument()
     }
-    // Peer Similarity is disabled and not rendered
-    expect(screen.queryByText('Peer Similarity')).not.toBeInTheDocument()
   })
 
-  it('does not render disabled Peer Similarity factor', () => {
+  it('renders Peer Similarity factor when score is provided', () => {
     const scorecard = {
       score_similarity: 5.0,
     }
 
     render(<ScorecardSection scorecard={scorecard} />)
-    expect(screen.queryByText('Peer Similarity')).not.toBeInTheDocument()
+    expect(screen.getByText('Peer Similarity')).toBeInTheDocument()
   })
 
   it('shows double-dash for null score values via ScoreGauge', () => {
@@ -65,8 +64,8 @@ describe('ScorecardSection', () => {
     render(<ScorecardSection scorecard={scorecard} />)
     // ScoreGauge renders '--' for null values
     const dashElements = screen.getAllByText('--')
-    // 8 dashes for the 8 active null factors (similarity is not rendered)
-    expect(dashElements.length).toBe(8)
+    // 9 dashes for the 9 active null factors
+    expect(dashElements.length).toBe(9)
   })
 
   it('shows numeric value for non-null scores', () => {
@@ -85,7 +84,7 @@ describe('ScorecardSection', () => {
     render(<ScorecardSection scorecard={scorecard} />)
     expect(screen.getByText('8.2')).toBeInTheDocument()
     const dashElements = screen.getAllByText('--')
-    expect(dashElements.length).toBe(7)
+    expect(dashElements.length).toBe(8)
   })
 
   it('shows explanation text when provided', () => {
@@ -96,7 +95,7 @@ describe('ScorecardSection', () => {
     expect(screen.getByText('3 elections in the last 5 years')).toBeInTheDocument()
   })
 
-  it('shows factor count out of 8 active factors in footer', () => {
+  it('shows factor count out of 9 active factors in footer', () => {
     const scorecard = {
       score_nlrb: 5.0,
       score_osha: 3.0,
@@ -110,8 +109,12 @@ describe('ScorecardSection', () => {
     }
 
     render(<ScorecardSection scorecard={scorecard} />)
-    expect(screen.getByText(/3 of 8 factors available/)).toBeInTheDocument()
-    expect(screen.getByText(/38% coverage/)).toBeInTheDocument()
+    // Total coverage counts all factors (direct + indirect)
+    expect(screen.getByText(/3 of 9 factors/)).toBeInTheDocument()
+    expect(screen.getByText(/33%/)).toBeInTheDocument()
+    // Direct evidence counts only OSHA/NLRB/WHD/contracts/financial (2 of 5 here)
+    expect(screen.getByText(/2 of 5 factors/)).toBeInTheDocument()
+    expect(screen.getByText(/40%/)).toBeInTheDocument()
   })
 
   it('renders ScoreGauge SVG elements for non-null values', () => {

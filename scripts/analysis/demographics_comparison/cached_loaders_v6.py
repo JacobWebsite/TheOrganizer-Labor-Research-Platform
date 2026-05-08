@@ -16,9 +16,9 @@ from methodologies import (
 )
 from methodologies_v3 import OPTIMAL_DAMPENING_BY_GROUP
 from methodologies_v5 import (
-    apply_floor, smoothed_ipf, smoothed_variable_dampened_ipf,
+    smoothed_ipf, smoothed_variable_dampened_ipf,
 )
-from methodologies_v6 import _qcew_adaptive_alpha, _occupation_weighted_gender
+from methodologies_v6 import _qcew_adaptive_alpha
 from data_loaders import (
     get_lodes_industry_race, get_lodes_industry_hispanic,
     get_qcew_concentration,
@@ -27,7 +27,6 @@ from data_loaders import (
     get_occ_chain_demographics,
 )
 from classifiers import classify_naics_group
-from config import NAICS_TO_CNS
 import os as _os
 import json as _json
 
@@ -160,9 +159,9 @@ class CachedLoadersV6(CachedLoadersV5):
         # Look up tracts for this ZIP
         try:
             self.cur.execute("""
-                SELECT tract, bus_ratio
+                SELECT tract_geoid, bus_ratio
                 FROM zip_tract_crosswalk
-                WHERE zip = %s AND bus_ratio > 0
+                WHERE zip_code = %s AND bus_ratio > 0
             """, (zipcode,))
             rows = self.cur.fetchall()
         except Exception:
