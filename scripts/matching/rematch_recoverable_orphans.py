@@ -13,30 +13,52 @@ the SQL layer:
 
     Tier  Method                          Confidence
     ----  ------------------------------  ----------
-     1    NAME_STANDARD_STATE_EXACT       1.00
-     2    NAME_STANDARD_STATE_ZIP_EXACT   1.00 (when zips agree)
-     3    NAME_AGGRESSIVE_STATE_EXACT     0.95
-     4    NAME_STANDARD_STATE_TRIGRAM     0.85-0.99 (similarity)
+     1    NAME_STANDARD_STATE_ZIP_EXACT   1.00
+     2    NAME_STANDARD_STATE_EXACT       0.98
+     3    NAME_AGGRESSIVE_STATE_EXACT     0.92
+     4    NAME_STANDARD_STATE_TRIGRAM     0.85-0.99 (deferred)
+
+Every candidate is then run through the Haiku-distilled rule engine
+(`scripts/llm_dedup/rule_engine.py::classify_pair_v2`, validated
+against 31,532 Haiku-labeled pairs) which:
+  * VETOES tier_series_demoted matches (H4 series fragments + reversed
+    person-name pairs that the SQL can't see)
+  * UPGRADES scores when tier_A or tier_B rules fire (e.g.,
+    NAME_AGGRESSIVE 0.92 lifts to 0.96 when H16 source-diverse-address
+    + H1 punctuation-invariant both fire)
+  * ROUTES tier_C matches to a separate review-queue CSV instead of
+    auto-writing them on --commit
+  * TAGS every kept match with rule_engine_tier + rule_engine_rule +
+    rule_engine_precision so the audit trail shows WHY each write
+    happened
 
 The best match across sources, per orphan, becomes the recommended
 write. Per-source counts + sample matches at each tier go into a
 CSV + summary report for review.
 
-Usage (DRY-RUN, default):
+Usage (DRY-RUN, default — rule engine ON):
     py scripts/matching/rematch_recoverable_orphans.py
     py scripts/matching/rematch_recoverable_orphans.py --limit 1000
-    py scripts/matching/rematch_recoverable_orphans.py --min-score 0.90
+    py scripts/matching/rematch_recoverable_orphans.py \\
+        --out-csv /tmp/orphan_rematch.csv \\
+        --review-csv /tmp/orphan_rematch_review.csv
+
+Usage (DIFF against the 2026-05-06 baseline run with rule engine off):
+    py scripts/matching/rematch_recoverable_orphans.py --no-rule-engine
 
 Usage (COMMIT, gated -- requires Jacob review of dry-run report first):
     py scripts/matching/rematch_recoverable_orphans.py --commit \\
-        --min-score 0.90 \\
-        --out-csv /tmp/orphan_rematch_2026_05_06.csv
+        --min-score 0.96 \\
+        --out-csv /tmp/orphan_rematch.csv
 
-The --commit flag writes one unified_match_log row per matched
-orphan with status='active', match_method=the V2 method that fired,
-and source/target IDs filled in. Conflict resolution: if an orphan
-already has an active match by the time --commit runs (race with
-another rematch), the new write is skipped, NOT overwritten.
+The --commit flag writes one unified_match_log row per matched orphan
+with status='active', match_method=the V2 method that fired,
+confidence_score=score (possibly upgraded by the rule engine), and
+evidence carrying both the V2 method and the rule_engine verdict.
+Conflict resolution: if an orphan already has an active match by the
+time --commit runs (race with another rematch), the new write is
+skipped, NOT overwritten — enforced inside a single
+INSERT...SELECT...WHERE NOT EXISTS statement.
 """
 from __future__ import annotations
 
@@ -45,6 +67,7 @@ import csv
 import json
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 # Project root for imports
@@ -52,21 +75,43 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from db_config import get_connection
 
+# scripts/llm_dedup/rule_engine.py — Haiku-distilled rule engine
+# (calibrated against 31,532 Haiku-labeled pairs from the 2026-04-16 NY
+# singleton batch; H1-H16 + person-name demoter + EIN-conflict veto).
+# Imported here so the rematch executor classifies every SQL-cascade
+# candidate through the same engine that runs in the master-pair LLM
+# dedup pipeline — eliminates the gap Jacob flagged: "are we using
+# the logic we distilled from the anthropic api runs?" (B.3.x Option C
+# integration, 2026-05-08).
+from scripts.llm_dedup.rule_engine import classify_pair_v2  # noqa: E402,F401
+
 
 # ----------------------------------------------------------------------
 # Config
 # ----------------------------------------------------------------------
 
-# Sources to attempt matching against. Each entry: (source_system,
-# table_name, name_normalized_col, state_col, zip_col).
+# Sources to attempt matching against. Each entry:
+#   (key, table, name_normalized_col, state_col, zip_col,
+#    display_col, city_col, ein_col)
+#
+# display_col, city_col, ein_col were added 2026-05-08 (B.3.x Option C)
+# so we can pull the additional fields the rule engine needs for H1-H16
+# evaluation. ein_col is None for sources that don't carry a federal
+# tax ID (OSHA, WHD, SAM) — the rule engine handles missing EINs by
+# simply not firing H13 / not vetoing on EIN conflict.
+#
 # Order matters only for tie-breaking (sources earlier in the list win
 # at equal score; OSHA first because it's the highest-recovery source
 # per the F7 Orphan Rate Open Problem note).
 SOURCES = [
-    ("osha",  "osha_establishments", "estab_name_normalized",   "site_state",     "site_zip"),
-    ("whd",   "whd_cases",           "name_normalized",         "state",          "zip_code"),
-    ("990",   "national_990_filers", "name_normalized",         "state",          "zip_code"),
-    ("sam",   "sam_entities",        "name_normalized",         "physical_state", "physical_zip"),
+    ("osha",  "osha_establishments", "estab_name_normalized",   "site_state",     "site_zip",
+        "estab_name",          "site_city",      None),
+    ("whd",   "whd_cases",           "name_normalized",         "state",          "zip_code",
+        "trade_name",          "city",           None),
+    ("990",   "national_990_filers", "name_normalized",         "state",          "zip_code",
+        "business_name",       "city",           "ein"),
+    ("sam",   "sam_entities",        "name_normalized",         "physical_state", "physical_zip",
+        "legal_business_name", "physical_city",  None),
 ]
 
 # Source-record-id columns by source.
@@ -113,8 +158,28 @@ def fetch_orphan_count(cur) -> int:
     return int(row[0] if isinstance(row, tuple) else row["count"])
 
 
-def attempt_match(cur, source, name_col, state_col, zip_col, tier, limit=None):
-    """Run a single (source, tier) match attempt. Returns list of dicts."""
+SOURCES_BY_KEY = {
+    s[0]: {
+        "table":       s[1],
+        "name_col":    s[2],
+        "state_col":   s[3],
+        "zip_col":     s[4],
+        "display_col": s[5],
+        "city_col":    s[6],
+        "ein_col":     s[7],
+    }
+    for s in SOURCES
+}
+
+
+def attempt_match(cur, source, name_col, state_col, zip_col, tier, limit=None,
+                  display_col=None, city_col=None, ein_col=None):
+    """Run a single (source, tier) match attempt. Returns list of dicts.
+
+    Pulls the additional fields the rule engine needs (display name, city,
+    EIN, source zip) so the post-fetch pass can run classify_pair_v2
+    without a second round-trip. Sources missing a column emit NULL.
+    """
     if tier.get("requires_zip"):
         zip_filter = "AND f.zip IS NOT NULL AND f.zip <> ''"
     else:
@@ -122,15 +187,25 @@ def attempt_match(cur, source, name_col, state_col, zip_col, tier, limit=None):
     where = tier["where"].format(name_col=name_col, state_col=state_col, zip_col=zip_col)
     src_id_col = SOURCE_ID_COL[source]
     limit_clause = f"LIMIT {int(limit)}" if limit else ""
+    # Optional columns: emit NULL if the source table doesn't carry that field.
+    src_display_expr = f"s.{display_col}" if display_col else "NULL"
+    src_city_expr    = f"s.{city_col}"    if city_col    else "NULL"
+    src_ein_expr     = f"s.{ein_col}"     if ein_col     else "NULL"
     sql = f"""
         SELECT
             f.employer_id        AS f7_employer_id,
             f.employer_name      AS f7_name,
             f.state              AS f7_state,
+            f.zip                AS f7_zip,
+            f.city               AS f7_city,
             f.name_standard      AS f7_name_standard,
             s.{src_id_col}       AS source_id,
             s.{name_col}         AS source_name_norm,
-            s.{state_col}        AS source_state
+            s.{state_col}        AS source_state,
+            s.{zip_col}          AS source_zip,
+            {src_display_expr}   AS source_display,
+            {src_city_expr}      AS source_city,
+            {src_ein_expr}       AS source_ein
         FROM f7_employers_deduped f
         JOIN _recoverable_f7_orphans o ON o.employer_id = f.employer_id
         JOIN {SOURCES_BY_KEY[source]['table']} s ON {where}
@@ -146,16 +221,108 @@ def attempt_match(cur, source, name_col, state_col, zip_col, tier, limit=None):
             "f7_employer_id":   rd["f7_employer_id"],
             "f7_name":          (rd.get("f7_name") or "").strip(),
             "f7_state":         rd.get("f7_state"),
+            "f7_zip":           rd.get("f7_zip"),
+            "f7_city":          rd.get("f7_city"),
             "source":           source,
             "source_id":        str(rd["source_id"]) if rd.get("source_id") is not None else None,
             "source_name_norm": rd.get("source_name_norm"),
+            "source_zip":       rd.get("source_zip"),
+            "source_display":   rd.get("source_display"),
+            "source_city":      rd.get("source_city"),
+            "source_ein":       rd.get("source_ein"),
             "method":           tier["method"],
             "score":            tier["score"],
         })
     return out
 
 
-SOURCES_BY_KEY = {s[0]: {"table": s[1], "name_col": s[2], "state_col": s[3], "zip_col": s[4]} for s in SOURCES}
+# ----------------------------------------------------------------------
+# Rule engine integration (B.3.x Option C, 2026-05-08)
+# ----------------------------------------------------------------------
+
+def _build_rule_engine_pair(match: dict) -> dict:
+    """Build the flat dict that classify_pair_v2 expects from a rematch
+    candidate. The rule engine was originally designed for master-pair
+    classification; the same pair-shape works for F7-orphan ↔ source
+    classification because all fields it consults are pair-symmetric.
+
+    Notes on each field:
+      - display_name_X / canonical_name_X: rule engine prefers
+        canonical_name and falls back to display_name. F7 has no separate
+        canonical column, so we set both to the F7 employer_name.
+      - source_X: 'f7' vs the foreign source label ('osha', 'whd', '990',
+        'sam') -- always different, so H3 (cross-source-corroboration)
+        always passes the source-diversity guard.
+      - zip5_match: computed from the raw zips. The rule engine consults
+        this to gate ZIP-required rules (H6, H9, H11, H12, H15, H16).
+      - ein_X: F7 has no EIN, so ein_1 is always None. ein_2 may be set
+        for 990 rows. The rule engine handles missing EINs gracefully:
+        H13 (EIN match alone) requires both EINs present so it never
+        fires here; ein_conflict is also impossible.
+      - name_standard_sim / name_aggressive_sim: derived from the V2
+        method that fired. NAME_STANDARD_* implies the standard-form
+        names matched exactly (sim=1.0); NAME_AGGRESSIVE means
+        aggressive matched but standard might not, so we set
+        standard_sim=0.85 (above H3's 0.85 floor) and aggressive_sim=1.0.
+    """
+    method = match.get("method", "")
+    if method.startswith("NAME_STANDARD"):
+        ns_sim, na_sim = 1.0, 1.0
+    elif method.startswith("NAME_AGGRESSIVE"):
+        ns_sim, na_sim = 0.85, 1.0
+    else:
+        ns_sim, na_sim = 0.0, 0.0
+    f7_zip5  = (match.get("f7_zip")     or "")[:5]
+    src_zip5 = (match.get("source_zip") or "")[:5]
+    zip5_match = 1.0 if (f7_zip5 and src_zip5 and f7_zip5 == src_zip5) else 0.0
+    return {
+        "display_name_1":      match.get("f7_name") or "",
+        "display_name_2":      match.get("source_display") or match.get("source_name_norm") or "",
+        "canonical_name_1":    match.get("f7_name") or "",
+        "canonical_name_2":    match.get("source_display") or match.get("source_name_norm") or "",
+        "source_1":            "f7",
+        "source_2":            match.get("source") or "",
+        "zip_1":               match.get("f7_zip"),
+        "zip_2":               match.get("source_zip"),
+        "ein_1":               None,                       # F7 carries no EIN
+        "ein_2":               match.get("source_ein"),    # only 990 supplies one
+        "city_1":              match.get("f7_city"),
+        "city_2":              match.get("source_city"),
+        "name_standard_sim":   ns_sim,
+        "name_aggressive_sim": na_sim,
+        "zip5_match":          zip5_match,
+        "ein_match":           0,
+        "ein_conflict":        0,
+    }
+
+
+def classify_with_rule_engine(match: dict) -> dict:
+    """Apply classify_pair_v2 to a SQL-cascade match candidate.
+
+    Mutates the match dict in place with rule_engine_tier /
+    rule_engine_rule / rule_engine_precision. Also UPGRADES the score
+    when the rule engine confirms a higher precision than the SQL
+    method's static score (e.g., NAME_AGGRESSIVE 0.92 lifts to 0.96
+    when H16 source-diverse-address fires).
+
+    Caller policy:
+      tier_series_demoted   -> drop the match (rule engine veto)
+      tier_A_auto_merge     -> keep, score upgraded to max(0.96, sql_score)
+      tier_B_high_conf      -> keep, score upgraded to max(0.91, sql_score)
+      tier_C_review         -> keep but route to review queue, not auto-write
+      tier_D_different      -> keep at SQL score (no rule fired but the
+                               SQL exact-name match is still strong evidence)
+    """
+    pair = _build_rule_engine_pair(match)
+    classification = classify_pair_v2(pair)
+    match["rule_engine_tier"]      = classification.tier
+    match["rule_engine_rule"]      = classification.rule or ""
+    match["rule_engine_precision"] = classification.expected_precision
+    if classification.tier == "tier_A_auto_merge":
+        match["score"] = max(match["score"], 0.96)
+    elif classification.tier == "tier_B_high_conf":
+        match["score"] = max(match["score"], 0.91)
+    return match
 
 
 def run_dry_run(args):
@@ -174,10 +341,13 @@ def run_dry_run(args):
     by_source: dict[str, dict] = {s[0]: {"by_tier": {}, "total": 0} for s in SOURCES}
 
     t0 = time.time()
-    for source_key, table, name_col, state_col, zip_col in SOURCES:
+    for source_key, _table, name_col, state_col, zip_col, display_col, city_col, ein_col in SOURCES:
         for tier in TIERS:
             ts = time.time()
-            matches = attempt_match(cur, source_key, name_col, state_col, zip_col, tier, args.limit)
+            matches = attempt_match(
+                cur, source_key, name_col, state_col, zip_col, tier, args.limit,
+                display_col=display_col, city_col=city_col, ein_col=ein_col,
+            )
             took = time.time() - ts
             n_unique_orphans = len({m["f7_employer_id"] for m in matches})
             by_source[source_key]["by_tier"][tier["method"]] = {
@@ -188,6 +358,47 @@ def run_dry_run(args):
             by_source[source_key]["total"] += n_unique_orphans
             print(f"  {source_key:>5} / {tier['method']:<32} -> {n_unique_orphans:>5} orphans ({len(matches):>5} rows) in {took:>5.1f}s")
             all_matches.extend(matches)
+        print()
+
+    # Rule engine pass (B.3.x Option C, 2026-05-08).
+    # Run the Haiku-distilled engine on every SQL-cascade candidate.
+    # Veto on tier_series_demoted; tag the rest. The rule engine is
+    # cheap pure-Python so this adds <1s on the full 15K candidate
+    # set. Disabled with --no-rule-engine for diff-against-old-runs.
+    review_queue: list[dict] = []
+    if args.no_rule_engine:
+        print("Rule engine: SKIPPED (--no-rule-engine)")
+        print()
+    else:
+        re_t0 = time.time()
+        re_counts: dict[str, int] = {
+            "tier_series_demoted": 0,
+            "tier_A_auto_merge":   0,
+            "tier_B_high_conf":    0,
+            "tier_C_review":       0,
+            "tier_D_different":    0,
+        }
+        kept_matches: list[dict] = []
+        for m in all_matches:
+            classify_with_rule_engine(m)
+            tier_name = m["rule_engine_tier"]
+            re_counts[tier_name] = re_counts.get(tier_name, 0) + 1
+            if tier_name == "tier_series_demoted":
+                # VETO: H4-series-fragment or person-name false sibling.
+                # Drop entirely — these are NEVER real duplicates.
+                continue
+            if tier_name == "tier_C_review":
+                # Keep in main pool but ALSO surface for human review.
+                review_queue.append(m)
+            kept_matches.append(m)
+        all_matches = kept_matches
+        print(f"Rule engine pass: {sum(re_counts.values()):,} candidates classified in {time.time() - re_t0:.1f}s")
+        for tier_name in ("tier_A_auto_merge", "tier_B_high_conf",
+                          "tier_C_review", "tier_D_different",
+                          "tier_series_demoted"):
+            print(f"  {tier_name:<24} {re_counts[tier_name]:>6,}")
+        print(f"  vetoed (dropped): {re_counts['tier_series_demoted']:,}")
+        print(f"  review queue:     {len(review_queue):,}")
         print()
 
     # Best-match-per-orphan: keep highest-score tier; ties broken by
@@ -216,7 +427,8 @@ def run_dry_run(args):
     by_source_best: dict[str, dict[str, int]] = {s[0]: {} for s in SOURCES}
     for m in best_by_orphan.values():
         by_source_best[m["source"]][m["method"]] = by_source_best[m["source"]].get(m["method"], 0) + 1
-    for src, _, _, _, _ in SOURCES:
+    for src_tuple in SOURCES:
+        src = src_tuple[0]
         total = sum(by_source_best[src].values())
         breakdown = ", ".join(f"{meth}: {n}" for meth, n in sorted(by_source_best[src].items(), key=lambda x: -x[1]))
         print(f"  {src:<6} {total:>22,}  {breakdown}")
@@ -231,16 +443,40 @@ def run_dry_run(args):
 
     # Optional CSV output
     if args.out_csv:
+        # Keep the original 8 columns at the front (existing schema lock
+        # in tests/test_rematch_recoverable_orphans.py). Append rule
+        # engine columns at the end so older parsers still work.
+        fieldnames = [
+            "f7_employer_id", "f7_name", "f7_state",
+            "source", "source_id", "source_name_norm",
+            "method", "score",
+            "rule_engine_tier", "rule_engine_rule", "rule_engine_precision",
+        ]
         with open(args.out_csv, "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=[
-                "f7_employer_id", "f7_name", "f7_state",
-                "source", "source_id", "source_name_norm",
-                "method", "score",
-            ])
+            w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             w.writeheader()
             for m in best_by_orphan.values():
                 w.writerow(m)
         print(f"\nWrote best-match CSV: {args.out_csv} ({len(best_by_orphan):,} rows)")
+
+    # Optional review-queue CSV (rule_engine_tier == 'tier_C_review').
+    # These are matches the rule engine flagged for human spot-check —
+    # they pass the SQL exact-match floor but have weaker rule
+    # corroboration. Don't auto-write; review first.
+    if args.review_csv and review_queue:
+        review_fields = [
+            "f7_employer_id", "f7_name", "f7_state",
+            "source", "source_id", "source_name_norm",
+            "source_display", "source_city", "source_ein",
+            "method", "score",
+            "rule_engine_tier", "rule_engine_rule", "rule_engine_precision",
+        ]
+        with open(args.review_csv, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=review_fields, extrasaction="ignore")
+            w.writeheader()
+            for m in review_queue:
+                w.writerow(m)
+        print(f"Wrote review-queue CSV: {args.review_csv} ({len(review_queue):,} rows)")
 
     # Sample matches per tier for spot-checking
     print()
@@ -248,7 +484,8 @@ def run_dry_run(args):
     print("\nSAMPLE MATCHES (top 3 per tier per source) -- for review")
     print("=" * 70)
     seen = set()
-    for source_key, _, _, _, _ in SOURCES:
+    for src_tuple in SOURCES:
+        source_key = src_tuple[0]
         for tier in TIERS:
             n = 0
             for m in all_matches:
@@ -354,8 +591,15 @@ def _commit_writes(conn, matches):
                 "band":     _confidence_band(m["method"]),
                 "score":    float(m["score"]),
                 "evidence": json.dumps({
-                    "source_name_norm": m["source_name_norm"],
-                    "rematch_run":      "B.3.x_orphan_recovery_2026_05_06",
+                    "source_name_norm":       m["source_name_norm"],
+                    "rematch_run":            "B.3.x_orphan_recovery_2026_05_08",
+                    # Rule engine verdict (B.3.x Option C). Null when
+                    # --no-rule-engine was used. Lets us audit later
+                    # which writes were rule-engine-corroborated vs
+                    # SQL-only.
+                    "rule_engine_tier":       m.get("rule_engine_tier"),
+                    "rule_engine_rule":       m.get("rule_engine_rule"),
+                    "rule_engine_precision":  m.get("rule_engine_precision"),
                 }),
             },
         )
@@ -386,6 +630,14 @@ def main():
                         help="Smoke-test mode: limit each (source, tier) query to N rows")
     parser.add_argument("--out-csv", type=str, default=None,
                         help="Path to write best-match CSV for review")
+    parser.add_argument("--review-csv", type=str, default=None,
+                        help="Path to write the rule-engine 'tier_C_review' subset "
+                             "(matches that pass SQL exact-match but have weaker rule "
+                             "corroboration; recommended pre-commit step)")
+    parser.add_argument("--no-rule-engine", action="store_true",
+                        help="Skip the Haiku-distilled rule engine pass. Useful for "
+                             "diff-against-old-runs (the original 1,184-match dry-run "
+                             "from 2026-05-06 was generated with this off).")
     parser.add_argument("--min-score", type=float, default=None,
                         help="Apply this score floor at commit time (e.g. 0.92, 0.95, 1.00)")
     args = parser.parse_args()
