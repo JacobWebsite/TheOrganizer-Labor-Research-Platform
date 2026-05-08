@@ -858,9 +858,25 @@ def get_union_detail(f_num: str, consolidated: bool = True):
             if not union:
                 raise HTTPException(status_code=404, detail="Union not found")
 
-            # F-7 employers -- optionally consolidated
+            # F-7 employers -- optionally consolidated.
+            # Filter out stale-with-zero-workers relations: when unit_size=0
+            # AND the most recent notice_date is >10 years old, the relationship
+            # is functionally dead and should not surface as a "current top
+            # employer" (Open Problem: Stale F7 Relations Surfaced as Current
+            # Employers, found via Layer 4 audit on f_num=21577 / CWA Local 4320
+            # / Tru-Bore Technologies, 2010 filing).
+            # Uses e.latest_notice_date directly (which agrees with the per-pair
+            # latest from f7_union_employer_relations 98.8% of the time, verified
+            # 2026-05-08).
+            stale_filter = """
+                  AND NOT (
+                      COALESCE(e.latest_unit_size, 0) = 0
+                      AND e.latest_notice_date IS NOT NULL
+                      AND e.latest_notice_date::date < NOW()::date - INTERVAL '10 years'
+                  )
+            """
             if consolidated:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT
                         COALESCE(g.canonical_employer_id, e.employer_id) AS employer_id,
                         COALESCE(g.canonical_name, e.employer_name) AS employer_name,
@@ -872,15 +888,17 @@ def get_union_detail(f_num: str, consolidated: bool = True):
                     LEFT JOIN employer_canonical_groups g ON e.canonical_group_id = g.group_id
                     WHERE e.latest_union_fnum = %s
                       AND (e.is_canonical_rep = TRUE OR e.canonical_group_id IS NULL)
+                      {stale_filter}
                     ORDER BY COALESCE(g.consolidated_workers, e.latest_unit_size) DESC NULLS LAST
                     LIMIT 20
                 """, [f_num])
             else:
-                cur.execute("""
-                    SELECT employer_id, employer_name, city, state, latest_unit_size
-                    FROM f7_employers_deduped
-                    WHERE latest_union_fnum = %s
-                    ORDER BY latest_unit_size DESC NULLS LAST LIMIT 20
+                cur.execute(f"""
+                    SELECT e.employer_id, e.employer_name, e.city, e.state, e.latest_unit_size
+                    FROM f7_employers_deduped e
+                    WHERE e.latest_union_fnum = %s
+                      {stale_filter}
+                    ORDER BY e.latest_unit_size DESC NULLS LAST LIMIT 20
                 """, [f_num])
             employers = cur.fetchall()
 
@@ -1126,8 +1144,19 @@ def get_union_employers(
             if not union:
                 raise HTTPException(status_code=404, detail="Union not found")
 
+            # Same stale-with-zero-workers filter as /api/unions/{f_num}
+            # (Open Problem: Stale F7 Relations Surfaced as Current Employers,
+            # 2026-05-08). Defined inline here since the function does not
+            # share scope with get_union_detail.
+            stale_filter = """
+                  AND NOT (
+                      COALESCE(e.latest_unit_size, 0) = 0
+                      AND e.latest_notice_date IS NOT NULL
+                      AND e.latest_notice_date::date < NOW()::date - INTERVAL '10 years'
+                  )
+            """
             if consolidated:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT
                         COALESCE(g.canonical_employer_id, e.employer_id) AS employer_id,
                         COALESCE(g.canonical_name, e.employer_name) AS employer_name,
@@ -1142,11 +1171,12 @@ def get_union_employers(
                     LEFT JOIN cbsa_definitions c ON e.cbsa_code = c.cbsa_code
                     WHERE e.latest_union_fnum = %s
                       AND (e.is_canonical_rep = TRUE OR e.canonical_group_id IS NULL)
+                      {stale_filter}
                     ORDER BY COALESCE(g.consolidated_workers, e.latest_unit_size) DESC NULLS LAST
                     LIMIT %s
                 """, [f_num, limit])
             else:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT e.employer_id, e.employer_name, e.city, e.state, e.naics,
                            e.latest_unit_size, e.latest_notice_date,
                            c.cbsa_title as metro_name,
@@ -1156,6 +1186,7 @@ def get_union_employers(
                     LEFT JOIN employer_canonical_groups g ON e.canonical_group_id = g.group_id
                     LEFT JOIN cbsa_definitions c ON e.cbsa_code = c.cbsa_code
                     WHERE e.latest_union_fnum = %s
+                      {stale_filter}
                     ORDER BY e.latest_unit_size DESC NULLS LAST
                     LIMIT %s
                 """, [f_num, limit])
