@@ -37,6 +37,22 @@
 
 No formal roadmap items closed. Audit harness is a NEW capability not in MERGED_ROADMAP_2026_04_25.md; should be added under "platform hygiene" once user reviews.
 
+## Post-/wrapup Continuation (2026-05-05 PM -> 2026-05-06)
+
+**4 Codex bugs in the harness itself, all fixed before /ship:**
+1. Orchestrator masked L1 hard failures (--no-fail-on-hard removed)
+2. L6 treated all 404s as passing (now only /health, /assets may 404)
+3. L6 type checks accepted None for required fields (Optional marker added)
+4. L1 financial_trends_overcount_regression was a tautology -- renamed to financial_trends_data_shape_sanity; real regression guard moved to L6 sentinel (SEIU Local 1 assets ~$14.6M, fail >$50M)
+
+**Hierarchy classifier deep-dive:** initial fix proposal "switch endpoint to canonical view" was insufficient. The underlying `union_hierarchy.count_members` flag is wrong for 100+ affiliations including CWA, AFSCME, IATSE, IBEW, USW, PPF, AFGE -- all International HQ rows tagged FEDERATION while a coincidentally-named local got tagged INTERNATIONAL. A naive "biggest row per aff" rebuild would explode the BLS-aligned 14.5M total to 43.3M (3x too high). Added L1 check `hierarchy_classifier_picks_dominant_row` to catch this until properly fixed. Open Problem updated to critical / significant effort; deferred.
+
+**L4 reasoner JSON parser fix:** _extract_json_object() now strips thinking-content prefix and parses first balanced {...}.
+
+**/ship: 1330/1330 backend pass (after rebuilding mv_employer_search), 364/364 frontend pass. Commit 6c1570b on ship/2026-05-03-multi-sprint-bundle, pushed a90c78e..6c1570b. 15 files (3,409 insertions).**
+
+**L4 paid sweep:** 344/344 valid V3 rubrics, $0.456, avg 4.08/5. 68 unions flagged dim<=2 (mostly federal/RLA election_volume; some size_sanity overlap with hierarchy classifier). First attempt killed prematurely at 39min with $0.82 spent because Windows pipe buffering masked the work as a hang. Total L4 spend $1.276 of $10. Reserve $8.72.
+
 ## Debugging Notes
 
 - **Windows stdout buffering on concurrent subprocesses can mask completion entirely.** A 270-union DeepSeek run at concurrency 8 ran for 30+ min with 0 bytes in the output file before I killed it. Use `python -u` for any background Python you want to monitor. The Monitor tool's `tail -F | grep` only sees lines once Python flushes -- without `-u`, the buffer holds everything until process exit.
