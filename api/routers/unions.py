@@ -868,10 +868,16 @@ def get_union_detail(f_num: str, consolidated: bool = True):
             # Uses e.latest_notice_date directly (which agrees with the per-pair
             # latest from f7_union_employer_relations 98.8% of the time, verified
             # 2026-05-08).
+            # Regex guard before the date cast so malformed text values (a
+            # latent ETL risk -- 0 occurrences in current data, but Codex
+            # flagged the cast as a 500-the-endpoint hazard 2026-05-08) do
+            # not abort the query. Same precedent as
+            # api/data_source_catalog.py's regex-then-cast pattern.
             stale_filter = """
                   AND NOT (
                       COALESCE(e.latest_unit_size, 0) = 0
                       AND e.latest_notice_date IS NOT NULL
+                      AND e.latest_notice_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
                       AND e.latest_notice_date::date < NOW()::date - INTERVAL '10 years'
                   )
             """
@@ -1148,10 +1154,16 @@ def get_union_employers(
             # (Open Problem: Stale F7 Relations Surfaced as Current Employers,
             # 2026-05-08). Defined inline here since the function does not
             # share scope with get_union_detail.
+            # Regex guard before the date cast so malformed text values (a
+            # latent ETL risk -- 0 occurrences in current data, but Codex
+            # flagged the cast as a 500-the-endpoint hazard 2026-05-08) do
+            # not abort the query. Same precedent as
+            # api/data_source_catalog.py's regex-then-cast pattern.
             stale_filter = """
                   AND NOT (
                       COALESCE(e.latest_unit_size, 0) = 0
                       AND e.latest_notice_date IS NOT NULL
+                      AND e.latest_notice_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
                       AND e.latest_notice_date::date < NOW()::date - INTERVAL '10 years'
                   )
             """
