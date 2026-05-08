@@ -306,10 +306,16 @@ def classify_with_rule_engine(match: dict) -> dict:
     when H16 source-diverse-address fires).
 
     Caller policy:
-      tier_series_demoted   -> drop the match (rule engine veto)
+      tier_series_demoted   -> DROP the match (rule engine veto)
       tier_A_auto_merge     -> keep, score upgraded to max(0.96, sql_score)
       tier_B_high_conf      -> keep, score upgraded to max(0.91, sql_score)
-      tier_C_review         -> keep but route to review queue, not auto-write
+      tier_C_review         -> keep in main pool AND ALSO route to the
+                               --review-csv file. Note: tier_C still gets
+                               written on --commit if its score passes
+                               --min-score; the review-csv is a parallel
+                               audit artifact, not an additional gate. To
+                               write only rule-engine-confirmed matches,
+                               set --min-score 0.96 (or higher).
       tier_D_different      -> keep at SQL score (no rule fired but the
                                SQL exact-name match is still strong evidence)
     """
