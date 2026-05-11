@@ -81,6 +81,23 @@ export function useMasterEpaEcho(masterId, { enabled = true } = {}) {
   })
 }
 
+// Week 3 A.2: combined geocoded facilities (EPA + F-7 + Mergent) for the
+// FacilitiesMapCard on the master profile. Endpoint returns
+// { summary: { total_facilities, by_source, states }, facilities: [...] }.
+// Each facility has source, lat, lng, label, address, city, state, zip,
+// extra (source-specific). OSHA + NY ABO are intentionally omitted --
+// neither has lat/lng in the warehouse and geocoding them is its own
+// workstream.
+export function useMasterFacilities(masterId, { enabled = true, limit = 2000 } = {}) {
+  return useQuery({
+    queryKey: ['master-facilities', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/facilities?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 // 24Q-7: Mergent executive roster on the master profile.
 // Endpoint returns { summary, executives, source_freshness }.
 export function useMasterExecutives(masterId, { enabled = true, limit = 25 } = {}) {
