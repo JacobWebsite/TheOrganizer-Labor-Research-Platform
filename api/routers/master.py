@@ -215,11 +215,16 @@ def _search_impl(
           COALESCE(src.source_count, 0) AS source_count
           {ts_select}
         FROM master_employers m
-        LEFT JOIN (
-          SELECT master_id, COUNT(DISTINCT source_system) AS source_count
+        LEFT JOIN LATERAL (
+          -- LATERAL with WHERE clause lets PG compute source_count only for
+          -- the rows surviving the outer filters + LIMIT, instead of
+          -- aggregating all of master_employer_source_ids upfront.
+          -- 2026-05-11 perf fix: dropped this endpoint from ~24s to ~2.2s
+          -- on the 2.6M-row non-union-targets query.
+          SELECT COUNT(DISTINCT source_system) AS source_count
           FROM master_employer_source_ids
-          GROUP BY master_id
-        ) src ON src.master_id = m.{pk_col}
+          WHERE master_id = m.{pk_col}
+        ) src ON TRUE
         {ts_join}
         WHERE {where}
         ORDER BY {sort_col} {order_dir} NULLS LAST, m.{pk_col}
