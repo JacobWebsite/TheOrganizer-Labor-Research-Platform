@@ -6,6 +6,7 @@ import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
 import { SourceFreshnessFooter } from '@/shared/components/SourceFreshnessFooter'
 import { useEmployerWhd } from '@/shared/api/profile'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function formatCurrency(n) {
   if (n == null) return '$0'
@@ -24,10 +25,54 @@ function formatVintageDate(d) {
 }
 
 export function WhdCard({ employerId, sourceAttribution, dataSources }) {
-  const { data, isLoading } = useEmployerWhd(employerId)
+  const { data, isLoading, isError, refetch } = useEmployerWhd(employerId)
   const [showAll, setShowAll] = useState(false)
 
-  if (isLoading) return null
+  // Loading state: skeleton placeholder matching the final layout.
+  if (isLoading) {
+    return (
+      <CollapsibleCard
+        icon={Scale}
+        title="Wage & Hour (WHD)"
+        summary="Loading..."
+        defaultOpen
+      >
+        <div className="space-y-4" data-testid="whd-card-skeleton">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </CollapsibleCard>
+    )
+  }
+
+  // Error state: amber panel with a retry button. Visible but not alarming.
+  if (isError) {
+    return (
+      <CollapsibleCard
+        icon={Scale}
+        title="Wage & Hour (WHD)"
+        summary="Error loading data"
+        defaultOpen
+      >
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <p className="mb-2">Could not load Wage & Hour data. Try again or check back shortly.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </CollapsibleCard>
+    )
+  }
 
   // If no data at all, show warning instead of hiding
   if (!data || (!data.whd_summary && (!data.cases || data.cases.length === 0))) {
@@ -37,7 +82,7 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
           <p>
             No Wage & Hour Division records have been matched to this employer. This does{' '}
-            <strong>not</strong> mean no violations exist — it may mean our matching has not yet
+            <strong>not</strong> mean no violations exist &mdash; it may mean our matching has not yet
             connected this employer to WHD case records.
           </p>
         </div>
@@ -115,6 +160,15 @@ export function WhdCard({ employerId, sourceAttribution, dataSources }) {
             <div className="font-medium">{formatCurrency(totalPenalties)}</div>
           </div>
         </div>
+
+        {/* Partial state: aggregate summary exists but no individual case rows.
+            Render an explicit per-section empty line so users see the
+            sub-section is intentionally empty, not missing. */}
+        {cases.length === 0 && (caseCount > 0 || backwages > 0 || totalPenalties > 0) && (
+          <p className="border-l-2 border-[#d9cebb] pl-3 text-xs italic text-muted-foreground">
+            Aggregate WHD totals are available but per-case detail has not been published.
+          </p>
+        )}
 
         {cases.length > 0 && (
           <div className="overflow-x-auto border">

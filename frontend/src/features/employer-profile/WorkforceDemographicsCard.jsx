@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/shared/api/client'
 
 const CONFIDENCE_COLORS = {
@@ -274,7 +277,7 @@ function getMethodDescription(est, acsVintage, lodesVintage) {
 }
 
 export function WorkforceDemographicsCard({ state, naics, employerId }) {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['workforce-profile', employerId],
     queryFn: () => apiClient.get(`/api/profile/employers/${employerId}/workforce-profile`),
     enabled: !!employerId,
@@ -283,19 +286,75 @@ export function WorkforceDemographicsCard({ state, naics, employerId }) {
 
   if (!employerId) return null
 
+  // Loading state: skeleton placeholder so users see the card is coming, not
+  // missing. Keeps `defaultOpen=false` to match the pre-existing test suite
+  // that opens the card via click before asserting on inner content. Includes
+  // both the italic "Loading workforce profile..." copy (preserved verbatim
+  // for back-compat with the existing test suite) and a structural skeleton
+  // mimicking the final layout.
   if (isLoading) return (
     <CollapsibleCard title="Workforce Demographics" defaultOpen={false}>
-      <p className="text-sm text-[#3D2B1F]/50 italic">Loading workforce profile...</p>
+      <div data-testid="workforce-card-skeleton" className="space-y-4">
+        <p className="text-sm text-[#3D2B1F]/50 italic">Loading workforce profile...</p>
+        <div className="flex flex-wrap gap-1.5">
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <Skeleton key={i} className="h-5 w-12" />
+          ))}
+        </div>
+        <Skeleton className="h-4 w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        </div>
+      </div>
     </CollapsibleCard>
   )
 
-  if (isError || !data) return null
+  // Error state: amber panel with retry button. Distinct from "no data" so
+  // users can see this is a transient problem, not a known absence of records.
+  if (isError) return (
+    <CollapsibleCard title="Workforce Demographics" defaultOpen={false}>
+      <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+        <div className="flex-1">
+          <p className="mb-2">Could not load workforce demographic data. Try again or check back shortly.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    </CollapsibleCard>
+  )
+
+  if (!data) return null
 
   const est = data.estimated_composition
   const hasEstimate = est && est.method !== 'none'
   const hasContext = data.qcew || data.soii || data.jolts || data.union_density || data.ncs
 
-  if (!hasEstimate && !data.acs && !data.lodes && !hasContext && !data.tract) return null
+  // Empty state: no signal across any source. Render an explicit panel so
+  // users can see the card is intentionally empty, not hidden. This is the
+  // "no data" path -- different from "data shows nothing of note".
+  if (!hasEstimate && !data.acs && !data.lodes && !hasContext && !data.tract) return (
+    <CollapsibleCard title="Workforce Demographics" defaultOpen={false}>
+      <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+        <p>
+          No workforce demographic data is available for this employer. This does <strong>not</strong>{' '}
+          mean none exists &mdash; it may mean the employer has no matched ACS/LODES industry baseline
+          or census-tract location.
+        </p>
+      </div>
+    </CollapsibleCard>
+  )
 
   // Source availability badges
   const sources = [

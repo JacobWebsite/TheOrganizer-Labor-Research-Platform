@@ -81,6 +81,23 @@ export function useMasterEpaEcho(masterId, { enabled = true } = {}) {
   })
 }
 
+// Week 3 A.2: combined geocoded facilities (EPA + F-7 + Mergent) for the
+// FacilitiesMapCard on the master profile. Endpoint returns
+// { summary: { total_facilities, by_source, states }, facilities: [...] }.
+// Each facility has source, lat, lng, label, address, city, state, zip,
+// extra (source-specific). OSHA + NY ABO are intentionally omitted --
+// neither has lat/lng in the warehouse and geocoding them is its own
+// workstream.
+export function useMasterFacilities(masterId, { enabled = true, limit = 2000 } = {}) {
+  return useQuery({
+    queryKey: ['master-facilities', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/facilities?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
 // 24Q-7: Mergent executive roster on the master profile.
 // Endpoint returns { summary, executives, source_freshness }.
 export function useMasterExecutives(masterId, { enabled = true, limit = 25 } = {}) {
@@ -147,6 +164,58 @@ export function useMasterBoard(masterId, { enabled = true, limit = 50 } = {}) {
     enabled: enabled && !!masterId,
     staleTime: 10 * 60 * 1000,
   })
+}
+
+// 24Q-15: Industry peers / competitors on the master profile.
+// Endpoint returns { master_id, naics, naics_label, size_band, peers, as_of }.
+// Each peer chip exposes name + workforce + tier so the frontend can
+// link to the peer's profile and show side-by-side context. Self is
+// always excluded from the peers array.
+export function useMasterCompetitors(masterId, { enabled = true, limit = 12 } = {}) {
+  return useQuery({
+    queryKey: ['master-competitors', masterId, limit],
+    queryFn: () =>
+      apiClient.get(`/api/employers/master/${masterId}/competitors?limit=${limit}`),
+    enabled: enabled && !!masterId,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+// 24Q-16/17/19: Supplier / customer / distribution-partner relationships
+// extracted from 10-K text mining. Each endpoint returns the same shape:
+// { master_id, relationship_type, source, as_of, items: [...],
+//   total_extracted, total_matched, stale }.
+//
+// `items[i]` exposes name, optional child_master_id (null = unmatched),
+// confidence (0-1), match_method, source_filing { cik, accession_number,
+// filing_date }, and a context blurb. The hook is a single shared helper
+// keyed on (masterId, type) so the cards stay symmetrical and the
+// QueryClient cache can dedupe per-type pulls.
+function _useRelationships(masterId, type, { enabled = true } = {}) {
+  const path =
+    type === 'distribution'
+      ? `distribution-partners`
+      : type === 'customers'
+      ? `customers`
+      : `suppliers`
+  return useQuery({
+    queryKey: ['master-relationships', masterId, type],
+    queryFn: () => apiClient.get(`/api/employers/master/${masterId}/${path}`),
+    enabled: enabled && !!masterId,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useMasterSuppliers(masterId, opts) {
+  return _useRelationships(masterId, 'suppliers', opts)
+}
+
+export function useMasterCustomers(masterId, opts) {
+  return _useRelationships(masterId, 'customers', opts)
+}
+
+export function useMasterDistributionPartners(masterId, opts) {
+  return _useRelationships(masterId, 'distribution', opts)
 }
 
 // 24Q-14 sister: director permalink. Returns all boards a director sits

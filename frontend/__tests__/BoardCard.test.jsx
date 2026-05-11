@@ -170,7 +170,7 @@ describe('BoardCard', () => {
     expect(screen.getByText('enerpac tool group corp')).toBeInTheDocument()
     // Anchor href should point at MASTER-4216692 profile
     const anchor = screen.getByText('enerpac tool group corp').closest('a')
-    expect(anchor).toHaveAttribute('href', '/employer/MASTER-4216692')
+    expect(anchor).toHaveAttribute('href', '/employers/MASTER-4216692')
   })
 
   it('does NOT render rank / tier chrome', () => {

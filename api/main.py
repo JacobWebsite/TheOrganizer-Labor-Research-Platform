@@ -61,6 +61,9 @@ from .routers import (
     target_scorecard,
     demographics,
     campaigns,
+    power_profile,  # noqa: F401  (used as `power_profile.router` below)
+    competitors,  # noqa: F401  (used as `competitors.router` below; keep above any reformat)
+    relationships,  # noqa: F401  (used as `relationships.router` below; keep above any reformat)
 )
 
 app = FastAPI(
@@ -130,6 +133,9 @@ app.include_router(research.router)
 app.include_router(target_scorecard.router)
 app.include_router(demographics.router)
 app.include_router(campaigns.router)
+app.include_router(power_profile.router)
+app.include_router(competitors.router)
+app.include_router(relationships.router)
 
 
 @app.exception_handler(psycopg2.OperationalError)

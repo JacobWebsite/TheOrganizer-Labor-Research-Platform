@@ -144,12 +144,232 @@ TIERS = [
         "where": "f.name_aggressive = LOWER(s.{name_col}) AND f.state = s.{state_col}",
         "requires_zip": False,
     },
-    # Tier 4 (trigram) intentionally omitted from the default dry-run
-    # — it adds combinatorial cost across 15K x 4 sources and is
-    # better delivered as a follow-up pass after the exact-match
-    # tiers settle. Easy to add later if Jacob wants it for the
-    # commit run.
+    # Tier 4 (trigram) lives in attempt_match_trigram_fallback() and runs
+    # only when --enable-trigram is passed. Off by default because it
+    # adds combinatorial cost; on by request, it processes only the
+    # ORPHANS THAT GOT NO MATCH from the 3 SQL exact tiers (~14,353 of
+    # 15,537 candidates as of 2026-05-08). The rule engine is still
+    # applied to every trigram candidate so H4 / person-name vetoes,
+    # H16 upgrades, etc. all run the same as for SQL-cascade matches.
 ]
+
+
+# ----------------------------------------------------------------------
+# Tier 4: in-memory trigram fallback (added 2026-05-08, evening pass).
+#
+# Mirrors the V2 cascade's `_fuzzy_batch_inmemory_trigram` pattern from
+# scripts/matching/deterministic_matcher.py but inverted: instead of
+# matching new source records against F7, we match orphan F7 employers
+# against source-system records.
+#
+# Strategy:
+#   - State-block. For each US state, pull ALL source rows from osha,
+#     whd, 990, sam at once (one query per source per state) and build
+#     an in-memory trigram inverted index keyed on the source side's
+#     normalized name column.
+#   - For each orphan F7 employer in that state, compute character
+#     trigrams of its `name_aggressive`, find candidate source rows via
+#     the inverted index, score with rapidfuzz composite (token_sort +
+#     token_set + JaroWinkler), accept the best per source if score
+#     >= TRIGRAM_FLOOR (default 0.85).
+#   - Pass each candidate through classify_pair_v2. The same vetoes
+#     (H4 series, person-name, EIN-conflict) that protect the SQL-tier
+#     candidates also protect trigram candidates.
+#   - The score floor at WRITE time is set to 0.85 (probabilistic tier)
+#     so the rule engine's UPGRADE rules (H2+H3 -> 0.96, H16 -> 0.96,
+#     H2+H6 -> 0.91) lift well-corroborated trigram matches above the
+#     0.92 threshold used for the committed run. To be conservative on
+#     this evening's run we pass --min-score 0.91 so that ONLY rule-
+#     engine-corroborated trigram matches make it to UML.
+#
+# Per-state runtime estimate: CA holds ~276K source rows; building a
+# trigram index over 276K names is ~5-10M index entries (~1 GB peak).
+# Index is dropped before moving to next state.
+# ----------------------------------------------------------------------
+
+def _char_trigrams(s: str) -> set:
+    """Extract character trigrams from a string (matches V2 cascade)."""
+    if not s:
+        return set()
+    s = " " + s + " "
+    return {s[i:i+3] for i in range(len(s) - 2)}
+
+
+def attempt_match_trigram_fallback(cur, unmatched_orphan_ids, args):
+    """Run state-blocked in-memory trigram matching for orphans the SQL
+    exact-match tiers missed.
+
+    `unmatched_orphan_ids` is the set of F7 employer_ids to process
+    (those with NO match from Tiers 1-3). For each, we look across all
+    4 sources for the best trigram-similar source row in the same
+    state.
+
+    Returns a list of match dicts with the same shape as attempt_match()
+    so the downstream rule-engine pass and best-by-orphan dedup work
+    unchanged.
+    """
+    if not unmatched_orphan_ids:
+        return []
+    try:
+        from rapidfuzz import fuzz as _rf_fuzz
+        from rapidfuzz.distance import JaroWinkler as _JW
+    except ImportError:
+        print("  Tier 4: rapidfuzz unavailable, skipping trigram fallback")
+        return []
+
+    floor = args.trigram_floor
+    print(f"  Tier 4 trigram fallback: floor={floor:.2f}, "
+          f"unmatched orphan pool={len(unmatched_orphan_ids):,}")
+
+    # Pull orphan F7 details once -- normalized names + state + zip + city.
+    placeholders = ",".join(["%s"] * len(unmatched_orphan_ids))
+    cur.execute(f"""
+        SELECT employer_id, employer_name, name_aggressive, name_standard,
+               state, zip, city
+          FROM f7_employers_deduped
+         WHERE employer_id IN ({placeholders})
+           AND state IS NOT NULL
+           AND name_aggressive IS NOT NULL AND name_aggressive <> ''
+    """, list(unmatched_orphan_ids))
+    orphans_by_state: dict[str, list[dict]] = {}
+    for r in cur.fetchall() or []:
+        rd = r if isinstance(r, dict) else dict(zip([d.name for d in cur.description], r))
+        st = (rd.get("state") or "").strip()
+        if not st:
+            continue
+        orphans_by_state.setdefault(st, []).append({
+            "f7_employer_id":   rd["employer_id"],
+            "f7_name":          (rd.get("employer_name") or "").strip(),
+            "f7_name_agg":      (rd.get("name_aggressive") or "").lower(),
+            "f7_name_std":      (rd.get("name_standard") or "").lower(),
+            "f7_state":         st,
+            "f7_zip":           rd.get("zip"),
+            "f7_city":          rd.get("city"),
+        })
+    print(f"    Built orphan map: {sum(len(v) for v in orphans_by_state.values()):,} orphans across {len(orphans_by_state):,} states")
+
+    matches: list[dict] = []
+    states_sorted = sorted(orphans_by_state.keys())
+    for st_idx, state in enumerate(states_sorted, 1):
+        orphans = orphans_by_state[state]
+        if not orphans:
+            continue
+        # Pre-compute trigrams of orphan aggressive names
+        orphan_tgs = [(_char_trigrams(o["f7_name_agg"]), o) for o in orphans]
+        orphan_tgs = [(tgs, o) for tgs, o in orphan_tgs if len(tgs) >= 4]
+        if not orphan_tgs:
+            continue
+
+        # For each source, pull ALL rows in this state and build inverted
+        # trigram index. Match every orphan against this state's pool.
+        for source_key, table, name_col, state_col, zip_col, display_col, city_col, ein_col in SOURCES:
+            src_id_col = SOURCE_ID_COL[source_key]
+            src_display_expr = f"s.{display_col}" if display_col else "NULL"
+            src_city_expr    = f"s.{city_col}"    if city_col    else "NULL"
+            src_ein_expr     = f"s.{ein_col}"     if ein_col     else "NULL"
+            cur.execute(f"""
+                SELECT
+                    s.{src_id_col}   AS source_id,
+                    s.{name_col}     AS source_name_norm,
+                    s.{zip_col}      AS source_zip,
+                    {src_display_expr} AS source_display,
+                    {src_city_expr}    AS source_city,
+                    {src_ein_expr}     AS source_ein
+                FROM {table} s
+                WHERE s.{state_col} = %s
+                  AND s.{name_col} IS NOT NULL
+                  AND LENGTH(s.{name_col}) >= 4
+            """, [state])
+            cols = [d.name for d in cur.description]
+            rows = cur.fetchall() or []
+            if not rows:
+                continue
+
+            # Build inverted trigram index for this (state, source) cell
+            inv_idx: dict[str, list[int]] = {}
+            src_rows: list[dict] = []
+            for raw in rows:
+                rd = raw if isinstance(raw, dict) else dict(zip(cols, raw))
+                if rd.get("source_id") is None or not rd.get("source_name_norm"):
+                    continue
+                idx = len(src_rows)
+                src_rows.append(rd)
+                src_name_lc = (rd["source_name_norm"] or "").lower()
+                for tg in _char_trigrams(src_name_lc):
+                    inv_idx.setdefault(tg, []).append(idx)
+
+            # For each orphan, find best trigram match in this source
+            from collections import Counter as _Counter
+            for ortgs, orphan in orphan_tgs:
+                cand_overlap = _Counter()
+                for tg in ortgs:
+                    bucket = inv_idx.get(tg)
+                    if bucket:
+                        for idx in bucket:
+                            cand_overlap[idx] += 1
+                if not cand_overlap:
+                    continue
+                # Pre-filter on minimum overlap
+                min_overlap = max(4, int(len(ortgs) * 0.4))
+                top_candidates = [
+                    (idx, cnt) for idx, cnt in cand_overlap.most_common(20)
+                    if cnt >= min_overlap
+                ][:10]
+                if not top_candidates:
+                    continue
+
+                best = (0.0, None)
+                for idx, _overlap in top_candidates:
+                    src_row = src_rows[idx]
+                    src_name_lc = (src_row["source_name_norm"] or "").lower()
+                    if not src_name_lc:
+                        continue
+                    # Single-token source names like "concepts" / "freeman"
+                    # generate trigram overlaps with longer F7 names (e.g.
+                    # "AV Concepts") that score above the floor but are
+                    # almost certainly false positives. Require at least
+                    # 2 tokens AND length >= 5 on the source name to gate
+                    # this out. This trades a small amount of recall for
+                    # a meaningful precision bump in the 0.92-0.95 band.
+                    if len(src_name_lc) < 5:
+                        continue
+                    if len(src_name_lc.split()) < 2:
+                        continue
+                    # Composite score (matches V2 cascade pattern)
+                    jw    = _JW.similarity(orphan["f7_name_agg"], src_name_lc)
+                    tsr   = _rf_fuzz.token_set_ratio(orphan["f7_name_agg"], src_name_lc) / 100.0
+                    ratio = _rf_fuzz.token_sort_ratio(orphan["f7_name_agg"], src_name_lc) / 100.0
+                    composite = 0.35 * jw + 0.35 * tsr + 0.30 * ratio
+                    if composite > best[0] and composite >= floor:
+                        best = (composite, src_row)
+                if best[1] is None:
+                    continue
+                score, src_row = best
+                matches.append({
+                    "f7_employer_id":   orphan["f7_employer_id"],
+                    "f7_name":          orphan["f7_name"],
+                    "f7_state":         orphan["f7_state"],
+                    "f7_zip":           orphan["f7_zip"],
+                    "f7_city":          orphan["f7_city"],
+                    "source":           source_key,
+                    "source_id":        str(src_row["source_id"]),
+                    "source_name_norm": src_row["source_name_norm"],
+                    "source_zip":       src_row.get("source_zip"),
+                    "source_display":   src_row.get("source_display"),
+                    "source_city":      src_row.get("source_city"),
+                    "source_ein":       src_row.get("source_ein"),
+                    "method":           "TRIGRAM_FALLBACK_STATE",
+                    # Floor 0.85 means rule-engine UPGRADES are what
+                    # carry trigram matches over commit thresholds.
+                    "score":            round(score, 4),
+                })
+            # Drop the per-state-source index before next iteration
+            del inv_idx
+            del src_rows
+        if st_idx % 10 == 0 or st_idx == len(states_sorted):
+            print(f"    Tier 4: {st_idx}/{len(states_sorted)} states processed; "
+                  f"{len(matches):,} candidate matches so far")
+    return matches
 
 
 def fetch_orphan_count(cur) -> int:
@@ -270,6 +490,15 @@ def _build_rule_engine_pair(match: dict) -> dict:
         ns_sim, na_sim = 1.0, 1.0
     elif method.startswith("NAME_AGGRESSIVE"):
         ns_sim, na_sim = 0.85, 1.0
+    elif method == "TRIGRAM_FALLBACK_STATE":
+        # The trigram tier scores are composite (token_sort + token_set
+        # + JaroWinkler). Use the actual score for both name_*_sim so
+        # rules that gate on similarity floors (H3 0.85 floor, H13 0.50
+        # floor) can fire correctly. This is what enables H3 + H1
+        # (-> H14, Tier B) and H16 (-> Tier A) to upgrade trigram
+        # matches when the address corroboration is present.
+        sc = float(match.get("score") or 0.0)
+        ns_sim, na_sim = sc, sc
     else:
         ns_sim, na_sim = 0.0, 0.0
     f7_zip5  = (match.get("f7_zip")     or "")[:5]
@@ -364,6 +593,50 @@ def run_dry_run(args):
             by_source[source_key]["total"] += n_unique_orphans
             print(f"  {source_key:>5} / {tier['method']:<32} -> {n_unique_orphans:>5} orphans ({len(matches):>5} rows) in {took:>5.1f}s")
             all_matches.extend(matches)
+        print()
+
+    # Tier 4: in-memory trigram fallback (added 2026-05-08 evening pass).
+    # Only runs when --enable-trigram is passed. Targets ONLY orphans
+    # the SQL exact-match tiers missed -- the still-unmatched pool.
+    if args.enable_trigram:
+        ts = time.time()
+        # Build set of orphan IDs that already got at least one SQL match
+        sql_matched_ids = {m["f7_employer_id"] for m in all_matches}
+        cur.execute("SELECT employer_id FROM _recoverable_f7_orphans")
+        all_orphan_ids = {
+            (r[0] if isinstance(r, tuple) else r["employer_id"])
+            for r in cur.fetchall() or []
+        }
+        # Subset to those still unmatched AND that don't already have an
+        # ACTIVE UML match (e.g., from this morning's committed run).
+        # Without this guard a re-run would re-process orphans whose
+        # earlier match got committed and create duplicate work.
+        if all_orphan_ids:
+            placeholders = ",".join(["%s"] * len(all_orphan_ids))
+            cur.execute(f"""
+                SELECT DISTINCT target_id FROM unified_match_log
+                 WHERE target_system='f7' AND status='active'
+                   AND target_id IN ({placeholders})
+            """, list(all_orphan_ids))
+            already_active = {
+                (r[0] if isinstance(r, tuple) else r["target_id"])
+                for r in cur.fetchall() or []
+            }
+        else:
+            already_active = set()
+        unmatched_ids = sorted(all_orphan_ids - sql_matched_ids - already_active)
+        if args.limit:
+            unmatched_ids = unmatched_ids[: int(args.limit) * 4]
+        print(f"\nTier 4 trigram: {len(unmatched_ids):,} orphans to process "
+              f"(of {len(all_orphan_ids):,} candidates; "
+              f"{len(sql_matched_ids):,} already SQL-matched, "
+              f"{len(already_active):,} already active in UML)")
+        trigram_matches = attempt_match_trigram_fallback(cur, unmatched_ids, args)
+        took = time.time() - ts
+        n_unique = len({m["f7_employer_id"] for m in trigram_matches})
+        print(f"  Tier 4 trigram total: {n_unique:,} unique orphans "
+              f"({len(trigram_matches):,} rows) in {took:.1f}s")
+        all_matches.extend(trigram_matches)
         print()
 
     # Rule engine pass (B.3.x Option C, 2026-05-08).
@@ -539,6 +812,11 @@ def _confidence_band(method: str) -> str:
     classified in the existing F7 active matches."""
     if method == "NAME_AGGRESSIVE_STATE_EXACT":
         return "MEDIUM"
+    if method == "TRIGRAM_FALLBACK_STATE":
+        # Probabilistic match — band lifted to MEDIUM by the rule engine
+        # upgrade, otherwise LOW. Static "MEDIUM" here is fine because
+        # the --min-score gate is what actually filters at write time.
+        return "MEDIUM"
     return "HIGH"
 
 
@@ -646,6 +924,16 @@ def main():
                              "from 2026-05-06 was generated with this off).")
     parser.add_argument("--min-score", type=float, default=None,
                         help="Apply this score floor at commit time (e.g. 0.92, 0.95, 1.00)")
+    parser.add_argument("--enable-trigram", action="store_true",
+                        help="Enable Tier 4 in-memory trigram fallback for orphans "
+                             "the SQL exact-match tiers missed. Adds ~2-5min runtime "
+                             "across 50 states. State-blocked + composite-scored + "
+                             "rule-engine-vetoed (added 2026-05-08 evening).")
+    parser.add_argument("--trigram-floor", type=float, default=0.85,
+                        help="Composite-score floor for Tier 4 trigram (default 0.85). "
+                             "Lower = more recall, less precision. The rule engine's "
+                             "UPGRADE rules then lift well-corroborated trigram matches "
+                             "to 0.91/0.96 so they pass --min-score gates.")
     args = parser.parse_args()
     run_dry_run(args)
 
