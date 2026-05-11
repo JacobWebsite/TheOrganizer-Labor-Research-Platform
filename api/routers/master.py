@@ -99,8 +99,8 @@ def _ensure_indexes(cur, pk_col: str) -> None:
     # `IF NOT EXISTS` ensures this in-line creation is a no-op when the
     # index already exists).
     cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_master_employers_non_union_targets "
-        "ON master_employers (data_quality_score DESC, master_id) "
+        f"CREATE INDEX IF NOT EXISTS idx_master_employers_non_union_targets "
+        f"ON master_employers (data_quality_score DESC, {pk_col}) "
         "WHERE is_union = FALSE "
         "AND (is_labor_org = FALSE OR is_labor_org IS NULL) "
         "AND data_quality_score >= 40"
@@ -219,23 +219,30 @@ def _search_impl(
           ts.gold_standard_tier"""
         ts_join = f"LEFT JOIN mv_target_scorecard ts ON ts.master_id = m.{pk_col}"
 
-    if ts_join:
-        # Use precomputed source_count from mv_target_scorecard
-        source_count_select = "COALESCE(ts.source_count, 0) AS source_count"
-        source_count_join = ""
-    else:
-        # 2026-05-11 perf fix: LATERAL with correlated WHERE so PG computes
-        # source_count only for the rows surviving the outer filters + LIMIT,
-        # instead of aggregating all of master_employer_source_ids upfront.
-        # Dropped the master_search path from ~24s to ~2.2s on 2.6M rows.
-        source_count_select = "COALESCE(src.source_count, 0) AS source_count"
-        source_count_join = (
-            "LEFT JOIN LATERAL ("
-            "  SELECT COUNT(DISTINCT source_system) AS source_count"
-            "  FROM master_employer_source_ids"
-            f"  WHERE master_id = m.{pk_col}"
-            ") src ON TRUE"
-        )
+    # 2026-05-11 perf fix: LATERAL with correlated WHERE so PG computes
+    # source_count only for the rows surviving the outer filters + LIMIT,
+    # instead of aggregating all of master_employer_source_ids upfront.
+    # Dropped the endpoint from ~24s to ~2.2s on the 2.6M-row table.
+    #
+    # NOTE 2026-05-11 (Codex /wrapup review): an earlier iteration of this
+    # commit pointed `source_count` at the precomputed
+    # `mv_target_scorecard.source_count` when ts was joined. That MV does
+    # NOT include `has_f7` / `has_lda` / `has_epa_echo` in its sum and
+    # f7-only masters are entirely absent (NULL), so it silently
+    # undercounted source_count by 1-3 vs the historical
+    # `COUNT(DISTINCT source_system)` value. Reverted to the LATERAL
+    # subquery for semantic correctness on both code paths; the LATERAL
+    # is still ~10x faster than the original GROUP BY subquery. The
+    # underlying MV undercount is tracked separately as
+    # [[Open Problems/mv_target_data_sources source_count undercount]].
+    source_count_select = "COALESCE(src.source_count, 0) AS source_count"
+    source_count_join = (
+        "LEFT JOIN LATERAL ("
+        "  SELECT COUNT(DISTINCT source_system) AS source_count"
+        "  FROM master_employer_source_ids"
+        f"  WHERE master_id = m.{pk_col}"
+        ") src ON TRUE"
+    )
 
     # COUNT query needs the ts JOIN if filters reference ts columns
     count_join = ts_join if needs_ts_join else ""
