@@ -218,6 +218,28 @@ _STOP_EXACT: frozenset[str] = frozenset(
         # Real fix is in the regex, but adding the literal phrase here
         # is the cheap interim guard.
         "raw materials the company",
+        # ------------------------------------------------------------------
+        # Iter 2 (2026-05-11) -- second-pass survey of the post-iter-1 corpus
+        # surfaced these still-slipping categories at 2+ mentions each:
+        # ------------------------------------------------------------------
+        # Geographic noise that trigram-matches to bogus city-/region-named
+        # master_employers ("Los Angeles" had 2 spurious matches; same
+        # pattern for "New York" and various continent/region fragments).
+        "los angeles", "new york", "north american", "western europe",
+        "latin america", "asia pacific", "new zealand",
+        "china and hong kong",
+        # Industry-category acronyms that show up in tech / consumer 10-Ks
+        # as generic mentions ("Our customers include IDMs and OEMs...").
+        # Unmatched but populating the link table with noise.
+        "ai-powered", "dtc", "cpg", "cpas", "iot", "lng", "oled",
+        "pcbs", "idms", "hiv",
+        # Sentence-boundary captures where the regex spanned across a
+        # period. "OEMs. No" snuck through iter 1 because bare "oems"
+        # is filtered but the regex captured the trailing "No" as part
+        # of the noun phrase.
+        "oems. no",
+        "national hardware show. our",
+        "financial statements and supplementary data",
     }
 )
 

@@ -167,6 +167,48 @@ def test_is_acceptable_entity_does_not_overreach():
     assert ext._is_acceptable_entity("FormFactor Inc")
 
 
+def test_is_acceptable_entity_rejects_iter2_noise():
+    """Iter 2 stop-list additions (2026-05-11) -- geographic noise, more
+    industry-category acronyms, and sentence-boundary captures that
+    iter 1 missed. Each entry was 2+ mentions in the post-iter-1 corpus.
+    """
+    for noise in (
+        # Geographic
+        "Los Angeles", "New York", "North American", "Western Europe",
+        "Latin America", "Asia Pacific", "New Zealand",
+        "China and Hong Kong",
+        # Industry-category acronyms
+        "AI-powered", "DTC", "CPG", "CPAs", "IoT", "LNG", "OLED",
+        "PCBs", "IDMs", "HIV",
+        # Sentence-boundary captures (regex spanned across a period)
+        "OEMs. No",
+        "National Hardware Show. Our",
+        "Financial Statements and Supplementary Data",
+    ):
+        assert not ext._is_acceptable_entity(noise), noise
+
+
+def test_is_acceptable_entity_iter2_does_not_overreach():
+    """Make sure iter 2 stop-list entries don't accidentally veto real
+    companies whose names contain these substrings.
+
+    Same overreach-guard pattern as the iter 1 test: stopping a single
+    common phrase shouldn't veto a multi-token mention that contains it.
+    """
+    # 'Los Angeles' stopped, but real companies built on city names pass.
+    assert ext._is_acceptable_entity("Los Angeles Times Communications LLC")
+    # 'New York' stopped, but 'New York Life Insurance' is a real company.
+    assert ext._is_acceptable_entity("New York Life Insurance Company")
+    # 'New York' stopped, but 'New York Times Company' must pass.
+    assert ext._is_acceptable_entity("New York Times Company")
+    # 'DTC' stopped, but a real "DTC Industries Inc" should pass.
+    assert ext._is_acceptable_entity("DTC Industries Inc")
+    # 'HIV' stopped, but 'HIV Research Foundation' (hypothetical) passes.
+    assert ext._is_acceptable_entity("HIV Research Foundation")
+    # 'Asia Pacific' stopped, but 'Asia Pacific Wire & Cable' is real.
+    assert ext._is_acceptable_entity("Asia Pacific Wire & Cable Corporation")
+
+
 def test_is_acceptable_entity_rejects_short_or_lowercase():
     assert not ext._is_acceptable_entity("ab")            # too short
     assert not ext._is_acceptable_entity("walmart")       # lowercase
