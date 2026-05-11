@@ -17,6 +17,9 @@ from db_config import get_connection
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
+CRITICAL_MVS_SCRIPT = os.path.join(
+    PROJECT_ROOT, 'scripts', 'maintenance', 'check_critical_mvs.py'
+)
 
 # Ordered dependency chain
 STEPS = [
@@ -100,6 +103,31 @@ def run_report_step(subcommand):
     print(f"  --> {status} in {duration:.1f}s")
 
     return duration, result.returncode
+
+
+def run_critical_mvs_check():
+    """Run scripts/maintenance/check_critical_mvs.py and return its exit code.
+
+    Background: mv_target_scorecard and mv_employer_search have silently
+    disappeared three times in three weeks (2026-04-30, 2026-05-09,
+    2026-05-10). The release-checklist gate catches this at /ship time,
+    but a refresh that silently produces an empty MV should fail loudly
+    here instead of waiting for somebody to ship.
+    """
+    if not os.path.isfile(CRITICAL_MVS_SCRIPT):
+        print(f"  WARNING: {CRITICAL_MVS_SCRIPT} not found, skipping tail-check.")
+        return -1
+
+    print(f"\n{'=' * 60}")
+    print("  Tail-check: critical MVs present and at floor")
+    print(f"{'=' * 60}")
+
+    result = subprocess.run(
+        [sys.executable, CRITICAL_MVS_SCRIPT],
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+    return result.returncode
 
 
 def print_summary(results):
@@ -188,6 +216,18 @@ def main():
                 print(f"\n  Score comparison failed (rc={rc}), continuing anyway...")
 
     print_summary(results)
+
+    # Tail-check: verify the critical MVs we just (re)built actually exist
+    # at non-trivial row counts. Catches silent-empty regressions before
+    # the next /ship.
+    tail_rc = run_critical_mvs_check()
+    if tail_rc not in (0, -1):
+        print(f"\n  ERROR: critical-MV tail-check failed (rc={tail_rc}).")
+        print("  One or more MVs are missing or under-floor. See output above.")
+        sys.exit(1)
+    if tail_rc == 0:
+        print("\n  OK: critical-MV tail-check passed.")
+
     print("  Rebuild chain completed successfully.")
 
 
