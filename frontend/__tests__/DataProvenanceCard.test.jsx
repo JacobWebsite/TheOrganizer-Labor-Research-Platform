@@ -26,14 +26,16 @@ const mockSummary = [
 ]
 
 describe('DataProvenanceCard', () => {
-  it('renders null when no data', () => {
-    const { container } = render(<DataProvenanceCard matchSummary={null} />)
-    expect(container.innerHTML).toBe('')
+  it('shows EmptyStateCard when matchSummary is null (no longer returns null)', () => {
+    render(<DataProvenanceCard matchSummary={null} />)
+    expect(screen.getByText('Data Provenance')).toBeInTheDocument()
+    expect(screen.getByText('No linked sources')).toBeInTheDocument()
   })
 
-  it('renders null when empty array', () => {
-    const { container } = render(<DataProvenanceCard matchSummary={[]} />)
-    expect(container.innerHTML).toBe('')
+  it('shows EmptyStateCard when matchSummary is empty array', () => {
+    render(<DataProvenanceCard matchSummary={[]} />)
+    expect(screen.getByText('Data Provenance')).toBeInTheDocument()
+    expect(screen.getByText('No linked sources')).toBeInTheDocument()
   })
 
   it('shows title and summary when collapsed', () => {

@@ -1,5 +1,6 @@
 import { Link2 } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { SourceBadge } from '@/features/search/SourceBadge'
 
 function formatDate(d) {
@@ -12,7 +13,23 @@ function formatDate(d) {
 }
 
 export function CrossReferencesSection({ crossReferences }) {
-  if (!crossReferences || crossReferences.length === 0) return null
+  if (!crossReferences || crossReferences.length === 0) {
+    return (
+      <EmptyStateCard
+        icon={Link2}
+        title="Cross-References"
+        topic="cross-reference"
+        summary="No cross-reference rows on file"
+        reason={
+          <>
+            Cross-references surface alternate names / cases / IDs that were linked during
+            matching. An empty list usually means the employer was only matched on its
+            primary identity.
+          </>
+        }
+      />
+    )
+  }
 
   const summary = `${crossReferences.length} cross-reference${crossReferences.length !== 1 ? 's' : ''}`
 

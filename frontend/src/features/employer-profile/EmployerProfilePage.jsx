@@ -327,24 +327,29 @@ export function EmployerProfilePage() {
     summaryParts.push('Non-union')
   }
 
-  // Filter sidebar sections to only show ones with data
+  // Filter sidebar sections. After the 2026-05-12 empty-state polish all
+  // employer-profile cards render themselves even with no data (showing a
+  // canonical amber "no records matched" panel via EmptyStateCard) so the
+  // sidebar TOC can be much more inclusive. We only gate sections whose
+  // data fetch is gated upstream (research, demographics, occupations
+  // depend on flags or required identifiers).
   const visibleSections = PROFILE_SECTIONS.filter(s => {
     switch (s.id) {
       case 'scorecard': return !!scorecard
-      case 'provenance': return !!matchesQuery.data?.match_summary?.length
+      case 'provenance': return true  // shows EmptyStateCard when no matches
       case 'research': return !!scorecardQuery.data?.has_research
-      case 'union': return !!(employer.union_name || employer.latest_union_name)
-      case 'financial': return !!(scorecard?.score_financial != null || scorecard?.bls_growth_pct != null || ds?.is_public)
+      case 'union': return true  // shows EmptyStateCard when no representation on file
+      case 'financial': return true  // shows amber warning when no records matched
       case 'demographics': return !!(employer?.state && (scorecard?.naics || employer?.naics))
       case 'occupations': return !!(occupationsQuery.data?.top_occupations?.length)
-      case 'corporate': return true  // fetches its own data
-      case 'comparables': return true  // fetches its own data
-      case 'nlrb': return true  // shows warning when no data
-      case 'contracts': return !!(ds?.is_federal_contractor)
-      case 'osha': return true  // shows warning when no data
-      case 'whd': return true  // shows warning when no data
-      case 'nyc': return true  // shows warning when no data
-      case 'crossrefs': return !!(crossRefs?.length)
+      case 'corporate': return true  // fetches its own data, empty state via EmptyStateCard
+      case 'comparables': return true  // fetches its own data, empty state via EmptyStateCard
+      case 'nlrb': return true  // shows amber warning when no data
+      case 'contracts': return true  // shows amber warning when not a contractor
+      case 'osha': return true  // shows amber warning when no data
+      case 'whd': return true  // shows amber warning when no data
+      case 'nyc': return true  // shows amber warning when no data
+      case 'crossrefs': return true  // shows EmptyStateCard when no cross-references
       case 'notes': return true  // always show
       case 'outcomes': return true
       default: return true

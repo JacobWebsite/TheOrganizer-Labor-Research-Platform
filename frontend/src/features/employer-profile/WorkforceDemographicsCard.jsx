@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { Users } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { apiClient } from '@/shared/api/client'
 
 const CONFIDENCE_COLORS = {
@@ -295,7 +297,23 @@ export function WorkforceDemographicsCard({ state, naics, employerId }) {
   const hasEstimate = est && est.method !== 'none'
   const hasContext = data.qcew || data.soii || data.jolts || data.union_density || data.ncs
 
-  if (!hasEstimate && !data.acs && !data.lodes && !hasContext && !data.tract) return null
+  if (!hasEstimate && !data.acs && !data.lodes && !hasContext && !data.tract) {
+    return (
+      <EmptyStateCard
+        icon={Users}
+        title="Workforce Demographics"
+        topic="workforce-demographic"
+        summary="No demographic estimate available"
+        reason={
+          <>
+            Demographic estimates require either an NAICS code (for industry-level ACS/LODES
+            lookup) or a geocoded address (for tract-level census data). Employers missing
+            both will appear empty here.
+          </>
+        }
+      />
+    )
+  }
 
   // Source availability badges
   const sources = [

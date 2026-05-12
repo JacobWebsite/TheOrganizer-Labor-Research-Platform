@@ -1,13 +1,39 @@
-import { Users } from 'lucide-react'
+import { Users, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { useEmployerComparables } from '@/shared/api/profile'
 
 export function ComparablesCard({ employerId }) {
   const { data, isLoading } = useEmployerComparables(employerId)
 
-  if (isLoading) return null
-  if (!data?.comparables?.length) return null
+  if (isLoading) {
+    return (
+      <CollapsibleCard icon={Users} title="Comparable Employers" summary="Loading...">
+        <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading comparable employers...</span>
+        </div>
+      </CollapsibleCard>
+    )
+  }
+  if (!data?.comparables?.length) {
+    return (
+      <EmptyStateCard
+        icon={Users}
+        title="Comparable Employers"
+        topic="comparable-employer"
+        summary="No comparables found"
+        reason={
+          <>
+            Comparables are computed from NAICS, geography, size, and union status; an
+            employer with missing NAICS or no scorecard row will not have peers to compare
+            against.
+          </>
+        }
+      />
+    )
+  }
 
   const comparables = data.comparables
   // Backend returns `comparable_type` = 'union' | 'non_union' (not `union_name`).

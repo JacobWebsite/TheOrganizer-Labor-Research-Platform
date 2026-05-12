@@ -1,11 +1,28 @@
 import { Landmark } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { FileText } from 'lucide-react'
 
 export function UnionRelationshipsCard({ employer }) {
   const unionName = employer?.latest_union_name || employer?.union_name
-  if (!unionName) return null
+  if (!unionName) {
+    return (
+      <EmptyStateCard
+        icon={Landmark}
+        title="Union Relationships"
+        topic="union-relationship"
+        summary="No union representation on file"
+        reason={
+          <>
+            Union representation here is sourced from DOL Form LM-10 / F-7 filings.
+            Absence of an F-7 link does not prove the employer is non-union &mdash; small
+            employers may be unionized without triggering a direct filing.
+          </>
+        }
+      />
+    )
+  }
 
   const fnum = employer?.latest_union_fnum || employer?.union_fnum
   const unitSize = employer?.latest_unit_size || employer?.unit_size

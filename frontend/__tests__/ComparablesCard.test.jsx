@@ -25,19 +25,23 @@ function renderWithRouter(ui) {
 }
 
 describe('ComparablesCard', () => {
-  it('returns null when loading', () => {
+  it('shows a loading collapsed card while fetching', () => {
     useEmployerComparables.mockReturnValue({ isLoading: true, data: null })
-    const { container } = renderWithRouter(<ComparablesCard employerId="abc" />)
-    expect(container.innerHTML).toBe('')
+    renderWithRouter(<ComparablesCard employerId="abc" />)
+    // Header is always rendered (even collapsed)
+    expect(screen.getByText('Comparable Employers')).toBeInTheDocument()
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
   })
 
-  it('returns null when comparables array is empty', () => {
+  it('shows the EmptyStateCard when comparables array is empty (does NOT return null)', () => {
     useEmployerComparables.mockReturnValue({
       isLoading: false,
       data: { employer_id: 'abc', comparables: [] },
     })
-    const { container } = renderWithRouter(<ComparablesCard employerId="abc" />)
-    expect(container.innerHTML).toBe('')
+    renderWithRouter(<ComparablesCard employerId="abc" />)
+    // Empty state is the canonical "we checked, found nothing" panel.
+    expect(screen.getByText('Comparable Employers')).toBeInTheDocument()
+    expect(screen.getByText('No comparables found')).toBeInTheDocument()
   })
 
   it('counts unionized correctly from comparable_type (not legacy union_name)', () => {
