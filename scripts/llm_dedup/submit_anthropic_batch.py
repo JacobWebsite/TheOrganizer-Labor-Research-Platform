@@ -52,6 +52,25 @@ def save_state(state):
         json.dump(state, f, indent=2, default=str)
 
 
+def parse_verdict_obj(verdict_obj):
+    """Schema-tolerant extraction of (verdict, confidence, reason) from a Haiku
+    judge response. The v1.0 dedup prompt returns ``{'verdict', 'confidence',
+    'reason'}`` while the v2.0 validation prompt returns ``{'label',
+    'confidence', 'reasoning'}``. Accept either so the same fetcher works for
+    both schemas (regression: the 2026-04-21 validation batch was silently
+    written to CSV as all UNKNOWN/empty when the parser only knew 'verdict').
+
+    Returns ``(verdict, confidence, reason)`` strings. Missing keys fall back
+    to ``'UNKNOWN'`` for verdict/confidence and ``''`` for reason.
+    """
+    if not isinstance(verdict_obj, dict):
+        return 'UNKNOWN', 'UNKNOWN', ''
+    verdict = verdict_obj.get('label') or verdict_obj.get('verdict', 'UNKNOWN')
+    confidence = verdict_obj.get('confidence', 'UNKNOWN')
+    reason = verdict_obj.get('reasoning') or verdict_obj.get('reason', '')
+    return verdict, confidence, reason
+
+
 # ---------------------------------------------------------------------------
 # submit
 # ---------------------------------------------------------------------------
@@ -277,11 +296,9 @@ def cmd_fetch(args):
                 parse_fail += 1
                 continue
 
-            # v1.0 prompt returns 'verdict' + 'reason'; v2.0 returns 'label' + 'reasoning'.
-            # Accept either so this fetcher works against both prompt schemas.
-            v = verdict_obj.get('label') or verdict_obj.get('verdict', 'UNKNOWN')
-            c = verdict_obj.get('confidence', 'UNKNOWN')
-            reason_text = verdict_obj.get('reasoning') or verdict_obj.get('reason', '')
+            # Schema-tolerant: see parse_verdict_obj() docstring. v1.0 returns
+            # 'verdict' + 'reason'; v2.0 returns 'label' + 'reasoning'.
+            v, c, reason_text = parse_verdict_obj(verdict_obj)
             verdict_counts[v] += 1
             confidence_counts[c] += 1
 
