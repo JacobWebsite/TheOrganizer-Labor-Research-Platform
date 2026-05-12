@@ -23,6 +23,22 @@ def _normalize_q(q: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9 ]", " ", (q or "").lower()).split())
 
 
+def _column_exists(cur, table: str, column: str) -> bool:
+    cur.execute(
+        """
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema='public'
+            AND table_name=%s
+            AND column_name=%s
+        ) AS e
+        """,
+        (table, column),
+    )
+    return bool(cur.fetchone()["e"])
+
+
 def _schema_flags(cur) -> Tuple[str, bool]:
     global _MASTER_PK_COL, _HAS_LABOR_COL
     if _MASTER_PK_COL is not None and _HAS_LABOR_COL is not None:
@@ -78,6 +94,31 @@ def _ensure_indexes(cur, pk_col: str) -> None:
     cur.execute(
         "CREATE INDEX IF NOT EXISTS idx_master_source_ids_master ON master_employer_source_ids(master_id)"
     )
+    # Partial composite index for the Organizing Targets endpoint path.
+    # Pre-filters to ~2.6M non-union targets and pre-sorts by quality DESC,
+    # eliminating the parallel-seq-scan + external-disk-merge-sort that
+    # otherwise took ~3.9s per query on master_employers (2026-05-11 perf
+    # work). Empirical effect on a 2.6M-row table:
+    #   default page:  3.6s -> 0.7s
+    #   min_signals=4: 10s  -> 2.6s
+    #
+    # The partial predicate uses the OR-form `(is_labor_org = FALSE OR
+    # is_labor_org IS NULL)` rather than `COALESCE(is_labor_org, FALSE) =
+    # FALSE` for predicate-matcher compatibility -- empirically PG's
+    # query planner reliably matches a COALESCE expression in the query
+    # against the OR-form in the partial predicate, but not the reverse.
+    #
+    # NOTE: the partial index requires `is_labor_org` to exist on
+    # master_employers. Older schemas without that column are tolerated
+    # by gating the CREATE on a column-existence check.
+    if _column_exists(cur, "master_employers", "is_labor_org"):
+        cur.execute(
+            f"CREATE INDEX IF NOT EXISTS idx_master_employers_non_union_targets "
+            f"ON master_employers (data_quality_score DESC, {pk_col}) "
+            "WHERE is_union = FALSE "
+            "AND (is_labor_org = FALSE OR is_labor_org IS NULL) "
+            "AND data_quality_score >= 40"
+        )
     _INDEXES_READY = True
 
 
@@ -166,7 +207,10 @@ def _search_impl(
         sort_col = "m.data_quality_score"
         order_dir = "DESC"
 
-    # LEFT JOIN target scorecard signals for non-union discovery
+    # LEFT JOIN target scorecard signals for non-union discovery.
+    # When ts is joined we can read source_count directly from the MV
+    # (precomputed there); otherwise we fall back to a LATERAL subquery
+    # against master_employer_source_ids. See note below.
     ts_select = ""
     ts_join = ""
     needs_ts_join = has_enforcement is not None or min_signals is not None
@@ -188,6 +232,35 @@ def _search_impl(
           ts.pillar_stability,
           ts.gold_standard_tier"""
         ts_join = f"LEFT JOIN mv_target_scorecard ts ON ts.master_id = m.{pk_col}"
+
+    # source_count strategy:
+    #   - When ts is joined (force_non_union_targets path), read the
+    #     precomputed `ts.source_count` from mv_target_scorecard. This
+    #     avoids a per-row LATERAL COUNT(DISTINCT) and is ~10x faster.
+    #   - When ts is NOT joined (/api/master/search path), fall back to
+    #     a LATERAL correlated subquery against master_employer_source_ids
+    #     so PG computes source_count only for the LIMIT-clipped rows.
+    #
+    # 2026-05-12 (this commit): the precomputed-source_count branch was
+    # first introduced in cd557a9, reverted in 9f4472e after Codex caught
+    # that `mv_target_data_sources` undercounted (missing has_f7 /
+    # has_lda / has_epa_echo / has_fec in its SUM, plus f7-only masters
+    # absent). That MV undercount is fixed in the same commit as this
+    # change (see scripts/scoring/build_target_data_sources.py and
+    # tests/scoring/test_target_data_sources_source_count.py), so it is
+    # now safe to read `ts.source_count` directly.
+    if ts_join:
+        source_count_select = "COALESCE(ts.source_count, 0) AS source_count"
+        source_count_join = ""
+    else:
+        source_count_select = "COALESCE(src.source_count, 0) AS source_count"
+        source_count_join = (
+            "LEFT JOIN LATERAL ("
+            "  SELECT COUNT(DISTINCT source_system) AS source_count"
+            "  FROM master_employer_source_ids"
+            f"  WHERE master_id = m.{pk_col}"
+            ") src ON TRUE"
+        )
 
     # COUNT query needs the ts JOIN if filters reference ts columns
     count_join = ts_join if needs_ts_join else ""
@@ -212,14 +285,10 @@ def _search_impl(
           {labor_select}
           m.source_origin,
           m.data_quality_score,
-          COALESCE(src.source_count, 0) AS source_count
+          {source_count_select}
           {ts_select}
         FROM master_employers m
-        LEFT JOIN (
-          SELECT master_id, COUNT(DISTINCT source_system) AS source_count
-          FROM master_employer_source_ids
-          GROUP BY master_id
-        ) src ON src.master_id = m.{pk_col}
+        {source_count_join}
         {ts_join}
         WHERE {where}
         ORDER BY {sort_col} {order_dir} NULLS LAST, m.{pk_col}
