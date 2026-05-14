@@ -50,6 +50,20 @@
       "summary": "Union access to workplace"
     },
     {
+      "name": "union_access_broad",
+      "pattern": "\\b(?:union|business\\s+agent|business\\s+manager|representative\\s+of\\s+the\\s+(?:Union|local)|shop\\s+steward|union\\s+(?:representative|delegate|official))\\b.{0,80}?\\b(?:shall\\s+(?:be\\s+(?:allowed|permitted|granted)|have)|may\\s+have|will\\s+have|allowed)\\s+(?:access|entry|right\\s+to\\s+(?:enter|visit|inspect))\\b",
+      "confidence": 0.80,
+      "provision_class": "union_access",
+      "summary": "Union access (broader scope: shop/job/project)"
+    },
+    {
+      "name": "union_access_visit",
+      "pattern": "\\b(?:union|business\\s+agent|representative)\\s+(?:shall\\s+be\\s+)?(?:allowed|permitted)\\s+to\\s+(?:visit|enter|inspect)\\s+(?:the\\s+)?(?:premises|workplace|facility|shop|job|project|jobsite|worksite|employees)",
+      "confidence": 0.78,
+      "provision_class": "union_access",
+      "summary": "Union representative permitted to visit"
+    },
+    {
       "name": "bargaining_unit_info",
       "pattern": "(?:employer|company)\\s+(?:shall|will)\\s+(?:provide|furnish|supply).*(?:union|local).*(?:list|roster|names?|information|data)\\s+(?:of|regarding)\\s+(?:employees?|bargaining\\s+unit)",
       "confidence": 0.80,

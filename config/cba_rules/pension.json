@@ -28,11 +28,25 @@
       "summary": "Vesting schedule"
     },
     {
+      "name": "vesting_fully",
+      "pattern": "\\b(?:fully\\s+vested|vesting\\s+(?:schedule|service|period|requirement))\\b",
+      "confidence": 0.80,
+      "provision_class": "vesting",
+      "summary": "Vesting status / schedule"
+    },
+    {
       "name": "retirement_eligibility",
       "pattern": "(?:eligible|entitled)\\s+(?:for|to)\\s+(?:retirement|pension)\\s+(?:benefits?)?\\s*(?:upon|at|after|when)\\s+(?:age\\s+\\d+|\\d+\\s+years)",
       "confidence": 0.85,
       "provision_class": "retirement_eligibility",
       "summary": "Retirement eligibility"
+    },
+    {
+      "name": "retirement_eligibility_age",
+      "pattern": "\\b(?:retire|retirement)\\s+(?:at|after|upon|on)\\s+(?:age\\s+)?\\d+\\b|\\bnormal\\s+retirement\\s+(?:age|date)\\b|\\bretirement\\s+eligibility\\b|\\bmandatory\\s+retirement\\s+age\\b",
+      "confidence": 0.82,
+      "provision_class": "retirement_eligibility",
+      "summary": "Retirement age / eligibility"
     },
     {
       "name": "defined_benefit",
@@ -54,6 +68,13 @@
       "confidence": 0.80,
       "provision_class": "pension_fund",
       "summary": "Pension fund/trust"
+    },
+    {
+      "name": "pension_fund_named",
+      "pattern": "\\b(?:pension|retirement|annuity)\\s+(?:trust\\s+fund|fund|trust|plan)\\b(?=.{0,200}\\b(?:contribut|employer|covered\\s+employees?|administer|trustees?|established|maintained|participant))",
+      "confidence": 0.72,
+      "provision_class": "pension_fund",
+      "summary": "Pension fund (named with contribution/trustee context)"
     }
   ],
   "negative_patterns": [
