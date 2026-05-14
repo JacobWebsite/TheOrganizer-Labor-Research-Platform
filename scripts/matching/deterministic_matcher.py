@@ -141,6 +141,30 @@ class DeterministicMatcher:
     MEDIUM_THRESHOLD = 0.70
     DEFAULT_MIN_NAME_SIM = 0.90
 
+    # Fuzzy token-overlap gate (false-positive defense in 0.70-0.90 band).
+    # Audit data in 2026-03 estimated 30-70% FP in 0.70-0.85 band; token
+    # overlap distinguishes "name1 and name2 share most words" from
+    # "name1 and name2 just happen to have overlapping character n-grams".
+    # See ``Open Problems/Matching FP Rates in Fuzzy Bands.md``.
+    #
+    # Below FUZZY_GATE_SCORE_THRESHOLD, fuzzy match must clear
+    # FUZZY_TOKEN_OVERLAP_MIN OR the collapsed-spacing rescue inside
+    # passes_fuzzy_token_gate(). At or above the score threshold the
+    # gate is bypassed (high-similarity matches like exact-with-typo
+    # are reliable on their own).
+    #
+    # 2026-05-12 hand audit (docs/scratch/fuzzy_gate_audit_pairs.txt)
+    # found overlap=0.50 was over-rejecting plural/spelling variants
+    # like "Lutheran Orphans" vs "Lutherans Orphan"; lowered to 0.40 so
+    # 2-of-5 token agreement passes the gate. The flagship FP cases
+    # (Walmart vs Wal-Mart Pharmacy at overlap=0.0, Acme vs Apex at 0.0)
+    # still reject.
+    FUZZY_GATE_SCORE_THRESHOLD = 0.90
+    FUZZY_TOKEN_OVERLAP_MIN = 0.40
+
+    # Stats key for gate rejections (initialized in __init__)
+    _GATE_REJECT_KEY = "fuzzy_rejected_by_token_gate"
+
     def __init__(self, conn, run_id: str, source_system: str,
                  dry_run: bool = False, skip_fuzzy: bool = False):
         self.conn = conn
@@ -153,6 +177,7 @@ class DeterministicMatcher:
             "by_method": {}, "by_band": {"HIGH": 0, "MEDIUM": 0, "LOW": 0},
             "collisions_resolved": 0,
             "collisions_ambiguous": 0,
+            self._GATE_REJECT_KEY: 0,
         }
         self.min_name_similarity = self._load_min_name_similarity()
         self._log_buffer = []
@@ -1094,6 +1119,13 @@ class DeterministicMatcher:
                 if sim < self.min_name_similarity:
                     continue
 
+                # Fuzzy FP defense: token-overlap gate. Rejects partial-
+                # mention false positives like "Walmart" vs "Wal-Mart
+                # Pharmacy" where char-trigram similarity is high but
+                # the entities are semantically different.
+                if not self._passes_fuzzy_gate(sname, tname, sim):
+                    continue
+
                 # Tie-breaking: city > zip > naics (1 if match, 0 if not)
                 tb = (
                     1 if (scity and tcity and scity == tcity) else 0,
@@ -1247,6 +1279,13 @@ class DeterministicMatcher:
                     composite = SequenceMatcher(None, name_agg, target_nagg).ratio()
 
                 if composite > best_score and composite >= min_score:
+                    # Fuzzy FP defense: token-overlap gate.
+                    # Compares already-aggressive-normalized forms so the
+                    # gate is on tokens (not raw character grams).
+                    if not self._passes_fuzzy_gate(
+                        name_agg, target_nagg, composite,
+                    ):
+                        continue
                     best_score = composite
                     best_match = (eid, target_name, composite, target_city)
 
@@ -1374,6 +1413,11 @@ class DeterministicMatcher:
 
                 for source_id, orig_name, eid, ename, state, sim in rows:
                     sim_f = float(sim)
+                    # Fuzzy FP defense: token-overlap gate (matches the
+                    # in-memory + RapidFuzz paths so all three fuzzy
+                    # tiers reject the same partial-mention FPs).
+                    if not self._passes_fuzzy_gate(orig_name, ename, sim_f):
+                        continue
                     band = self._band_for_score(sim_f)
                     results.append(self._make_result(
                         source_id, eid, "FUZZY_TRIGRAM", "probabilistic", band, sim_f,
@@ -1395,6 +1439,32 @@ class DeterministicMatcher:
         if score >= self.MEDIUM_THRESHOLD:
             return "MEDIUM"
         return "LOW"
+
+    def _passes_fuzzy_gate(self, source_name: str, target_name: str,
+                           score: float) -> bool:
+        """
+        Fuzzy false-positive gate.
+
+        Returns True if the (source_name, target_name, score) pair clears
+        the token-overlap defense, False if it should be rejected. See
+        ``FUZZY_GATE_SCORE_THRESHOLD`` / ``FUZZY_TOKEN_OVERLAP_MIN`` for
+        the rule. Imported function-locally because the project's
+        autoflake pass strips top-level imports it can't see referenced
+        statically (see napkin -- 5x recurrence on api/main.py).
+        """
+        from src.python.matching.name_normalization import (
+            passes_fuzzy_token_gate,
+        )
+        passed = passes_fuzzy_token_gate(
+            source_name, target_name, score,
+            score_threshold=self.FUZZY_GATE_SCORE_THRESHOLD,
+            overlap_threshold=self.FUZZY_TOKEN_OVERLAP_MIN,
+        )
+        if not passed:
+            self.stats[self._GATE_REJECT_KEY] = (
+                self.stats.get(self._GATE_REJECT_KEY, 0) + 1
+            )
+        return passed
 
     def _record_match(self, result: Dict):
         """Update stats for a match."""
@@ -1476,6 +1546,11 @@ class DeterministicMatcher:
         if self.stats["collisions_resolved"] or self.stats["collisions_ambiguous"]:
             print(f"  Collisions: {self.stats['collisions_resolved']:,} resolved by city, "
                   f"{self.stats['collisions_ambiguous']:,} ambiguous")
+        gate_rejects = self.stats.get(self._GATE_REJECT_KEY, 0)
+        if gate_rejects:
+            print(f"  Fuzzy token-overlap gate: {gate_rejects:,} rejected "
+                  f"(score < {self.FUZZY_GATE_SCORE_THRESHOLD}, overlap "
+                  f"< {self.FUZZY_TOKEN_OVERLAP_MIN})")
         if self.stats["by_method"]:
             print("  By method:")
             for method, count in sorted(self.stats["by_method"].items(),
