@@ -110,17 +110,37 @@ def is_likely_real_director_name(name: str | None) -> bool:
 
 
 # SQL filter clause for use in WHERE conditions. Mirrors the Python
-# predicate but skips the year-regex check (regex isn't easily
-# parameterizable here; callers needing the year-filter should run
-# `is_likely_real_director_name()` post-fetch instead — see
-# `api/routers/directors.py` for the canonical pattern). For most
-# practical filtering this still removes 90%+ of the parser garbage
-# at the DB layer, leaving a small Python pass to clean the residue.
+# predicate `is_likely_real_director_name` rule-for-rule so that any
+# SQL aggregate computed with this clause agrees by construction with
+# a Python list filtered by the predicate.
+#
+# 2026-05-18 (Codex finding): the prior version skipped the year-regex
+# and first-token-digit checks, which forced a Python residue pass on
+# top of the SQL filter. That meant `summary.director_count` (SQL
+# aggregate) could disagree with `len(response.directors)` (Python-
+# filtered subset of an already-LIMITed page) — especially badly when
+# all SQL-survivors were year-bearing garbage (e.g. master 4238837
+# returned `director_count=8` with `directors=[]`). Pushing both
+# checks into SQL lets the aggregate stay honest AND lets LIMIT only
+# count rows that pass the FULL predicate.
+#
+# Postgres POSIX ERE notes:
+#   - `[[:<:]]` / `[[:>:]]` are word-boundary anchors (equiv to `\b`).
+#   - `~` is case-sensitive match, `!~` is the negation.
+#   - The expression must be parenthesised inside a regex group; we
+#     write `(19|20)[0-9]{2}` which matches 1900-2099 four-digit runs.
 SQL_FILTER_CLAUSE = """
     director_name IS NOT NULL
     AND LENGTH(TRIM(director_name)) BETWEEN 4 AND 80
     AND ARRAY_LENGTH(STRING_TO_ARRAY(TRIM(director_name), ' '), 1) >= 2
-    AND LOWER(SPLIT_PART(TRIM(director_name), ' ', 1)) NOT IN %(bad_first)s
+    -- First-token check: strip trailing .,;: to mirror the Python
+    -- predicate's `tokens[0].lower().rstrip(".,;:")`. Without this,
+    -- "CEO, ..." / "Committee. ..." / "A. ..." would slip through
+    -- (the bare-word forms are in _BAD_FIRST_WORDS but the punctuated
+    -- forms aren't). RTRIM(..., '.,;:') gives the same effect.
+    AND LOWER(RTRIM(SPLIT_PART(TRIM(director_name), ' ', 1), '.,;:')) NOT IN %(bad_first)s
+    AND SPLIT_PART(TRIM(director_name), ' ', 1) !~ '^[0-9]+$'
+    AND director_name !~ '[[:<:]](19|20)[0-9]{2}[[:>:]]'
     AND NOT EXISTS (
         SELECT 1 FROM UNNEST(%(bad_subs)s::text[]) AS sub
         WHERE LOWER(director_name) LIKE '%%' || sub || '%%'

@@ -13,6 +13,13 @@ These tests pin the post-fix behaviour:
   - `summary.directors_filtered_count` / `interlocks_filtered_count` are
     present even when zero, so the frontend can opt to surface them.
 
+2026-05-18 Codex follow-up: SQL_FILTER_CLAUSE now mirrors the Python predicate
+rule-for-rule, so `summary.director_count` MUST equal `len(directors)` when
+`limit >= director_count`. The earlier behaviour -- where Python filtering
+happened AFTER LIMIT, so a page of 12 could yield 0 real directors with
+`director_count=12` reporting wrong -- is now pinned against by
+`test_director_count_equals_array_length_when_within_limit`.
+
 Live-data tests against the local DB. Each test self-skips if the underlying
 table is empty.
 """
@@ -229,24 +236,111 @@ def test_response_array_excludes_garbage_director_names():
     _first_master_with_garbage_director() is None,
     reason="no master with parser-garbage director rows",
 )
-def test_director_count_matches_filtered_array_when_within_limit():
-    """`summary.director_count` is the post-filter aggregate.
-    When `len(directors)` <= LIMIT (default 50), the two MUST agree.
-    Without this, the BoardCard shows '13 directors' but renders 12
-    rows, which is exactly the regression we're fixing."""
+def test_director_count_equals_array_length_when_within_limit():
+    """`summary.director_count` is the post-filter aggregate AND the SQL
+    fetch shares the same WHERE clause. When the response array isn't
+    truncated by LIMIT, the two MUST be equal -- no fudge factor for
+    Python residue.
+
+    This is the central invariant the 2026-05-18 fix establishes.
+    Pre-fix, the BoardCard could render `${director_count} directors`
+    over an empty list because Python filtering happened after LIMIT
+    and `directors_filtered_count` only counted the page residue.
+    """
     mid = _first_master_with_garbage_director()
     r = client.get(f"/api/employers/master/{mid}/board?limit=200")
     assert r.status_code == 200
     data = r.json()
     s = data["summary"]
-    # If the SQL aggregate filter and the directors-fetch filter agree
-    # (they share the SQL_FILTER_CLAUSE), `director_count` should equal
-    # len(directors) up to any Python-only residue dropped by the
-    # post-fetch predicate.
-    expected_visible = s["director_count"]
-    actual_visible = len(data["directors"])
-    # Residue may shave off a few rows the SQL filter missed.
-    assert actual_visible == expected_visible - s.get("directors_filtered_count", 0)
+    # LIMIT=200 is well above the largest known board (Apple/Pfizer at ~17).
+    # Therefore len(directors) must exactly equal director_count.
+    assert len(data["directors"]) == s["director_count"], (
+        f"director_count={s['director_count']} but "
+        f"len(directors)={len(data['directors'])} -- aggregate and "
+        f"fetch disagree; SQL_FILTER_CLAUSE has drifted from the "
+        f"Python predicate. directors_filtered_count="
+        f"{s.get('directors_filtered_count')}"
+    )
+    # The Python residue pass should drop zero rows now that the SQL
+    # filter is rule-for-rule identical. Any non-zero value here is a
+    # signal that the two paths have diverged.
+    assert s.get("directors_filtered_count", 0) == 0, (
+        f"SQL/Python predicate divergence: "
+        f"directors_filtered_count={s['directors_filtered_count']} > 0 "
+        f"means SQL passed rows that Python rejected -- re-align "
+        f"SQL_FILTER_CLAUSE with is_likely_real_director_name."
+    )
+
+
+def _first_master_with_year_regex_residue() -> int | None:
+    """Find a master whose SQL-survivors (under the OLD clause) contained
+    year-bearing strings that the Python year-regex would have killed.
+    Under the new clause, the SQL should reject these directly so the
+    response should have no such rows AND director_count should reflect
+    the post-year-filter total."""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        # Masters with multiple year-bearing director names that would NOT
+        # be caught by length/first-word/substring filters -- they pass
+        # the OLD SQL clause but fail Python's year-regex.
+        cur.execute(
+            r"""
+            SELECT master_id, COUNT(*) AS n
+            FROM employer_directors
+            WHERE director_name ~ '[[:<:]](19|20)[0-9]{2}[[:>:]]'
+              AND LENGTH(TRIM(director_name)) BETWEEN 4 AND 80
+              AND ARRAY_LENGTH(STRING_TO_ARRAY(TRIM(director_name), ' '), 1) >= 2
+              AND LOWER(SPLIT_PART(TRIM(director_name), ' ', 1)) NOT IN (
+                'def', 'chief', 'vice', 'audit', 'continuing', 'independent',
+                'committee', 'class', 'proxy', '2026', '2025'
+              )
+              AND LOWER(director_name) NOT LIKE '%%proxy statement%%'
+              AND LOWER(director_name) NOT LIKE '%%def 14a%%'
+            GROUP BY master_id
+            ORDER BY n DESC
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+        conn.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+@pytest.mark.skipif(
+    _first_master_with_year_regex_residue() is None,
+    reason="no master with year-regex residue rows",
+)
+def test_year_regex_residue_rejected_at_sql_level():
+    """Regression for the Codex finding: prior to the fix, a master whose
+    parser-garbage rows were year-bearing (e.g. master 4238837 with
+    'James A. Bowen 3 1955', 'Thomas J. Driscoll 4 1961', etc.) would
+    return `director_count=8` with `directors=[]`. The SQL aggregate
+    counted them; the SQL fetch returned them; the Python residue pass
+    then dropped them, leaving the array empty AND `director_count`
+    overstated.
+
+    Post-fix the SQL clause itself rejects year-bearing names, so
+    the aggregate sees the same rows the fetch returns.
+    """
+    mid = _first_master_with_year_regex_residue()
+    r = client.get(f"/api/employers/master/{mid}/board?limit=200")
+    assert r.status_code == 200
+    data = r.json()
+    s = data["summary"]
+    # The historical bug: director_count reports rows that don't make
+    # it into the array. Pin this against.
+    assert len(data["directors"]) == s["director_count"]
+    # And the residue counter should be zero (year-regex is now in SQL).
+    assert s["directors_filtered_count"] == 0
+    # No surviving director name should contain a year.
+    import re
+    for d in data["directors"]:
+        assert not re.search(r"\b(19|20)\d{2}\b", d["name"]), (
+            f"year-bearing name survived SQL filter: {d['name']!r}"
+        )
 
 
 @pytest.mark.skipif(

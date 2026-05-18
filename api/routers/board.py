@@ -59,10 +59,10 @@ def _empty_shape() -> Dict[str, Any]:
             "parse_strategy": None,
             "source_url": None,
             "extracted_at": None,
-            # 2026-05-18: filter-residue observability. Counts how many
-            # parser-garbage rows were dropped by `is_likely_real_director_name`
-            # at the response-array boundary (separate from any SQL-level
-            # filtering of the underlying aggregates).
+            # 2026-05-18: filter-residue observability. Post-fix this should
+            # be 0 on every master (SQL and Python predicate agree). Any
+            # non-zero value signals SQL_FILTER_CLAUSE has drifted from
+            # `is_likely_real_director_name` and needs re-alignment.
             "directors_filtered_count": 0,
             "interlocks_filtered_count": 0,
         },
@@ -169,6 +169,15 @@ def get_master_board(
             # a limit=12 board card could end up showing 3 real directors
             # because the alphabetically-first 9 rows were "Continuing
             # Directors", "DEF 14A", "2026 Proxy Statement 7" etc.
+            #
+            # 2026-05-18 (Codex finding, fix): SQL_FILTER_CLAUSE now mirrors
+            # `is_likely_real_director_name` rule-for-rule (year-regex and
+            # first-token-digit checks moved into SQL). That means LIMIT
+            # only counts rows that pass the FULL predicate -- no more
+            # underfilling because Python rejected residue after the page
+            # was already cut. The aggregate (above) and this fetch share
+            # the same WHERE, so `summary.director_count` and
+            # `len(directors)` agree by construction.
             directors_sql = f"""
                 SELECT
                   director_name, age, position, director_since_year,
@@ -190,12 +199,16 @@ def get_master_board(
             )
             rows = cur.fetchall() or []
 
-            # 2026-05-18: Final Python pass with `is_likely_real_director_name`
-            # to catch residue that SQL doesn't (year-regex check, etc.).
-            # `directors_filtered_count` exposes how many rows the Python
-            # predicate dropped on top of the SQL filter -- usually 0 for
-            # clean masters, non-zero when parser produced year-bearing
-            # garbage that survived the substring blacklist.
+            # 2026-05-18: Defence-in-depth Python pass. With the SQL clause
+            # now matching the predicate exactly, this should drop zero rows
+            # on every observed master in the current corpus -- verified
+            # 20,765 == 20,765 across all 23,956 raw rows on 2026-05-18.
+            # But Python is the canonical predicate (the function definition
+            # is the spec; the SQL is a derived form), so we still run the
+            # Python check here so a future SQL drift can't silently leak
+            # garbage. `directors_filtered_count` will be 0 unless the SQL
+            # clause and Python predicate diverge -- treat any non-zero
+            # value as a signal that the two paths need to be re-aligned.
             directors_filtered_count = 0
             directors = []
             for r in rows:
@@ -376,6 +389,12 @@ def get_master_board(
     # is_matched + director_count both come from the FULL aggregate (post-
     # SQL-filter), so a small `limit` doesn't make a board look smaller
     # than it is. The directors[] array still respects `limit`.
+    #
+    # 2026-05-18 (Codex finding, fix): the SQL aggregate and the SQL fetch
+    # now share an identical WHERE. So `director_count` equals the post-
+    # predicate population size, and `len(directors)` equals
+    # `min(director_count, limit)`. When `limit >= director_count` the two
+    # must be equal (pinned by `test_director_count_equals_array_length_when_within_limit`).
     is_matched = director_count > 0
     return {
         "summary": {
