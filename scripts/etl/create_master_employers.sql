@@ -312,3 +312,46 @@ WHERE NOT EXISTS (
       AND s.source_system = 'f7'
       AND s.source_id = f.employer_id::TEXT
 );
+
+-- ---------------------------------------------------------------------------
+-- Backfill canonical_name_aggressive for rows seeded by the Wave 0 INSERT
+-- above. The earlier UPDATE near line 103 runs against an empty table on
+-- a fresh DB build, so without this trailing backfill the new column would
+-- be NULL on every seeded row -- the new equality/trigram infrastructure
+-- on canonical_name_aggressive would then silently miss every Wave 0 row
+-- until the DDL was rerun. Idempotent (re-running this DDL just fills the
+-- still-NULL or mismatched rows in place).
+-- Found by Codex /wrapup crosscheck on 2026-05-18.
+-- ---------------------------------------------------------------------------
+UPDATE master_employers
+   SET canonical_name_aggressive = trim(
+           regexp_replace(
+               regexp_replace(
+                   regexp_replace(
+                       canonical_name,
+                       '\m(limitedliabilitycompany|incorporated|corporations|corporation|corportation|coropration|incoporated|incorperated|coporation|cooperative|limitedliability|foundation|company|limited|trust|fund|coop|gmbh|llc|llp|ltd|inc|corp|plc|pllc|pty|pvt|nv|bv|na|ag|sa|gp|np|pa|pc|lp|co)\M',
+                       '', 'gi'
+                   ),
+                   '\m(international|consultants|enterprises|consulting|enterprise|management|industries|associates|solutions|industry|partners|holdings|services|national|solution|holding|service|global|group|usa|the|and|of)\M',
+                   '', 'gi'
+               ),
+               '\s+', ' ', 'g'
+           )
+       )
+ WHERE canonical_name IS NOT NULL
+   AND (canonical_name_aggressive IS NULL
+        OR canonical_name_aggressive <> trim(
+               regexp_replace(
+                   regexp_replace(
+                       regexp_replace(
+                           canonical_name,
+                           '\m(limitedliabilitycompany|incorporated|corporations|corporation|corportation|coropration|incoporated|incorperated|coporation|cooperative|limitedliability|foundation|company|limited|trust|fund|coop|gmbh|llc|llp|ltd|inc|corp|plc|pllc|pty|pvt|nv|bv|na|ag|sa|gp|np|pa|pc|lp|co)\M',
+                           '', 'gi'
+                       ),
+                       '\m(international|consultants|enterprises|consulting|enterprise|management|industries|associates|solutions|industry|partners|holdings|services|national|solution|holding|service|global|group|usa|the|and|of)\M',
+                       '', 'gi'
+                   ),
+                   '\s+', ' ', 'g'
+               )
+           )
+       );

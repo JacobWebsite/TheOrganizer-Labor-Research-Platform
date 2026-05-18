@@ -197,6 +197,14 @@ def aggressive_form_of_canonical(canonical_name: str) -> str:
     return normalize_name_aggressive(canonical_name or "")
 
 
+# Strict identifier pattern: alphanumeric + underscore + at most ONE dot
+# (table.column). Anything else (parentheses, quotes, spaces, semicolons,
+# multi-dot like schema.table.col, comments, etc.) is rejected -- this
+# helper builds query-time SQL via f-string interpolation, so the column
+# reference MUST be a trusted hardcoded identifier, not request input.
+_COLUMN_EXPR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$")
+
+
 def canonical_name_aggressive_sql(column_expr: str = "canonical_name") -> str:
     """
     Return a Postgres SQL expression that computes the aggressive form
@@ -213,12 +221,26 @@ def canonical_name_aggressive_sql(column_expr: str = "canonical_name") -> str:
     For high-stakes equality matches use the new column or read into
     Python and call :func:`aggressive_form_of_canonical`.
 
+    SECURITY: ``column_expr`` is interpolated directly into the returned
+    SQL via f-string and is therefore an injection sink. To prevent
+    accidental misuse this function validates the input against a strict
+    identifier regex (``[A-Za-z_]\\w*(\\.[A-Za-z_]\\w*)?``) -- only bare
+    column names or simple ``table.column`` references are accepted.
+    Pass request input or anything dynamic at your peril; the input must
+    be a hardcoded literal or come from a tightly-controlled allowlist.
+    Found-and-fixed by Codex /wrapup crosscheck on 2026-05-18.
+
     Args:
         column_expr: Column reference / SQL expression that yields a
             canonical_name value. Defaults to ``canonical_name``.
+            Must match ``^[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)?$``.
 
     Returns:
         A SQL expression string with no trailing semicolon.
+
+    Raises:
+        ValueError: if ``column_expr`` doesn't look like a bare column
+            reference (e.g. contains quotes, parens, spaces, semicolons).
 
     Example
     -------
@@ -226,6 +248,14 @@ def canonical_name_aggressive_sql(column_expr: str = "canonical_name") -> str:
     >>> "regexp_replace" in sql
     True
     """
+    if not _COLUMN_EXPR_PATTERN.match(column_expr):
+        raise ValueError(
+            f"canonical_name_aggressive_sql: column_expr must be a bare "
+            f"column or 'table.column' reference (matches "
+            f"[A-Za-z_]\\w*(\\.[A-Za-z_]\\w*)?); got {column_expr!r}. "
+            f"This helper builds SQL via f-string interpolation and "
+            f"will not accept arbitrary expressions."
+        )
     # Suffix patterns sorted longest-first to avoid partial matches
     # (e.g. "corporation" must match before "corp"). Bounded by word
     # boundaries via the \\m and \\M anchors (PG-specific).

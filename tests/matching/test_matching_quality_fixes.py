@@ -126,6 +126,36 @@ def test_canonical_name_aggressive_sql_default_column_name():
     assert "canonical_name" in sql
 
 
+def test_canonical_name_aggressive_sql_rejects_injection():
+    """SQL injection guard: helper rejects anything that isn't a bare identifier.
+
+    Found-and-fixed by Codex /wrapup crosscheck on 2026-05-18 -- before the
+    fix, this helper f-string'd arbitrary input into emitted SQL, which is
+    fine for hardcoded literals but unsafe if a future caller ever passed
+    request input or config values.
+    """
+    import pytest
+    # Bare column references work
+    canonical_name_aggressive_sql("canonical_name")
+    canonical_name_aggressive_sql("me.canonical_name")
+    canonical_name_aggressive_sql("master_employers.canonical_name")
+    # Injection attempts are rejected
+    for bad in [
+        "canonical_name); DROP TABLE master_employers; --",
+        "(SELECT canonical_name FROM master_employers)",
+        "canonical_name OR 1=1",
+        "canonical_name; SELECT pg_sleep(10)",
+        "schema.table.column",  # multi-dot disallowed
+        "canonical_name --comment",
+        "'canonical_name'",  # quoted identifier
+        '"canonical_name"',  # double-quoted
+        "",
+        " ",
+    ]:
+        with pytest.raises(ValueError, match="bare column"):
+            canonical_name_aggressive_sql(bad)
+
+
 # ============================================================================
 # Fuzzy band false-positive defense (token-overlap gate)
 # ============================================================================
