@@ -29,7 +29,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
-from api.services.director_name_filter import is_likely_real_director_name
+from api.services.director_name_filter import (
+    is_likely_real_director_name,
+)
 from db_config import get_connection
 
 
@@ -376,3 +378,64 @@ def test_garbage_director_names_absent_for_known_masters():
     names_in_response = {d["name"] for d in r.json()["directors"]}
     leaked = names_in_response & set(GARBAGE_EXAMPLES)
     assert not leaked, f"garbage names leaked: {leaked}"
+
+
+def test_sql_clause_rejects_punctuated_numeric_first_token():
+    # Round 4 Codex follow-up: SQL_FILTER_CLAUSE's numeric first-token check
+    # must RTRIM trailing punctuation to mirror Python's
+    # `tokens[0].rstrip(".,;:").isdigit()`. Without it "12, John Smith" passes
+    # SQL but Python rejects it, recreating the count != len divergence the
+    # 2026-05-18 Round 4 fix is supposed to eliminate.
+    from api.services.director_name_filter import (  # function-local: formatter strips top-level
+        SQL_FILTER_CLAUSE,
+    )
+
+    candidates = [
+        "12, John Smith",
+        "3. James A. Bowen",
+        "5; Mary Doe",
+        "8: Robert Lee",
+        "12345 John Smith",
+        "Jane Doe",
+        "Adam D. Portnoy",
+    ]
+    # Minimum bad_first / bad_subs param shape SQL_FILTER_CLAUSE requires.
+    # The router passes its full catalogs at runtime; for this unit-test we
+    # only need to exercise the numeric-first-token branch.
+    bad_first = ("def", "chief", "vice", "committee", "continuing", "ms.", "mr.")
+    bad_subs: tuple[str, ...] = ()
+
+    param_dict: dict[str, object] = {f"v{i}": c for i, c in enumerate(candidates)}
+    param_dict["bad_first"] = bad_first
+    param_dict["bad_subs"] = list(bad_subs)
+    sql = (
+        "WITH t(director_name) AS (VALUES "
+        + ", ".join(f"(%(v{i})s)" for i in range(len(candidates)))
+        + ") SELECT director_name FROM t WHERE "
+        + SQL_FILTER_CLAUSE
+    )
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(sql, param_dict)
+        survivors = {row[0] for row in cur.fetchall()}
+    finally:
+        conn.close()
+
+    # All punctuated-numeric and pure-numeric first-tokens must be rejected.
+    rejected_expected = {
+        "12, John Smith",
+        "3. James A. Bowen",
+        "5; Mary Doe",
+        "8: Robert Lee",
+        "12345 John Smith",
+    }
+    assert rejected_expected.isdisjoint(survivors), (
+        f"SQL clause failed to reject punctuated-numeric first tokens: "
+        f"{rejected_expected & survivors}"
+    )
+    # Real names must still pass.
+    assert {"Jane Doe", "Adam D. Portnoy"} <= survivors, (
+        f"SQL clause over-filtered real names; survivors={survivors}"
+    )

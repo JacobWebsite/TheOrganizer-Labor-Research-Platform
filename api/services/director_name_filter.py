@@ -139,7 +139,7 @@ SQL_FILTER_CLAUSE = """
     -- (the bare-word forms are in _BAD_FIRST_WORDS but the punctuated
     -- forms aren't). RTRIM(..., '.,;:') gives the same effect.
     AND LOWER(RTRIM(SPLIT_PART(TRIM(director_name), ' ', 1), '.,;:')) NOT IN %(bad_first)s
-    AND SPLIT_PART(TRIM(director_name), ' ', 1) !~ '^[0-9]+$'
+    AND RTRIM(SPLIT_PART(TRIM(director_name), ' ', 1), '.,;:') !~ '^[0-9]+$'
     AND director_name !~ '[[:<:]](19|20)[0-9]{2}[[:>:]]'
     AND NOT EXISTS (
         SELECT 1 FROM UNNEST(%(bad_subs)s::text[]) AS sub
