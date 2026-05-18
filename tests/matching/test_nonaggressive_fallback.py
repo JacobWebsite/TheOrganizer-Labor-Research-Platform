@@ -93,17 +93,22 @@ class FakeCursor:
 @pytest.mark.parametrize("inp,expected", [
     # Bare names that need NO stripping
     ("booking holdings",            "booking holdings"),
-    ("Aerospace Industries Assoc",  "aerospace industries assoc"),
     ("Marzetti Company",            "marzetti company"),
 
-    # Corporate-suffix stripping
+    # Trailing abbreviation expansion (Bug 1 fix, 2026-05-18):
+    # `Assoc` at the end expands to `association` so the entity-side
+    # form composes with `master_employers.canonical_name` values like
+    # "aerospace industries association".
+    ("Aerospace Industries Assoc",  "aerospace industries association"),
+
+    # Corporate-suffix stripping (now end-anchored, Bug 2 fix 2026-05-18)
     ("Booking Holdings Inc",        "booking holdings"),
     ("Booking Holdings, Inc.",      "booking holdings"),
     ("Apple Corporation",           "apple"),
     ("Apple Corp",                  "apple"),
     ("Acme LLC",                    "acme"),
     # "L.L.C." -> tokens "l l c" which is multi-token. The less-aggressive
-    # normalizer strips only word-anchored suffixes, so "l l c" survives.
+    # normalizer strips only end-anchored suffixes, so "l l c" survives.
     # That's OK because both sides (entity and canonical) go through the
     # same normalizer; symmetry is preserved.
     ("Acme L.L.C.",                 "acme l l c"),
@@ -156,6 +161,225 @@ def test_normalize_strips_suffix_misspellings():
     assert mod.normalize_nonaggressive("Acme Coporation") == "acme"
     assert mod.normalize_nonaggressive("Acme Coropration") == "acme"
     assert mod.normalize_nonaggressive("Acme Incoporated") == "acme"
+
+
+# ============================================================================
+# Bug 1 (Codex 2026-05-18): trailing abbreviation expansion -- the
+# docstring promises `"Aerospace Industries Assoc"` recovers
+# `"aerospace industries association"` but the original implementation
+# never expanded `assoc -> association`. Tests below verify both the
+# happy path AND the "do not over-expand" boundary cases.
+# ============================================================================
+
+def test_normalize_expands_trailing_assoc():
+    """Brief target: actually uses the abbreviated input form, not the
+    full word the original test dodged with.
+    """
+    assert (
+        mod.normalize_nonaggressive("Aerospace Industries Assoc")
+        == "aerospace industries association"
+    )
+
+
+def test_normalize_expands_trailing_assoc_with_dot():
+    """Real-world Assoc is often written with a trailing dot."""
+    assert (
+        mod.normalize_nonaggressive("Aerospace Industries Assoc.")
+        == "aerospace industries association"
+    )
+
+
+def test_normalize_expands_other_trailing_abbreviations():
+    """The expansion table covers the most common 10-K abbreviations."""
+    assert mod.normalize_nonaggressive("ABC Intl") == "abc international"
+    assert mod.normalize_nonaggressive("Acme Mfg") == "acme manufacturing"
+    assert mod.normalize_nonaggressive("Bar Inst") == "bar institute"
+    assert mod.normalize_nonaggressive("Baz Assn") == "baz association"
+
+
+def test_normalize_does_not_over_expand_leading_assoc():
+    """Negative test: ``ASSOC Capital`` -- here ``Assoc`` is the company's
+    actual name token, not an abbreviation. End-anchored expansion
+    prevents over-expansion: only the TRAILING ``assoc`` becomes
+    ``association``.
+    """
+    # Both with and without the suffix to be sure.
+    assert mod.normalize_nonaggressive("ASSOC Capital") == "assoc capital"
+    assert (
+        mod.normalize_nonaggressive("ASSOC Capital Partners LLC")
+        == "assoc capital partners"
+    )
+
+
+def test_normalize_does_not_over_expand_mid_name_co():
+    """Negative test: ``Co`` mid-name (e.g. ``Coke Co Ltd``). After the
+    trailing ``ltd`` strip we have ``coke co`` -- THAT trailing ``co``
+    does expand, but a ``co`` in the middle of an unrelated name like
+    ``Co Capital LLC`` must NOT expand.
+    """
+    # Co at end after ltd strip -> "coke company"
+    assert mod.normalize_nonaggressive("Coke Co Ltd") == "coke company"
+    # Co at start of "Co Capital LLC" -> stripped llc -> "co capital"
+    # `co` is not trailing here, so no expansion.
+    assert mod.normalize_nonaggressive("Co Capital LLC") == "co capital"
+
+
+def test_normalize_microsoft_co_does_not_cross_tier_collide():
+    """Brief negative: ``Microsoft Co.`` should NOT collide with
+    canonical ``Microsoft Corporation`` via this tier.
+
+    Both are normalized via the same function:
+        normalize_nonaggressive("Microsoft Co.")        = "microsoft company"
+        normalize_nonaggressive("Microsoft Corporation") = "microsoft"
+    Different output strings, so the equality match in
+    _match_nonaggressive_exact cannot bridge them.
+
+    This regression guards against an over-eager abbreviation table
+    that maps ``co -> corporation`` (which WOULD bridge them) -- a
+    real risk if someone "fixes" the cross-canonical lookup the wrong
+    way.
+    """
+    entity_form = mod.normalize_nonaggressive("Microsoft Co.")
+    canonical_form = mod.normalize_nonaggressive("Microsoft Corporation")
+    assert entity_form == "microsoft company"
+    assert canonical_form == "microsoft"
+    assert entity_form != canonical_form
+
+
+# ============================================================================
+# Bug 2 (Codex 2026-05-18): suffix pattern must be end-anchored.
+# Without the `$` anchor, tokens like sa / ag / na / lp / inc / corp
+# get stripped from arbitrary positions. Concrete risk: "SA Recycling
+# LLC" collapsed to "recycling" and could match unrelated canonicals
+# at confidence 1.0.
+# ============================================================================
+
+def test_normalize_does_not_strip_sa_at_start():
+    """Critical regression: ``SA Recycling LLC`` must keep ``sa`` because
+    it sits at the START of the name. Only the trailing ``llc`` strips.
+    """
+    result = mod.normalize_nonaggressive("SA Recycling LLC")
+    assert result == "sa recycling"
+    # Belt-and-suspenders: the dangerous collapsed form must NOT appear.
+    assert result != "recycling"
+
+
+def test_normalize_strips_sa_only_when_trailing():
+    """Positive trailing-strip case for ``sa``: ``BNP Paribas SA`` ->
+    ``bnp paribas``. The same token that survived in
+    ``SA Recycling LLC`` IS stripped here because it's trailing.
+    """
+    assert mod.normalize_nonaggressive("BNP Paribas SA") == "bnp paribas"
+
+
+def test_normalize_does_not_strip_inc_mid_name():
+    """``Inc`` is a corporate suffix, but only at the END. ``Apple Inc
+    Holdings`` has ``Inc`` mid-name and ``Holdings`` trailing. Since
+    ``Holdings`` is NOT in _CORPORATE_SUFFIXES (kept as a content word
+    per design), the trailing strip is a no-op and the result is the
+    original cleaned form.
+    """
+    assert (
+        mod.normalize_nonaggressive("Apple Inc Holdings")
+        == "apple inc holdings"
+    )
+
+
+def test_normalize_strips_inc_trailing_simple():
+    """Positive single-pass case: ``Apple Inc`` -> ``apple``."""
+    assert mod.normalize_nonaggressive("Apple Inc") == "apple"
+
+
+def test_normalize_strips_inc_with_punctuation():
+    """``Apple, Inc.`` -> punctuation cleanup leaves ``apple inc``,
+    then end-anchored strip drops ``inc``. The final form is ``apple``.
+    """
+    assert mod.normalize_nonaggressive("Apple, Inc.") == "apple"
+
+
+def test_normalize_no_strip_short_legal_token_anywhere_but_end():
+    """Sweep across the short tokens (sa, ag, na, lp, gp, np, pa, pc,
+    bv, nv, pty, pvt) and confirm none get stripped when they appear
+    at the START of the name. Without the end-anchor fix, several
+    of these would have over-stripped.
+    """
+    cases = [
+        ("SA Recycling LLC", "sa recycling"),
+        ("AG Capital LLC",   "ag capital"),
+        ("NA Holdings LLC",  "na holdings"),
+        ("LP Capital LLC",   "lp capital"),
+        ("GP Partners LLC",  "gp partners"),
+        ("NP Foundation LLC","np foundation"),
+        ("PA Industries LLC","pa industries"),
+        ("PC Group LLC",     "pc group"),
+        ("BV Holdings LLC",  "bv holdings"),
+        ("NV Holdings LLC",  "nv holdings"),
+    ]
+    for inp, expected in cases:
+        actual = mod.normalize_nonaggressive(inp)
+        assert actual == expected, (
+            f"Over-stripped leading legal token: {inp!r} -> {actual!r} "
+            f"(expected {expected!r})"
+        )
+
+
+# ============================================================================
+# Bug 2 cross-tier safety: the _match_nonaggressive_exact tier should
+# NOT pull through "recycling" as a high-confidence (1.0) match for
+# "SA Recycling LLC". The matcher operates on the normalized form,
+# so as long as the normalization is correct, the SQL equality match
+# is keyed on "sa recycling" -- not the dangerous "recycling".
+# ============================================================================
+
+def test_sa_recycling_does_not_collapse_via_tier_match():
+    """Regression guard for the matcher itself. Build a FakeCursor
+    that WOULD return a master_id IF the SQL was ever called with
+    the dangerous form ``"recycling"``. Show that the matcher
+    queries with ``"sa recycling"`` instead, so a benign canonical
+    that normalizes to ``"recycling"`` cannot tag along.
+    """
+    cur = FakeCursor([
+        # If `_match_nonaggressive_exact` ever queries with "recycling",
+        # this row would be returned. The assertion below checks the
+        # params actually passed to the cursor.
+        [(999, "recycling industries inc")],
+    ])
+    result = mod._match_nonaggressive_exact("SA Recycling LLC", cur=cur)
+    # The actual query is keyed on "sa recycling" -- the FakeCursor
+    # is dumb and will still return its row, so we instead assert
+    # on `last_params` that the query DID NOT use "recycling".
+    assert cur.last_params is not None
+    bound_value = cur.last_params[0]
+    assert bound_value == "sa recycling", (
+        f"matcher bound dangerous form: {bound_value!r}"
+    )
+    # The function still returns the row (FakeCursor is dumb), but
+    # in production the SQL would only return rows whose canonical
+    # ALSO normalizes to "sa recycling" -- which "recycling industries
+    # inc" does not. Confirm the wire-level safety.
+    assert result is not None  # FakeCursor returned a row anyway
+    assert result[0] == 999    # the dumb stub
+
+
+def test_assoc_recovery_via_tier_match():
+    """End-to-end: the abbreviated entity_text ``"Aerospace Industries
+    Assoc"`` and the canonical ``"aerospace industries association"``
+    both normalize to ``"aerospace industries association"`` and the
+    equality match succeeds.
+    """
+    cur = FakeCursor([
+        [(505, "aerospace industries association")],
+    ])
+    result = mod._match_nonaggressive_exact(
+        "Aerospace Industries Assoc", cur=cur
+    )
+    assert result is not None
+    master_id, score, tier = result
+    assert master_id == 505
+    assert score == 1.0
+    assert tier == "nonaggressive_exact"
+    # And confirm the SQL was keyed on the expanded form.
+    assert cur.last_params == ("aerospace industries association",)
 
 
 # ============================================================================

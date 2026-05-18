@@ -140,10 +140,52 @@ _CORPORATE_SUFFIXES = (
     "np",
 )
 
-# Built once at import time so re-use is cheap.
+# End-anchored: only strip legal-form tokens at the TRAILING position of
+# the normalized name. Without the `$` anchor, short tokens like "sa",
+# "ag", "na", "lp", "inc", "corp" would be stripped from anywhere in
+# the name -- e.g. "SA Recycling LLC" would collapse to "recycling"
+# and could falsely match an unrelated canonical that normalizes to
+# "recycling". Codex 2026-05-18 crosscheck flagged this real bug.
+#
+# Single-pass: we strip exactly one trailing suffix per call. Real
+# canonicals like "Foo Holdings LLC" should retain "Holdings" (a
+# content word) and only drop "LLC". If we wanted to drop chained
+# trailing legal tokens like "Foo Inc Ltd", we'd iterate -- but
+# real-world data almost never has that and iteration risks
+# cross-canonical collisions, so we keep it single-pass.
 _SUFFIX_PATTERN = re.compile(
-    r"\b(?:" + "|".join(_CORPORATE_SUFFIXES) + r")\b",
+    r"\s+(?:" + "|".join(_CORPORATE_SUFFIXES) + r")$",
     re.IGNORECASE,
+)
+
+
+# Org-name abbreviation expansions. Keys are matched at the TRAILING
+# position only (`$` anchor) so we don't over-expand cases where the
+# token is part of the org's actual name (e.g. "ASSOC Capital" must
+# stay "assoc capital", not become "association capital").
+#
+# Order: this expansion runs AFTER `_SUFFIX_PATTERN`-stripping so that
+# patterns like "Sony Co Ltd" first lose the "ltd" suffix, leaving
+# "sony co" with `co` newly-terminal and eligible for expansion to
+# "sony company".
+#
+# Each abbreviation is the SHORT form found in 10-K extracts; the
+# expansion is the LONG form that matches real canonical_name values
+# in `master_employers` (e.g. "Aerospace Industries Association").
+_ABBREV_EXPANSIONS = (
+    ("assoc", "association"),
+    ("assn",  "association"),
+    ("intl",  "international"),
+    ("mfg",   "manufacturing"),
+    ("inst",  "institute"),
+    ("co",    "company"),
+)
+
+# Built once at import time. Each is end-anchored so it only
+# rewrites the trailing token.
+_ABBREV_PATTERNS = tuple(
+    (re.compile(r"\s+" + re.escape(short) + r"$", re.IGNORECASE), " " + full)
+    for short, full in _ABBREV_EXPANSIONS
 )
 
 
@@ -154,14 +196,26 @@ def normalize_nonaggressive(name: str) -> str:
         1. lowercase + collapse internal whitespace
         2. replace ampersand / slash / plus with spaces
         3. strip non-word punctuation
-        4. strip corporate legal suffixes (Inc / LLC / Corp / Ltd / ...)
-        5. collapse repeated whitespace
-        6. trim
+        4. strip TRAILING corporate legal suffix (Inc / LLC / Corp / Ltd / ...)
+        5. expand TRAILING org abbreviation (Assoc / Intl / Mfg / Co / Inst / Assn)
+        6. collapse repeated whitespace
+        7. trim
 
-    KEEPS content tokens like ``Holdings`` / ``Industries`` / ``Company``
-    / ``Group`` / ``The`` / ``Of`` -- those are part of the entity
-    name and need to remain in both the query and the master canonical
-    for the equality match to succeed.
+    KEEPS content tokens like ``Holdings`` / ``Industries`` / ``Group``
+    / ``The`` / ``Of`` -- those are part of the entity name and need to
+    remain in both the query and the master canonical for the equality
+    match to succeed.
+
+    Trailing-only anchoring: short corporate-form tokens (sa, ag, na, lp,
+    inc, corp, ...) are stripped ONLY when they sit at the end of the
+    name. Without that anchor, ``"SA Recycling LLC"`` would collapse
+    to ``"recycling"`` and falsely match unrelated canonicals -- Codex
+    crosscheck 2026-05-18 flagged that bug.
+
+    Symmetric: the same normalizer runs on both ``entity_text`` and
+    ``master_employers.canonical_name``, so any expansion (e.g. ``co`` ->
+    ``company``) must be deterministic and applied identically to both
+    sides for the equality match to compose.
 
     Examples
     --------
@@ -175,8 +229,12 @@ def normalize_nonaggressive(name: str) -> str:
     'm t bank'
     >>> normalize_nonaggressive("Marzetti Company")
     'marzetti company'
+    >>> normalize_nonaggressive("Aerospace Industries Assoc")
+    'aerospace industries association'
     >>> normalize_nonaggressive("Aerospace Industries Association")
     'aerospace industries association'
+    >>> normalize_nonaggressive("SA Recycling LLC")
+    'sa recycling'
     >>> normalize_nonaggressive("Item 4")
     'item 4'
     >>> normalize_nonaggressive("")
@@ -191,9 +249,19 @@ def normalize_nonaggressive(name: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()
     if not s:
         return ""
-    # Step 4: strip corporate suffixes (word-boundary anchored)
+    # Step 4: strip trailing corporate suffix (end-anchored, single-pass).
+    # End-anchor prevents "SA Recycling LLC" -> "recycling" type collapses.
     s = _SUFFIX_PATTERN.sub("", s)
-    # Step 5-6: re-collapse whitespace + trim
+    s = re.sub(r"\s+", " ", s).strip()
+    # Step 5: expand TRAILING org abbreviations (Assoc -> Association etc.).
+    # Runs AFTER suffix-strip so "Sony Co Ltd" -> "sony co" -> "sony company".
+    # Iterate the tuple in declaration order; first end-match wins.
+    for pat, repl in _ABBREV_PATTERNS:
+        new_s = pat.sub(repl, s)
+        if new_s != s:
+            s = new_s
+            break
+    # Step 6-7: re-collapse whitespace + trim
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
@@ -280,18 +348,58 @@ def _match_nonaggressive_exact(
         own_cur = True
 
     try:
-        # Build the SQL regex that mirrors `_SUFFIX_PATTERN` on the
-        # canonical_name column. The Python `\b` boundary translates to
-        # `\m` / `\M` in PG's POSIX-flavor regex (start / end of word).
+        # Compare the entity's already-normalized form against the SAME
+        # normalization applied to canonical_name via Postgres regex.
+        # The SQL expression must mirror normalize_nonaggressive() exactly
+        # so the equality match is symmetric.
+        #
+        # Pipeline (each `regexp_replace` is one layer of the onion,
+        # innermost first):
+        #   (1) lower(canonical_name)
+        #   (2) replace [&/+]   with single space
+        #   (3) strip non-word punctuation -> space
+        #   (4) collapse repeated whitespace
+        #   (5) strip trailing legal suffix (end-anchored: `\s+(suf)$`)
+        #   (6) chain end-anchored abbreviation expansions
+        #   (7) collapse whitespace, trim
+        #
+        # PG POSIX regex: \s = whitespace, $ = end of string. We do NOT
+        # use \m / \M (word boundaries) on the suffix strip because we
+        # want strict trailing position only.
         suffix_alt = "|".join(_CORPORATE_SUFFIXES)
+
+        # Build the chained abbreviation expansion as nested
+        # regexp_replace calls. Order mirrors Python: first-match-wins
+        # is approximated by chaining (each layer rewrites if and only
+        # if its pattern matches the current trailing position).
+        # We wrap from innermost outward.
+        canonical_expr = (
+            "trim(regexp_replace("
+            "regexp_replace("
+            "regexp_replace(lower(canonical_name), '[&/+]', ' ', 'g'),"
+            "'[^[:alnum:][:space:]]', ' ', 'g'),"
+            "'\\s+', ' ', 'g'))"
+        )
+        # Layer (5): strip trailing legal suffix
+        canonical_expr = (
+            f"regexp_replace({canonical_expr}, "
+            f"'\\s+({suffix_alt})$', '', 'i')"
+        )
+        # Layer (6): chain abbreviation expansions, end-anchored
+        for short, full in _ABBREV_EXPANSIONS:
+            canonical_expr = (
+                f"regexp_replace({canonical_expr}, "
+                f"'\\s+{short}$', ' {full}', 'i')"
+            )
+        # Layer (7): re-collapse whitespace + trim
+        canonical_expr = (
+            f"trim(regexp_replace({canonical_expr}, '\\s+', ' ', 'g'))"
+        )
+
         sql = f"""
             SELECT master_id, canonical_name
               FROM master_employers
-             WHERE trim(regexp_replace(
-                       regexp_replace(canonical_name,
-                                      '\\m({suffix_alt})\\M', '', 'gi'),
-                       '\\s+', ' ', 'g'
-                   )) = %s
+             WHERE {canonical_expr} = %s
              ORDER BY master_id
              LIMIT 2
         """
