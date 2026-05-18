@@ -59,6 +59,12 @@ def _empty_shape() -> Dict[str, Any]:
             "parse_strategy": None,
             "source_url": None,
             "extracted_at": None,
+            # 2026-05-18: filter-residue observability. Counts how many
+            # parser-garbage rows were dropped by `is_likely_real_director_name`
+            # at the response-array boundary (separate from any SQL-level
+            # filtering of the underlying aggregates).
+            "directors_filtered_count": 0,
+            "interlocks_filtered_count": 0,
         },
         "directors": [],
         "interlocks": [],
@@ -93,6 +99,17 @@ def get_master_board(
             if not _tables_exist(cur):
                 return _empty_shape()
 
+            # Function-local imports for SQL_FILTER_CLAUSE / sql_filter_params
+            # to dodge the autoflake/ruff PostToolUse formatter which strips
+            # top-level imports it doesn't see referenced syntactically.
+            # (Napkin entry 2026-05-12.) The Python predicate
+            # `is_likely_real_director_name` is referenced at module scope
+            # below so it survives the top-of-file import.
+            from ..services.director_name_filter import (
+                SQL_FILTER_CLAUSE,
+                sql_filter_params,
+            )
+
             # Summary aggregates over the FULL roster, not just the page
             # being returned. Without this, `summary.director_count` and
             # `summary.independent_count` would silently report the LIMIT
@@ -100,17 +117,25 @@ def get_master_board(
             # 30-director board would see "5 directors / 1 independent"
             # instead of "30 / 8". Same for the source-freshness fields.
             # (Codex finding 2026-05-04, fixed same day.)
-            cur.execute(
-                """
+            #
+            # 2026-05-18: The aggregate ALSO applies SQL_FILTER_CLAUSE so
+            # parser-garbage rows ("DEF 14A", "2026 Proxy Statement N", etc.)
+            # don't inflate `director_count`. Spot-checks against Boeing /
+            # Walmart / Salesforce / Pfizer showed up to 13/16 rows being
+            # parser garbage -- a frontend that renders
+            # `${director_count} directors` on top of a list that's been
+            # filtered to half size shouldn't show the unfiltered total.
+            filter_params = sql_filter_params()
+            agg_sql = f"""
                 SELECT
                   COUNT(*) AS director_count,
                   COUNT(*) FILTER (WHERE is_independent IS TRUE) AS independent_count,
                   MAX(fiscal_year) AS latest_fy
                 FROM employer_directors
-                WHERE master_id = %s
-                """,
-                [master_id],
-            )
+                WHERE master_id = %(mid)s
+                  AND {SQL_FILTER_CLAUSE}
+            """
+            cur.execute(agg_sql, {**filter_params, "mid": master_id})
             agg_row = cur.fetchone() or {}
             director_count = int(agg_row.get("director_count") or 0)
             independent_count = int(agg_row.get("independent_count") or 0)
@@ -139,30 +164,48 @@ def get_master_board(
                     latest_source_url = fr.get("source_url")
                     latest_extracted_at = fr.get("extracted_at")
 
-            cur.execute(
-                """
+            # 2026-05-18: Apply SQL_FILTER_CLAUSE at fetch time so the LIMIT
+            # page isn't half-consumed by parser-garbage rows. Without this
+            # a limit=12 board card could end up showing 3 real directors
+            # because the alphabetically-first 9 rows were "Continuing
+            # Directors", "DEF 14A", "2026 Proxy Statement 7" etc.
+            directors_sql = f"""
                 SELECT
                   director_name, age, position, director_since_year,
                   primary_occupation, is_independent, committees,
                   compensation_total, fiscal_year, parse_strategy,
                   source_url, extracted_at
                 FROM employer_directors
-                WHERE master_id = %s
+                WHERE master_id = %(mid)s
+                  AND {SQL_FILTER_CLAUSE}
                 ORDER BY
                   CASE WHEN is_independent IS FALSE THEN 0 ELSE 1 END,
                   director_since_year ASC NULLS LAST,
                   director_name ASC
-                LIMIT %s
-                """,
-                [master_id, limit],
+                LIMIT %(lim)s
+            """
+            cur.execute(
+                directors_sql,
+                {**filter_params, "mid": master_id, "lim": limit},
             )
             rows = cur.fetchall() or []
 
+            # 2026-05-18: Final Python pass with `is_likely_real_director_name`
+            # to catch residue that SQL doesn't (year-regex check, etc.).
+            # `directors_filtered_count` exposes how many rows the Python
+            # predicate dropped on top of the SQL filter -- usually 0 for
+            # clean masters, non-zero when parser produced year-bearing
+            # garbage that survived the substring blacklist.
+            directors_filtered_count = 0
             directors = []
             for r in rows:
+                name = r.get("director_name")
+                if not is_likely_real_director_name(name):
+                    directors_filtered_count += 1
+                    continue
                 directors.append(
                     {
-                        "name": r.get("director_name"),
+                        "name": name,
                         "age": r.get("age"),
                         "position": r.get("position"),
                         "since_year": r.get("director_since_year"),
@@ -269,6 +312,7 @@ def get_master_board(
                 d["enforcement_risk"] = risk_by_name.get(d["name"])
 
             interlocks: list = []
+            interlocks_filtered_count = 0
             if directors:
                 cur.execute(
                     """
@@ -293,8 +337,20 @@ def get_master_board(
                 )
                 raw_interlocks = cur.fetchall() or []
                 if raw_interlocks:
+                    # 2026-05-18: Drop interlocks whose `director_name` is
+                    # parser garbage. Without this, masters like Boeing
+                    # would surface 163 interlocks for "DEF 14A" and the
+                    # frontend interlock chip count would dominate the
+                    # card. Filter at the response boundary so the DB
+                    # data stays intact for future re-classification.
+                    clean_interlocks = []
+                    for r in raw_interlocks:
+                        if not is_likely_real_director_name(r.get("director_name")):
+                            interlocks_filtered_count += 1
+                            continue
+                        clean_interlocks.append(r)
                     other_ids = sorted(
-                        {r["other_master_id"] for r in raw_interlocks if r.get("other_master_id")}
+                        {r["other_master_id"] for r in clean_interlocks if r.get("other_master_id")}
                     )
                     name_lookup: dict[int, str] = {}
                     if other_ids:
@@ -314,12 +370,12 @@ def get_master_board(
                             "other_cik": r["other_cik"],
                             "other_fiscal_year": r["other_fiscal_year"],
                         }
-                        for r in raw_interlocks
+                        for r in clean_interlocks
                     ]
 
-    # is_matched + director_count both come from the FULL aggregate (not
-    # the limited roster), so a small `limit` doesn't make a board look
-    # smaller than it is. The directors[] array still respects `limit`.
+    # is_matched + director_count both come from the FULL aggregate (post-
+    # SQL-filter), so a small `limit` doesn't make a board look smaller
+    # than it is. The directors[] array still respects `limit`.
     is_matched = director_count > 0
     return {
         "summary": {
@@ -330,6 +386,9 @@ def get_master_board(
             "parse_strategy": latest_strategy,
             "source_url": latest_source_url,
             "extracted_at": latest_extracted_at.isoformat() if latest_extracted_at else None,
+            # 2026-05-18: filter-residue observability (see _empty_shape()).
+            "directors_filtered_count": directors_filtered_count,
+            "interlocks_filtered_count": interlocks_filtered_count,
         },
         "directors": directors,
         "interlocks": interlocks,
