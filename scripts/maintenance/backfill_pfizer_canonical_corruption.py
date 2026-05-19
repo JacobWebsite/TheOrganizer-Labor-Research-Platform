@@ -170,6 +170,7 @@ def build_master_plan(cur, log):
     plan = []
     not_a_victim = 0
     already_correct = 0
+    skipped_empty = 0
     examined = 0
     for master_id, display_name, canonical_name in collect_master_candidates(cur):
         examined += 1
@@ -180,10 +181,17 @@ def build_master_plan(cur, log):
         if new_canonical == canonical_name:
             already_correct += 1
             continue
+        if not new_canonical:
+            # Don't replace a wrong-but-non-empty canonical with empty. The row
+            # is a junk master (e.g. display_name == "COMPANY"); a separate
+            # cleanup should delete or quarantine it.
+            skipped_empty += 1
+            continue
         plan.append((master_id, display_name, canonical_name, new_canonical))
     log(f"  master_employers: examined {examined:,} candidate rows")
     log(f"    skipped (not bug victim): {not_a_victim:,}")
     log(f"    skipped (already correct): {already_correct:,}")
+    log(f"    skipped (new canonical empty): {skipped_empty:,}")
     log(f"    actionable: {len(plan):,}")
     return plan
 
@@ -193,6 +201,7 @@ def build_mergent_plan(cur, log):
     plan = []
     not_a_victim = 0
     already_correct = 0
+    skipped_empty = 0
     examined = 0
     for rid, company_name, company_name_normalized in collect_mergent_candidates(cur):
         examined += 1
@@ -203,10 +212,14 @@ def build_mergent_plan(cur, log):
         if new_normalized == company_name_normalized:
             already_correct += 1
             continue
+        if not new_normalized:
+            skipped_empty += 1
+            continue
         plan.append((rid, company_name, company_name_normalized, new_normalized))
     log(f"  mergent_employers: examined {examined:,} candidate rows")
     log(f"    skipped (not bug victim): {not_a_victim:,}")
     log(f"    skipped (already correct): {already_correct:,}")
+    log(f"    skipped (new canonical empty): {skipped_empty:,}")
     log(f"    actionable: {len(plan):,}")
     return plan
 
