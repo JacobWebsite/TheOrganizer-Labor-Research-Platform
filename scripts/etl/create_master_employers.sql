@@ -70,6 +70,82 @@ CREATE INDEX IF NOT EXISTS idx_master_employers_naics
 CREATE INDEX IF NOT EXISTS idx_master_employers_canonical_name_trgm
     ON master_employers USING gin (canonical_name gin_trgm_ops);
 
+-- ---------------------------------------------------------------------------
+-- canonical_name_aggressive: suffix-stripped + noise-token-stripped form of
+-- canonical_name. Fixes the 10-K matcher's suffix-stripping asymmetry
+-- (see Open Problems/10-K Matcher Suffix Stripping Asymmetry.md).
+--
+-- canonical_name itself is only lowercased + alphanumerics-spaced (see
+-- the INSERT below), so callers comparing aggressive-form query strings
+-- against canonical_name silently miss "Walmart Inc" vs "walmart inc"
+-- and similar cases. The new column applies the same suffix/noise
+-- stripping the Python ``normalize_name_aggressive`` helper does, so
+-- matchers can run an exact equality against this column.
+--
+-- The SQL implementation below is intentionally a subset of the Python
+-- helper -- it strips the LEGAL_SUFFIXES and NOISE_TOKENS sets but does
+-- NOT expand abbreviations (hosp -> hospital), because the abbreviation
+-- table is awkward to maintain in pure SQL. For high-precision matches
+-- callers should still go through the Python ``normalize_name_aggressive``
+-- helper rather than relying on this column. The column is best-effort
+-- coverage for the common case of "suffix stripped on one side, raw on
+-- the other".
+-- ---------------------------------------------------------------------------
+ALTER TABLE master_employers
+    ADD COLUMN IF NOT EXISTS canonical_name_aggressive TEXT;
+
+-- Recompute the column from canonical_name. Idempotent: re-running this
+-- DDL file re-fills canonical_name_aggressive in place, so future ETL
+-- additions get covered without a separate backfill script.
+-- The regex pattern set mirrors LEGAL_SUFFIXES (inc/corp/llc/...) plus
+-- NOISE_TOKENS (the/of/services/group/...). Sorted longest-first inside
+-- each alternation so 'corporation' wins over 'corp'.
+UPDATE master_employers
+   SET canonical_name_aggressive = trim(
+           regexp_replace(
+               regexp_replace(
+                   regexp_replace(
+                       canonical_name,
+                       -- LEGAL_SUFFIXES (longest-first inside alt)
+                       '\m(limitedliabilitycompany|incorporated|corporations|corporation|corportation|coropration|incoporated|incorperated|coporation|cooperative|limitedliability|foundation|company|limited|trust|fund|coop|gmbh|llc|llp|ltd|inc|corp|plc|pllc|pty|pvt|nv|bv|na|ag|sa|gp|np|pa|pc|lp|co)\M',
+                       '', 'gi'
+                   ),
+                   -- NOISE_TOKENS (longest-first inside alt)
+                   '\m(international|consultants|enterprises|consulting|enterprise|management|industries|associates|solutions|industry|partners|holdings|services|national|solution|holding|service|global|group|usa|the|and|of)\M',
+                   '', 'gi'
+               ),
+               -- Collapse whitespace
+               '\s+', ' ', 'g'
+           )
+       )
+ WHERE canonical_name IS NOT NULL
+   AND (canonical_name_aggressive IS NULL
+        OR canonical_name_aggressive <> trim(
+               regexp_replace(
+                   regexp_replace(
+                       regexp_replace(
+                           canonical_name,
+                           '\m(limitedliabilitycompany|incorporated|corporations|corporation|corportation|coropration|incoporated|incorperated|coporation|cooperative|limitedliability|foundation|company|limited|trust|fund|coop|gmbh|llc|llp|ltd|inc|corp|plc|pllc|pty|pvt|nv|bv|na|ag|sa|gp|np|pa|pc|lp|co)\M',
+                           '', 'gi'
+                       ),
+                       '\m(international|consultants|enterprises|consulting|enterprise|management|industries|associates|solutions|industry|partners|holdings|services|national|solution|holding|service|global|group|usa|the|and|of)\M',
+                       '', 'gi'
+                   ),
+                   '\s+', ' ', 'g'
+               )
+           )
+       );
+
+-- Trigram index over the new column so matchers can do
+--   WHERE canonical_name_aggressive % normalize_name_aggressive($1)
+-- without sequentially scanning all rows.
+CREATE INDEX IF NOT EXISTS idx_master_employers_canonical_name_agg_trgm
+    ON master_employers USING gin (canonical_name_aggressive gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_master_employers_canonical_name_aggressive
+    ON master_employers (canonical_name_aggressive)
+    WHERE canonical_name_aggressive IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_master_employers_source_origin
     ON master_employers (source_origin);
 
@@ -92,7 +168,15 @@ COMMENT ON TABLE master_employers IS
 COMMENT ON COLUMN master_employers.master_id IS
 'Synthetic primary key for stable joins across all source systems.';
 COMMENT ON COLUMN master_employers.canonical_name IS
-'Normalized preferred name for matching and deduplication.';
+'Normalized preferred name for matching and deduplication. '
+'Lowercased + alphanumerics-spaced only. Does NOT strip legal suffixes '
+'(Inc/LLC/Corp) or noise tokens (the/services/group). For aggressive '
+'matching use canonical_name_aggressive.';
+COMMENT ON COLUMN master_employers.canonical_name_aggressive IS
+'Suffix- and noise-token-stripped form of canonical_name. Use for '
+'equality matches against normalize_name_aggressive() output. Best-'
+'effort SQL mirror of src/python/matching/name_normalization.'
+'normalize_name_aggressive -- does NOT expand abbreviations.';
 COMMENT ON COLUMN master_employers.display_name IS
 'User-facing display name with original casing.';
 COMMENT ON COLUMN master_employers.city IS
@@ -228,3 +312,46 @@ WHERE NOT EXISTS (
       AND s.source_system = 'f7'
       AND s.source_id = f.employer_id::TEXT
 );
+
+-- ---------------------------------------------------------------------------
+-- Backfill canonical_name_aggressive for rows seeded by the Wave 0 INSERT
+-- above. The earlier UPDATE near line 103 runs against an empty table on
+-- a fresh DB build, so without this trailing backfill the new column would
+-- be NULL on every seeded row -- the new equality/trigram infrastructure
+-- on canonical_name_aggressive would then silently miss every Wave 0 row
+-- until the DDL was rerun. Idempotent (re-running this DDL just fills the
+-- still-NULL or mismatched rows in place).
+-- Found by Codex /wrapup crosscheck on 2026-05-18.
+-- ---------------------------------------------------------------------------
+UPDATE master_employers
+   SET canonical_name_aggressive = trim(
+           regexp_replace(
+               regexp_replace(
+                   regexp_replace(
+                       canonical_name,
+                       '\m(limitedliabilitycompany|incorporated|corporations|corporation|corportation|coropration|incoporated|incorperated|coporation|cooperative|limitedliability|foundation|company|limited|trust|fund|coop|gmbh|llc|llp|ltd|inc|corp|plc|pllc|pty|pvt|nv|bv|na|ag|sa|gp|np|pa|pc|lp|co)\M',
+                       '', 'gi'
+                   ),
+                   '\m(international|consultants|enterprises|consulting|enterprise|management|industries|associates|solutions|industry|partners|holdings|services|national|solution|holding|service|global|group|usa|the|and|of)\M',
+                   '', 'gi'
+               ),
+               '\s+', ' ', 'g'
+           )
+       )
+ WHERE canonical_name IS NOT NULL
+   AND (canonical_name_aggressive IS NULL
+        OR canonical_name_aggressive <> trim(
+               regexp_replace(
+                   regexp_replace(
+                       regexp_replace(
+                           canonical_name,
+                           '\m(limitedliabilitycompany|incorporated|corporations|corporation|corportation|coropration|incoporated|incorperated|coporation|cooperative|limitedliability|foundation|company|limited|trust|fund|coop|gmbh|llc|llp|ltd|inc|corp|plc|pllc|pty|pvt|nv|bv|na|ag|sa|gp|np|pa|pc|lp|co)\M',
+                           '', 'gi'
+                       ),
+                       '\m(international|consultants|enterprises|consulting|enterprise|management|industries|associates|solutions|industry|partners|holdings|services|national|solution|holding|service|global|group|usa|the|and|of)\M',
+                       '', 'gi'
+                   ),
+                   '\s+', ' ', 'g'
+               )
+           )
+       );
