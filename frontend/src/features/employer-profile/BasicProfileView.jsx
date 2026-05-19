@@ -1,5 +1,7 @@
-import { Info } from 'lucide-react'
+import { Info, AlertTriangle } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ProfileHeader } from './ProfileHeader'
 import { CrossReferencesSection } from './CrossReferencesSection'
 import { QualityIndicator } from '@/features/scorecard/QualityIndicator'
@@ -159,15 +161,107 @@ function MasterProfileView({ data }) {
   )
 }
 
-export function BasicProfileView({ data, isMaster = false }) {
+/**
+ * Identity card skeleton: header bar + quality strip + 4 enrichment-card
+ * outlines. Used while the parent profile query is still resolving.
+ */
+function IdentitySkeleton() {
+  return (
+    <div className="space-y-4" data-testid="identity-card-skeleton">
+      <Card>
+        <CardContent className="p-4 space-y-2">
+          <Skeleton className="h-7 w-64" />
+          <Skeleton className="h-4 w-48" />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-6">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+/**
+ * Identity card error panel: clear failure message with optional retry.
+ */
+function IdentityError({ onRetry }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <p className="mb-2">Could not load employer identity. Try again or check back shortly.</p>
+            {onRetry && (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * Identity card empty panel: data resolved but truly empty (no name, no
+ * source). Distinct from error because nothing went wrong with the request.
+ */
+function IdentityEmpty() {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <p>
+            No identity data is available for this employer. The record may be a stub
+            placeholder or the underlying source may have been retired.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+export function BasicProfileView({
+  data,
+  isMaster = false,
+  isLoading = false,
+  isError = false,
+  onRetry,
+}) {
+  if (isLoading) return <IdentitySkeleton />
+  if (isError) return <IdentityError onRetry={onRetry} />
   if (!data) return null
 
   if (isMaster) {
+    const masterRoot = data.master || {}
+    const hasMasterName = !!(masterRoot.display_name || masterRoot.canonical_name)
+    if (!hasMasterName) return <IdentityEmpty />
     return <MasterProfileView data={data} />
   }
 
   const employer = data.employer || {}
   const sourceType = data.source_type || 'UNKNOWN'
+  // Mirror the name resolution in ProfileHeader so the empty check matches
+  // what the user actually sees: employer_name (F7), participant_name (NLRB),
+  // or display_name (master/canonical fallbacks).
+  const hasName = !!(
+    employer.employer_name ||
+    employer.participant_name ||
+    employer.display_name
+  )
+  if (!hasName) return <IdentityEmpty />
 
   return (
     <div className="space-y-4">

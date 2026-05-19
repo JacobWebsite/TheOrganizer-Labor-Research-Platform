@@ -1,19 +1,23 @@
 /**
- * ComparablesCard tests -- locks down the 2026-04-24 fix for the
- * `union_name` -> `comparable_type` field drift.
+ * ComparablesCard tests.
  *
- * Before the fix: backend returned `comparable_type` (value 'union' /
- * 'non_union') but the card read `c.union_name`, causing the header to
- * always say "0 unionized" and the Union column to always show '--'
- * regardless of the comparable's actual status.
+ * Covers:
+ * - Loading: skeleton placeholder (Week 4 A.3 polish-sweep upgrade)
+ * - Error: amber retry panel, retry button calls refetch (Week 4 A.3)
+ * - Empty: "no comparables found" copy with explanation (Week 4 A.3)
+ * - 2026-04-24 fix: backend `comparable_type` (not legacy `union_name`)
+ *   drives the unionized header chip and per-row Union/Non-union badge.
+ *
+ * Critical UX distinction (CLAUDE.md): "no data" must be visibly distinct
+ * from "no violations / no matches". The empty state below renders an
+ * explicit panel rather than returning null so users see the card is
+ * intentionally empty, not hidden.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ComparablesCard } from '@/features/employer-profile/ComparablesCard'
 
-// Mock the TanStack Query hook so we can inject fixture data without
-// hitting the API.
 vi.mock('@/shared/api/profile', () => ({
   useEmployerComparables: vi.fn(),
 }))
@@ -25,24 +29,74 @@ function renderWithRouter(ui) {
 }
 
 describe('ComparablesCard', () => {
-  it('returns null when loading', () => {
-    useEmployerComparables.mockReturnValue({ isLoading: true, data: null })
-    const { container } = renderWithRouter(<ComparablesCard employerId="abc" />)
-    expect(container.innerHTML).toBe('')
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
-  it('returns null when comparables array is empty', () => {
+  it('renders loading skeleton', () => {
     useEmployerComparables.mockReturnValue({
-      isLoading: false,
-      data: { employer_id: 'abc', comparables: [] },
+      isLoading: true,
+      isError: false,
+      data: null,
+      refetch: vi.fn(),
     })
     const { container } = renderWithRouter(<ComparablesCard employerId="abc" />)
-    expect(container.innerHTML).toBe('')
+    // Card title visible
+    expect(screen.getByText('Comparable Employers')).toBeInTheDocument()
+    // Skeleton testid present (loading state opens by default via defaultOpen)
+    expect(container.querySelector('[data-testid="comparables-card-skeleton"]')).not.toBeNull()
+    // Should not show empty/error copy
+    expect(screen.queryByText(/No comparable employers were found/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Could not load comparable employers/)).not.toBeInTheDocument()
+  })
+
+  it('renders error state with retry button that calls refetch', () => {
+    const refetch = vi.fn()
+    useEmployerComparables.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      data: null,
+      refetch,
+    })
+    renderWithRouter(<ComparablesCard employerId="abc" />)
+    expect(screen.getByText(/Could not load comparable employers/)).toBeInTheDocument()
+    const retryBtn = screen.getByRole('button', { name: /retry/i })
+    fireEvent.click(retryBtn)
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders empty state with "no data" explanation when comparables array is empty', () => {
+    useEmployerComparables.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { employer_id: 'abc', comparables: [] },
+      refetch: vi.fn(),
+    })
+    renderWithRouter(<ComparablesCard employerId="abc" />)
+    // Header summary
+    expect(screen.getByText(/No comparables found/)).toBeInTheDocument()
+    // Body copy hidden until expanded; click to reveal
+    fireEvent.click(screen.getByText('Comparable Employers'))
+    expect(
+      screen.getByText(/No comparable employers were found/),
+    ).toBeInTheDocument()
+  })
+
+  it('renders empty state when data is missing entirely', () => {
+    useEmployerComparables.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: null,
+      refetch: vi.fn(),
+    })
+    renderWithRouter(<ComparablesCard employerId="abc" />)
+    expect(screen.getByText(/No comparables found/)).toBeInTheDocument()
   })
 
   it('counts unionized correctly from comparable_type (not legacy union_name)', () => {
     useEmployerComparables.mockReturnValue({
       isLoading: false,
+      isError: false,
       data: {
         employer_id: 'abc',
         comparables: [
@@ -72,6 +126,7 @@ describe('ComparablesCard', () => {
           },
         ],
       },
+      refetch: vi.fn(),
     })
     renderWithRouter(<ComparablesCard employerId="abc" />)
     // Header summary should say "2 unionized" (not 0)
@@ -81,6 +136,7 @@ describe('ComparablesCard', () => {
   it('renders Union / Non-union labels in expanded body based on comparable_type', () => {
     useEmployerComparables.mockReturnValue({
       isLoading: false,
+      isError: false,
       data: {
         employer_id: 'abc',
         comparables: [
@@ -102,6 +158,7 @@ describe('ComparablesCard', () => {
           },
         ],
       },
+      refetch: vi.fn(),
     })
     renderWithRouter(<ComparablesCard employerId="abc" />)
     // Expand the collapsible so table rows are in DOM
@@ -113,6 +170,7 @@ describe('ComparablesCard', () => {
   it('falls back to "--" when comparable_type is missing', () => {
     useEmployerComparables.mockReturnValue({
       isLoading: false,
+      isError: false,
       data: {
         employer_id: 'abc',
         comparables: [
@@ -126,6 +184,7 @@ describe('ComparablesCard', () => {
           },
         ],
       },
+      refetch: vi.fn(),
     })
     renderWithRouter(<ComparablesCard employerId="abc" />)
     // Header chip (always visible) should say "0 unionized"

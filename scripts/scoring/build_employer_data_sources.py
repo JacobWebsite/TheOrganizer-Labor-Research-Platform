@@ -155,15 +155,18 @@ LEFT JOIN uml_sources u ON u.target_id = e.employer_id
 LEFT JOIN form5500_matched f5m ON f5m.f7_employer_id = e.employer_id
 LEFT JOIN ppp_matched pppm ON pppm.f7_employer_id = e.employer_id
 
--- Corporate crosswalk: pick the best row per employer (highest federal_obligations,
--- then most state/local sources as tiebreaker for state/local-only contractors)
+-- Corporate crosswalk: pick the best row per employer (highest federal_obligations).
+-- State/local contractor columns deprecated (2026-05-09); emit NULL/0 for back-compat.
 LEFT JOIN LATERAL (
     -- Pick the crosswalk row with the highest federal obligations.
     -- Previously also tie-broke on state_local_source_count / state_local_contract_count,
     -- but those columns were dropped from the crosswalk schema (see Open Problems note).
     SELECT corporate_family_id, sec_cik, gleif_lei, mergent_duns,
            ein, ticker, is_public, is_federal_contractor,
-           federal_obligations, federal_contract_count
+           federal_obligations, federal_contract_count,
+           NULL::boolean AS is_state_local_contractor,
+           0::integer    AS state_local_contract_count,
+           0::integer    AS state_local_source_count
     FROM corporate_identifier_crosswalk
     WHERE f7_employer_id = e.employer_id
     ORDER BY federal_obligations DESC NULLS LAST

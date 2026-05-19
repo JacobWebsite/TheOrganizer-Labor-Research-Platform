@@ -284,7 +284,7 @@ export function BoardCard({ masterId }) {
                         <td className="px-3 py-2">
                           {il.other_master_id ? (
                             <a
-                              href={`/employer/MASTER-${il.other_master_id}`}
+                              href={`/employers/MASTER-${il.other_master_id}`}
                               className="inline-flex items-center gap-1 text-blue-700 hover:underline"
                             >
                               {il.other_canonical_name || `Master ${il.other_master_id}`}

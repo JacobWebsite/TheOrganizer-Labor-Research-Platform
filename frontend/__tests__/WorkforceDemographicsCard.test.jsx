@@ -311,8 +311,70 @@ describe('WorkforceDemographicsCard', () => {
     )
     // Wait for error state to settle
     await new Promise(r => setTimeout(r, 100))
-    // Card renders nothing on error
-    expect(container.querySelector('[data-testid]')).toBeNull()
+    // Polish sweep: card now surfaces an error panel with retry. The card is
+    // collapsed by default (defaultOpen=false), so the inner amber panel is
+    // hidden until the user clicks the header. The earlier test's contract --
+    // no skeleton testid -- still holds, so we keep that assertion.
+    expect(container.querySelector('[data-testid="workforce-card-skeleton"]')).toBeNull()
+  })
+
+  // --- polish-sweep tests (Week 4 A.3) ---
+
+  it('renders error retry panel with working retry button after fetch fails', async () => {
+    apiClient.get.mockRejectedValue(new Error('boom'))
+    renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-err" />,
+    )
+    // Wait for query to land in error state, then expand the card
+    await new Promise(r => setTimeout(r, 100))
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    expect(
+      screen.getByText(/Could not load workforce demographic data/),
+    ).toBeInTheDocument()
+    // Reset mock so retry succeeds with a populated profile
+    apiClient.get.mockReset()
+    apiClient.get.mockResolvedValue(mockWorkforceProfile)
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+    // Refetch should fire the same endpoint
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/api/profile/employers/test-err/workforce-profile',
+    )
+  })
+
+  it('renders empty amber panel when API returns no signal at all', async () => {
+    apiClient.get.mockResolvedValue({
+      employer_id: 'test-123',
+      employer_name: 'Acme',
+      estimated_composition: { method: 'none' },
+      acs: null,
+      lodes: null,
+      qcew: null,
+      soii: null,
+      jolts: null,
+      union_density: null,
+      ncs: null,
+      tract: null,
+    })
+    renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-empty" />,
+    )
+    // Card needs an open click to show the amber empty panel
+    await new Promise(r => setTimeout(r, 50))
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    expect(
+      await screen.findByText(/No workforce demographic data is available/),
+    ).toBeInTheDocument()
+    // "no data" framing -- not "no demographics".
+    expect(screen.getByText(/not/)).toBeInTheDocument()
+  })
+
+  it('exposes a structured loading skeleton beyond the italic copy', () => {
+    apiClient.get.mockReturnValue(new Promise(() => {})) // never resolves
+    const { container } = renderWithProviders(
+      <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-loading" />,
+    )
+    fireEvent.click(screen.getByText('Workforce Demographics'))
+    expect(container.querySelector('[data-testid="workforce-card-skeleton"]')).not.toBeNull()
   })
 
   // --- gate_v1 method tests ---
