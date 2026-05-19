@@ -291,10 +291,22 @@ def _norm_director_name(s: str) -> str:
 
     The strategy:
       1. Trim filler at the boundary words ("Retired"/"Senior"/"President"/
-         "Chief"/etc.) — anything from that point on is title/affiliation.
+         "Chief"/etc.) -- anything from that point on is title/affiliation.
       2. Iteratively strip trailing title fragments (Director / Chair / etc.).
       3. Standard honorific + suffix cleanup.
+      4. Final pass through `sanitize_director_name` which handles the
+         end-of-string artifacts the existing trailing-title regex misses:
+           - ", Director" / ", Chairman" comma-role suffixes
+           - " - Director" / " -- Director" dash-role suffixes
+           - " Boeing" / " KEY" / " Key" company-name and title-bleed
+         (Added 2026-05-18 per Round 3 Agent F audit; the prior trailing-
+         title regex required whitespace AFTER the keyword and so missed
+         every case where the artifact sat at end-of-string.)
     """
+    # Function-local import keeps the parser usable from contexts that
+    # don't preload the sanitizer (e.g. ad-hoc REPL inspections).
+    from scripts.etl.director_name_sanitizer import sanitize_director_name
+
     s = re.sub(r"\s+", " ", s).strip(" ,;.|")
     # Strip leading filler words that survive the bio_paragraph regex --
     # "Since"/"Former"/"During"/"Effective" are common preface words.
@@ -324,6 +336,9 @@ def _norm_director_name(s: str) -> str:
     while prev != s:
         prev = s
         s = _TRAILING_TITLE_RE.sub("", s).strip(" ,;.")
+    # Final pass: artifact-strip via the shared sanitizer (handles the
+    # end-of-string suffixes the trailing-title regex misses).
+    s = sanitize_director_name(s)
     return s.strip()
 
 
