@@ -469,7 +469,7 @@ def get_unified_scorecard_detail(employer_id: str):
                     f"({data.get('federal_contract_count', 0)} contracts)."
                 )
             explanations['union_proximity'] = (
-                f"Union proximity: canonical group "
+                "Union proximity: canonical group "
                 + (f"#{data.get('canonical_group_id')}" if data.get('canonical_group_id') else "none (standalone)")
             )
             if data.get('score_financial') is not None:
@@ -488,7 +488,10 @@ def get_unified_scorecard_detail(employer_id: str):
                 )
             explanations["weights"] = (
                 "Pillar weights: Anger 3x, Leverage 4x. "
-                "Stability zeroed pending data coverage. "
+                "Stability pillar removed (D13, 2026-04-03) — see "
+                "Open Problems/Stability Pillar Near-Zero Coverage.md for rationale. "
+                "Underlying f5500_has_pension/f5500_has_welfare passthrough columns "
+                "are available as display flags. "
                 "Dynamic denominator: only active pillars count toward the divisor."
             )
 
