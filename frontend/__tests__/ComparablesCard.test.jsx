@@ -4,13 +4,13 @@
  * Covers:
  * - Loading: skeleton placeholder (Week 4 A.3 polish-sweep upgrade)
  * - Error: amber retry panel, retry button calls refetch (Week 4 A.3)
- * - Empty: "no comparables found" copy with explanation (Week 4 A.3)
+ * - Empty: canonical EmptyStateCard pattern (2026-05-12 no-data polish)
  * - 2026-04-24 fix: backend `comparable_type` (not legacy `union_name`)
  *   drives the unionized header chip and per-row Union/Non-union badge.
  *
  * Critical UX distinction (CLAUDE.md): "no data" must be visibly distinct
- * from "no violations / no matches". The empty state below renders an
- * explicit panel rather than returning null so users see the card is
+ * from "no violations / no matches". The empty state renders an explicit
+ * EmptyStateCard rather than returning null so users see the card is
  * intentionally empty, not hidden.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -46,7 +46,6 @@ describe('ComparablesCard', () => {
     // Skeleton testid present (loading state opens by default via defaultOpen)
     expect(container.querySelector('[data-testid="comparables-card-skeleton"]')).not.toBeNull()
     // Should not show empty/error copy
-    expect(screen.queryByText(/No comparable employers were found/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Could not load comparable employers/)).not.toBeInTheDocument()
   })
 
@@ -65,7 +64,7 @@ describe('ComparablesCard', () => {
     expect(refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('renders empty state with "no data" explanation when comparables array is empty', () => {
+  it('shows the EmptyStateCard when comparables array is empty (does NOT return null)', () => {
     useEmployerComparables.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -73,16 +72,17 @@ describe('ComparablesCard', () => {
       refetch: vi.fn(),
     })
     renderWithRouter(<ComparablesCard employerId="abc" />)
-    // Header summary
-    expect(screen.getByText(/No comparables found/)).toBeInTheDocument()
-    // Body copy hidden until expanded; click to reveal
+    // Empty state is the canonical "we checked, found nothing" EmptyStateCard.
+    expect(screen.getByText('Comparable Employers')).toBeInTheDocument()
+    expect(screen.getByText('No comparables found')).toBeInTheDocument()
+    // Expand to verify the EmptyStateCard body copy is in DOM
     fireEvent.click(screen.getByText('Comparable Employers'))
     expect(
-      screen.getByText(/No comparable employers were found/),
+      screen.getByText(/No comparable-employer records have been matched/),
     ).toBeInTheDocument()
   })
 
-  it('renders empty state when data is missing entirely', () => {
+  it('shows the EmptyStateCard when data is missing entirely', () => {
     useEmployerComparables.mockReturnValue({
       isLoading: false,
       isError: false,

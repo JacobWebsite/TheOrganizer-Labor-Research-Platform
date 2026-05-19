@@ -1,6 +1,7 @@
 import { Users, AlertTriangle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useEmployerComparables } from '@/shared/api/profile'
@@ -9,10 +10,10 @@ import { useEmployerComparables } from '@/shared/api/profile'
 // employers ranked by similarity_pct). Distinct from CompetitorsCard which
 // is the NAICS+size industry-peer view.
 //
-// Polish-sweep states (Week 4 A.3):
+// Polish-sweep states (Week 4 A.3 + 2026-05-12 EmptyStateCard convention):
 //  - Loading: skeleton placeholder mirroring final 5-column layout
 //  - Error:   amber panel with Retry button (calls refetch)
-//  - Empty:   "no comparables found" panel with explanation of why
+//  - Empty:   canonical EmptyStateCard with card-specific reason
 //  - Populated: 5-column similarity table
 
 export function ComparablesCard({ employerId }) {
@@ -73,26 +74,25 @@ export function ComparablesCard({ employerId }) {
 
   const comparables = data?.comparables || []
 
-  // Empty: matched employer but no comparables found. Render an explicit panel
-  // so users see the card is intentionally empty, not hidden. Critical for the
-  // "no data" vs "no matches" UX distinction.
+  // Empty: matched employer but no comparables found. Use the canonical
+  // EmptyStateCard so the absence-of-data UX is consistent with other
+  // employer-profile sections (no-data != no-records).
   if (comparables.length === 0) {
     return (
-      <CollapsibleCard
+      <EmptyStateCard
         icon={Users}
         title="Comparable Employers"
+        topic="comparable-employer"
         summary="No comparables found"
-      >
-        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-          <p>
-            No comparable employers were found for this employer. This does <strong>not</strong>{' '}
-            mean none exist &mdash; comparables are derived from the F7 union-relations corpus
-            (NAICS, state, workforce-size similarity), so private companies and employers
-            without F7 ties may appear empty here.
-          </p>
-        </div>
-      </CollapsibleCard>
+        reason={
+          <>
+            Comparables are derived from the F7 union-relations corpus (NAICS,
+            geography, workforce-size similarity, union status), so private
+            companies and employers with missing NAICS or no scorecard row may
+            appear empty here.
+          </>
+        }
+      />
     )
   }
 

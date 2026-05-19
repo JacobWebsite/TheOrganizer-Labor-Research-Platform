@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Users } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiClient } from '@/shared/api/client'
@@ -340,21 +341,26 @@ export function WorkforceDemographicsCard({ state, naics, employerId }) {
   const hasEstimate = est && est.method !== 'none'
   const hasContext = data.qcew || data.soii || data.jolts || data.union_density || data.ncs
 
-  // Empty state: no signal across any source. Render an explicit panel so
-  // users can see the card is intentionally empty, not hidden. This is the
-  // "no data" path -- different from "data shows nothing of note".
-  if (!hasEstimate && !data.acs && !data.lodes && !hasContext && !data.tract) return (
-    <CollapsibleCard title="Workforce Demographics" defaultOpen={false}>
-      <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-        <p>
-          No workforce demographic data is available for this employer. This does <strong>not</strong>{' '}
-          mean none exists &mdash; it may mean the employer has no matched ACS/LODES industry baseline
-          or census-tract location.
-        </p>
-      </div>
-    </CollapsibleCard>
-  )
+  // Empty state: no signal across any source. Use the canonical EmptyStateCard
+  // so the absence-of-data UX is consistent with other employer-profile sections
+  // (no-data != no-records).
+  if (!hasEstimate && !data.acs && !data.lodes && !hasContext && !data.tract) {
+    return (
+      <EmptyStateCard
+        icon={Users}
+        title="Workforce Demographics"
+        topic="workforce-demographic"
+        summary="No demographic estimate available"
+        reason={
+          <>
+            Demographic estimates require either an NAICS code (for industry-level ACS/LODES
+            lookup) or a geocoded address (for tract-level census data). Employers missing
+            both will appear empty here.
+          </>
+        }
+      />
+    )
+  }
 
   // Source availability badges
   const sources = [

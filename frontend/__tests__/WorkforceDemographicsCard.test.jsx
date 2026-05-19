@@ -358,14 +358,22 @@ describe('WorkforceDemographicsCard', () => {
     renderWithProviders(
       <WorkforceDemographicsCard state="CA" naics="6216" employerId="test-empty" />,
     )
-    // Card needs an open click to show the amber empty panel
+    // The card now uses the canonical EmptyStateCard so the collapsed
+    // header shows the new "No demographic estimate available" summary
+    // and the body (after click-to-expand) shows the EmptyStateCard
+    // "No <topic> records have been matched" copy. This is the
+    // 2026-05-12 no-data polish convention.
     await new Promise(r => setTimeout(r, 50))
+    expect(
+      await screen.findByText(/No demographic estimate available/),
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByText('Workforce Demographics'))
     expect(
-      await screen.findByText(/No workforce demographic data is available/),
+      await screen.findByText(/No workforce-demographic records have been matched/),
     ).toBeInTheDocument()
-    // "no data" framing -- not "no demographics".
-    expect(screen.getByText(/not/)).toBeInTheDocument()
+    // "no data" framing -- the emphasized "not" from the EmptyStateCard body
+    // disambiguates "matching limitation" from "absence of records".
+    expect(screen.getByText('not')).toBeInTheDocument()
   })
 
   it('exposes a structured loading skeleton beyond the italic copy', () => {
