@@ -49,9 +49,11 @@ NOISE_TOKENS = {
 }
 
 DBA_PATTERNS = [
-    r"\bd\s*b\s*a\b.*$",          # dba, d b a, d  b  a (after slash removal)
-    r"\bdoing business as\b.*$",
-    r"\ba\s*k\s*a\b.*$",          # aka, a k a (after slash removal)
+    # Require a preceding token + whitespace so the marker is only stripped as a tail.
+    # Without the lookbehind, a leading "AKA"/"DBA" consumes the entire string.
+    r"(?<=\S)\s+d\s*b\s*a\b.*$",
+    r"(?<=\S)\s+doing business as\b.*$",
+    r"(?<=\S)\s+a\s*k\s*a\b.*$",
 ]
 
 # Employer abbreviation expansions for aggressive normalization
