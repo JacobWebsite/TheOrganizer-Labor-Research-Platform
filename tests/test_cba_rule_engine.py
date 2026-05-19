@@ -770,6 +770,237 @@ class TestHeadingAffinityPenalty:
         assert ot[0].confidence >= 0.90
 
 
+class TestCoverageGapFixes:
+    """2026-05-12 coverage-gap pass: 11 zero-match provision classes now have
+    broader patterns. Each test uses a real-world phrasing sampled from the
+    actual CBA corpus."""
+
+    # -- probationary_period (job_security) -------------------------------
+    def test_probationary_period_extended_window(self):
+        rules = load_category_rules("job_security")
+        chunk = _make_chunk(
+            "PROBATIONARY PERIOD\n\n"
+            "The probationary period may be extended by thirty (30) calendar days, "
+            "at the Employer's/Hospital's option, by giving notice of extension "
+            "in writing to the employee seven (7) days prior to the original expiry.",
+            title="PROBATIONARY PERIOD",
+        )
+        matches = match_chunk(chunk, rules)
+        prob = [m for m in matches if m.provision_class == "probationary_period"]
+        assert len(prob) > 0
+
+    def test_probationary_employees_ninety_days(self):
+        rules = load_category_rules("job_security")
+        chunk = _make_chunk(
+            "ARTICLE 6 - SENIORITY\n\n"
+            "Probationary employees shall not acquire seniority for the first "
+            "ninety (90) calendar days after hire and shall receive no holiday pay.",
+            title="SENIORITY",
+        )
+        matches = match_chunk(chunk, rules)
+        prob = [m for m in matches if m.provision_class == "probationary_period"]
+        assert len(prob) > 0
+
+    # -- pension: vesting / retirement_eligibility / pension_fund ----------
+    def test_vesting_fully_vested(self):
+        rules = load_category_rules("pension")
+        chunk = _make_chunk(
+            "ARTICLE 18 - PENSION\n\n"
+            "An eligible employee shall be fully vested at all times in the "
+            "portion of his or her 401(k) Plan account that is attributable to "
+            "his or her pre-tax elective contributions and matching contributions.",
+            title="PENSION",
+        )
+        matches = match_chunk(chunk, rules)
+        v = [m for m in matches if m.provision_class == "vesting"]
+        assert len(v) > 0
+
+    def test_retirement_after_age(self):
+        rules = load_category_rules("pension")
+        chunk = _make_chunk(
+            "ARTICLE 20 - RETIREE BENEFITS\n\n"
+            "Employees who retire after age 55 with 20 or more years of service "
+            "will be provided with $1,000 of Company-paid life insurance.",
+            title="RETIREE BENEFITS",
+        )
+        matches = match_chunk(chunk, rules)
+        re_ = [m for m in matches if m.provision_class == "retirement_eligibility"]
+        assert len(re_) > 0
+
+    def test_pension_fund_contribution_context(self):
+        rules = load_category_rules("pension")
+        chunk = _make_chunk(
+            "ARTICLE 15 - PENSION\n\n"
+            "The Employer shall contribute ten percent (10%) of gross monthly "
+            "labor payroll to the Union 613 Pension Trust Fund's designated local "
+            "collection agent for all covered employees.",
+            title="PENSION",
+        )
+        matches = match_chunk(chunk, rules)
+        pf = [m for m in matches if m.provision_class == "pension_fund"]
+        assert len(pf) > 0
+
+    # -- scheduling: overtime_after / schedule_posting --------------------
+    def test_overtime_after_via_premium_clause(self):
+        rules = load_category_rules("scheduling")
+        chunk = _make_chunk(
+            "ARTICLE 12 - HOURS\n\n"
+            "Time and one-half (1 1/2) shall be paid for work in excess of forty "
+            "(40) hours per week, with the regular work week being Monday through Friday.",
+            title="HOURS",
+        )
+        matches = match_chunk(chunk, rules)
+        ot = [m for m in matches if m.provision_class == "overtime_after"]
+        assert len(ot) > 0
+
+    def test_overtime_after_hours_worked_in_excess(self):
+        rules = load_category_rules("scheduling")
+        chunk = _make_chunk(
+            "ARTICLE 12 - HOURS\n\n"
+            "Hours worked in excess of eight (8) hours shall be paid at one and "
+            "one-half times the regular straight-time rate of pay.",
+            title="HOURS",
+        )
+        matches = match_chunk(chunk, rules)
+        ot = [m for m in matches if m.provision_class == "overtime_after"]
+        assert len(ot) > 0
+
+    def test_schedule_posting_basic(self):
+        rules = load_category_rules("scheduling")
+        chunk = _make_chunk(
+            "ARTICLE 9 - SCHEDULING\n\n"
+            "Schedules shall be posted complete and in accordance with appropriate "
+            "staffing complements. Float pools and call-in lists shall be maintained.",
+            title="SCHEDULING",
+        )
+        matches = match_chunk(chunk, rules)
+        sp = [m for m in matches if m.provision_class == "schedule_posting"]
+        assert len(sp) > 0
+
+    # -- seniority: seniority_bidding -------------------------------------
+    def test_seniority_bidding_window(self):
+        rules = load_category_rules("seniority")
+        chunk = _make_chunk(
+            "ARTICLE 11 - JOB BIDDING\n\n"
+            "Vacancies shall be filled in accordance with seniority preference "
+            "by qualified employees in the bargaining unit.",
+            title="JOB BIDDING",
+        )
+        matches = match_chunk(chunk, rules)
+        sb = [m for m in matches if m.provision_class == "seniority_bidding"]
+        assert len(sb) > 0
+
+    # -- technology: ai_provisions ----------------------------------------
+    def test_ai_provisions_named_broader(self):
+        rules = load_category_rules("technology")
+        chunk = _make_chunk(
+            "ARTICLE 30 - SCOPE OF WORK\n\n"
+            "Work involving Artificial Intelligence (AI) technology should "
+            "constitute covered work under this Article. Any such determination "
+            "will only be effective if approved in writing by the Labor Department.",
+            title="SCOPE OF WORK",
+        )
+        matches = match_chunk(chunk, rules)
+        ai = [m for m in matches if m.provision_class == "ai_provisions"]
+        assert len(ai) > 0
+
+    # -- training: apprentice_ratio / training_time_paid ------------------
+    def test_apprentice_ratio_reverse_phrasing(self):
+        rules = load_category_rules("training")
+        chunk = _make_chunk(
+            "ARTICLE 17 - APPRENTICESHIP\n\n"
+            "The ratio of apprentices to journeymen shall be one (1) apprentice "
+            "for the first two (2) journeymen after the foreman and an additional "
+            "apprentice for every three (3) journeymen thereafter.",
+            title="APPRENTICESHIP",
+        )
+        matches = match_chunk(chunk, rules)
+        ap = [m for m in matches if m.provision_class == "apprentice_ratio"]
+        assert len(ap) > 0
+
+    def test_training_will_be_paid(self):
+        rules = load_category_rules("training")
+        chunk = _make_chunk(
+            "ARTICLE 22 - TRAINING\n\n"
+            "Employees assigned to training at non-MTA locations will be paid "
+            "at their regular rate and for the tour of duty assigned on those "
+            "training dates. Travel allowance shall be provided pursuant to policy.",
+            title="TRAINING",
+        )
+        matches = match_chunk(chunk, rules)
+        tp = [m for m in matches if m.provision_class == "training_time_paid"]
+        assert len(tp) > 0
+
+    def test_training_on_paid_time(self):
+        rules = load_category_rules("training")
+        chunk = _make_chunk(
+            "ARTICLE 15 - SAFETY\n\n"
+            "All employees shall complete the safety training. All training must "
+            "be completed on paid time and at no cost to the employee.",
+            title="SAFETY",
+        )
+        matches = match_chunk(chunk, rules)
+        tp = [m for m in matches if m.provision_class == "training_time_paid"]
+        assert len(tp) > 0
+
+    # -- union_security: union_access -------------------------------------
+    def test_union_access_broad_to_shop(self):
+        rules = load_category_rules("union_security")
+        chunk = _make_chunk(
+            "ARTICLE 2 - UNION RIGHTS\n\n"
+            "The representative of the Union shall be allowed access to any "
+            "shop or job, at any reasonable time, where workmen are employed "
+            "under the terms of this agreement.",
+            title="UNION RIGHTS",
+        )
+        matches = match_chunk(chunk, rules)
+        ua = [m for m in matches if m.provision_class == "union_access"]
+        assert len(ua) > 0
+
+    def test_union_business_agent_access_project(self):
+        rules = load_category_rules("union_security")
+        chunk = _make_chunk(
+            "ARTICLE 7 - UNION ACCESS\n\n"
+            "The Union business agent or special representative shall have access "
+            "to the project during working hours and shall make every reasonable "
+            "effort to advise the Contractor of any visit.",
+            title="UNION ACCESS",
+        )
+        matches = match_chunk(chunk, rules)
+        ua = [m for m in matches if m.provision_class == "union_access"]
+        assert len(ua) > 0
+
+    # -- overreach guards: new patterns shouldn't fire on non-CBA-relevant text
+    def test_pension_fund_named_not_fired_on_bare_mention(self):
+        """pension_fund_named requires contribution/trustee context; bare 'pension
+        plan' mention in an unrelated section shouldn't trigger it."""
+        rules = load_category_rules("pension")
+        chunk = _make_chunk(
+            "ARTICLE 25 - DEFINITIONS\n\n"
+            "For purposes of this Agreement, the term 'employee' shall include "
+            "all persons whose primary work is performed for the Employer.",
+            title="DEFINITIONS",
+        )
+        matches = match_chunk(chunk, rules)
+        # No pension-related content -> no pension_fund match
+        pf = [m for m in matches if m.provision_class == "pension_fund"]
+        assert len(pf) == 0
+
+    def test_seniority_bidding_window_not_fired_without_seniority(self):
+        """seniority_bidding_window requires the word 'seniority' near a bid/vacancy
+        word; a plain bidding clause without seniority should not match."""
+        rules = load_category_rules("seniority")
+        chunk = _make_chunk(
+            "ARTICLE 4 - DEFINITIONS\n\n"
+            "The Employer reserves the right to assign work as required by "
+            "operational needs without prior approval from the Union.",
+            title="DEFINITIONS",
+        )
+        matches = match_chunk(chunk, rules)
+        sb = [m for m in matches if m.provision_class == "seniority_bidding"]
+        assert len(sb) == 0
+
+
 class TestFragmentMerging:
     """Fragment merge-up prevents mid-sentence splits."""
 

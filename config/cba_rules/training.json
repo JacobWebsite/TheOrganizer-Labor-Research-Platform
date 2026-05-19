@@ -35,11 +35,32 @@
       "summary": "Apprentice ratio"
     },
     {
+      "name": "apprentice_ratio_reverse",
+      "pattern": "\\bratio\\s+of\\s+apprentices?\\s+to\\s+(?:journeymen|journey\\s*workers?|maintainers?|mechanics?|workers?)\\b|\\bnumber\\s+of\\s+apprentices?\\b.{0,40}\\bratio\\b",
+      "confidence": 0.85,
+      "provision_class": "apprentice_ratio",
+      "summary": "Apprentice ratio (ratio-of phrasing)"
+    },
+    {
       "name": "training_time_paid",
       "pattern": "\\b(?:training|in-service)\\s+(?:time|hours?)\\s+(?:shall\\s+be\\s+)?(?:paid|compensated|on\\s+(?:company|employer)\\s+time)",
       "confidence": 0.80,
       "provision_class": "training_time_paid",
       "summary": "Paid training time"
+    },
+    {
+      "name": "training_time_paid_required",
+      "pattern": "\\b(?:training|orientation|in[\\s\\-]service|safety\\s+training)\\b.{0,100}?\\b(?:shall|will|must)\\s+be\\s+(?:paid|compensated|on\\s+(?:paid|company|employer)\\s+time)\\b",
+      "confidence": 0.78,
+      "provision_class": "training_time_paid",
+      "summary": "Paid training (training will be paid)"
+    },
+    {
+      "name": "training_on_paid_time",
+      "pattern": "\\btraining\\b.{0,60}?\\bon\\s+(?:paid|company|employer)\\s+time\\b|\\btraining\\b.{0,40}?\\bcompleted\\s+on\\s+paid\\s+time\\b",
+      "confidence": 0.80,
+      "provision_class": "training_time_paid",
+      "summary": "Training on paid time"
     }
   ],
   "negative_patterns": [
