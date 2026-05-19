@@ -34,6 +34,14 @@ from scripts.scoring._pipeline_lock import pipeline_lock
 import psycopg2.extras
 
 
+# Path to the critical-MV gate. Kept module-level so the test suite can patch
+# it without monkeypatching subprocess at the system level.
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+CRITICAL_MVS_SCRIPT = os.path.join(
+    _PROJECT_ROOT, 'scripts', 'maintenance', 'check_critical_mvs.py'
+)
+
+
 # ============================================================
 # Feature weights
 # ============================================================
@@ -847,6 +855,65 @@ def _compute_pass(all_df, comparison_pool, comparable_type,
 
 
 # ============================================================
+# Critical-MV tail-check
+# ============================================================
+
+def run_critical_mvs_check():
+    """Invoke check_critical_mvs.py as a subprocess; return its rc.
+
+    Returns the subprocess return code. -1 sentinel means the gate
+    script is missing on disk (operator should investigate but we
+    don't fail Gower for it).
+
+    Gower compute itself succeeded by the time this runs -- the
+    caller treats a non-zero rc as a WARNING only, never a hard fail.
+    This is the durable answer to the recurring "Gower silently
+    drops the 3 scorecard MVs via CASCADE" pattern (Open Problem:
+    Gower Compute Drops Scorecard MVs, 2026-05-12).
+    """
+    # function-local: formatter strips top-level
+    import subprocess
+    if not os.path.isfile(CRITICAL_MVS_SCRIPT):
+        print(f"  WARNING: {CRITICAL_MVS_SCRIPT} not found, skipping tail-check.")
+        return -1
+
+    print(f"\n{'=' * 70}")
+    print("  Tail-check: critical MVs present and at floor")
+    print(f"{'=' * 70}")
+
+    result = subprocess.run(
+        [sys.executable, CRITICAL_MVS_SCRIPT],
+        cwd=_PROJECT_ROOT,
+        check=False,
+    )
+    return result.returncode
+
+
+def emit_tail_check_warning(rc):
+    """Print a clear, non-fatal WARNING if the tail-check reported missing MVs.
+
+    Gower compute already finished successfully -- we don't want to
+    raise. The point is to surface the drop to the operator immediately
+    with the exact recovery command.
+    """
+    if rc == 0:
+        print("\n  OK: critical-MV tail-check passed.")
+        return
+    if rc == -1:
+        # Already printed a WARNING in run_critical_mvs_check; nothing more.
+        return
+    print(f"\n  {'!' * 70}")
+    print(f"  WARNING: critical-MV tail-check failed (rc={rc}).")
+    print("  Gower compute SUCCEEDED, but one or more scorecard MVs are")
+    print("  missing or under-floor. This is the known recurrence pattern")
+    print("  where compute_gower_similarity drops mv_unified_scorecard,")
+    print("  mv_target_scorecard, and mv_employer_search via CASCADE.")
+    print("  Recommended fix:")
+    print("    py scripts/scoring/refresh_all.py --skip-gower")
+    print(f"  {'!' * 70}")
+
+
+# ============================================================
 # Main
 # ============================================================
 
@@ -894,6 +961,9 @@ def _run(conn, cur, args):
         create_or_refresh_view(conn, force_recreate=getattr(args, 'recreate_view', False))
         if args.refresh_view:
             print("View refreshed. Exiting (--refresh-view mode).")
+            # Even on the early-return path, run the tail-check: refreshing
+            # mv_employer_features can still cascade to scorecard MVs.
+            emit_tail_check_warning(run_critical_mvs_check())
             return
 
     # ============================================================
@@ -999,6 +1069,21 @@ def _run(conn, cur, args):
     total = union_inserted + nonunion_inserted
     print(f"\n  Total: {total:,} comparables inserted "
           f"({union_inserted:,} union + {nonunion_inserted:,} non-union)")
+
+    # ============================================================
+    # Step 7: Critical-MV tail-check (non-fatal WARNING)
+    # ============================================================
+    # Gower compute itself just finished successfully. The 2026-05-12
+    # Open Problem "Gower Compute Drops Scorecard MVs" documents that
+    # this script transitively drops mv_unified_scorecard,
+    # mv_target_scorecard, and mv_employer_search via CASCADE
+    # (mv_employer_features recreation + employer_comparables DROP).
+    # The dependent MVs vanish silently and downstream API endpoints
+    # 500 on next request. We surface that now so the operator can
+    # run refresh_all --skip-gower without first having to discover
+    # the problem via a user-facing 500.
+    print("\n=== Step 7: Critical-MV tail-check ===")
+    emit_tail_check_warning(run_critical_mvs_check())
 
 
 if __name__ == '__main__':
