@@ -40,7 +40,10 @@ source_flags AS (
         bool_or(source_system = 'corpwatch') AS has_corpwatch,
         bool_or(source_system = 'f7') AS has_f7,
         bool_or(source_system = 'form5500') AS has_form5500,
-        bool_or(source_system = 'ppp') AS has_ppp
+        bool_or(source_system = 'ppp') AS has_ppp,
+        bool_or(source_system = 'epa_echo') AS has_epa_echo,
+        bool_or(source_system = 'lda') AS has_lda,
+        bool_or(source_system = 'fec') AS has_fec
     FROM master_employer_source_ids
     GROUP BY master_id
 ),
@@ -97,12 +100,21 @@ SELECT
     COALESCE(sf.has_f7, FALSE) AS has_f7,
     COALESCE(sf.has_form5500, FALSE) AS has_form5500,
     COALESCE(sf.has_ppp, FALSE) AS has_ppp,
+    COALESCE(sf.has_epa_echo, FALSE) AS has_epa_echo,
+    COALESCE(sf.has_lda, FALSE) AS has_lda,
+    COALESCE(sf.has_fec, FALSE) AS has_fec,
 
     -- State/local contracting signal (rule-engine filtered, Tier A+B only)
     (slf.master_id IS NOT NULL) AS is_state_local_contractor,
     slf.state_local_source_count,
 
-    -- Source count (enforcement + data sources)
+    -- Source count: must equal COUNT(DISTINCT source_system) from
+    -- master_employer_source_ids for this master_id. Every source_system
+    -- known to the loaders is summed here -- see fix 2026-05-12 (Open
+    -- Problems / mv_target_data_sources source_count undercount) which
+    -- added has_f7 + has_lda + has_epa_echo + has_fec to the SUM. Keep
+    -- this list in lockstep with the source_flags CTE above and with the
+    -- enum of source_system values inserted by the matching scripts.
     (CASE WHEN COALESCE(sf.has_osha, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_whd, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_nlrb, FALSE) THEN 1 ELSE 0 END
@@ -113,8 +125,12 @@ SELECT
      + CASE WHEN COALESCE(sf.has_mergent, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_bmf, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_corpwatch, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN COALESCE(sf.has_f7, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_form5500, FALSE) THEN 1 ELSE 0 END
      + CASE WHEN COALESCE(sf.has_ppp, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN COALESCE(sf.has_epa_echo, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN COALESCE(sf.has_lda, FALSE) THEN 1 ELSE 0 END
+     + CASE WHEN COALESCE(sf.has_fec, FALSE) THEN 1 ELSE 0 END
     ) AS source_count
 
 FROM master_employers m
@@ -155,7 +171,8 @@ def _print_stats(cur):
     print("\n  Source coverage:")
     for col in ['has_osha', 'has_whd', 'has_nlrb', 'has_990', 'has_sam',
                 'has_sec', 'has_gleif', 'has_mergent', 'has_bmf', 'has_corpwatch',
-                'has_form5500', 'has_ppp']:
+                'has_f7', 'has_form5500', 'has_ppp', 'has_epa_echo', 'has_lda',
+                'has_fec']:
         cur.execute(f"SELECT COUNT(*) FROM mv_target_data_sources WHERE {col}")
         cnt = cur.fetchone()[0]
         pct = 100.0 * cnt / total if total > 0 else 0

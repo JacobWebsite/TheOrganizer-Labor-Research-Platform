@@ -23,6 +23,22 @@ def _normalize_q(q: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9 ]", " ", (q or "").lower()).split())
 
 
+def _column_exists(cur, table: str, column: str) -> bool:
+    cur.execute(
+        """
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema='public'
+            AND table_name=%s
+            AND column_name=%s
+        ) AS e
+        """,
+        (table, column),
+    )
+    return bool(cur.fetchone()["e"])
+
+
 def _schema_flags(cur) -> Tuple[str, bool]:
     global _MASTER_PK_COL, _HAS_LABOR_COL
     if _MASTER_PK_COL is not None and _HAS_LABOR_COL is not None:
@@ -98,13 +114,19 @@ def _ensure_indexes(cur, pk_col: str) -> None:
     # to pre-create with CONCURRENTLY before the first request (the
     # `IF NOT EXISTS` ensures this in-line creation is a no-op when the
     # index already exists).
-    cur.execute(
-        f"CREATE INDEX IF NOT EXISTS idx_master_employers_non_union_targets "
-        f"ON master_employers (data_quality_score DESC, {pk_col}) "
-        "WHERE is_union = FALSE "
-        "AND (is_labor_org = FALSE OR is_labor_org IS NULL) "
-        "AND data_quality_score >= 40"
-    )
+    #
+    # NOTE (2026-05-12 target-data-sources-fix): the partial index
+    # requires `is_labor_org` to exist on master_employers. Older
+    # schemas without that column are tolerated by gating the CREATE
+    # on a column-existence check.
+    if _column_exists(cur, "master_employers", "is_labor_org"):
+        cur.execute(
+            f"CREATE INDEX IF NOT EXISTS idx_master_employers_non_union_targets "
+            f"ON master_employers (data_quality_score DESC, {pk_col}) "
+            "WHERE is_union = FALSE "
+            "AND (is_labor_org = FALSE OR is_labor_org IS NULL) "
+            "AND data_quality_score >= 40"
+        )
     _INDEXES_READY = True
 
 
@@ -195,8 +217,8 @@ def _search_impl(
 
     # LEFT JOIN target scorecard signals for non-union discovery.
     # When ts is joined we can read source_count directly from the MV
-    # (it is precomputed there); otherwise we fall back to a LATERAL
-    # subquery against master_employer_source_ids.
+    # (precomputed there); otherwise we fall back to a LATERAL subquery
+    # against master_employer_source_ids. See note below.
     ts_select = ""
     ts_join = ""
     needs_ts_join = has_enforcement is not None or min_signals is not None
@@ -224,25 +246,36 @@ def _search_impl(
     # instead of aggregating all of master_employer_source_ids upfront.
     # Dropped the endpoint from ~24s to ~2.2s on the 2.6M-row table.
     #
-    # NOTE 2026-05-11 (Codex /wrapup review): an earlier iteration of this
-    # commit pointed `source_count` at the precomputed
-    # `mv_target_scorecard.source_count` when ts was joined. That MV does
-    # NOT include `has_f7` / `has_lda` / `has_epa_echo` in its sum and
-    # f7-only masters are entirely absent (NULL), so it silently
-    # undercounted source_count by 1-3 vs the historical
-    # `COUNT(DISTINCT source_system)` value. Reverted to the LATERAL
-    # subquery for semantic correctness on both code paths; the LATERAL
-    # is still ~10x faster than the original GROUP BY subquery. The
-    # underlying MV undercount is tracked separately as
-    # [[Open Problems/mv_target_data_sources source_count undercount]].
-    source_count_select = "COALESCE(src.source_count, 0) AS source_count"
-    source_count_join = (
-        "LEFT JOIN LATERAL ("
-        "  SELECT COUNT(DISTINCT source_system) AS source_count"
-        "  FROM master_employer_source_ids"
-        f"  WHERE master_id = m.{pk_col}"
-        ") src ON TRUE"
-    )
+    # source_count strategy (post 2026-05-12 target-data-sources-fix):
+    #   - When ts is joined (force_non_union_targets path), read the
+    #     precomputed `ts.source_count` from mv_target_scorecard.
+    #     Avoids a per-row LATERAL COUNT(DISTINCT); ~10x faster.
+    #   - When ts is NOT joined (/api/master/search path), fall back to
+    #     the LATERAL correlated subquery against
+    #     master_employer_source_ids so PG computes source_count only
+    #     for the LIMIT-clipped rows.
+    #
+    # History: the precomputed-source_count branch was first introduced
+    # in cd557a9, reverted in 9f4472e after Codex /wrapup caught that
+    # `mv_target_data_sources` undercounted source_count (it was
+    # missing has_f7 / has_lda / has_epa_echo / has_fec in its SUM,
+    # plus f7-only masters were absent). That MV undercount is fixed
+    # in the same target-data-sources-fix commit as this consumer
+    # change (see scripts/scoring/build_target_data_sources.py and
+    # tests/scoring/test_target_data_sources_source_count.py), so the
+    # precomputed read is now semantically safe again.
+    if ts_join:
+        source_count_select = "COALESCE(ts.source_count, 0) AS source_count"
+        source_count_join = ""
+    else:
+        source_count_select = "COALESCE(src.source_count, 0) AS source_count"
+        source_count_join = (
+            "LEFT JOIN LATERAL ("
+            "  SELECT COUNT(DISTINCT source_system) AS source_count"
+            "  FROM master_employer_source_ids"
+            f"  WHERE master_id = m.{pk_col}"
+            ") src ON TRUE"
+        )
 
     # COUNT query needs the ts JOIN if filters reference ts columns
     count_join = ts_join if needs_ts_join else ""
