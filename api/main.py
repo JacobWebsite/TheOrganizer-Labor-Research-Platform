@@ -61,6 +61,7 @@ from .routers import (
     target_scorecard,
     demographics,
     campaigns,
+    facilities,  # noqa: F401  (used as `facilities.router` below; keep above any reformat)
 )
 
 app = FastAPI(
@@ -130,6 +131,7 @@ app.include_router(research.router)
 app.include_router(target_scorecard.router)
 app.include_router(demographics.router)
 app.include_router(campaigns.router)
+app.include_router(facilities.router)
 
 
 @app.exception_handler(psycopg2.OperationalError)
