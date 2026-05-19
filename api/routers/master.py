@@ -78,6 +78,33 @@ def _ensure_indexes(cur, pk_col: str) -> None:
     cur.execute(
         "CREATE INDEX IF NOT EXISTS idx_master_source_ids_master ON master_employer_source_ids(master_id)"
     )
+    # Partial composite index for the Organizing Targets endpoint path.
+    # Pre-filters to ~2.6M non-union targets and pre-sorts by quality DESC,
+    # eliminating the parallel-seq-scan + external-disk-merge-sort that
+    # otherwise took ~3.9s per query on master_employers (2026-05-11 perf
+    # work). Empirical effect on a 2.6M-row table:
+    #   default page:  3.6s -> 0.7s
+    #   min_signals=4: 10s  -> 2.6s
+    #
+    # The partial predicate uses the OR-form `(is_labor_org = FALSE OR
+    # is_labor_org IS NULL)` rather than `COALESCE(is_labor_org, FALSE) =
+    # FALSE` for predicate-matcher compatibility -- empirically PG's
+    # query planner reliably matches a COALESCE expression in the query
+    # against the OR-form in the partial predicate, but not the reverse.
+    #
+    # The index is created in-transaction (non-CONCURRENTLY) here, which
+    # blocks writes to master_employers for ~6s on the first request to
+    # this endpoint on a fresh deploy. Production deployments may prefer
+    # to pre-create with CONCURRENTLY before the first request (the
+    # `IF NOT EXISTS` ensures this in-line creation is a no-op when the
+    # index already exists).
+    cur.execute(
+        f"CREATE INDEX IF NOT EXISTS idx_master_employers_non_union_targets "
+        f"ON master_employers (data_quality_score DESC, {pk_col}) "
+        "WHERE is_union = FALSE "
+        "AND (is_labor_org = FALSE OR is_labor_org IS NULL) "
+        "AND data_quality_score >= 40"
+    )
     _INDEXES_READY = True
 
 
@@ -166,7 +193,10 @@ def _search_impl(
         sort_col = "m.data_quality_score"
         order_dir = "DESC"
 
-    # LEFT JOIN target scorecard signals for non-union discovery
+    # LEFT JOIN target scorecard signals for non-union discovery.
+    # When ts is joined we can read source_count directly from the MV
+    # (it is precomputed there); otherwise we fall back to a LATERAL
+    # subquery against master_employer_source_ids.
     ts_select = ""
     ts_join = ""
     needs_ts_join = has_enforcement is not None or min_signals is not None
@@ -188,6 +218,31 @@ def _search_impl(
           ts.pillar_stability,
           ts.gold_standard_tier"""
         ts_join = f"LEFT JOIN mv_target_scorecard ts ON ts.master_id = m.{pk_col}"
+
+    # 2026-05-11 perf fix: LATERAL with correlated WHERE so PG computes
+    # source_count only for the rows surviving the outer filters + LIMIT,
+    # instead of aggregating all of master_employer_source_ids upfront.
+    # Dropped the endpoint from ~24s to ~2.2s on the 2.6M-row table.
+    #
+    # NOTE 2026-05-11 (Codex /wrapup review): an earlier iteration of this
+    # commit pointed `source_count` at the precomputed
+    # `mv_target_scorecard.source_count` when ts was joined. That MV does
+    # NOT include `has_f7` / `has_lda` / `has_epa_echo` in its sum and
+    # f7-only masters are entirely absent (NULL), so it silently
+    # undercounted source_count by 1-3 vs the historical
+    # `COUNT(DISTINCT source_system)` value. Reverted to the LATERAL
+    # subquery for semantic correctness on both code paths; the LATERAL
+    # is still ~10x faster than the original GROUP BY subquery. The
+    # underlying MV undercount is tracked separately as
+    # [[Open Problems/mv_target_data_sources source_count undercount]].
+    source_count_select = "COALESCE(src.source_count, 0) AS source_count"
+    source_count_join = (
+        "LEFT JOIN LATERAL ("
+        "  SELECT COUNT(DISTINCT source_system) AS source_count"
+        "  FROM master_employer_source_ids"
+        f"  WHERE master_id = m.{pk_col}"
+        ") src ON TRUE"
+    )
 
     # COUNT query needs the ts JOIN if filters reference ts columns
     count_join = ts_join if needs_ts_join else ""
@@ -212,14 +267,10 @@ def _search_impl(
           {labor_select}
           m.source_origin,
           m.data_quality_score,
-          COALESCE(src.source_count, 0) AS source_count
+          {source_count_select}
           {ts_select}
         FROM master_employers m
-        LEFT JOIN (
-          SELECT master_id, COUNT(DISTINCT source_system) AS source_count
-          FROM master_employer_source_ids
-          GROUP BY master_id
-        ) src ON src.master_id = m.{pk_col}
+        {source_count_join}
         {ts_join}
         WHERE {where}
         ORDER BY {sort_col} {order_dir} NULLS LAST, m.{pk_col}
