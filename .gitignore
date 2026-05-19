@@ -56,6 +56,9 @@ screenshot.ps1
 archive/
 2024organizing_files/
 
+# Migration preview CSVs (one-shot back-fills, regenerable from DB)
+files/pfizer_backfill_preview/
+
 # Large data directories
 lm-2 2000_2025/
 990 2025/

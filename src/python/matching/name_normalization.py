@@ -441,6 +441,38 @@ def passes_fuzzy_token_gate(name1: str, name2: str, score: float,
     return False
 
 
+def normalize_name_legal_suffixes_only(name: str) -> str:
+    """
+    Strip only legal suffixes (inc, llc, corp, company, etc.) without removing
+    NOISE_TOKENS like "holdings", "services", "international", "group".
+
+    Less aggressive than ``normalize_name_aggressive`` (which strips noise
+    tokens that are often distinguishing in real names, e.g. "Booking Holdings"
+    vs "Booking"), more aggressive than ``normalize_name_standard`` (which
+    leaves "corporation"/"company" attached).
+
+    This is the canonical replacement for the Mergent loaders' buggy
+    ``normalize_name()`` (str.replace substring bug introduced 2026-05-03 in
+    commit fe0667b; see ``Open Problems/Pfizer Master Canonical Name
+    Corruption.md``).
+
+    Examples:
+      "PFIZER PRODUCTS CORPORATION" -> "pfizer products"
+      "KROGER COMPANY"              -> "kroger"
+      "PFIZER H.C.P. CORPORATION"   -> "pfizer h c p"
+      "BOOKING HOLDINGS"            -> "booking holdings"   # preserved
+      "BOEING SYSTEMS CORPORATION"  -> "boeing systems"     # preserved
+      "RESTORATION HARDWARE"        -> "restoration hardware"  # safe — token, not suffix
+    """
+    s = normalize_name_standard(name)
+    if not s:
+        return s
+    tokens = s.split()
+    # Only strip LEGAL_SUFFIXES, leave NOISE_TOKENS in place.
+    tokens = [t for t in tokens if t not in LEGAL_SUFFIXES]
+    return " ".join(tokens).strip()
+
+
 # ============================================================================
 # Phonetic helpers
 # ============================================================================
