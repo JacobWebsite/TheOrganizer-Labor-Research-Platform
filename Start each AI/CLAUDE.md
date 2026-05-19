@@ -36,7 +36,7 @@ Credentials in `.env` at project root. `db_config.py` (project root, 500+ import
 | `sec_companies` | 517,403 | cik | Has EIN (62.6%), LEI (0.1%). |
 | `mergent_employers` | 56,426 | duns | Column: `company_name` (NOT `employer_name`), `duns` (NOT `duns_number`). EIN ~55%. |
 | `national_990_filers` | 586,767 | — | Deduped by EIN. |
-| `corporate_identifier_crosswalk` | 39,827 | id | Links SEC/GLEIF/Mergent/CorpWatch/F7. (Updated 2026-05-04: was 17,111.) |
+| `corporate_identifier_crosswalk` | 38,794 | id | Links SEC/GLEIF/Mergent/CorpWatch/F7. (Verified 2026-05-12; was 39,827 on 2026-05-04, 17,111 originally.) |
 | `employer_canonical_groups` | 16,647 groups | — | 40,304 employers in groups. |
 
 ### Match Tables
@@ -125,8 +125,8 @@ All support `--refresh` for CONCURRENT refresh. Without `--refresh`: DROP CASCAD
 cd "C:\Users\jakew\.local\bin\Labor Data Project_real"
 py -m uvicorn api.main:app --reload --port 8001          # API
 cd frontend && VITE_DISABLE_AUTH=true npx vite            # Frontend
-py -m pytest tests/ -x -q                                  # Backend tests (~1211)
-cd frontend && npx vitest run                              # Frontend tests (~264)
+py -m pytest tests/ -x -q                                  # Backend tests (1,590; verified 2026-05-12)
+cd frontend && npx vitest run                              # Frontend tests (379; verified 2026-05-12)
 py scripts/maintenance/generate_project_metrics.py         # Auto-metrics
 ```
 

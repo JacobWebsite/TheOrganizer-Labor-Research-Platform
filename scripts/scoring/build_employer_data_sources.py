@@ -128,9 +128,21 @@ SELECT
     cw.is_federal_contractor,
     cw.federal_obligations,
     cw.federal_contract_count,
-    cw.is_state_local_contractor,
-    cw.state_local_contract_count,
-    cw.state_local_source_count
+    -- State/local contractor columns were dropped from corporate_identifier_crosswalk
+    -- (likely during a `build_crosswalk.py` rebuild between 2026-04-30 and 2026-05-09).
+    -- Emit NULL/0 placeholders so the MV rebuild succeeds and downstream consumers
+    -- in build_unified_scorecard.py see "no state/local contractor data" (graceful
+    -- degradation -- COALESCE in the consumer treats NULL as FALSE). The state/local
+    -- contractor signal is still surfaced for the target-side pipeline via
+    -- `build_target_data_sources.py`, which reads from `state_local_contracts_master_matches`
+    -- directly (not from the crosswalk). The F7-side path here will stay degraded until
+    -- the crosswalk integration is restored (Path A in the Open Problem note) or the
+    -- score_contracts CTE in build_unified_scorecard.py is rewired to the master-keyed
+    -- state/local table (Path B). See Open Problems / Stale state_local_contractor
+    -- Column References.
+    NULL::boolean AS is_state_local_contractor,
+    0::integer AS state_local_contract_count,
+    0::integer AS state_local_source_count
 
 FROM f7_employers_deduped e
 
@@ -146,15 +158,15 @@ LEFT JOIN ppp_matched pppm ON pppm.f7_employer_id = e.employer_id
 -- Corporate crosswalk: pick the best row per employer (highest federal_obligations,
 -- then most state/local sources as tiebreaker for state/local-only contractors)
 LEFT JOIN LATERAL (
+    -- Pick the crosswalk row with the highest federal obligations.
+    -- Previously also tie-broke on state_local_source_count / state_local_contract_count,
+    -- but those columns were dropped from the crosswalk schema (see Open Problems note).
     SELECT corporate_family_id, sec_cik, gleif_lei, mergent_duns,
            ein, ticker, is_public, is_federal_contractor,
-           federal_obligations, federal_contract_count,
-           is_state_local_contractor, state_local_contract_count, state_local_source_count
+           federal_obligations, federal_contract_count
     FROM corporate_identifier_crosswalk
     WHERE f7_employer_id = e.employer_id
-    ORDER BY federal_obligations DESC NULLS LAST,
-             state_local_source_count DESC NULLS LAST,
-             state_local_contract_count DESC NULLS LAST
+    ORDER BY federal_obligations DESC NULLS LAST
     LIMIT 1
 ) cw ON TRUE
 """
