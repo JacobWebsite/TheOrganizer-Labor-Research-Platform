@@ -240,8 +240,80 @@ _STOP_EXACT: frozenset[str] = frozenset(
         "oems. no",
         "national hardware show. our",
         "financial statements and supplementary data",
+        # ------------------------------------------------------------------
+        # Iter 3 (2026-05-18) -- Agent 6 5/18 coverage-report findings.
+        # See `tests/etl/test_stop_list_iter3.py` for positive + overreach
+        # guards on each entry.
+        # ------------------------------------------------------------------
+        # Cloud-service-model acronyms (Software/Platform/Infrastructure as
+        # a Service). Appear as generic-category mentions in tech 10-Ks
+        # ("Our SaaS customers include..."). Real co names like "Saas
+        # Capital" survive because the multi-token mention isn't in this
+        # exact-match set.
+        "saas", "paas", "iaas",
+        # Engineering-/sales-channel acronyms. EPC = Engineering /
+        # Procurement / Construction (oil & gas), ECS = Electronic Control
+        # System. Both show up unmatched in industrial 10-Ks.
+        "epc", "ecs",
+        # Banking / regulatory acronyms. CET1 = Common Equity Tier 1,
+        # BHC = Bank Holding Company, SCB = Stress Capital Buffer,
+        # GHG = greenhouse gas. Frequent in financial-services and ESG
+        # 10-Ks; never a target firm.
+        "cet1", "bhc", "scb", "ghg",
+        # Polymer / plastic codes. PTFE = polytetrafluoroethylene,
+        # PVC = polyvinyl chloride, PET = polyethylene terephthalate,
+        # PP = polypropylene, PE = polyethylene. Real co names like
+        # "PVC Industries Inc" pass because the multi-token form is not
+        # in this exact-match set.
+        "ptfe", "pvc", "pet", "pp", "pe",
+        # Aviation / travel-industry standards bodies and protocols.
+        # IATA = Int'l Air Transport Assoc., NDC = New Distribution
+        # Capability, AIA = Aerospace Industries Assoc. Show up as
+        # mentions in airline / aerospace 10-Ks but aren't firms.
+        "iata", "ndc", "aia",
+        # Retail-boilerplate phrasing. "Order Pickup" / "Drive Up" are
+        # the standard Target / Walmart fulfillment-channel labels.
+        # They get captured as proper-noun phrases because both tokens
+        # are capitalized in 10-K prose.
+        "order pickup", "drive up",
     }
 )
+
+# Regex-based stop entries (iter 3, 2026-05-18). Each item is a tuple of
+# (compiled_regex, allow_corp_suffix_override).
+#
+# Use these when an EXACT match is too coarse -- e.g. when the bad phrase
+# can occur as a trailing fragment of an otherwise-real mention, when it
+# only matters at the START of the mention, or when a single negative
+# lookahead distinguishes a regulator from a real bank entity.
+#
+# `allow_corp_suffix_override` semantics: if True, the presence of a
+# corp suffix (Inc / Corp / LLC / Holdings / Group / etc., see
+# `_CORP_SUFFIX_RE`) anywhere in the mention overrides the veto. This
+# lets real co names like "Significant Beauty Holdings" pass even though
+# their leading token is the sentence-initial adverb we want to filter.
+_STOP_PATTERN: tuple[tuple[re.Pattern[str], bool], ...] = (
+    # Trailing " The Company" -- sentence-boundary capture where the regex
+    # spanned a heading or section break into the next sentence's subject
+    # ("Service Group\nThe Company concentrates..." -> "Service Group The
+    # Company"). Iter 2 stop-listed only the exact "raw materials the
+    # company"; iter 3 generalizes to any phrase ending in "The Company".
+    # Agent 6 found 33 hits with this pattern.
+    (re.compile(r"\bthe\s+company$", re.IGNORECASE), False),
+    # Sentence-initial adverbs / determiners that get capitalized at the
+    # start of a sentence and captured by the proper-noun regex. Only veto
+    # when they are the LEADING token; mid-sentence "Significant Beauty
+    # Holdings" / "Synthetic Industries" stays valid because of the
+    # corp-suffix override. Case-sensitive on purpose -- a lowercase
+    # "substantial" would be filtered earlier in the pipeline.
+    (re.compile(r"^(?:Substantial|Synthetic|Significant)\b"), True),
+    # "Federal Reserve" alone is the central bank (regulator), not a
+    # target firm. BUT "Federal Reserve Bank of Boston / NY / SF" etc.
+    # are real bank entities (employer targets). Negative lookahead lets
+    # the bank variants through and only vetoes the bare regulator.
+    (re.compile(r"^federal\s+reserve(?!\s+bank)\b", re.IGNORECASE), False),
+)
+
 
 # Single-word terms that are valid English words but not company names.
 # We scan tokens with this list; any extracted phrase whose tokens are
@@ -479,6 +551,15 @@ def _is_acceptable_entity(s: str) -> bool:
     # Bare corp-suffix word ("Inc", "Corp") -- not a real entity.
     if low in _BARE_SUFFIX_TOKENS:
         return False
+    # Iter 3 regex-based stops (sentence-initial adverbs, trailing
+    # "The Company", Federal-Reserve-not-Bank). Some entries grant an
+    # override if a corp suffix is present (so "Significant Beauty
+    # Holdings" passes even though "Significant" alone is vetoed).
+    for stop_re, allow_corp_override in _STOP_PATTERN:
+        if stop_re.search(s):
+            if allow_corp_override and _CORP_SUFFIX_RE.search(s):
+                continue
+            return False
     # Must contain at least one alphabetic char.
     if not any(c.isalpha() for c in s):
         return False
