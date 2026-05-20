@@ -671,26 +671,41 @@ def _insert_migration_audit_row(cur, name, counts, started_at, completed_at):
     )
 
 
-def _run_verification_ladder(cur, master_plan, winner_map, txn_start_ts, audit_name, log):
-    """In-txn pre-commit checks. Returns dict; 'all_pass' is False if any failed."""
-    results = {}
-    # V1: corruption regex zero in master_employers
-    cur.execute(
-        "SELECT COUNT(*) FROM master_employers WHERE canonical_name ~ %s",
-        (CANDIDATE_REGEX_PG,),
-    )
-    n = int(cur.fetchone()[0])
-    # Plan's skip-empty rule leaves ~2 junk masters with canonical='company'; they
-    # don't match the corruption regex anyway, so V1 should be exactly 0.
-    results["V1_master_corruption_zero"] = (n == 0, n)
+def _run_verification_ladder(cur, master_plan, mergent_plan, winner_map,
+                              merge_log_baseline_id, audit_name, log):
+    """In-txn pre-commit checks. Returns dict; 'all_pass' is False if any failed.
 
-    # V2: corruption regex zero in mergent_employers
+    V1/V2 use a plan-relative check (rows in the plan whose canonical_name
+    still differs from the planned new value) rather than a regex against
+    the full table. The corruption regex has false-positives for legitimate
+    -oration words (restoration / collaboration / etc.) and the "not-company"
+    lookbehind doesn't actually exclude "company" — the char before "mpany"
+    in "company" is "o", not "p".
+
+    V4 counts master_employer_merge_log rows with merge_id > the baseline
+    captured immediately before the merge_one loop, scoped to merge_phase
+    = PFIZER_BUNDLED_PHASE. This avoids the Postgres NOW()-is-frozen-in-txn
+    pitfall that caused the time-based filter to always return 0.
+    """
+    results = {}
+
+    # V1: every row in the master plan now holds the planned new_canonical.
     cur.execute(
-        "SELECT COUNT(*) FROM mergent_employers WHERE company_name_normalized ~ %s",
-        (CANDIDATE_REGEX_PG,),
+        "SELECT COUNT(*) FROM _pfizer_backfill_master p "
+        "JOIN master_employers m ON m.master_id = p.master_id "
+        "WHERE m.canonical_name IS DISTINCT FROM p.new_canonical"
     )
     n = int(cur.fetchone()[0])
-    results["V2_mergent_corruption_zero"] = (n == 0, n)
+    results["V1_master_plan_applied"] = (n == 0, f"{n} rows still on old canonical")
+
+    # V2: every row in the mergent plan now holds the planned new_normalized.
+    cur.execute(
+        "SELECT COUNT(*) FROM _pfizer_backfill_mergent p "
+        "JOIN mergent_employers e ON e.id = p.id "
+        "WHERE e.company_name_normalized IS DISTINCT FROM p.new_normalized"
+    )
+    n = int(cur.fetchone()[0])
+    results["V2_mergent_plan_applied"] = (n == 0, f"{n} rows still on old normalized")
 
     # V3: loser FK orphans = 0 (for declared FKs)
     cur.execute(
@@ -708,20 +723,35 @@ def _run_verification_ladder(cur, master_plan, winner_map, txn_start_ts, audit_n
     results["V3_orphan_directors"] = (orphan_directors == 0, orphan_directors)
     results["V3_orphan_source_ids"] = (orphan_sources == 0, orphan_sources)
 
-    # V4: master_employers row-count delta = expected
+    # V4: merge_log delta uses a captured baseline merge_id, not a time filter.
     cur.execute(
         "SELECT COUNT(*) FROM master_employer_merge_log "
-        "WHERE merge_phase=%s AND merged_at >= %s",
-        (PFIZER_BUNDLED_PHASE, txn_start_ts),
+        "WHERE merge_id > %s AND merge_phase = %s",
+        (merge_log_baseline_id, PFIZER_BUNDLED_PHASE),
     )
     log_count = int(cur.fetchone()[0])
     expected = len(winner_map)
-    results["V4_merge_log_count"] = (log_count == expected, f"{log_count} vs expected {expected}")
+    results["V4_merge_log_count"] = (log_count == expected,
+                                      f"{log_count} vs expected {expected}")
 
-    # V5: same as V4 from a different angle (sanity dup check)
-    results["V5_merge_log_count_matches_plan"] = results["V4_merge_log_count"]
+    # V5: every merge_log row points at a winner that exists in master_employers
+    # (and the loser does NOT exist anymore).
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM master_employer_merge_log mml
+        WHERE mml.merge_id > %s AND mml.merge_phase = %s
+          AND (NOT EXISTS (SELECT 1 FROM master_employers w
+                            WHERE w.master_id = mml.winner_master_id)
+               OR EXISTS (SELECT 1 FROM master_employers l
+                          WHERE l.master_id = mml.loser_master_id))
+        """,
+        (merge_log_baseline_id, PFIZER_BUNDLED_PHASE),
+    )
+    bad = int(cur.fetchone()[0])
+    results["V5_merge_log_pointers_clean"] = (bad == 0,
+                                                f"{bad} bad winner/loser refs")
 
-    # V6: audit row inserted
+    # V6: audit row inserted with completed_at set
     cur.execute(
         "SELECT completed_at IS NOT NULL FROM maintenance_migration_audit "
         "WHERE migration_name = %s",
@@ -774,6 +804,12 @@ def run_bundled(conn, ctx, master_plan, mergent_plan, ts, log):
         repoint_counts = bulk_repoint(cur)
         log(f"  bulk_repoint: {repoint_counts}")
 
+        # Capture max merge_id BEFORE the loop so V4/V5 can count just-this-run
+        # rows without relying on a time filter (Postgres NOW() is frozen at
+        # txn start, so a Python now()-based filter is always wrong direction).
+        cur.execute("SELECT COALESCE(MAX(merge_id), 0) FROM master_employer_merge_log")
+        merge_log_baseline_id = int(cur.fetchone()[0])
+
         # Per-pair merge_one loop. Batch-fetch all winners+losers up-front.
         all_mids = sorted(set(winner_map.keys()) | set(winner_map.values()))
         emps = {e.mid: e for e in fetch_employers(cur, ctx, all_mids)}
@@ -824,7 +860,8 @@ def run_bundled(conn, ctx, master_plan, mergent_plan, ts, log):
         _insert_migration_audit_row(cur, audit_name, counts, started, completed)
 
         verification = _run_verification_ladder(
-            cur, master_plan, winner_map, started, audit_name, log,
+            cur, master_plan, mergent_plan, winner_map,
+            merge_log_baseline_id, audit_name, log,
         )
         if not verification["all_pass"]:
             raise RuntimeError(f"Verification ladder failed: {verification}")
