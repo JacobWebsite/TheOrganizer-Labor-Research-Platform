@@ -149,12 +149,12 @@ LEFT JOIN LATERAL (
     SELECT corporate_family_id, sec_cik, gleif_lei, mergent_duns,
            ein, ticker, is_public, is_federal_contractor,
            federal_obligations, federal_contract_count,
-           is_state_local_contractor, state_local_contract_count, state_local_source_count
+           FALSE::BOOLEAN AS is_state_local_contractor,
+           0::INT AS state_local_contract_count,
+           0::INT AS state_local_source_count
     FROM corporate_identifier_crosswalk
     WHERE f7_employer_id = e.employer_id
-    ORDER BY federal_obligations DESC NULLS LAST,
-             state_local_source_count DESC NULLS LAST,
-             state_local_contract_count DESC NULLS LAST
+    ORDER BY federal_obligations DESC NULLS LAST
     LIMIT 1
 ) cw ON TRUE
 """
