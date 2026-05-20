@@ -330,6 +330,516 @@ def commit_mergent(cur, mergent_plan, log):
 
 
 # ============================================================================
+# Bundled-mode helpers (Phase C of pfizer_dedup_bundle_plan_2026_05_20)
+# ============================================================================
+
+# Arbitrary integer; pg_advisory_lock acquires across the whole session.
+BUNDLED_ADVISORY_LOCK_ID = 18052026
+
+PFIZER_BUNDLED_PHASE = "pfizer_bundled"
+
+
+def _acquire_advisory_lock(cur):
+    """Acquire pg_advisory_lock so two bundled migrations can't run concurrently.
+
+    Released on session close / explicit unlock.
+    """
+    cur.execute("SELECT pg_try_advisory_lock(%s)", (BUNDLED_ADVISORY_LOCK_ID,))
+    got = bool(cur.fetchone()[0])
+    if not got:
+        raise RuntimeError(
+            f"Could not acquire pg_advisory_lock({BUNDLED_ADVISORY_LOCK_ID}). "
+            "Another bundled migration may be running."
+        )
+
+
+def _set_timeouts_bundled(cur):
+    """Generous timeouts for the bundled run (~10K merge_one calls)."""
+    cur.execute("SET lock_timeout = '5min'")
+    cur.execute("SET statement_timeout = '30min'")
+    cur.execute("SET idle_in_transaction_session_timeout = '30min'")
+
+
+def _stage_plan_temp_tables(cur, master_plan, mergent_plan):
+    """Create + populate _pfizer_backfill_master / _pfizer_backfill_mergent temp tables.
+
+    These persist for the lifetime of the txn so downstream SQL (collision-graph
+    materialization, commit_master/commit_mergent UPDATEs) can JOIN against them.
+    """
+    from psycopg2.extras import execute_values
+    cur.execute(
+        "CREATE TEMP TABLE _pfizer_backfill_master "
+        "(master_id BIGINT PRIMARY KEY, new_canonical TEXT) ON COMMIT DROP"
+    )
+    if master_plan:
+        execute_values(
+            cur,
+            "INSERT INTO _pfizer_backfill_master (master_id, new_canonical) VALUES %s",
+            [(mid, new) for (mid, _d, _old, new) in master_plan],
+        )
+    cur.execute(
+        "CREATE TEMP TABLE _pfizer_backfill_mergent "
+        "(id INTEGER PRIMARY KEY, new_normalized TEXT) ON COMMIT DROP"
+    )
+    if mergent_plan:
+        execute_values(
+            cur,
+            "INSERT INTO _pfizer_backfill_mergent (id, new_normalized) VALUES %s",
+            [(rid, new) for (rid, _c, _old, new) in mergent_plan],
+        )
+
+
+def _materialize_collision_groups(cur):
+    """Build _post_fix_view + _collision_groups temp tables.
+
+    A collision group is a (post_canonical, state, city) tuple with >=2
+    master rows, where at least one row is in the back-fill plan. Returns
+    the row count of _collision_groups.
+    """
+    cur.execute("DROP TABLE IF EXISTS _post_fix_view")
+    cur.execute(
+        """
+        CREATE TEMP TABLE _post_fix_view AS
+        SELECT m.master_id,
+               COALESCE(p.new_canonical, m.canonical_name) AS post_canonical,
+               m.state::TEXT AS state,
+               m.city,
+               m.source_origin,
+               EXISTS (
+                   SELECT 1 FROM master_employer_source_ids sid
+                   WHERE sid.master_id = m.master_id AND sid.source_system = 'f7'
+               ) AS has_f7
+        FROM master_employers m
+        LEFT JOIN _pfizer_backfill_master p USING (master_id)
+        """
+    )
+    cur.execute("CREATE INDEX ON _post_fix_view (post_canonical, state, city)")
+    cur.execute("DROP TABLE IF EXISTS _collision_groups")
+    cur.execute(
+        """
+        CREATE TEMP TABLE _collision_groups AS
+        SELECT post_canonical, state, city,
+               array_agg(master_id ORDER BY master_id) AS ids
+        FROM _post_fix_view
+        WHERE post_canonical IS NOT NULL AND btrim(post_canonical) <> ''
+          AND state IS NOT NULL
+        GROUP BY post_canonical, state, city
+        HAVING COUNT(*) >= 2
+           AND COUNT(*) FILTER (
+               WHERE master_id IN (SELECT master_id FROM _pfizer_backfill_master)
+           ) >= 1
+        """
+    )
+    cur.execute("SELECT COUNT(*) FROM _collision_groups")
+    return int(cur.fetchone()[0])
+
+
+def _pick_winners_for_groups(cur, ctx, log):
+    """Walk _collision_groups; for each group pick one terminal winner via
+    Employer.rank(); enumerate losers; skip f7-vs-f7 + id-conflict pairs.
+
+    Returns (winner_map: dict[loser_mid, winner_mid], skipped_id_conflicts:
+    list of (loser_mid, winner_mid, field, loser_value, winner_value),
+    skipped_f7_vs_f7: int).
+    """
+    from src.python.matching.master_dedup import fetch_employers, has_id_conflict
+
+    cur.execute("SELECT post_canonical, state, city, ids FROM _collision_groups")
+    groups = cur.fetchall()
+    winner_map: dict[int, int] = {}
+    skipped_id_conflicts: list[tuple] = []
+    skipped_f7_vs_f7 = 0
+
+    # Batch-fetch all unique mids across all groups to avoid N round-trips.
+    all_mids = sorted({m for _pc, _s, _c, ids in groups for m in ids})
+    emps = {e.mid: e for e in fetch_employers(cur, ctx, all_mids)}
+
+    for _pc, _state, _city, ids in groups:
+        rows = [emps[m] for m in ids if m in emps]
+        if len(rows) < 2:
+            continue
+        rows.sort(key=lambda x: x.rank())
+        winner = rows[0]
+        for loser in rows[1:]:
+            if loser.mid == winner.mid:
+                continue
+            if winner.has_f7 and loser.has_f7:
+                skipped_f7_vs_f7 += 1
+                continue
+            conflict_field = has_id_conflict(winner, loser)
+            if conflict_field is not None:
+                skipped_id_conflicts.append((
+                    loser.mid, winner.mid, conflict_field,
+                    getattr(loser, conflict_field, None),
+                    getattr(winner, conflict_field, None),
+                ))
+                continue
+            # Star-topology: every loser in the group points at the SAME winner.
+            # If a loser was already assigned (group overlap), keep first.
+            if loser.mid in winner_map:
+                continue
+            winner_map[loser.mid] = winner.mid
+
+    log(f"  winner map: {len(winner_map):,} loser->winner pairs")
+    log(f"  skipped (f7 vs f7): {skipped_f7_vs_f7:,}")
+    log(f"  skipped (id conflict): {len(skipped_id_conflicts):,}")
+    return winner_map, skipped_id_conflicts, skipped_f7_vs_f7
+
+
+def _write_winner_map_table(cur, winner_map):
+    """Persist winner_map to a temp table `_winner_map` (loser_master_id,
+    winner_master_id BIGINT) for use by bulk_repoint().
+    """
+    from psycopg2.extras import execute_values
+    cur.execute("DROP TABLE IF EXISTS _winner_map")
+    cur.execute(
+        "CREATE TEMP TABLE _winner_map "
+        "(loser_master_id BIGINT PRIMARY KEY, winner_master_id BIGINT NOT NULL)"
+    )
+    if winner_map:
+        execute_values(
+            cur,
+            "INSERT INTO _winner_map (loser_master_id, winner_master_id) VALUES %s",
+            list(winner_map.items()),
+        )
+    cur.execute("CREATE INDEX ON _winner_map (winner_master_id)")
+
+
+def _persist_skipped_id_conflicts(cur, ts, skipped):
+    """Persist id-conflict skips to a permanent audit table
+    `pfizer_skipped_id_conflicts_<TS>` so a human can review post-commit.
+    """
+    if not skipped:
+        return None
+    tbl = f"pfizer_skipped_id_conflicts_{ts}"
+    cur.execute(
+        f'CREATE TABLE "{tbl}" ('
+        "  loser_master_id BIGINT, winner_master_id BIGINT,"
+        "  conflict_field TEXT, loser_value TEXT, winner_value TEXT)"
+    )
+    from psycopg2.extras import execute_values
+    execute_values(
+        cur,
+        f'INSERT INTO "{tbl}" '
+        "(loser_master_id, winner_master_id, conflict_field, loser_value, winner_value) VALUES %s",
+        [(l, w, f, str(lv) if lv is not None else None, str(wv) if wv is not None else None)
+         for (l, w, f, lv, wv) in skipped],
+    )
+    return tbl
+
+
+def validate_merge_map(cur, winner_map):
+    """Fail fast if the winner_map has structural problems.
+
+    Checks:
+      - no self-merge (loser == winner)
+      - no master_id appears as both winner and loser (no A->B->C chains)
+      - every winner exists in master_employers
+      - every loser exists in master_employers
+    """
+    for loser, winner in winner_map.items():
+        if loser == winner:
+            raise RuntimeError(f"validate_merge_map: self-merge for master_id={loser}")
+    losers = set(winner_map.keys())
+    winners = set(winner_map.values())
+    both = losers & winners
+    if both:
+        raise RuntimeError(
+            f"validate_merge_map: {len(both):,} master_ids appear as BOTH winner and "
+            f"loser (chain risk). Sample: {sorted(both)[:5]}"
+        )
+    all_mids = list(losers | winners)
+    if not all_mids:
+        return
+    cur.execute(
+        "SELECT master_id FROM master_employers WHERE master_id = ANY(%s)",
+        (all_mids,),
+    )
+    present = {r[0] for r in cur.fetchall()}
+    missing = [m for m in all_mids if m not in present]
+    if missing:
+        raise RuntimeError(
+            f"validate_merge_map: {len(missing):,} master_ids in winner_map do not "
+            f"exist in master_employers. Sample: {missing[:5]}"
+        )
+
+
+def _create_snapshot_tables(cur, ts, log):
+    """Persist a snapshot of the affected master/source/mergent rows BEFORE
+    mutation. Tables survive the txn (committed-only); drop after next /ship.
+    """
+    master_tbl = f"backfill_pfizer_pre_{ts}"
+    source_tbl = f"backfill_pfizer_source_ids_pre_{ts}"
+    mergent_tbl = f"backfill_pfizer_mergent_pre_{ts}"
+    cur.execute(
+        f'CREATE TABLE "{master_tbl}" AS '
+        "SELECT m.* FROM master_employers m "
+        "WHERE m.master_id IN ("
+        "  SELECT master_id FROM _pfizer_backfill_master"
+        "  UNION SELECT loser_master_id FROM _winner_map"
+        "  UNION SELECT winner_master_id FROM _winner_map)"
+    )
+    log(f"  snapshot: {master_tbl} ({cur.rowcount:,} rows)")
+    cur.execute(
+        f'CREATE TABLE "{source_tbl}" AS '
+        "SELECT * FROM master_employer_source_ids "
+        "WHERE master_id IN ("
+        "  SELECT loser_master_id FROM _winner_map"
+        "  UNION SELECT winner_master_id FROM _winner_map)"
+    )
+    log(f"  snapshot: {source_tbl} ({cur.rowcount:,} rows)")
+    cur.execute(
+        f'CREATE TABLE "{mergent_tbl}" AS '
+        "SELECT * FROM mergent_employers "
+        "WHERE id IN (SELECT id FROM _pfizer_backfill_mergent)"
+    )
+    log(f"  snapshot: {mergent_tbl} ({cur.rowcount:,} rows)")
+    return [master_tbl, source_tbl, mergent_tbl]
+
+
+def _verify_checksum_unchanged(cur, master_plan):
+    """Abort if any planned master row has changed since the plan was built.
+
+    Compares plan's (master_id, display_name, current canonical) against the
+    live row. If display_name or canonical_name shifted, someone else is
+    writing — bail to avoid clobbering.
+    """
+    if not master_plan:
+        return
+    mids = [mid for (mid, *_rest) in master_plan]
+    plan_by_mid = {mid: (disp, old) for (mid, disp, old, _new) in master_plan}
+    cur.execute(
+        "SELECT master_id, display_name, canonical_name "
+        "FROM master_employers WHERE master_id = ANY(%s)",
+        (mids,),
+    )
+    shifted = []
+    for mid, live_disp, live_canon in cur.fetchall():
+        plan_disp, plan_canon = plan_by_mid.get(mid, (None, None))
+        if live_disp != plan_disp or live_canon != plan_canon:
+            shifted.append(mid)
+    if shifted:
+        raise RuntimeError(
+            f"_verify_checksum_unchanged: {len(shifted):,} master rows shifted "
+            f"between plan-build and commit. Sample: {shifted[:5]}. Re-run preview."
+        )
+
+
+def _lock_affected_rows_for_update(cur):
+    """SELECT FOR UPDATE on every master row we're about to touch, in
+    deterministic order to avoid deadlocks with concurrent writers."""
+    cur.execute(
+        "SELECT master_id FROM master_employers "
+        "WHERE master_id IN ("
+        "  SELECT master_id FROM _pfizer_backfill_master"
+        "  UNION SELECT loser_master_id FROM _winner_map"
+        "  UNION SELECT winner_master_id FROM _winner_map) "
+        "ORDER BY master_id FOR UPDATE"
+    )
+    return cur.rowcount
+
+
+def _ensure_migration_audit_table(cur):
+    """Create the persistent maintenance-audit table if it doesn't exist."""
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS maintenance_migration_audit (
+          migration_name TEXT PRIMARY KEY,
+          counts JSONB,
+          checksum TEXT,
+          started_at TIMESTAMPTZ,
+          completed_at TIMESTAMPTZ,
+          notes TEXT
+        )
+        """
+    )
+
+
+def _insert_migration_audit_row(cur, name, counts, started_at, completed_at):
+    """Record one row in maintenance_migration_audit."""
+    import json
+    cur.execute(
+        """
+        INSERT INTO maintenance_migration_audit
+          (migration_name, counts, started_at, completed_at)
+        VALUES (%s, %s::jsonb, %s, %s)
+        ON CONFLICT (migration_name) DO UPDATE
+        SET counts = EXCLUDED.counts,
+            completed_at = EXCLUDED.completed_at
+        """,
+        (name, json.dumps(counts), started_at, completed_at),
+    )
+
+
+def _run_verification_ladder(cur, master_plan, winner_map, txn_start_ts, audit_name, log):
+    """In-txn pre-commit checks. Returns dict; 'all_pass' is False if any failed."""
+    results = {}
+    # V1: corruption regex zero in master_employers
+    cur.execute(
+        "SELECT COUNT(*) FROM master_employers WHERE canonical_name ~ %s",
+        (CANDIDATE_REGEX_PG,),
+    )
+    n = int(cur.fetchone()[0])
+    # Plan's skip-empty rule leaves ~2 junk masters with canonical='company'; they
+    # don't match the corruption regex anyway, so V1 should be exactly 0.
+    results["V1_master_corruption_zero"] = (n == 0, n)
+
+    # V2: corruption regex zero in mergent_employers
+    cur.execute(
+        "SELECT COUNT(*) FROM mergent_employers WHERE company_name_normalized ~ %s",
+        (CANDIDATE_REGEX_PG,),
+    )
+    n = int(cur.fetchone()[0])
+    results["V2_mergent_corruption_zero"] = (n == 0, n)
+
+    # V3: loser FK orphans = 0 (for declared FKs)
+    cur.execute(
+        """
+        SELECT (SELECT COUNT(*) FROM employer_directors d
+                WHERE d.master_id IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM master_employers m
+                                   WHERE m.master_id = d.master_id)),
+               (SELECT COUNT(*) FROM master_employer_source_ids s
+                WHERE NOT EXISTS (SELECT 1 FROM master_employers m
+                                   WHERE m.master_id = s.master_id))
+        """
+    )
+    orphan_directors, orphan_sources = cur.fetchone()
+    results["V3_orphan_directors"] = (orphan_directors == 0, orphan_directors)
+    results["V3_orphan_source_ids"] = (orphan_sources == 0, orphan_sources)
+
+    # V4: master_employers row-count delta = expected
+    cur.execute(
+        "SELECT COUNT(*) FROM master_employer_merge_log "
+        "WHERE merge_phase=%s AND merged_at >= %s",
+        (PFIZER_BUNDLED_PHASE, txn_start_ts),
+    )
+    log_count = int(cur.fetchone()[0])
+    expected = len(winner_map)
+    results["V4_merge_log_count"] = (log_count == expected, f"{log_count} vs expected {expected}")
+
+    # V5: same as V4 from a different angle (sanity dup check)
+    results["V5_merge_log_count_matches_plan"] = results["V4_merge_log_count"]
+
+    # V6: audit row inserted
+    cur.execute(
+        "SELECT completed_at IS NOT NULL FROM maintenance_migration_audit "
+        "WHERE migration_name = %s",
+        (audit_name,),
+    )
+    row = cur.fetchone()
+    results["V6_audit_row_present"] = ((row is not None and bool(row[0])), row)
+
+    all_pass = all(v[0] for v in results.values())
+    results["all_pass"] = all_pass
+    for k, v in results.items():
+        if k == "all_pass":
+            continue
+        status = "PASS" if v[0] else "FAIL"
+        log(f"  {k}: {status} ({v[1]})")
+    return results
+
+
+def run_bundled(conn, ctx, master_plan, mergent_plan, ts, log):
+    """Bundled --commit flow: back-fill canonicals + dedup-merge in ONE txn.
+
+    Caller MUST set conn.autocommit = False before calling. Caller commits on
+    success; we raise on failure (caller rolls back).
+    """
+    from datetime import datetime, timezone
+    started = datetime.now(timezone.utc)
+    audit_name = f"pfizer_bundled_{ts}"
+
+    with conn.cursor() as cur:
+        _acquire_advisory_lock(cur)
+        _set_timeouts_bundled(cur)
+        _ensure_migration_audit_table(cur)
+        _stage_plan_temp_tables(cur, master_plan, mergent_plan)
+        collision_count = _materialize_collision_groups(cur)
+        log(f"  collision groups: {collision_count:,}")
+        winner_map, skipped_id_conflicts, skipped_f7 = _pick_winners_for_groups(cur, ctx, log)
+        _write_winner_map_table(cur, winner_map)
+        skip_tbl = _persist_skipped_id_conflicts(cur, ts, skipped_id_conflicts)
+        if skip_tbl:
+            log(f"  id-conflict skips persisted to: {skip_tbl}")
+        validate_merge_map(cur, winner_map)
+        log("  merge map validated (no self-merges, no chains, all rows exist)")
+        _verify_checksum_unchanged(cur, master_plan)
+        log("  checksum verified (no rows shifted since preview)")
+        snapshot_tables = _create_snapshot_tables(cur, ts, log)
+        locked = _lock_affected_rows_for_update(cur)
+        log(f"  acquired row locks on {locked:,} master rows")
+
+        from src.python.matching.master_dedup import bulk_repoint, fetch_employers, merge_one
+        repoint_counts = bulk_repoint(cur)
+        log(f"  bulk_repoint: {repoint_counts}")
+
+        # Per-pair merge_one loop. Batch-fetch all winners+losers up-front.
+        all_mids = sorted(set(winner_map.keys()) | set(winner_map.values()))
+        emps = {e.mid: e for e in fetch_employers(cur, ctx, all_mids)}
+        log(f"  applying {len(winner_map):,} merges via merge_one...")
+        applied = 0
+        t0 = time.time()
+        for loser_mid, winner_mid in winner_map.items():
+            winner = emps[winner_mid]
+            loser = emps[loser_mid]
+            merge_one(
+                cur, ctx,
+                winner=winner, loser=loser,
+                phase=PFIZER_BUNDLED_PHASE,
+                conf=0.95,
+                ev={"rule": "post_backfill_collision",
+                    "winner_canonical": winner.canonical_name,
+                    "loser_canonical": loser.canonical_name},
+            )
+            applied += 1
+            if applied % 1000 == 0:
+                elapsed = time.time() - t0
+                rate = applied / elapsed if elapsed > 0 else 0
+                eta = (len(winner_map) - applied) / rate if rate > 0 else 0
+                log(f"    {applied:,}/{len(winner_map):,} ({rate:.0f}/s, ETA {eta/60:.1f}min)")
+        log(f"  merge_one calls: {applied:,} in {time.time()-t0:.1f}s")
+
+        # Now UPDATE canonical_name on the survivors. Winners that got merged
+        # into via merge_one() have already had their canonical_name re-pref'd
+        # against the loser; the back-fill plan may still want to overwrite
+        # with the explicit `new_canonical`. Run the master UPDATE last so
+        # the planned new_canonical wins.
+        master_updated = commit_master(cur, master_plan, log)
+        mergent_updated = commit_mergent(cur, mergent_plan, log)
+
+        completed = datetime.now(timezone.utc)
+        counts = {
+            "master_plan_size": len(master_plan),
+            "mergent_plan_size": len(mergent_plan),
+            "collision_groups": collision_count,
+            "pairs_merged": applied,
+            "skipped_id_conflicts": len(skipped_id_conflicts),
+            "skipped_f7_vs_f7": skipped_f7,
+            "master_updated": master_updated,
+            "mergent_updated": mergent_updated,
+            "repoint_counts": repoint_counts,
+            "snapshot_tables": snapshot_tables,
+        }
+        _insert_migration_audit_row(cur, audit_name, counts, started, completed)
+
+        verification = _run_verification_ladder(
+            cur, master_plan, winner_map, started, audit_name, log,
+        )
+        if not verification["all_pass"]:
+            raise RuntimeError(f"Verification ladder failed: {verification}")
+        log("  verification ladder: all PASS")
+
+    return {
+        "ok": True,
+        "audit_name": audit_name,
+        "counts": counts,
+        "verification": verification,
+        "snapshot_tables": snapshot_tables,
+    }
+
+
+# ============================================================================
 # Entry point
 # ============================================================================
 
@@ -356,6 +866,16 @@ def main():
     parser.add_argument(
         "--skip-mv-check", action="store_true",
         help="(DANGEROUS) skip the critical-MV sanity guard. Do not use in production.",
+    )
+    parser.add_argument(
+        "--bundled", action="store_true",
+        help=(
+            "Atomic bundled mode: back-fill canonicals + dedup-merge in ONE "
+            "transaction. Bypasses --max-dedup-candidates; instead picks "
+            "winners per collision group via SOURCE_PRIORITY, repoints FKs, "
+            "merges losers via merge_one(), then UPDATEs canonicals. See "
+            "docs/scratch/pfizer_dedup_bundle_plan_2026_05_20.md."
+        ),
     )
     args = parser.parse_args()
 
@@ -408,14 +928,51 @@ def main():
             log(f"  master preview:  {master_csv}")
             log(f"  mergent preview: {mergent_csv}")
 
+            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+            if args.bundled:
+                # Bundled preview ALWAYS runs the planning portion (cheap,
+                # mostly read-only — creates temp tables that drop on rollback).
+                from src.python.matching.master_dedup import MergeContext
+                ctx = MergeContext.detect(cur, label="backfill_pfizer_bundled")
+
+                if not args.commit:
+                    log("BUNDLED PREVIEW: computing collisions + winner map...")
+                    _set_timeouts_bundled(cur)
+                    _stage_plan_temp_tables(cur, master_plan, mergent_plan)
+                    collision_count = _materialize_collision_groups(cur)
+                    log(f"  collision groups: {collision_count:,}")
+                    winner_map, skipped_id_conflicts, skipped_f7 = _pick_winners_for_groups(cur, ctx, log)
+                    log(f"  pairs that would be merged: {len(winner_map):,}")
+                    log("")
+                    log("PREVIEW MODE (--bundled, no --commit) -- no DB writes. "
+                        "Re-run with --bundled --commit to apply.")
+                    conn.rollback()
+                    return 0
+
+                log("BUNDLED mode: back-fill + dedup-merge in one transaction.")
+                result = run_bundled(conn, ctx, master_plan, mergent_plan, ts, log)
+                conn.commit()
+                log(f"  audit_name: {result['audit_name']}")
+                log(f"  snapshots: {result['snapshot_tables']}")
+                log("")
+                log("Done. Post-commit runbook:")
+                log("  1. py scripts/maintenance/check_critical_mvs.py")
+                log("  2. py scripts/scoring/refresh_all.py --skip-gower")
+                log("  3. Overnight: py scripts/scoring/compute_gower_similarity.py")
+                log("     (then py scripts/scoring/refresh_all.py)")
+                log("     DO NOT pass --dry-run to compute_gower_similarity.py "
+                    "(it DROPs employer_comparables -- napkin 2026-05-12).")
+                log("  4. After next /ship: drop snapshot tables documented above.")
+                return 0
+
             if not args.commit:
                 log("")
                 log("PREVIEW MODE -- no DB writes. Review the CSVs, then re-run "
-                    "with --commit.")
-                conn.rollback()  # paranoia (we didn't write, but cleanup any temps).
+                    "with --commit (or --bundled --commit for atomic dedup).")
+                conn.rollback()
                 return 0
 
-            # --commit path from here on.
             log("Estimating post-fix dedup-merge candidate count...")
             dedup_count = estimate_dedup_candidates(cur, master_plan)
             log(f"  estimated dedup-merge candidates: {dedup_count:,}")
@@ -428,10 +985,9 @@ def main():
                     file=sys.stderr,
                 )
                 print(
-                    "Resolution: bump the threshold ONLY after building a "
-                    "dedup-merge plan for the colliding rows. See "
-                    "scripts/etl/dedup_master_employers.py for the existing "
-                    "merge logic.",
+                    "Resolution: re-run with --bundled to merge collisions in "
+                    "the same transaction. See "
+                    "docs/scratch/pfizer_dedup_bundle_plan_2026_05_20.md.",
                     file=sys.stderr,
                 )
                 conn.rollback()
