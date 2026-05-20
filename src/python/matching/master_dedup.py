@@ -371,3 +371,109 @@ def merge_one(
         sql.SQL("DELETE FROM master_employers WHERE {}=%s").format(sql.Identifier(ctx.pk_col)),
         (loser.mid,),
     )
+
+
+# ============================================================================
+# bulk_repoint — vectorized FK re-pointing for bundled-migration use
+# ============================================================================
+#
+# Each entry: (table, columns_to_repoint, conflict_mode)
+#
+# conflict_mode values:
+#   "simple"      — single UPDATE; no unique-constraint conflicts expected
+#   "pk_master"   — PRIMARY KEY is the column being re-pointed; pre-DELETE
+#                   losers whose winner already has a row, then UPDATE
+#   "purge"       — DELETE all loser-side rows (no UPDATE); caller is
+#                   responsible for repopulating from a downstream rebuild
+#                   (used for employer_comparables — Gower MV regenerates it)
+#
+# Verified against local DB 2026-05-20 via docs/scratch/fk_enumeration_2026_05_20.py.
+# Tables that don't exist in this DB are silently skipped.
+REPOINT_TARGETS: List[Tuple[str, Tuple[str, ...], str]] = [
+    ("employer_directors", ("master_id",), "simple"),
+    ("sec_13f_issuer_master_map", ("master_id",), "simple"),
+    ("sec_10k_filings_to_download", ("master_id",), "simple"),
+    ("rule_derived_hierarchy", ("child_master_id", "parent_master_id"), "simple"),
+    ("sec_10k_relationship_links", ("child_master_id", "parent_master_id"), "simple"),
+    ("employer_wage_outliers", ("master_id",), "pk_master"),
+    ("state_local_contracts_master_matches", ("master_id",), "pk_master"),
+    ("employer_comparables", ("employer_id", "comparable_employer_id"), "purge"),
+]
+
+
+def bulk_repoint(cur, winner_map_table: str = "_winner_map") -> Dict[str, int]:
+    """Re-point loser master_ids to winner master_ids across downstream tables.
+
+    Reads loser/winner pairs from a temp table named `winner_map_table` with
+    columns (loser_master_id BIGINT, winner_master_id BIGINT). For each
+    target in REPOINT_TARGETS, runs the appropriate SQL based on its
+    conflict_mode. Tables not present in this DB are silently skipped.
+
+    Returns {f"{table}.{col}": rows_affected}. Includes a "<table>.__purged__"
+    key for purge-mode targets with the DELETE row count.
+    """
+    results: Dict[str, int] = {}
+    for table, cols, mode in REPOINT_TARGETS:
+        # Skip tables that don't exist in this DB
+        cur.execute(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema='public' AND table_name=%s)",
+            (table,),
+        )
+        if not bool(cur.fetchone()[0]):
+            for c in cols:
+                results[f"{table}.{c}"] = 0
+            continue
+
+        if mode == "purge":
+            cur.execute(
+                sql.SQL(
+                    "DELETE FROM {tbl} t USING {wmap} w "
+                    "WHERE " + " OR ".join(f"t.{c} = w.loser_master_id" for c in cols)
+                ).format(tbl=sql.Identifier(table), wmap=sql.Identifier(winner_map_table))
+            )
+            results[f"{table}.__purged__"] = cur.rowcount
+            continue
+
+        for col in cols:
+            col_ident = sql.Identifier(col)
+            if mode == "pk_master":
+                cur.execute(
+                    sql.SQL(
+                        "DELETE FROM {tbl} d "
+                        "USING {wmap} w "
+                        "WHERE d.{col} = w.loser_master_id "
+                        "  AND EXISTS ("
+                        "    SELECT 1 FROM {tbl} e2 WHERE e2.{col} = w.winner_master_id"
+                        "  )"
+                    ).format(
+                        tbl=sql.Identifier(table),
+                        wmap=sql.Identifier(winner_map_table),
+                        col=col_ident,
+                    )
+                )
+            cur.execute(
+                sql.SQL(
+                    "UPDATE {tbl} d SET {col} = w.winner_master_id "
+                    "FROM {wmap} w WHERE d.{col} = w.loser_master_id"
+                ).format(
+                    tbl=sql.Identifier(table),
+                    wmap=sql.Identifier(winner_map_table),
+                    col=col_ident,
+                )
+            )
+            results[f"{table}.{col}"] = cur.rowcount
+    return results
+
+
+def has_id_conflict(winner: Employer, loser: Employer) -> Optional[str]:
+    """Return the name of a strong-ID field that disagrees between winner and
+    loser (and where both sides have non-empty values), else None.
+
+    Strong IDs: ein (other strong IDs like CIK/LEI/DUNS are not currently
+    on the Employer dataclass; extend as needed).
+    """
+    we, le = tnorm(winner.ein), tnorm(loser.ein)
+    if we and le and we != le:
+        return "ein"
+    return None
