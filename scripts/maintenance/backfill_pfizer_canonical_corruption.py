@@ -93,13 +93,14 @@ def _buggy_normalize_name_for_per_row_check(name):
 # Candidate selection (broad signature regex)
 # ============================================================================
 
-# Matches any of the bug-signature endings:
-#   *oration  (not preceded by 'c' -- otherwise matches "corporation")
-#   *mpany    (not "company")
+# Matches any of the bug-signature substrings ANYWHERE in canonical_name:
+#   *oration   (not preceded by 'c' -- otherwise matches "corporation")
+#   *mpany     (not "company" because the buggy "" co" eats the space+co)
 #   *orporated (not preceded by 'c' -- otherwise matches "incorporated")
-# This is the SEARCH regex (cast a wide net). Per-row reproducibility
-# narrows to actual victims.
-CANDIDATE_REGEX_PG = r"(?<![c])oration$|(?<![p])mpany$|(?<![c])orporated$"
+# Earlier $-anchored version missed display_names with parenthetical or
+# descriptive tails (e.g. "PFIZER PRODUCTS CORPORATION (DE)" -> "pfizer
+# productsoration (de)"). Per-row reproducibility narrows to actual victims.
+CANDIDATE_REGEX_PG = r"(?<![c])oration|(?<![p])mpany|(?<![c])orporated"
 
 CRITICAL_MVS = ("mv_unified_scorecard", "mv_target_scorecard", "mv_employer_search")
 
