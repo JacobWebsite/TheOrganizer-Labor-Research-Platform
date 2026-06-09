@@ -406,6 +406,14 @@ def unified_employer_search(
         return {"total": 0, "employers": []}
     with get_db() as conn:
         with conn.cursor() as cur:
+            # R8-7 (2026-06-07): pin the pg_trgm threshold so the `%` operator
+            # used in the name gate below returns the SAME row set as the prior
+            # `similarity(search_name, %s) > 0.3` filter. `%` is index-eligible
+            # (Bitmap Index Scan on GIN idx_mv_search_trgm) whereas
+            # `similarity(...) > 0.3` forced a Parallel Seq Scan over all ~449K
+            # rows -- the root cause of both the 2-7s latency and the dropped
+            # acronym canonicals. set_limit() is session-scoped on this conn.
+            cur.execute("SELECT set_limit(0.3)")
             conditions = ["1=1"]
             params = []
             # R7-7 (2026-04-28): tiebreak now prefers canonical group leaders and
@@ -420,22 +428,58 @@ def unified_employer_search(
             canonical_patterns: list[str] = []
 
             if name:
-                conditions.append("similarity(search_name, %s) > 0.3")
-                params.append(name.lower())
-                # R7-7 alias guard: when the query matches a known alias entry,
-                # (a) exclude rows containing collision terms (e.g. "cleveland
-                # clinic" query excludes "cleveland-cliffs"), and (b) collect
-                # canonical-name patterns so flat-MASTER fragments like
-                # 'walmart' (similarity=1.0, unit_size=25K per store) get out-
-                # ranked by 'walmart inc' (similarity=0.667, unit_size=10M).
+                # R8-7 alias guard + acronym recall: when the query matches a
+                # known alias entry, (a) exclude rows containing collision
+                # terms (e.g. "cleveland clinic" query excludes
+                # "cleveland-cliffs"), and (b) collect canonical-name patterns.
+                # Those patterns are OR'd INTO the trigram gate below, so famous
+                # acronym canonicals (GE -> "general electric" sim=0.11;
+                # KP -> "kaiser permanente" sim=0.05) -- which fall far below
+                # the 0.3 trigram threshold and would otherwise be filtered out
+                # before ranking -- get pulled into the candidate set. The same
+                # patterns drive the ORDER BY boost so they sort to rank 1.
                 name_lower = name.lower()
                 for entry in _load_aliases():
-                    if any(alias in name_lower for alias in entry.get("aliases", [])):
+                    # Short aliases (<=3 chars, e.g. "ge"/"gm"/"kp") require an
+                    # EXACT match on the trimmed query; substring matching would
+                    # over-inject on "george"/"general"/etc. Longer aliases keep
+                    # substring matching (R7-7 behavior).
+                    matched = False
+                    for alias in entry.get("aliases", []):
+                        if len(alias) <= 3:
+                            if name_lower.strip() == alias:
+                                matched = True
+                                break
+                        elif alias in name_lower:
+                            matched = True
+                            break
+                    if matched:
                         for excl in entry.get("exclude_terms", []):
                             conditions.append("LOWER(search_name) NOT LIKE %s")
                             params.append(f"%{excl.lower()}%")
                         for pat in entry.get("canonical_patterns", []):
                             canonical_patterns.append(pat.lower())
+
+                # Trigram gate via the index-eligible `%` operator, OR'd with
+                # any injected canonical LIKE patterns. BOTH branches must hit
+                # the GIN trgm index `idx_mv_search_trgm` (defined on raw
+                # `search_name`) so the planner builds a BitmapOr of two index
+                # scans instead of falling back to a Parallel Seq Scan. Two
+                # requirements for that: (1) the LIKE uses bare `search_name`
+                # (NOT `LOWER(search_name)` -- a wrapped expression is not the
+                # indexed column; search_name is already fully lowercase in the
+                # MV, so this is also case-correct), and (2) each canonical
+                # pattern is >=3 chars so pg_trgm can extract trigrams. The `%`
+                # param comes first, then one LIKE param per canonical pattern.
+                # All append to `params`, shared byte-identically by the COUNT
+                # and SELECT below -- ORDER BY params stay separate (SELECT).
+                gate_parts = ["search_name %% %s"]
+                gate_params: list = [name.lower()]
+                for pat in canonical_patterns:
+                    gate_parts.append("search_name LIKE %s")
+                    gate_params.append(f"%{pat}%")
+                conditions.append("(" + " OR ".join(gate_parts) + ")")
+                params.extend(gate_params)
 
                 # Default order: similarity, then canonical-group leader, then
                 # effective size. R7-7 heavy (2026-05-03): when the query is
