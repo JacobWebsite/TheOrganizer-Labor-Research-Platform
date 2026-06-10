@@ -13,12 +13,17 @@ import { ScorecardSection } from './ScorecardSection'
 import { SignalInventory } from './SignalInventory'
 import { OshaSection } from './OshaSection'
 import { EnvironmentalCard } from './EnvironmentalCard'
+import { FacilitiesMapCard } from './FacilitiesMapCard'
 import { ExecutivesCard } from './ExecutivesCard'
 import { BoardCard } from './BoardCard'
+import { CompetitorsCard } from './CompetitorsCard'
 import { DirectorNetworkSection } from './DirectorNetworkSection'
 import { InstitutionalOwnersCard } from './InstitutionalOwnersCard'
 import { LobbyingCard } from './LobbyingCard'
 import { FecContributionsCard } from './FecContributionsCard'
+import { SuppliersCard } from './SuppliersCard'
+import { CustomersCard } from './CustomersCard'
+import { DistributionCard } from './DistributionCard'
 import { NlrbSection } from './NlrbSection'
 import { CrossReferencesSection } from './CrossReferencesSection'
 import { BasicProfileView } from './BasicProfileView'
@@ -232,6 +237,11 @@ export function EmployerProfilePage() {
             name-variant siblings of this master. Self-gates on master_count > 5
             OR NLRB cases > 20, so single-location employers stay clean. */}
         <FamilyRollupSection masterId={rawId} />
+        {/* Week 3 A.2: physical-footprint map. Self-fetches via
+            useMasterFacilities. Combines EPA + F-7 + Mergent geocoded
+            sites; OSHA + state contracts deferred until they have
+            lat/lng. Renders an empty-state panel when zero sites. */}
+        <FacilitiesMapCard masterId={rawId} />
         {/* 24Q-31: EPA ECHO environmental enforcement. Self-fetches via
             useMasterEpaEcho. Closes Q21 Environmental on the master path. */}
         <EnvironmentalCard masterId={rawId} />
@@ -246,6 +256,10 @@ export function EmployerProfilePage() {
             on stats.should_surface (>= 3 1-hop neighbors); private
             companies + recent IPOs render nothing. */}
         <DirectorNetworkSection masterId={rawId} />
+        {/* 24Q-15: NAICS-peer competitors. Self-fetches via
+            useMasterCompetitors. Moves Q15 Industry/Competitors
+            Medium -> Strong. */}
+        <CompetitorsCard masterId={rawId} />
         {/* 24Q-9: SEC Form 13F institutional owners. Self-fetches via
             useMasterInstitutionalOwners. Moves Q9 Stockholders Missing
             -> Strong for publicly-traded targets. */}
@@ -257,6 +271,13 @@ export function EmployerProfilePage() {
         {/* 24Q-41: FEC contributions (PAC + employee). Self-fetches via
             useMasterFecContributions. Second pillar of Q24 Political. */}
         <FecContributionsCard masterId={rawId} />
+        {/* 24Q-16/19/17: 10-K-mined supplier/customer/distribution
+            relationships. Each self-fetches via _useRelationships and
+            renders an empty-state panel when zero matches. Closes Q16
+            Suppliers + Q19 Customers + Q17 Distribution at launch. */}
+        <SuppliersCard masterId={rawId} />
+        <CustomersCard masterId={rawId} />
+        <DistributionCard masterId={rawId} />
         <BasicProfileView data={data} isMaster />
       </div>
     )
@@ -327,24 +348,29 @@ export function EmployerProfilePage() {
     summaryParts.push('Non-union')
   }
 
-  // Filter sidebar sections to only show ones with data
+  // Filter sidebar sections. After the 2026-05-12 empty-state polish all
+  // employer-profile cards render themselves even with no data (showing a
+  // canonical amber "no records matched" panel via EmptyStateCard) so the
+  // sidebar TOC can be much more inclusive. We only gate sections whose
+  // data fetch is gated upstream (research, demographics, occupations
+  // depend on flags or required identifiers).
   const visibleSections = PROFILE_SECTIONS.filter(s => {
     switch (s.id) {
       case 'scorecard': return !!scorecard
-      case 'provenance': return !!matchesQuery.data?.match_summary?.length
+      case 'provenance': return true  // shows EmptyStateCard when no matches
       case 'research': return !!scorecardQuery.data?.has_research
-      case 'union': return !!(employer.union_name || employer.latest_union_name)
-      case 'financial': return !!(scorecard?.score_financial != null || scorecard?.bls_growth_pct != null || ds?.is_public)
+      case 'union': return true  // shows EmptyStateCard when no representation on file
+      case 'financial': return true  // shows amber warning when no records matched
       case 'demographics': return !!(employer?.state && (scorecard?.naics || employer?.naics))
       case 'occupations': return !!(occupationsQuery.data?.top_occupations?.length)
-      case 'corporate': return true  // fetches its own data
-      case 'comparables': return true  // fetches its own data
-      case 'nlrb': return true  // shows warning when no data
-      case 'contracts': return !!(ds?.is_federal_contractor)
-      case 'osha': return true  // shows warning when no data
-      case 'whd': return true  // shows warning when no data
-      case 'nyc': return true  // shows warning when no data
-      case 'crossrefs': return !!(crossRefs?.length)
+      case 'corporate': return true  // fetches its own data, empty state via EmptyStateCard
+      case 'comparables': return true  // fetches its own data, empty state via EmptyStateCard
+      case 'nlrb': return true  // shows amber warning when no data
+      case 'contracts': return true  // shows amber warning when not a contractor
+      case 'osha': return true  // shows amber warning when no data
+      case 'whd': return true  // shows amber warning when no data
+      case 'nyc': return true  // shows amber warning when no data
+      case 'crossrefs': return true  // shows EmptyStateCard when no cross-references
       case 'notes': return true  // always show
       case 'outcomes': return true
       default: return true
@@ -435,7 +461,15 @@ export function EmployerProfilePage() {
             <UnionRelationshipsCard employer={employer} />
           </div>
           <div id="financial">
-            <FinancialDataCard scorecard={scorecard} dataSources={dataSourcesQuery.data} financials={financialsQuery.data} sourceAttribution={getFinancialAttribution()} />
+            <FinancialDataCard
+              scorecard={scorecard}
+              dataSources={dataSourcesQuery.data}
+              financials={financialsQuery.data}
+              sourceAttribution={getFinancialAttribution()}
+              isLoading={financialsQuery.isLoading}
+              isError={financialsQuery.isError}
+              onRetry={financialsQuery.refetch}
+            />
           </div>
           <div id="demographics">
             <WorkforceDemographicsCard state={employer?.state} naics={scorecard?.naics || employer?.naics} employerId={id} />

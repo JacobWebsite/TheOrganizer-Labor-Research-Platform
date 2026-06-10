@@ -3,8 +3,15 @@ Create and populate the data_source_freshness table.
 Tracks record counts and date ranges for all major data sources.
 
 Usage:
-    py scripts/maintenance/create_data_freshness.py          # Create table + populate
-    py scripts/maintenance/create_data_freshness.py --refresh  # Re-query all sources
+    py scripts/maintenance/create_data_freshness.py                # Create table + populate
+    py scripts/maintenance/create_data_freshness.py --refresh      # Re-query all sources
+    py scripts/maintenance/create_data_freshness.py --validate-only
+                                                                   # Dry run: only execute every
+                                                                   # count_query + date_query
+                                                                   # and report broken refs;
+                                                                   # no writes to the database.
+                                                                   # Exit code is non-zero if any
+                                                                   # entry is broken.
 """
 import sys
 import os
@@ -39,6 +46,59 @@ SOURCES = [
     )
     for src in DATA_SOURCE_ENTRIES
 ]
+
+
+def validate_catalog(conn):
+    """Dry-run mode: execute every count_query + date_query, report broken refs.
+
+    Returns (ok_count, broken_list) where broken_list is a list of
+    (source_name, query_kind, error_message_first_line) tuples.
+    """
+    cur = conn.cursor()
+    broken = []
+    ok = 0
+    print(f"Validating {len(DATA_SOURCE_ENTRIES)} catalog entries (dry run)...")
+    print()
+    for entry in DATA_SOURCE_ENTRIES:
+        src = entry["source_name"]
+
+        cq = entry["count_query"]
+        try:
+            cur.execute(cq)
+            cur.fetchone()
+            conn.rollback()
+        except Exception as e:
+            msg = str(e).strip().split("\n")[0]
+            broken.append((src, "count_query", msg))
+            conn.rollback()
+            print(f"  BROKEN count: {src}")
+            print(f"    {msg}")
+            continue
+
+        dq = entry.get("date_query")
+        if dq:
+            try:
+                cur.execute(dq)
+                cur.fetchone()
+                conn.rollback()
+            except Exception as e:
+                msg = str(e).strip().split("\n")[0]
+                broken.append((src, "date_query", msg))
+                conn.rollback()
+                print(f"  BROKEN date:  {src}")
+                print(f"    {msg}")
+                continue
+
+        ok += 1
+
+    print()
+    print(f"Summary: {ok}/{len(DATA_SOURCE_ENTRIES)} entries valid; {len(broken)} broken")
+    if broken:
+        print()
+        print("BROKEN:")
+        for src, qkind, msg in broken:
+            print(f"  {src} ({qkind}): {msg}")
+    return ok, broken
 
 
 def populate_freshness(conn):
@@ -85,10 +145,19 @@ def populate_freshness(conn):
 def main():
     parser = argparse.ArgumentParser(description='Create/refresh data_source_freshness table')
     parser.add_argument('--refresh', action='store_true', help='Re-query all sources')
+    parser.add_argument(
+        '--validate-only',
+        action='store_true',
+        help='Dry run: execute every count_query/date_query and report broken refs; no writes',
+    )
     args = parser.parse_args()
 
     conn = get_connection()
     try:
+        if args.validate_only:
+            _, broken = validate_catalog(conn)
+            sys.exit(0 if not broken else 1)
+
         cur = conn.cursor()
         if not args.refresh:
             print("Creating data_source_freshness table...")

@@ -5,6 +5,7 @@ import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
 import { SourceFreshnessFooter } from '@/shared/components/SourceFreshnessFooter'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 const VISIBLE_ROWS = 5
@@ -54,7 +55,16 @@ function ResultBadge({ result }) {
   )
 }
 
-export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, docket }) {
+export function NlrbSection({
+  nlrb,
+  sourceAttribution,
+  scorecard,
+  dataSources,
+  docket,
+  isLoading = false,
+  isError = false,
+  onRetry,
+}) {
   const [electionsExpanded, setElectionsExpanded] = useState(false)
   const [ulpExpanded, setUlpExpanded] = useState(false)
   const [docketExpanded, setDocketExpanded] = useState(false)
@@ -62,6 +72,54 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
   const summary = nlrb?.summary || {}
   const elections = nlrb?.elections || []
   const ulpCases = nlrb?.ulp_cases || []
+
+  // Loading state: skeleton matching the final 4-up stats grid + tables.
+  if (isLoading) {
+    return (
+      <CollapsibleCard
+        icon={Scale}
+        title="NLRB Activity"
+        summary="Loading..."
+        defaultOpen
+      >
+        <div className="space-y-4" data-testid="nlrb-card-skeleton">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-7 w-16" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </CollapsibleCard>
+    )
+  }
+
+  // Error state: amber panel with optional retry.
+  if (isError) {
+    return (
+      <CollapsibleCard
+        icon={Scale}
+        title="NLRB Activity"
+        summary="Error loading data"
+        defaultOpen
+      >
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <p className="mb-2">Could not load NLRB election and ULP data. Try again or check back shortly.</p>
+            {onRetry && (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            )}
+          </div>
+        </div>
+      </CollapsibleCard>
+    )
+  }
 
   // If no data at all, show warning instead of hiding
   if (!nlrb || (!summary.total_elections && !summary.ulp_cases && !summary.total_ulp_cases && elections.length === 0 && ulpCases.length === 0)) {
@@ -71,7 +129,7 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
           <p>
             No NLRB election or unfair labor practice records have been matched to this employer.
-            This does <strong>not</strong> mean no activity exists — it may mean our matching has
+            This does <strong>not</strong> mean no activity exists &mdash; it may mean our matching has
             not yet connected this employer to NLRB case records.
           </p>
         </div>
@@ -128,6 +186,26 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
           </div>
         )}
 
+        {/* Partial state: elections summary > 0 but no row detail. Render the
+            sub-section header anyway with an explicit empty line so users see
+            the gap is intentional, not a hidden table. */}
+        {elections.length === 0 && summary.total_elections > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Elections</h4>
+            <p className="border-l-2 border-[#d9cebb] pl-3 text-xs italic text-muted-foreground">
+              Election count is published but per-case detail is not available.
+            </p>
+          </div>
+        )}
+
+        {/* Partial state: this F7 has no elections on file at all. Different
+            from no-data: matched record exists, just zero elections. */}
+        {elections.length === 0 && !summary.total_elections && (summary.total_ulp_cases > 0 || ulpCases.length > 0) && (
+          <p className="border-l-2 border-[#d9cebb] pl-3 text-xs italic text-muted-foreground">
+            No NLRB elections on file for this employer.
+          </p>
+        )}
+
         {/* Elections table */}
         {elections.length > 0 && (
           <div className="space-y-2">
@@ -168,6 +246,23 @@ export function NlrbSection({ nlrb, sourceAttribution, scorecard, dataSources, d
               </Button>
             )}
           </div>
+        )}
+
+        {/* Partial state: ULP summary > 0 but no row detail. */}
+        {ulpCases.length === 0 && (summary.ulp_cases > 0 || summary.total_ulp_cases > 0) && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold">Unfair Labor Practice Cases</h4>
+            <p className="border-l-2 border-[#d9cebb] pl-3 text-xs italic text-muted-foreground">
+              ULP case count is published but per-case detail is not available.
+            </p>
+          </div>
+        )}
+
+        {/* Partial state: zero ULP cases on file but elections present. */}
+        {ulpCases.length === 0 && !summary.ulp_cases && !summary.total_ulp_cases && (elections.length > 0 || summary.total_elections > 0) && (
+          <p className="border-l-2 border-[#d9cebb] pl-3 text-xs italic text-muted-foreground">
+            No unfair labor practice cases on file for this employer.
+          </p>
         )}
 
         {/* ULP cases table */}

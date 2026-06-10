@@ -35,6 +35,13 @@
       "summary": "Seniority-based bidding"
     },
     {
+      "name": "seniority_bidding_window",
+      "pattern": "\\b(?:bid|bidding|vacanc(?:y|ies)|fill\\s+(?:the\\s+)?vacanc(?:y|ies)|posting)\\b.{0,80}?\\bseniority\\b|\\bseniority\\b.{0,40}?\\b(?:preference|bid|bidding|select|selection)\\b",
+      "confidence": 0.75,
+      "provision_class": "seniority_bidding",
+      "summary": "Seniority-based bidding (window match)"
+    },
+    {
       "name": "seniority_promotion",
       "pattern": "\\b(?:promotion|transfer|advancement).*(?:based\\s+(?:on|upon)|in\\s+order\\s+of|by)\\s+seniority",
       "confidence": 0.85,

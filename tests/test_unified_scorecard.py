@@ -297,6 +297,76 @@ class TestUnifiedScorecardData:
         finally:
             conn.close()
 
+    def test_stability_passthrough_columns_exist(self):
+        """D13 (2026-04-03) demoted stability from a scored pillar to filterable
+        passthrough flags. The underlying Form 5500 data must still be exposed
+        as columns even though score_stability is NULL — these are how the
+        frontend surfaces "winnability" signals (pension + welfare benefits) as
+        filter dimensions instead of weighted-score inputs.
+
+        Regression guard: an upstream MV refactor that drops these passthrough
+        columns silently degrades the filter UX without breaking score math.
+        """
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT attname FROM pg_attribute
+                    WHERE attrelid = 'mv_unified_scorecard'::regclass
+                      AND attnum > 0 AND NOT attisdropped
+                """)
+                cols = {r[0] for r in cur.fetchall()}
+                for c in ('f5500_has_pension', 'f5500_has_welfare',
+                          'f5500_participants', 'f5500_plan_count'):
+                    assert c in cols, (
+                        f"Missing stability passthrough column: {c}. "
+                        f"See Open Problems/Stability Pillar Near-Zero Coverage.md"
+                    )
+        finally:
+            conn.close()
+
+    def test_stability_passthrough_coverage_floor(self):
+        """Coverage floor for Form 5500 passthrough flags.
+
+        Form 5500 is THE data source for the stability/winnability concept
+        (pension + welfare benefit plans). The F7<->Form 5500 master_id link
+        rate is the irreducible bottleneck — only ~3,693 of 146,863 F7
+        employers (2.5%) have a Form 5500 link as of 2026-05-12.
+
+        This test locks in the current coverage as a floor. If coverage
+        drops below this floor, an upstream matching regression has occurred
+        (likely in master_employer_source_ids for source_system='form5500')
+        and should be investigated before assuming the scorecard is broken.
+        """
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT
+                      COUNT(*) FILTER (WHERE f5500_has_pension IS TRUE) AS has_pension,
+                      COUNT(*) FILTER (WHERE f5500_has_welfare IS TRUE) AS has_welfare,
+                      COUNT(*) FILTER (WHERE f5500_participants IS NOT NULL) AS has_participants
+                    FROM mv_unified_scorecard
+                """)
+                has_pension, has_welfare, has_participants = cur.fetchone()
+                # Floors set 50% below 2026-05-12 verified values to allow for
+                # data-source drift without false alarms; a >50% drop is a real
+                # regression worth investigating.
+                assert has_pension >= 1400, (
+                    f"Form 5500 pension coverage {has_pension} below 1,400 floor "
+                    f"(was 2,936 on 2026-05-12) — check master_id<->form5500 matching"
+                )
+                assert has_welfare >= 1100, (
+                    f"Form 5500 welfare coverage {has_welfare} below 1,100 floor "
+                    f"(was 2,225 on 2026-05-12) — check master_id<->form5500 matching"
+                )
+                assert has_participants >= 1800, (
+                    f"Form 5500 participants coverage {has_participants} below 1,800 floor "
+                    f"(was 3,693 on 2026-05-12) — check master_id<->form5500 matching"
+                )
+        finally:
+            conn.close()
+
 
 # ── API Tests ────────────────────────────────────────────────────────────
 

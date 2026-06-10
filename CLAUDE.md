@@ -105,8 +105,8 @@ cd frontend && VITE_DISABLE_AUTH=true npx vite
 # (frontend/.env has VITE_DISABLE_AUTH=true)
 
 # Tests
-py -m pytest tests/ -x -q          # backend (1,411 tests collected; verified 2026-04-30)
-cd frontend && npx vitest run       # frontend (~294 tests; last full run 2026-04-24)
+py -m pytest tests/ -x -q          # backend (1,590 tests collected; verified 2026-05-12)
+cd frontend && npx vitest run       # frontend (379 tests, 49 files; verified 2026-05-12)
 
 # MV rebuild (orchestrated)
 py scripts/scoring/refresh_all.py              # full chain
@@ -123,7 +123,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Backend
 - **Command:** `py -m pytest tests/ -x -q`
-- **Current count:** ~1316 tests passing
+- **Current count:** 1,590 tests collected (verified 2026-05-12)
 - **Run after every code change.** Report exact pass count before committing.
 - **Match rate tests are F7-only** — `osha_f7_matches`/`whd_f7_matches` track matches to F7 (union employers only). Rates are ~8.3%/~4.7%. Don't set thresholds expecting high rates.
 - **`RESEARCH_SCRAPER_GOOGLE_FALLBACK=false`** — set in tests that mock DB to prevent real URL resolution (Tier 4 Google Search).
@@ -131,7 +131,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Frontend
 - **Command:** `cd frontend && npx vitest run`
-- **Current count:** ~278 tests passing, 0 failures
+- **Current count:** 379 tests passing across 49 files, 0 failures (verified 2026-05-12)
 - **Vitest + RTL + jsdom.** Mock API hooks with `vi.mock('@/shared/api/...')`. Wrap in `QueryClientProvider` + `MemoryRouter`.
 - **Color assertions:** Use `container.innerHTML.includes('bg-[#hex]')` not CSS selector queries (jsdom bracket escaping issues).
 - **Text changes break tests:** Always grep `__tests__/` for old text strings when changing UI copy.
@@ -156,7 +156,7 @@ Deterministic Matcher (scripts/matching/run_deterministic.py)
   |
   v
 Corporate Crosswalk (scripts/etl/build_crosswalk.py)
-  -> corporate_identifier_crosswalk (28,189 rows, links SEC/GLEIF/Mergent/CorpWatch/F7)
+  -> corporate_identifier_crosswalk (38,794 rows, links SEC/GLEIF/Mergent/CorpWatch/F7) -- verified 2026-05-12
   |
   v
 Scoring Pipeline (scripts/scoring/)
@@ -197,7 +197,7 @@ create_scorecard_mv.py        # OSHA-based organizing scorecard
 **DROP CASCADE warning:** Rebuilding crosswalk drops dependent MVs. Must rebuild entire chain.
 
 ### Corporate Crosswalk
-- **`corporate_identifier_crosswalk`** — 39,827 rows (verified 2026-04-30). Links SEC, GLEIF, Mergent, CorpWatch, F7. (USASpending tier needs re-run after crosswalk rebuild.)
+- **`corporate_identifier_crosswalk`** — 38,794 rows (verified 2026-05-12). Links SEC, GLEIF, Mergent, CorpWatch, F7. (USASpending tier needs re-run after crosswalk rebuild.)
 - **Tiers:** EIN_EXACT > LEI_EXACT > EIN_F7_BACKFILL > NAME_STATE > USASPENDING
 - **Script:** `PYTHONPATH=. py scripts/etl/build_crosswalk.py` (DROP+CREATE). Then `_match_usaspending.py` for federal columns.
 - **F7 coverage:** 12,534 (8.5% of 146,863).
@@ -347,8 +347,8 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - `CONSOLIDATED_ROADMAP_2026_03_13.md` — legacy roadmap (superseded by `MERGED_ROADMAP_2026_04_07.md` in the vault, which is now the authoritative task list)
 
 ### Tests
-- `tests/` — backend tests (~1316)
-- `frontend/src/**/*.test.jsx` — frontend tests (~278)
+- `tests/` — backend tests (1,590, verified 2026-05-12)
+- `frontend/src/**/*.test.jsx` — frontend tests (379, verified 2026-05-12)
 
 ---
 
@@ -359,7 +359,7 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - **Phase R1: Research Agent Learning Loop — DONE.** Contradiction detection, human fact review API, learning propagation, frontend review UI.
 - **Phase 5 Frontend Redesign — DONE.** All pages redesigned with "Aged Broadsheet" visual theme.
 - **Phase 3 Workstreams A+B+C+D — DONE.** Research quality, similarity rebuild, wage outliers, demographics API.
-- **All tests pass:** ~1316 backend, ~278 frontend.
+- **All tests pass:** 1,590 backend, 379 frontend (verified 2026-05-12).
 
 ### Active Decisions
 | ID | Decision | Status |

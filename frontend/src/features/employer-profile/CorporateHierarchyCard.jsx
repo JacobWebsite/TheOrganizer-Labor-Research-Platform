@@ -1,6 +1,7 @@
-import { Building2 } from 'lucide-react'
+import { Building2, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { useEmployerCorporate } from '@/shared/api/profile'
 import { Button } from '@/components/ui/button'
@@ -9,8 +10,32 @@ export function CorporateHierarchyCard({ employerId, sourceAttribution }) {
   const { data, isLoading } = useEmployerCorporate(employerId)
   const [showAllSubs, setShowAllSubs] = useState(false)
 
-  if (isLoading) return null
-  if (!data?.ultimate_parent && !data?.parent_chain?.length && !data?.subsidiaries?.length) return null
+  if (isLoading) {
+    return (
+      <CollapsibleCard icon={Building2} title="Corporate Hierarchy" summary="Loading...">
+        <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading corporate hierarchy...</span>
+        </div>
+      </CollapsibleCard>
+    )
+  }
+  if (!data?.ultimate_parent && !data?.parent_chain?.length && !data?.subsidiaries?.length) {
+    return (
+      <EmptyStateCard
+        icon={Building2}
+        title="Corporate Hierarchy"
+        topic="corporate-hierarchy"
+        summary="No parent / subsidiary structure on file"
+        reason={
+          <>
+            Hierarchy comes from SEC Ex-21 (subsidiaries of public filers), CorpWatch, and
+            Mergent. Privately held employers and standalone entities will appear empty here.
+          </>
+        }
+      />
+    )
+  }
 
   const parent = data.ultimate_parent
   const chain = data.parent_chain || []

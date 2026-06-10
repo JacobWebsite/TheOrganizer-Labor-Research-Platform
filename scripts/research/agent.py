@@ -2204,13 +2204,34 @@ async def _run_agent_loop(run_id: int, run: dict, start_time: float) -> dict:
         _log.debug("Validation for run %d failed: %s", run_id, exc)
 
     # Auto-grade and update strategy tables (learning loop)
+    grade_result = None
     try:
         from scripts.research.auto_grader import grade_and_save, update_strategy_quality
-        grade_and_save(run_id)
+        grade_result = grade_and_save(run_id)
         update_strategy_quality()
         _log.info("Run %d: auto-graded and strategy tables updated.", run_id)
     except Exception as exc:
         _log.debug("Auto-grade/strategy update for run %d failed: %s", run_id, exc)
+
+    # Score enhancement: only attempt if grade passed the dual-gate (>= 6.0)
+    # and the run is linked to an employer. This was previously only run from
+    # batch_research.py, so single-run path missed ~58% of eligible enhancements.
+    # The gate is enforced inside compute_research_enhancements() too, but we
+    # check here to avoid the import + DB query when we already know it won't
+    # produce a result.
+    try:
+        overall = float(grade_result.get("overall", 0.0)) if grade_result else 0.0
+        if overall >= 6.0 and run.get("employer_id"):
+            from scripts.research.auto_grader import compute_research_enhancements
+            enh_id = compute_research_enhancements(run_id)
+            if enh_id:
+                _log.info("Run %d: enhancement saved (id=%d, quality=%.2f)", run_id, enh_id, overall)
+            else:
+                _log.info("Run %d: enhancement skipped by gate (quality=%.2f)", run_id, overall)
+        elif overall > 0:
+            _log.debug("Run %d: enhancement skipped (quality=%.2f, employer_id=%s)", run_id, overall, run.get("employer_id"))
+    except Exception as exc:
+        _log.debug("Enhancement computation for run %d failed: %s", run_id, exc)
 
     return {"status": "completed", "run_id": run_id, "facts_saved": facts_saved}
 

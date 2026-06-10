@@ -28,7 +28,7 @@ import io
 import sys
 import time
 import zipfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -119,7 +119,13 @@ CREATE TABLE fec_candidates (
     cand_city            TEXT,
     cand_st              CHAR(2),
     cand_zip             VARCHAR(10),
-    loaded_at            TIMESTAMPTZ DEFAULT NOW()
+    loaded_at            TIMESTAMPTZ DEFAULT NOW(),
+    -- Date sanity guard (2026-05-12). Static upper bound matches the
+    -- _norm_year cutoff (today+10 ~= 2040 at the time this constraint
+    -- was added); revisit if FEC starts publishing later election years.
+    CONSTRAINT chk_fec_candidates_election_yr_sane
+        CHECK (cand_election_yr IS NULL
+               OR (cand_election_yr >= 1980 AND cand_election_yr <= 2040))
 );
 
 DROP TABLE IF EXISTS fec_individual_contributions CASCADE;
@@ -146,7 +152,13 @@ CREATE TABLE fec_individual_contributions (
     memo_cd              CHAR(1),
     memo_text            TEXT,
     employer_norm        TEXT,
-    loaded_at            TIMESTAMPTZ DEFAULT NOW()
+    loaded_at            TIMESTAMPTZ DEFAULT NOW(),
+    -- Date sanity guard (2026-05-12). Catches keystroke typos like
+    -- 3312-01-01 / 2031-01-01 / 2029-01-01 that the loader's _norm_date
+    -- already rejects; this is the last-line-of-defense backstop.
+    CONSTRAINT chk_fec_indiv_transaction_dt_sane
+        CHECK (transaction_dt IS NULL
+               OR (transaction_dt >= '1980-01-01' AND transaction_dt <= '2032-12-31'))
 );
 
 DROP TABLE IF EXISTS fec_committee_contributions CASCADE;
@@ -173,7 +185,11 @@ CREATE TABLE fec_committee_contributions (
     file_num             BIGINT,
     memo_cd              CHAR(1),
     memo_text            TEXT,
-    loaded_at            TIMESTAMPTZ DEFAULT NOW()
+    loaded_at            TIMESTAMPTZ DEFAULT NOW(),
+    -- Date sanity guard (2026-05-12). See fec_individual_contributions.
+    CONSTRAINT chk_fec_pas2_transaction_dt_sane
+        CHECK (transaction_dt IS NULL
+               OR (transaction_dt >= '1980-01-01' AND transaction_dt <= '2032-12-31'))
 );
 """
 
@@ -216,8 +232,15 @@ def _norm_decimal(v):
         return None
 
 
+# Year sanity bounds shared by date + election-year validators.
+# FEC bulk data only goes back to ~1980; a transaction or election year
+# more than one year past today is a data-entry typo (we've seen 3312,
+# 2929, 2924, 2106, etc.).
+FEC_YEAR_MIN = 1980
+
+
 def _norm_date(v):
-    """FEC dates are MMDDYYYY string. Reject years outside [1980, today+1] --
+    """FEC dates are MMDDYYYY string. Reject years outside [FEC_YEAR_MIN, today+1] --
     FEC bulk only covers 1980-present, and a contribution dated more than
     one year ahead is a data-entry typo (we've seen 3312, 2031, 2029).
     """
@@ -227,9 +250,23 @@ def _norm_date(v):
         d = datetime.strptime(v, "%m%d%Y").date()
     except (ValueError, TypeError):
         return None
-    if d.year < 1980 or d.year > date.today().year + 1:
+    if d.year < FEC_YEAR_MIN or d.year > date.today().year + 1:
         return None
     return d
+
+
+def _norm_year(v):
+    """Election year sanity filter. Reject years outside [FEC_YEAR_MIN, today+10].
+    FEC `cand_election_yr` should be a four-digit year for a federal election;
+    we've seen 2929, 2924, 2106 as keystroke typos. Allow up to today+10 since
+    some candidates declare for elections a decade out.
+    """
+    n = _norm_int(v)
+    if n is None:
+        return None
+    if n < FEC_YEAR_MIN or n > date.today().year + 10:
+        return None
+    return n
 
 
 def _norm_state(v):
@@ -351,7 +388,7 @@ def _load_candidates(cur, conn):
             continue
         batch.append((
             _truncate(r[0], 9), _truncate(r[1], 200), _truncate(r[2], 3),
-            _norm_int(r[3]), _norm_state(r[4]), _truncate(r[5], 1),
+            _norm_year(r[3]), _norm_state(r[4]), _truncate(r[5], 1),
             _truncate(r[6], 2), _truncate(r[7], 1), _truncate(r[8], 1),
             _truncate(r[9], 9), _truncate(r[10], 34), _truncate(r[11], 34),
             _truncate(r[12], 30), _norm_state(r[13]), _truncate(r[14], 9),
@@ -512,13 +549,78 @@ def download(name: str, url: str):
     print(f"  Downloaded {target.stat().st_size / 1e6:.1f} MB")
 
 
+def cleanup_bad_dates():
+    """One-shot cleanup mirroring scripts/etl/load_sec_xbrl.py::cleanup_bad_dates.
+
+    NULLs out garbage date / year values that escaped the loader (e.g., rows
+    loaded before the `_norm_date` / `_norm_year` validators were added or
+    fixed). Safe to run repeatedly -- if nothing is bad, nothing changes.
+    """
+    today_year = date.today().year
+    indiv_cutoff = today_year + 1   # transaction_dt: today + 1 year ceiling
+    yr_cutoff = today_year + 10     # cand_election_yr: today + 10 ceiling
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT COUNT(*) FROM fec_individual_contributions "
+        "WHERE transaction_dt > CURRENT_DATE + INTERVAL '1 year'"
+    )
+    indiv_bad = cur.fetchone()[0]
+    cur.execute(
+        "SELECT COUNT(*) FROM fec_committee_contributions "
+        "WHERE transaction_dt > CURRENT_DATE + INTERVAL '1 year'"
+    )
+    pas2_bad = cur.fetchone()[0]
+    cur.execute(
+        "SELECT COUNT(*) FROM fec_candidates "
+        "WHERE cand_election_yr > %s",
+        (yr_cutoff,),
+    )
+    cand_bad = cur.fetchone()[0]
+
+    print(f"Found garbage rows (before): "
+          f"indiv={indiv_bad:,} pas2={pas2_bad:,} cand_yr={cand_bad:,}")
+
+    if indiv_bad:
+        cur.execute(
+            "UPDATE fec_individual_contributions SET transaction_dt = NULL "
+            "WHERE transaction_dt > CURRENT_DATE + INTERVAL '1 year'"
+        )
+        print(f"  fec_individual_contributions: nulled {cur.rowcount:,} transaction_dt")
+    if pas2_bad:
+        cur.execute(
+            "UPDATE fec_committee_contributions SET transaction_dt = NULL "
+            "WHERE transaction_dt > CURRENT_DATE + INTERVAL '1 year'"
+        )
+        print(f"  fec_committee_contributions: nulled {cur.rowcount:,} transaction_dt")
+    if cand_bad:
+        cur.execute(
+            "UPDATE fec_candidates SET cand_election_yr = NULL "
+            "WHERE cand_election_yr > %s",
+            (yr_cutoff,),
+        )
+        print(f"  fec_candidates: nulled {cur.rowcount:,} cand_election_yr")
+
+    conn.commit()
+    conn.close()
+    return indiv_bad + pas2_bad + cand_bad
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--redownload", action="store_true",
                         help="Re-fetch all 4 FEC files before loading")
     parser.add_argument("--skip-indiv", action="store_true",
                         help="Skip the (huge) individual contributions file")
+    parser.add_argument("--cleanup-only", action="store_true",
+                        help="Only NULL out garbage dates / election years (no reload)")
     args = parser.parse_args()
+
+    if args.cleanup_only:
+        cleanup_bad_dates()
+        return
 
     if args.redownload:
         for n, u in URLS.items():

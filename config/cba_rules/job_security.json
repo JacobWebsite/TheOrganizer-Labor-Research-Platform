@@ -86,6 +86,13 @@
       "summary": "Probationary period"
     },
     {
+      "name": "probationary_period_extended",
+      "pattern": "\\b(?:probationary|probation)\\s+(?:period|employee)s?\\b.{0,160}?(?:(?:thirty|sixty|ninety|one\\s+hundred(?:\\s+(?:twenty|eighty))?)|\\b\\d+\\s*\\(?\\s*\\d*\\s*\\)?\\s*(?:calendar|working|consecutive)?\\s*days?\\b)",
+      "confidence": 0.82,
+      "provision_class": "probationary_period",
+      "summary": "Probationary period (extended window match)"
+    },
+    {
       "name": "personnel_file",
       "pattern": "\\b(?:personnel|employee)\\s+(?:file|record|folder).*(?:right\\s+to\\s+(?:review|inspect|examine|copy)|shall\\s+(?:be\\s+)?(?:notified|informed))",
       "confidence": 0.80,

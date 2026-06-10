@@ -41,6 +41,13 @@
       "confidence": 0.85,
       "provision_class": "ai_provisions",
       "summary": "AI/algorithmic provisions"
+    },
+    {
+      "name": "ai_provisions_named",
+      "pattern": "\\bartificial\\s+intelligence\\b.{0,200}\\b(?:technology|tool|system|covered\\s+work|software|application|deploy|use|policy|notify|notice|bargain|discuss)",
+      "confidence": 0.78,
+      "provision_class": "ai_provisions",
+      "summary": "Artificial intelligence (context word, broader)"
     }
   ],
   "negative_patterns": [],

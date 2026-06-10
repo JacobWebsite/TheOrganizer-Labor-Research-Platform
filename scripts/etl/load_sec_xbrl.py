@@ -107,7 +107,17 @@ CREATE TABLE IF NOT EXISTS sec_xbrl_financials (
     employee_count_tag TEXT,
     currency TEXT DEFAULT 'USD',
     created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE (cik, fiscal_year_end)
+    UNIQUE (cik, fiscal_year_end),
+    -- Date sanity guards (2026-05-12). Static upper bound = today.year + 6
+    -- to give headroom for legitimate forward-looking 10-K fiscal_year_end
+    -- without rebuilding the constraint every year. Catches the historical
+    -- bug class (2201-12-31 etc.) and the in-source XBRL tag-attribution
+    -- bug where a non-10-K projection got tagged onto a 10-K filing.
+    CONSTRAINT chk_sec_xbrl_fy_end_sane
+        CHECK (fiscal_year_end >= '1990-01-01' AND fiscal_year_end <= '2032-12-31'),
+    -- A 10-K cannot be filed before its fiscal period closes.
+    CONSTRAINT chk_sec_xbrl_filed_after_fy_end
+        CHECK (filed_date IS NULL OR filed_date >= fiscal_year_end)
 );
 
 CREATE INDEX IF NOT EXISTS idx_sec_xbrl_cik ON sec_xbrl_financials(cik);
@@ -178,6 +188,18 @@ def extract_annual_facts(company_data, date_reject_counter=None):
 
                 filed = entry.get('filed')
                 fp = entry.get('fp', '')
+
+                # 2026-05-12 hardening: reject XBRL entries whose 10-K filed_date
+                # precedes the fiscal_year_end (a 10-K can't be filed before its
+                # fiscal period closes). This pattern surfaced 25 rows where a
+                # projection / forward-looking tag got cross-attributed to an
+                # earlier 10-K filing in SEC's companyfacts JSON. Same DB-level
+                # invariant is enforced by chk_sec_xbrl_filed_after_fy_end.
+                if filed and filed < end_date:
+                    if date_reject_counter is not None:
+                        key = f'{end_date}_filed_before'
+                        date_reject_counter[key] = date_reject_counter.get(key, 0) + 1
+                    continue
 
                 # For income statement items (revenue, net_income), prefer FY period
                 # For balance sheet items (assets, liabilities, cash, debt), any annual filing works

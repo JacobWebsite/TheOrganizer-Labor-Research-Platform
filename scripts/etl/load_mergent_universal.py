@@ -152,14 +152,39 @@ def clean_state(val):
 
 
 def normalize_name(name):
+    """Normalize company name for matching.
+
+    Delegates to the canonical token-based normalizer in
+    src/python/matching/name_normalization.py. The previous implementation
+    used str.replace() with no word boundaries and iterated suffixes in the
+    wrong order, producing corruption like
+    "PFIZER PRODUCTS CORPORATION" -> "pfizer productsoration".
+    See: Open Problems/Pfizer Master Canonical Name Corruption.md
+    Fixed: 2026-05-18.
+    """
     if not name or pd.isna(name):
         return None
-    name = str(name).lower().strip()
-    for suffix in [" llc", " inc", " corp", " ltd", " co", " company",
-                   " corporation", " incorporated", " limited", ".", ",", '"', "'", " the"]:
-        name = name.replace(suffix, "")
-    name = re.sub(r"\s+", " ", name).strip()
-    return name
+    # Function-local import to keep import graph minimal and avoid the
+    # formatter stripping unused top-level imports.
+    from src.python.matching.name_normalization import (
+        normalize_name_legal_suffixes_only,
+    )
+    return normalize_name_legal_suffixes_only(str(name))
+
+
+# ARCHIVED 2026-05-18 -- original buggy implementation kept for diff-audit
+# until back-fill migration is run. DO NOT call -- see normalize_name above.
+# Issue: str.replace() is not word-bounded, so " corp" matches the space + corp
+# inside " corporation", leaving "oration" glued to the prior token.
+# def _normalize_name_BUGGY_DO_NOT_USE(name):
+#     if not name or pd.isna(name):
+#         return None
+#     name = str(name).lower().strip()
+#     for suffix in [" llc", " inc", " corp", " ltd", " co", " company",
+#                    " corporation", " incorporated", " limited", ".", ",", '"', "'", " the"]:
+#         name = name.replace(suffix, "")
+#     name = re.sub(r"\s+", " ", name).strip()
+#     return name
 
 
 def parse_employees(val):

@@ -95,7 +95,10 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~331,000 rows (2010-2024)",
         "description": "Union financial reports from LM-2/3/4 filings.",
         "count_query": "SELECT COUNT(*) FROM lm_data",
-        "date_query": "SELECT MIN(fiscal_year_start), MAX(fiscal_year_end) FROM lm_data",
+        # lm_data exposes yr_covered (int) rather than fiscal_year_start/end columns.
+        # Treat each year as Jan-1 to Dec-31 for the freshness display.
+        # Fixed 2026-05-12 (previous form referenced columns that don't exist).
+        "date_query": "SELECT make_date(MIN(yr_covered), 1, 1), make_date(MAX(yr_covered), 12, 31) FROM lm_data WHERE yr_covered IS NOT NULL",
         "freshness_notes": "OLMS LM filings",
     },
     {
@@ -395,7 +398,9 @@ DATA_SOURCE_ENTRIES = [
         "record_count_note": "~2.2M match audit entries",
         "description": "Cross-source linking and confidence-scored audit trails.",
         "count_query": "SELECT (SELECT COUNT(*) FROM osha_f7_matches) + (SELECT COUNT(*) FROM whd_f7_matches) + (SELECT COUNT(*) FROM sam_f7_matches) + (SELECT COUNT(*) FROM nlrb_employer_xref) + (SELECT COUNT(*) FROM unified_match_log)",
-        "date_query": "SELECT MIN(matched_at), MAX(matched_at) FROM unified_match_log",
+        # unified_match_log uses created_at (timestamp), not matched_at.
+        # Fixed 2026-05-12 (previous form referenced a column that doesn't exist).
+        "date_query": "SELECT MIN(created_at)::date, MAX(created_at)::date FROM unified_match_log",
         "freshness_notes": "Cross-reference and match confidence logs",
     },
     {

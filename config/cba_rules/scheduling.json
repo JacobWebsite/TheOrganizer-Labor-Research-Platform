@@ -36,6 +36,20 @@
       "summary": "Overtime threshold"
     },
     {
+      "name": "overtime_after_premium",
+      "pattern": "(?:time\\s+and\\s+(?:one[\\s\\-]?half|a\\s+half)|1\\.5\\s*(?:times?|x)?|1\\s*1/2|double\\s+time).{0,160}?\\b(?:in\\s+excess\\s+of|over|beyond|after|exceeding)\\s+(?:eight|forty|\\d+)\\s*\\(?\\s*\\d*\\s*\\)?\\s*hours?",
+      "confidence": 0.85,
+      "provision_class": "overtime_after",
+      "summary": "Overtime threshold via premium-rate clause"
+    },
+    {
+      "name": "overtime_after_worked",
+      "pattern": "\\bhours?\\s+worked\\s+in\\s+excess\\s+of\\s+(?:eight|forty|\\d+)\\s*\\(?\\s*\\d*\\s*\\)?\\s*hours?\\s+(?:shall|will|are|is)\\s+(?:be\\s+)?(?:paid|compensated)",
+      "confidence": 0.85,
+      "provision_class": "overtime_after",
+      "summary": "Overtime threshold via hours-worked clause"
+    },
+    {
       "name": "overtime_distribution",
       "pattern": "\\b(?:overtime|OT)\\s+(?:shall\\s+be\\s+)?(?:distributed|equalized|offered|rotated|assigned)\\s+(?:equally|fairly|by\\s+seniority|among)",
       "confidence": 0.85,
@@ -62,6 +76,13 @@
       "confidence": 0.85,
       "provision_class": "schedule_posting",
       "summary": "Schedule posting requirement"
+    },
+    {
+      "name": "schedule_posting_basic",
+      "pattern": "\\b(?:work\\s+|holiday\\s+|new\\s+|time\\s+)?schedules?\\s+(?:shall|will|are\\s+to)\\s+be\\s+(?:posted|published)\\b",
+      "confidence": 0.78,
+      "provision_class": "schedule_posting",
+      "summary": "Schedule posting (no specific advance window)"
     },
     {
       "name": "shift_assignment",

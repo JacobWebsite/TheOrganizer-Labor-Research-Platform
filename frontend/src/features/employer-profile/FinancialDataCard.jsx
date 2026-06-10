@@ -2,6 +2,9 @@ import { TrendingUp, AlertTriangle } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
 import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
+import { SourceFreshnessFooter } from '@/shared/components/SourceFreshnessFooter'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function formatCurrency(n) {
   if (n == null) return '\u2014'
@@ -20,7 +23,15 @@ function YoyChange({ value }) {
   return <span className={`text-xs ${color}`}>{prefix}{value.toFixed(1)}% YoY</span>
 }
 
-export function FinancialDataCard({ scorecard, dataSources, financials, sourceAttribution }) {
+export function FinancialDataCard({
+  scorecard,
+  dataSources,
+  financials,
+  sourceAttribution,
+  isLoading = false,
+  isError = false,
+  onRetry,
+}) {
   const growthPct = scorecard?.bls_growth_pct
   const isPublic = dataSources?.is_public
   const ticker = dataSources?.ticker
@@ -30,6 +41,57 @@ export function FinancialDataCard({ scorecard, dataSources, financials, sourceAt
 
   const hasSec = financials?.has_sec_financials
   const has990Financials = financials?.has_990_financials
+
+  // Loading state: skeleton placeholder matching headline + metric grid layout.
+  if (isLoading) {
+    return (
+      <CollapsibleCard icon={TrendingUp} title="Financial Data" summary="Loading..." defaultOpen>
+        <div className="space-y-4" data-testid="financial-card-skeleton">
+          <Skeleton className="h-4 w-40" />
+          <div className="grid grid-cols-3 gap-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[0, 1].map((i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </CollapsibleCard>
+    )
+  }
+
+  // Error state: amber panel with optional retry.
+  if (isError) {
+    return (
+      <CollapsibleCard
+        icon={TrendingUp}
+        title="Financial Data"
+        summary="Error loading data"
+        defaultOpen
+      >
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <p className="mb-2">Could not load financial data. Try again or check back shortly.</p>
+            {onRetry && (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            )}
+          </div>
+        </div>
+      </CollapsibleCard>
+    )
+  }
 
   // Show amber warning if no meaningful data at all
   if (
@@ -47,7 +109,7 @@ export function FinancialDataCard({ scorecard, dataSources, financials, sourceAt
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
           <p>
             No financial data has been matched to this employer. This does <strong>not</strong> mean
-            no financial records exist -- it may mean our matching has not yet connected this employer to
+            no financial records exist &mdash; it may mean our matching has not yet connected this employer to
             SEC filings, IRS 990 data, or BLS industry statistics.
           </p>
         </div>
@@ -180,6 +242,16 @@ export function FinancialDataCard({ scorecard, dataSources, financials, sourceAt
           </div>
         )}
 
+        {/* Partial-data hint: scorecard / industry signals exist but neither
+            SEC detail nor 990 detail is available. Show the explicit
+            sub-section absence so users know detailed financials are missing,
+            not just hidden by collapse. */}
+        {!hasSec && !has990Financials && (
+          <p className="border-l-2 border-[#d9cebb] pl-3 text-xs italic text-muted-foreground">
+            No company-level SEC or IRS 990 financial detail available; showing industry and entity flags only.
+          </p>
+        )}
+
         {/* 990 Financials fallback (only if no SEC) */}
         {has990Financials && !hasSec && financials.n990_fallback && (
           <div className="space-y-3">
@@ -245,6 +317,18 @@ export function FinancialDataCard({ scorecard, dataSources, financials, sourceAt
             </div>
           )}
         </div>
+
+        {/* Source-level freshness for the dominant financial provider. SEC
+            wins when available; the per-employer fiscal year line above
+            already covers per-record vintage. */}
+        <SourceFreshnessFooter
+          sourceName={hasSec ? 'sec_company_facts' : 'irs_990'}
+          latestRecordDate={
+            hasSec
+              ? financials?.latest?.fiscal_year_end
+              : financials?.n990_fallback?.fiscal_year_end
+          }
+        />
       </div>
     </CollapsibleCard>
   )

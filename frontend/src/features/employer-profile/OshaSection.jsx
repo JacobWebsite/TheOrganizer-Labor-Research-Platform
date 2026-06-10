@@ -5,6 +5,7 @@ import { SourceAttribution } from '@/shared/components/SourceAttribution'
 import { DataSourceBadge } from '@/shared/components/DataSourceBadge'
 import { SourceFreshnessFooter } from '@/shared/components/SourceFreshnessFooter'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 const VISIBLE_ROWS = 5
@@ -44,11 +45,67 @@ function SeverityBadge({ label, count }) {
   )
 }
 
-export function OshaSection({ osha, sourceAttribution, dataSources }) {
+export function OshaSection({
+  osha,
+  sourceAttribution,
+  dataSources,
+  isLoading = false,
+  isError = false,
+  onRetry,
+}) {
   const [expanded, setExpanded] = useState(false)
 
   const summary = osha?.summary || {}
   const establishments = osha?.establishments || []
+
+  // Loading state: skeleton placeholder mirroring the final stats grid + table.
+  if (isLoading) {
+    return (
+      <CollapsibleCard
+        icon={ShieldAlert}
+        title="OSHA Safety Record"
+        summary="Loading..."
+        defaultOpen
+      >
+        <div className="space-y-4" data-testid="osha-card-skeleton">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-7 w-16" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </CollapsibleCard>
+    )
+  }
+
+  // Error state: amber panel with optional retry. Distinct from "no records
+  // matched" because this is a transient transport problem, not absence.
+  if (isError) {
+    return (
+      <CollapsibleCard
+        icon={ShieldAlert}
+        title="OSHA Safety Record"
+        summary="Error loading data"
+        defaultOpen
+      >
+        <div className="flex items-start gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <p className="mb-2">Could not load OSHA inspection data. Try again or check back shortly.</p>
+            {onRetry && (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            )}
+          </div>
+        </div>
+      </CollapsibleCard>
+    )
+  }
 
   // If no data at all, show warning instead of hiding
   if (!osha || (!summary.total_establishments && establishments.length === 0)) {
@@ -58,13 +115,21 @@ export function OshaSection({ osha, sourceAttribution, dataSources }) {
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
           <p>
             No OSHA records have been matched to this employer. This does <strong>not</strong> mean
-            no violations exist — it may mean our matching has not yet connected this employer to
+            no violations exist &mdash; it may mean our matching has not yet connected this employer to
             OSHA inspection records.
           </p>
         </div>
       </CollapsibleCard>
     )
   }
+
+  // Partial state: matched establishment(s) exist but zero recorded violations.
+  // This is the "no violations" case (a positive signal) -- distinct from
+  // "no data" above. Surface it explicitly so users don't confuse the two.
+  const hasZeroViolations =
+    establishments.length > 0 &&
+    !summary.total_violations &&
+    !summary.total_inspections
 
   const summaryText = `${formatNumber(summary.total_violations)} violations \u00b7 ${formatCurrency(summary.total_penalties)} penalties`
   const visibleEstablishments = expanded ? establishments : establishments.slice(0, VISIBLE_ROWS)
@@ -108,6 +173,19 @@ export function OshaSection({ osha, sourceAttribution, dataSources }) {
             <SeverityBadge label="serious" count={summary.serious_violations} />
             <SeverityBadge label="willful" count={summary.willful_violations} />
             <SeverityBadge label="repeat" count={summary.repeat_violations} />
+          </div>
+        )}
+
+        {/* Partial state: matched establishment(s) but zero violations on file.
+            This is the "no violations" path -- a positive organizing signal --
+            and must read distinctly from the "no records matched" empty state. */}
+        {hasZeroViolations && (
+          <div className="rounded border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <p>
+              <strong>No OSHA violations on file</strong> for the matched establishment{establishments.length === 1 ? '' : 's'}.
+              This is a positive signal &mdash; the employer is in OSHA's records but has no recorded
+              inspections or violations.
+            </p>
           </div>
         )}
 

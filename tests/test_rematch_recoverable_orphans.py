@@ -38,12 +38,73 @@ def _has_staging_table() -> bool:
         return False
 
 
+def _pool_has_matchable_candidates() -> bool:
+    """Return True iff the staging pool currently yields >=1 candidate
+    pair via the rematch script's actual SQL (any source, NAME_AGGRESSIVE
+    tier, limit 1).
+
+    The staging table can be non-empty while the matchable pool is
+    drained -- this happens after the executor was last run in --commit
+    mode (2026-05-08: 1,184 candidates promoted to active matches; what
+    remained in _recoverable_f7_orphans had no source-side rows that
+    matched on name_aggressive + state). Without this check, the
+    non-empty-output assertions in the dry-run tests below fail with a
+    misleading 'no matches found' message.
+
+    Filed in vault as `[[Rematch Dry-Run Test Asserts Drained Pool]]`
+    (2026-05-18). The fix lives in `_skip_no_matchable_pool` below.
+    """
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        # Mirror the script's NAME_AGGRESSIVE tier across all 4 sources.
+        # If any source yields a row, the dry-run will produce CSV output.
+        sources = [
+            ("osha_establishments",  "estab_name_normalized", "site_state"),
+            ("whd_cases",            "name_normalized",       "state"),
+            ("national_990_filers",  "name_normalized",       "state"),
+            ("sam_entities",         "name_normalized",       "physical_state"),
+        ]
+        for tbl, ncol, scol in sources:
+            cur.execute(f"""
+                SELECT 1
+                FROM f7_employers_deduped f
+                JOIN _recoverable_f7_orphans o ON o.employer_id = f.employer_id
+                JOIN {tbl} s
+                  ON f.name_aggressive = LOWER(s.{ncol})
+                 AND f.state = s.{scol}
+                WHERE f.name_standard IS NOT NULL AND f.state IS NOT NULL
+                LIMIT 1
+            """)
+            if cur.fetchone():
+                conn.close()
+                return True
+        conn.close()
+        return False
+    except Exception:
+        return False
+
+
 # Per-test skip decorator for tests that need the orphan staging table
 # (subprocess-based dry-run tests). The unit tests at the bottom of the
 # file (rule engine helpers) do NOT need the table and run unconditionally.
 _skip_no_staging = pytest.mark.skipif(
     not _has_staging_table(),
     reason="_recoverable_f7_orphans staging not present",
+)
+
+# Tighter gate for the two tests that assert non-empty CSV output. The
+# matchable pool can be drained even when the staging table is populated;
+# in that case we skip rather than fail a sanity assertion that depends
+# on volatile state. The positive assertions (column schema, value
+# ranges, rule_engine fields) still run whenever the pool has matches.
+# See `_pool_has_matchable_candidates` docstring + vault note for
+# context.
+_skip_no_matchable_pool = pytest.mark.skipif(
+    not _pool_has_matchable_candidates(),
+    reason="recoverable F7 orphan pool yields no matchable candidates; "
+           "see Open Problems/Rematch Dry-Run Test Asserts Drained Pool.md "
+           "(re-stage via identify_recoverable_orphans.py if needed)",
 )
 
 
@@ -77,6 +138,7 @@ def test_dry_run_writes_nothing_to_unified_match_log(tmp_path):
 
 
 @_skip_no_staging
+@_skip_no_matchable_pool
 def test_dry_run_emits_csv_with_expected_columns(tmp_path):
     """CSV output is the artifact Jacob will review. Lock its columns.
 
@@ -486,6 +548,7 @@ def test_build_rule_engine_pair_f7_has_no_ein():
 
 
 @_skip_no_staging
+@_skip_no_matchable_pool
 def test_no_rule_engine_flag_skips_classification(tmp_path):
     """--no-rule-engine reproduces the 2026-05-06 dry-run shape (no
     rule_engine_* tags applied). Used for diff-against-baseline

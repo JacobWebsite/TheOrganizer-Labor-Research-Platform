@@ -59,9 +59,12 @@ describe('ProfileCards', () => {
     expect(screen.getByText('SEIU Local 32BJ')).toBeInTheDocument()
   })
 
-  it('UnionRelationshipsCard returns null with no union', () => {
-    const { container } = renderWithProviders(<UnionRelationshipsCard employer={{}} />)
-    expect(container.innerHTML).toBe('')
+  it('UnionRelationshipsCard renders EmptyStateCard with no union (no longer returns null)', () => {
+    renderWithProviders(<UnionRelationshipsCard employer={{}} />)
+    // After 2026-05-12 polish: the card always renders, falling back to the
+    // canonical "No <topic> records matched" amber panel from EmptyStateCard.
+    expect(screen.getByText('Union Relationships')).toBeInTheDocument()
+    expect(screen.getByText('No union representation on file')).toBeInTheDocument()
   })
 
   // -- FinancialDataCard --

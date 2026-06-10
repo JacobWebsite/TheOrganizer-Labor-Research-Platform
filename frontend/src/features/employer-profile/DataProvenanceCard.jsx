@@ -1,10 +1,27 @@
 import { Link2 } from 'lucide-react'
 import { CollapsibleCard } from '@/shared/components/CollapsibleCard'
+import { EmptyStateCard } from '@/shared/components/EmptyStateCard'
 import { ConfidenceDots } from '@/shared/components/ConfidenceDots'
 import { SOURCE_COLORS } from '@/shared/constants/sourceColors'
 
 export function DataProvenanceCard({ matchSummary }) {
-  if (!matchSummary || matchSummary.length === 0) return null
+  if (!matchSummary || matchSummary.length === 0) {
+    return (
+      <EmptyStateCard
+        icon={Link2}
+        title="Data Provenance"
+        topic="cross-source linkage"
+        summary="No linked sources"
+        reason={
+          <>
+            Cross-source matches are produced by the unified matching pipeline; an employer
+            with no matches will appear empty here even though the underlying records may
+            exist (and just not be linked yet).
+          </>
+        }
+      />
+    )
+  }
 
   const summary = `${matchSummary.length} source${matchSummary.length === 1 ? '' : 's'} linked`
 
