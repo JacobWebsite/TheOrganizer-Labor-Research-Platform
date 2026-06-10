@@ -21,26 +21,20 @@ Usage:
 """
 import argparse
 import csv
-import os
 import sys
 import time
 from collections import defaultdict
+from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jakew\.local\bin\Labor Data Project_real")
-from db_config import get_connection
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-# Reuse the existing merge implementation
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'etl'))
-import dedup_master_employers  # noqa: E402
-from dedup_master_employers import merge_one  # noqa: E402
-
-# MERGE_LOG_HAS_REASON / MERGE_LOG_HAS_MERGED_BY are set inside the module's
-# main() via `global`. When we import merge_one directly, main() never runs
-# and those globals don't exist -- causing NameError inside merge_one.
-# Both columns exist in the live schema (confirmed 2026-04-17 DB introspection),
-# so set them True at import time.
-dedup_master_employers.MERGE_LOG_HAS_REASON = True
-dedup_master_employers.MERGE_LOG_HAS_MERGED_BY = True
+from db_config import get_connection  # noqa: E402
+from src.python.matching.master_dedup import merge_one  # noqa: E402
+# NOTE: MergeContext + fetch_employers are imported inside the functions that
+# use them. The repo's formatter (autoflake/ruff) silently strips top-level
+# imports it cannot detect a usage for. See napkin 2026-05-12.
 
 
 class UnionFind:
@@ -86,18 +80,14 @@ def pick_winner(cluster_ids, employer_rows):
     return max(candidates, key=key).mid
 
 
-def load_cluster_members(conn, master_ids):
-    """Fetch Employer rows for all master_ids. Uses fetch_employers() from
-    dedup_master_employers.py to populate all dataclass fields including
-    has_f7. Then augments each with n_sources for winner selection."""
+def load_cluster_members(conn, ctx, master_ids):
+    """Fetch Employer rows for all master_ids; augment each with n_sources."""
     if not master_ids:
         return {}
-    from dedup_master_employers import fetch_employers
+    from src.python.matching.master_dedup import fetch_employers
     cur = conn.cursor()
-    employers = fetch_employers(cur, pk_col='master_id', ids=list(master_ids),
-                                include_labor_org=True)
+    employers = fetch_employers(cur, ctx, list(master_ids))
     rows = {e.mid: e for e in employers}
-    # Augment with n_sources
     cur.execute("""
         SELECT master_id, COUNT(*) FROM master_employer_source_ids
         WHERE master_id = ANY(%s) GROUP BY master_id
@@ -155,7 +145,10 @@ def main():
     # Load Employer rows for all masters
     print('\nLoading master_employer rows...')
     conn = get_connection()
-    employers = load_cluster_members(conn, all_ids)
+    from src.python.matching.master_dedup import MergeContext
+    with conn.cursor() as _cur:
+        ctx = MergeContext.detect(_cur, label='apply_rule_merges.py')
+    employers = load_cluster_members(conn, ctx, all_ids)
     print(f'  {len(employers):,}/{len(all_ids):,} masters found in DB')
     missing = all_ids - set(employers.keys())
     if missing:
@@ -207,7 +200,7 @@ def main():
             continue
         try:
             merge_one(
-                cur, pk_col='master_id', include_labor_org=True,
+                cur, ctx=ctx,
                 winner=winner, loser=loser,
                 phase=args.phase,
                 conf=conf,

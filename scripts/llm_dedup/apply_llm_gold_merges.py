@@ -32,23 +32,18 @@ import os
 import sys
 import time
 from collections import defaultdict
+from pathlib import Path
 
-DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, r"C:\Users\jakew\.local\bin\Labor Data Project_real")
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 from db_config import get_connection  # noqa: E402
+from src.python.matching.master_dedup import merge_one  # noqa: E402
+# NOTE: MergeContext + fetch_employers imported function-locally below; repo
+# formatter strips top-level imports it cannot detect usage for (napkin 2026-05-12).
 
-# Reuse the existing merge implementation
-sys.path.insert(0, os.path.join(DIR, "..", "etl"))
-import dedup_master_employers  # noqa: E402
-from dedup_master_employers import merge_one  # noqa: E402
-
-# MERGE_LOG_HAS_REASON / MERGE_LOG_HAS_MERGED_BY are set inside main() via
-# global; without main() running they don't exist. Both columns exist in
-# live schema, so set them True at import time.
-dedup_master_employers.MERGE_LOG_HAS_REASON = True
-dedup_master_employers.MERGE_LOG_HAS_MERGED_BY = True
-
-GOLD_CSV = os.path.join(DIR, "llm_gold_dedup_2026-04-21.csv")
+GOLD_CSV = os.path.join(SCRIPT_DIR, "llm_gold_dedup_2026-04-21.csv")
 DEFAULT_PHASE = "llm_gold_v2_2026_04_21"
 
 
@@ -94,14 +89,13 @@ def pick_winner(cluster_ids, employer_rows):
     return max(candidates, key=key).mid
 
 
-def load_cluster_members(conn, master_ids):
+def load_cluster_members(conn, ctx, master_ids):
     """Fetch Employer rows for all master_ids."""
     if not master_ids:
         return {}
-    from dedup_master_employers import fetch_employers
+    from src.python.matching.master_dedup import fetch_employers
     cur = conn.cursor()
-    employers = fetch_employers(cur, pk_col="master_id", ids=list(master_ids),
-                                include_labor_org=True)
+    employers = fetch_employers(cur, ctx, list(master_ids))
     rows = {e.mid: e for e in employers}
     cur.execute("""
         SELECT master_id, COUNT(*) FROM master_employer_source_ids
@@ -237,7 +231,10 @@ def main():
     # Load employer rows
     print("\nLoading master_employer rows...")
     conn = get_connection()
-    employers = load_cluster_members(conn, all_ids)
+    from src.python.matching.master_dedup import MergeContext
+    with conn.cursor() as _cur:
+        ctx = MergeContext.detect(_cur, label="apply_llm_gold_merges.py")
+    employers = load_cluster_members(conn, ctx, all_ids)
     print(f"  {len(employers):,}/{len(all_ids):,} masters found in DB")
     missing = all_ids - set(employers.keys())
     if missing:
@@ -283,7 +280,7 @@ def main():
             continue
         try:
             merge_one(
-                cur, pk_col="master_id", include_labor_org=True,
+                cur, ctx=ctx,
                 winner=winner, loser=loser,
                 phase=args.phase,
                 conf=conf,

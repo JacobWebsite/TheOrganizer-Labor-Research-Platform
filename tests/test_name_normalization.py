@@ -201,6 +201,17 @@ def test_aka_space_separated():
     assert "acme" in result
 
 
+def test_leading_aka_preserved_as_company_name():
+    """Leading 'AKA' / 'DBA' is a legitimate token at the start of a name, not a tail marker."""
+    # Real master row 7856645: display_name 'AKA TRUCKING COMPANY, INC.'
+    assert normalize_name_standard("AKA TRUCKING COMPANY, INC.") == "aka trucking company inc"
+    assert normalize_name_standard("DBA Heat Treating") == "dba heat treating"
+    assert normalize_name_standard("A K A Widgets Inc") == "a k a widgets inc"
+    # Tail behavior still works
+    assert normalize_name_standard("Acme Corp aka Other Name") == "acme corp"
+    assert normalize_name_standard("Acme dba Other") == "acme"
+
+
 def test_noise_tokens_expanded():
     """Expanded noise tokens are properly stripped."""
     result = normalize_name_aggressive("ABC Holdings USA")

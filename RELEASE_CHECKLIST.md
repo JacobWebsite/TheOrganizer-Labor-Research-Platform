@@ -38,6 +38,16 @@ Run this checklist before any deploy or beta launch. If a step fails, do not shi
   ```
   Runs Layer 1 (SQL invariants), Layer 2 (API <-> DB diff, ASGI mode, ~270-union sample), Layer 5 (anomaly set + diff vs prior run), Layer 6 (response-shape sentinels). Skips Layer 4 (DeepSeek paid LLM) by default; opt in with `--include-llm` when you specifically want a qualitative read. Outputs to `audit_runs/<DATE>/`. **Why this exists:** the 2026-05-04 Codex review surfaced 3 real bugs (financial-trend SUM multiplication / 18x asset inflation, /national/{aff_abbr} SOC leak, election empty-state suppression) that pre-existing tests did not catch. The audit harness regression-guards those fixes plus 17 other invariants; full path documented in `Prompts/2026-05-04 - Codex Handoff - Union Explorer Audit Harness.md`. Hard-gate: Layer 1 and Layer 6 failures block release; Layers 2/5 are advisory.
 
+## Post-ship cleanup
+
+- [ ] **Drop Pfizer back-fill snapshot tables** after the next ship cycle (~1 week post-migration). The bundled migration at `scripts/maintenance/backfill_pfizer_canonical_corruption.py --bundled --commit` creates persistent `backfill_pfizer_pre_<TS>` snapshot tables for Level-2 rollback insurance (`docs/runbooks/pfizer_backfill_rollback.md`). Locate via `SELECT tablename FROM pg_tables WHERE tablename LIKE 'backfill_pfizer_%';` and drop in one batch:
+  ```sql
+  DROP TABLE backfill_pfizer_pre_<TS>;
+  DROP TABLE backfill_pfizer_source_ids_pre_<TS>;
+  DROP TABLE backfill_pfizer_mergent_pre_<TS>;
+  DROP TABLE pfizer_skipped_id_conflicts_<TS>;  -- if present
+  ```
+
 ## What to add here next
 
 When a regression like R7-6 (deploy drift), R7-1 (data overflow), or R7-15 (route 404) is fixed, add a checklist item that would have caught it. The whole point of this file is to convert audit findings into pre-deploy gates.
