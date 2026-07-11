@@ -3,6 +3,7 @@ import { Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { NavBar } from './NavBar'
 import { Breadcrumbs } from './Breadcrumbs'
 import { CommandPalette } from './CommandPalette'
+import { FeedbackButton } from './FeedbackButton'
 
 export function Layout() {
   const { pathname } = useLocation()
@@ -48,6 +49,7 @@ export function Layout() {
       {isPaletteOpen && (
         <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
       )}
+      <FeedbackButton />
     </div>
   )
 }
