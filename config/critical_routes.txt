@@ -59,3 +59,8 @@
 /api/employers/master/{master_id}/fec-contributions
 # Q10 Board (DEF14A roster + interlocks)
 /api/employers/master/{master_id}/board
+
+# Beta feedback capture (roadmap W8 onboarding, shipped 2026-07-11). Beta testers
+# submit feedback from every page via the Feedback button; if this route drops out
+# of the running API, soft-launch signal is silently lost.
+/api/feedback

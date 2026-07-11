@@ -65,6 +65,7 @@ from .routers import (
     power_profile,  # noqa: F401  (used as `power_profile.router` below)
     competitors,  # noqa: F401  (used as `competitors.router` below; keep above any reformat)
     relationships,  # noqa: F401  (used as `relationships.router` below; keep above any reformat)
+    feedback,  # noqa: F401  (used as `feedback.router` below; keep above any reformat)
 )
 
 app = FastAPI(
@@ -138,6 +139,7 @@ app.include_router(facilities.router)
 app.include_router(power_profile.router)
 app.include_router(competitors.router)
 app.include_router(relationships.router)
+app.include_router(feedback.router)
 
 
 @app.exception_handler(psycopg2.OperationalError)

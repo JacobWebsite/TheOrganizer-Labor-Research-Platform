@@ -12,6 +12,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { PageSkeleton } from '@/shared/components/PageSkeleton'
 
 // Lazy-loaded page components (named export adapter)
+const WelcomePage = lazy(() => import('@/features/onboarding/WelcomePage').then(m => ({ default: m.WelcomePage })))
 const SearchPage = lazy(() => import('@/features/search/SearchPage').then(m => ({ default: m.SearchPage })))
 const EmployerProfilePage = lazy(() => import('@/features/employer-profile/EmployerProfilePage').then(m => ({ default: m.EmployerProfilePage })))
 const TargetsPage = lazy(() => import('@/features/scorecard/TargetsPage').then(m => ({ default: m.TargetsPage })))
@@ -54,6 +55,7 @@ export default function App() {
                 }
               >
                 <Route index element={<Navigate to="/search" replace />} />
+                <Route path="welcome" element={<Suspense fallback={<PageSkeleton />}><WelcomePage /></Suspense>} />
                 <Route path="search" element={<Suspense fallback={<PageSkeleton />}><SearchPage /></Suspense>} />
                 <Route path="employers/:id" element={<Suspense fallback={<PageSkeleton variant="profile" />}><EmployerProfilePage /></Suspense>} />
                 <Route path="scorecard" element={<Navigate to="/search" replace />} />
