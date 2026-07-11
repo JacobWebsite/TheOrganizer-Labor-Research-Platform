@@ -10,10 +10,10 @@
     },
     {
       "canonical_name": "New York City Health and Hospitals Corporation",
-      "aliases": ["nyc health and hospitals", "nyc health + hospitals", "nyc hhc", "h+h"],
-      "exclude_terms": ["nyu langone", "nyu hospital", "nyu medical"],
-      "canonical_patterns": ["nyc health", "new york city health", "h+h"],
-      "notes": "NYC public hospital system; NYU Langone is a separate private system. Audit cited NYC Hospitals query returning NYU Langone."
+      "aliases": ["nyc hospitals", "nyc hospital", "nyc health and hospitals", "nyc health + hospitals", "nyc hhc", "h+h"],
+      "exclude_terms": ["nyu langone", "nyu hospital", "nyu medical", "hotel trades"],
+      "canonical_patterns": ["new york city health and hospitals"],
+      "notes": "R8-7 (2026-06-07): added 'nyc hospitals'/'nyc hospital' aliases -- the audit query was 'NYC Hospitals' which matched NO prior alias, so the entry never fired and generic '*hospitals' rows (SHOALS HOSPITAL, NYU LANGONE) won. canonical_pattern tightened to 'new york city health and hospitals' (the real MASTER canonical search_name) -- the looser 'nyc health'/'new york city health' patterns also matched a NY-hotel-trades 'health center' row (sz=1000) that outranked the real canonical (sz=390); 'hotel trades' added to exclude_terms. NYU Langone is a separate private system."
     },
     {
       "canonical_name": "Health Care Service Corporation",
@@ -49,6 +49,33 @@
       "canonical_name": "Starbucks Corporation",
       "aliases": ["starbucks", "starbucks coffee"],
       "notes": "No canonical_patterns: the 2026-04-23 family rollup put the Starbucks F7 canonical-group leader (search_name='starbucks', cw=119) above flat MASTER per-store rows already. Adding a 'starbucks corp' pattern boost would demote that F7 leader behind WA-state-prefixed MASTER rows (e.g. 'wa317942390 - starbucks corp')."
+    },
+    {
+      "canonical_name": "General Electric Company",
+      "aliases": ["ge", "general electric"],
+      "exclude_terms": ["ges"],
+      "canonical_patterns": ["general electric"],
+      "notes": "R8-7 (2026-06-07): 'ge' acronym -> 'general electric' trigram similarity=0.11, far below the 0.3 gate, so the canonical was filtered out and 'GES' (Dallas) won. The 'ge' alias is <=3 chars so it requires an EXACT-match query ('ge' only, not substrings of 'general'/'george'); the canonical_pattern is OR'd into the gate to pull General Electric Company into the candidate set."
+    },
+    {
+      "canonical_name": "General Motors LLC",
+      "aliases": ["gm", "general motors"],
+      "exclude_terms": ["gm-spo"],
+      "canonical_patterns": ["general motors"],
+      "notes": "R8-7 (2026-06-07): 'gm' -> 'general motors' trigram similarity=0.06; the NLRB filer 'GM-SPO' (sim 0.43) won instead. 'gm' is <=3 chars so EXACT-match guarded; canonical_pattern injected into the gate."
+    },
+    {
+      "canonical_name": "The Procter & Gamble Company",
+      "aliases": ["p&g", "procter", "procter and gamble", "procter & gamble"],
+      "exclude_terms": ["pse&g", "p&g power"],
+      "canonical_patterns": ["procter & gamble", "procter and gamble"],
+      "notes": "R8-7 (2026-06-07): 'p&g' -> 'procter & gamble' trigram similarity=0.12; the utility 'PSE&G' (sim 0.43) won. canonical_patterns (both '&' and 'and' spellings -- DB stores 'procter & gamble') OR'd into the gate; exclude_terms drop PSE&G and the unrelated 'P&G Power Co'. Georgia-Pacific 'G-P' rows never enter via the procter pattern, so no exclude needed there."
+    },
+    {
+      "canonical_name": "Kaiser Permanente",
+      "aliases": ["kp", "kaiser permanente", "kaiser foundation"],
+      "canonical_patterns": ["kaiser permanente", "kaiser foundation"],
+      "notes": "R8-7 (2026-06-07): 'kp' -> 'kaiser permanente' trigram similarity=0.05; 'KP, LLC' (WA) and 'KPEP' (MI) won. 'kp' is <=3 chars so EXACT-match guarded. No exclude_terms needed -- the Kaiser F7 leader (search_name='kaiser permanente', cw=162K) sorts to rank 1 once injected, like Starbucks."
     }
   ]
 }
