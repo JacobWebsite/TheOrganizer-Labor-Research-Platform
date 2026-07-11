@@ -4665,14 +4665,31 @@ def search_company_enrich(
         resp.raise_for_status()
         co = resp.json()
 
-        # R7-16 (2026-04-27): Identity grafting guard. CompanyEnrich's name-based
-        # lookup occasionally returns a different entity than queried (e.g.
-        # "Crouse Hospital" -> "Children's National Hospital"). When the lookup
-        # was domain-based (line 4653) we trust the result; when name-based
-        # (line 4659) we run a composite fuzzy check before accepting.
+        # R7-16 (2026-04-27): Identity grafting guard. CompanyEnrich's lookup
+        # occasionally returns a different entity than queried (e.g.
+        # "Crouse Hospital" -> "Children's National Hospital").
         #
-        # The composite: reject only when ALL THREE strategies say it's a bad
-        # match. Single strategies fail on legitimate edge cases:
+        # R8-5 (2026-06-07): The guard previously ran ONLY on the name-based
+        # path ("if not domain"). But callers (agent.py::_f_company_enrich)
+        # routinely pass a `domain` derived from a web/Google fallback, so a
+        # WRONG domain made CompanyEnrich return the wrong entity AND bypass the
+        # guard (found=True -> grafted into the dossier). The guard now runs on
+        # BOTH paths whenever a returned_name is present. The two paths use
+        # different rejection rules:
+        #   - NAME path  : composite AND-form (partial<80 AND sort<65 AND set<75)
+        #                  -- lenient, since a name query that round-trips a
+        #                  near-name is usually the same entity.
+        #   - DOMAIN path: single best-ratio test (reject when best<80) -- a
+        #                  wrong domain yields a wholly unrelated name, so a
+        #                  stricter OR-form is safe. Legitimate trade-name vs
+        #                  legal-name pairs (Alphabet/Google, Meta/Facebook)
+        #                  score far below 80, so they are exempted via the
+        #                  curated trade-name allowlist below rather than by
+        #                  the fuzzy ratio.
+        #
+        # The composite AND-form (name path) rejects only when ALL THREE
+        # strategies fall below threshold. Single strategies fail on legit
+        # edge cases:
         #   - token_sort_ratio penalizes substring matches ("Starbucks" vs
         #     "Starbucks Coffee Company" = 55% even though clearly the same).
         #   - partial_ratio is too permissive on shared prefixes ("Cleveland
@@ -4683,7 +4700,7 @@ def search_company_enrich(
         # Crouse case (75/57/70) without false-rejecting Walmart/Starbucks/
         # Apple/Kroger/AT&T.
         returned_name = (co.get("name") or "").strip()
-        if not domain and returned_name:
+        if returned_name:
             qn_lower = company_name.lower()
             rn_lower = returned_name.lower()
 
@@ -4727,40 +4744,81 @@ def search_company_enrich(
             except (FileNotFoundError, _json.JSONDecodeError, OSError):
                 pass  # fail-open: missing/malformed alias file shouldn't break enrichment
 
-            # Layer 2: Composite fuzzy guard (R7-16, 2026-04-27). Reject only
-            # when all three strategies fall below threshold. Single strategies
-            # fail on legitimate edge cases:
-            #   - token_sort_ratio penalizes substring matches ("Starbucks" vs
-            #     "Starbucks Coffee Company" = 55% even though clearly the same).
-            #   - partial_ratio is too permissive on shared prefixes ("Cleveland
-            #     Clinic" vs "Cleveland-Cliffs" = 83%) -- handled by Layer 1.
-            #   - token_set_ratio rewards subset overlap ("the kroger" vs
-            #     "kroger company" = 75% legitimate).
-            # Combined: partial<80 AND token_sort<65 AND token_set<75 catches
-            # Crouse Hospital -> Children's National (75/57/70) without
-            # false-rejecting Walmart/Starbucks/Apple/Kroger/AT&T.
+            # Layer 2: Composite fuzzy guard (R7-16, 2026-04-27; R8-5 split by
+            # path 2026-06-07). Reuse the rapidfuzz.fuzz composite. The
+            # rejection rule differs by lookup path (see the block comment above
+            # the `if returned_name:` gate):
+            #   - NAME path  : AND-form (partial<80 AND sort<65 AND set<75) --
+            #                  lenient. Catches Crouse -> Children's National
+            #                  (75/57/70) without false-rejecting Walmart/
+            #                  Starbucks/Apple/Kroger/AT&T.
+            #   - DOMAIN path: OR-form (best ratio < 80) -- stricter, because a
+            #                  wrong domain returns a wholly unrelated name.
+            #                  Legitimate trade-name vs legal-name pairs score
+            #                  far below 80, so they are exempted up front via
+            #                  the curated _CE_TRADE_NAME_ALLOWLIST.
             try:
                 from rapidfuzz import fuzz
                 sim_partial = fuzz.partial_ratio(qn_lower, rn_lower)
                 sim_sort = fuzz.token_sort_ratio(qn_lower, rn_lower)
                 sim_set = fuzz.token_set_ratio(qn_lower, rn_lower)
-                if sim_partial < 80 and sim_sort < 65 and sim_set < 75:
-                    _log.warning(
-                        "CompanyEnrich identity mismatch: query=%r, returned=%r, partial=%d sort=%d set=%d",
-                        company_name, returned_name, sim_partial, sim_sort, sim_set,
+
+                if domain:
+                    # Domain path: trade-name allowlist exempts known
+                    # legal-name vs brand-name pairs that fuzzy ratios can't
+                    # recognize (e.g. queried "Alphabet" -> returned "Google").
+                    # Each entry is a frozenset of lowercased tokens that may
+                    # appear on either side of a legitimate match.
+                    _CE_TRADE_NAME_ALLOWLIST = (
+                        frozenset({"alphabet", "google"}),
+                        frozenset({"meta", "facebook"}),
                     )
-                    return {
-                        "found": False,
-                        "source": source,
-                        "summary": (
-                            f"CompanyEnrich: Identity mismatch (queried '{company_name}', "
-                            f"returned '{returned_name}'; similarity partial={sim_partial}% "
-                            f"sort={sim_sort}% set={sim_set}%, all below thresholds). "
-                            f"Rejected to prevent identity grafting."
-                        ),
-                        "data": {},
-                        "error": "name_mismatch",
-                    }
+                    _allowed = any(
+                        any(t in qn_lower for t in _grp)
+                        and any(t in rn_lower for t in _grp)
+                        for _grp in _CE_TRADE_NAME_ALLOWLIST
+                    )
+                    sim_best = max(sim_partial, sim_sort, sim_set)
+                    if not _allowed and sim_best < 80:
+                        _log.warning(
+                            "CompanyEnrich identity mismatch (domain path): "
+                            "query=%r, domain=%r, returned=%r, best=%d "
+                            "(partial=%d sort=%d set=%d)",
+                            company_name, domain, returned_name, sim_best,
+                            sim_partial, sim_sort, sim_set,
+                        )
+                        return {
+                            "found": False,
+                            "source": source,
+                            "summary": (
+                                f"CompanyEnrich: Identity mismatch on domain lookup "
+                                f"(queried '{company_name}' via domain '{domain}', "
+                                f"returned '{returned_name}'; best similarity "
+                                f"{sim_best}% below 80). Rejected to prevent "
+                                f"identity grafting from a wrong domain."
+                            ),
+                            "data": {},
+                            "error": "name_mismatch",
+                        }
+                else:
+                    # Name path: lenient AND-form (unchanged from R7-16).
+                    if sim_partial < 80 and sim_sort < 65 and sim_set < 75:
+                        _log.warning(
+                            "CompanyEnrich identity mismatch: query=%r, returned=%r, partial=%d sort=%d set=%d",
+                            company_name, returned_name, sim_partial, sim_sort, sim_set,
+                        )
+                        return {
+                            "found": False,
+                            "source": source,
+                            "summary": (
+                                f"CompanyEnrich: Identity mismatch (queried '{company_name}', "
+                                f"returned '{returned_name}'; similarity partial={sim_partial}% "
+                                f"sort={sim_sort}% set={sim_set}%, all below thresholds). "
+                                f"Rejected to prevent identity grafting."
+                            ),
+                            "data": {},
+                            "error": "name_mismatch",
+                        }
             except ImportError:
                 pass  # rapidfuzz missing; skip guard rather than crash
 

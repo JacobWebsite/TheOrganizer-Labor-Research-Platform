@@ -28,16 +28,25 @@ def _make_response(name: str, status: int = 200) -> MagicMock:
     return resp
 
 
-def _call_with_mock_response(query: str, returned_name: str, *, status: int = 200) -> dict:
-    """Call search_company_enrich with a mocked HTTP layer."""
+def _call_with_mock_response(
+    query: str, returned_name: str, *, status: int = 200, domain=None
+) -> dict:
+    """Call search_company_enrich with a mocked HTTP layer.
+
+    When `domain` is given, the function takes the domain (GET) path; both
+    requests.get and requests.post are patched so either branch stays offline.
+    """
     from scripts.research import tools
 
     fake_resp = _make_response(returned_name, status=status)
+    kwargs = {}
+    if domain is not None:
+        kwargs["domain"] = domain
     with patch.dict(os.environ, {"COMPANY_ENRICH_API_KEY": "test-key"}, clear=False), \
          patch.object(tools, "_ce_limiter", MagicMock()), \
          patch("requests.post", return_value=fake_resp), \
          patch("requests.get", return_value=fake_resp):
-        return tools.search_company_enrich(query)
+        return tools.search_company_enrich(query, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -136,18 +145,49 @@ def test_empty_returned_name_does_not_crash():
     assert isinstance(result, dict)
 
 
-def test_domain_lookup_skips_name_guard():
-    """Domain-based lookup is high-trust; guard only runs on name lookups."""
-    from scripts.research import tools
-    fake_resp = _make_response("Children's National Hospital")
-    with patch.dict(os.environ, {"COMPANY_ENRICH_API_KEY": "test-key"}, clear=False), \
-         patch.object(tools, "_ce_limiter", MagicMock()), \
-         patch("requests.get", return_value=fake_resp), \
-         patch("requests.post", return_value=fake_resp):
-        # domain-based call: even a wildly different returned name passes
-        # because we trust domain matches.
-        result = tools.search_company_enrich(
-            "Crouse Hospital", domain="childrensnational.org"
-        )
-    # Should NOT be guard-rejected because domain branch is trusted
-    assert result.get("error") not in ("name_mismatch", "alias_collision")
+# ---------------------------------------------------------------------------
+# R8-5 (2026-06-07): domain-path identity guard. Previously the guard was
+# skipped entirely on domain lookups ("if not domain"), so a WRONG domain
+# (from a web/Google fallback) grafted the wrong entity into the dossier.
+# The guard now runs on the domain path too, with a stricter best-ratio<80
+# rule, while a curated trade-name allowlist exempts legal-vs-brand pairs.
+# ---------------------------------------------------------------------------
+
+def test_domain_lookup_rejects_cross_entity_graft():
+    """The canonical R8-5 case: a wrong domain returns a wholly different
+    entity. On the DOMAIN path the guard must now reject it (best ratio<80)."""
+    result = _call_with_mock_response(
+        "Crouse Hospital", "Children's National Hospital",
+        domain="childrensnational.org",
+    )
+    assert result["found"] is False, f"expected quarantine, got {result}"
+    assert result.get("error") == "name_mismatch"
+    assert "domain" in result["summary"].lower()
+
+
+def test_domain_lookup_matching_name_accepted():
+    """A correct domain returns the right entity; the guard must let it pass."""
+    result = _call_with_mock_response(
+        "Crouse Health", "Crouse Health System",
+        domain="crouse.org",
+    )
+    assert result.get("error") not in ("name_mismatch", "alias_collision"), \
+        f"matching domain lookup should pass, got {result}"
+
+
+def test_domain_lookup_trade_name_not_overblocked():
+    """Legitimate trade-name vs legal-name (queried 'Alphabet' -> returned
+    'Google'). Fuzzy ratios score ~33 (<80), so the curated trade-name
+    allowlist must exempt it on the domain path -- NOT over-blocked."""
+    result = _call_with_mock_response(
+        "Alphabet", "Google", domain="abc.xyz",
+    )
+    assert result.get("error") not in ("name_mismatch", "alias_collision"), \
+        f"Alphabet/Google trade-name pair should be exempt, got {result}"
+
+
+def test_name_path_lenient_guard_unchanged():
+    """The name path keeps the lenient AND-form: a near-name passes even though
+    its best single ratio is below 80 (e.g. 'the kroger' -> 'kroger company')."""
+    result = _call_with_mock_response("the kroger", "kroger company")
+    assert result.get("error") != "name_mismatch"
