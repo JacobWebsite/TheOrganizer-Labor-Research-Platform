@@ -7,10 +7,11 @@ Backed by the feedback_submissions table (scripts/etl/create_feedback_submission
 """
 from typing import Literal, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..database import get_db
+from ..dependencies import require_admin
 
 router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 
@@ -59,7 +60,10 @@ def create_feedback(request: FeedbackCreateRequest):
 
 
 @router.get("")
-def list_feedback(limit: int = 100, status: Optional[str] = None):
+def list_feedback(limit: int = 100, status: Optional[str] = None,
+                  user=Depends(require_admin)):
+    # Admin-only: tester feedback is free text and can contain sensitive
+    # notes; submission (POST) stays open to all authenticated users.
     limit = max(1, min(limit, 500))
     clauses = []
     params = []

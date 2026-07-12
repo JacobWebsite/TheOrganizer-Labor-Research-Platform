@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from api.dependencies import require_admin
 from api.main import app
 
 client = TestClient(app)
@@ -44,7 +45,7 @@ def test_post_creates_feedback(mock_get_db):
 
 
 @patch("api.routers.feedback.get_db")
-def test_get_lists_feedback(mock_get_db):
+def test_get_lists_feedback_as_admin(mock_get_db):
     mock_get_db.return_value = _make_conn(
         fetchall_values=[
             {
@@ -60,11 +61,22 @@ def test_get_lists_feedback(mock_get_db):
         ]
     )
 
-    resp = client.get("/api/feedback")
+    app.dependency_overrides[require_admin] = lambda: {"username": "admin", "role": "admin"}
+    try:
+        resp = client.get("/api/feedback")
+    finally:
+        app.dependency_overrides.pop(require_admin, None)
     assert resp.status_code == 200
     data = resp.json()
     assert data["count"] == 1
     assert data["feedback"][0]["category"] == "confusing"
+
+
+def test_get_requires_admin():
+    # With DISABLE_AUTH=true and no ALLOW_INSECURE_ADMIN, require_admin
+    # fails closed -- the feedback list must not be readable by non-admins.
+    resp = client.get("/api/feedback")
+    assert resp.status_code == 403
 
 
 def test_invalid_category_rejected():
