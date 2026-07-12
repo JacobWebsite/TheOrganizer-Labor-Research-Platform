@@ -51,16 +51,26 @@ def _save_checkpoint(data: dict):
     CHECKPOINT_FILE.write_text(json.dumps(data, indent=2))
 
 
-def get_candidates(candidate_type: str, limit: int) -> list:
-    """Fetch candidate employers from the database."""
+def get_candidates(candidate_type: str, limit: int, states: list = None) -> list:
+    """Fetch candidate employers from the database.
+
+    states: optional list of 2-letter state codes (e.g. ["NY", "OH", "VA"])
+    to concentrate the batch on beta states (W6 dossier-expansion plan).
+    """
     dedup_days = int(os.environ.get("RESEARCH_DEDUP_DAYS", "30"))
     dedup_quality = float(os.environ.get("RESEARCH_DEDUP_MIN_QUALITY", "6.0"))
+    state_clause_ts = "AND ts.state = ANY(%s)" if states else ""
+    state_clause_f = "AND f.state = ANY(%s)" if states else ""
 
     conn = get_connection(cursor_factory=RealDictCursor)
     try:
         cur = conn.cursor()
         if candidate_type == "non_union":
-            cur.execute("""
+            params = [dedup_quality, dedup_days]
+            if states:
+                params.append(states)
+            params.append(limit)
+            cur.execute(f"""
                 SELECT ts.master_id::TEXT AS employer_id,
                        ts.display_name AS employer_name,
                        ts.state, ts.city, ts.naics,
@@ -79,13 +89,18 @@ def get_candidates(candidate_type: str, limit: int) -> list:
                         AND rr.overall_quality_score >= %s
                         AND rr.completed_at >= NOW() - make_interval(days => %s)
                   )
+                  {state_clause_ts}
                 ORDER BY ts.enforcement_count DESC,
                          ts.signals_present ASC,
                          ts.source_count DESC
                 LIMIT %s
-            """, (dedup_quality, dedup_days, limit))
+            """, tuple(params))
         else:
-            cur.execute("""
+            params = [dedup_quality, dedup_days]
+            if states:
+                params.append(states)
+            params.append(limit)
+            cur.execute(f"""
                 SELECT
                     f.employer_id, f.employer_name, f.state, f.city, f.naics,
                     f.latest_unit_size,
@@ -104,10 +119,11 @@ def get_candidates(candidate_type: str, limit: int) -> list:
                         AND rr.overall_quality_score >= %s
                         AND rr.completed_at >= NOW() - make_interval(days => %s)
                   )
+                  {state_clause_f}
                 ORDER BY ds.source_count ASC,
                          f.latest_unit_size DESC NULLS LAST
                 LIMIT %s
-            """, (dedup_quality, dedup_days, limit))
+            """, tuple(params))
         return [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()
@@ -176,10 +192,11 @@ def backfill_grades_and_enhancements():
 
 
 def run_batch(candidate_type: str, limit: int, resume: bool = False,
-              dry_run: bool = False, args=None):
+              dry_run: bool = False, args=None, states: list = None):
     """Run research on a batch of candidate employers."""
-    candidates = get_candidates(candidate_type, limit)
-    print(f"\nFound {len(candidates)} candidates ({candidate_type}).")
+    candidates = get_candidates(candidate_type, limit, states=states)
+    scope = f"{candidate_type}, states={','.join(states)}" if states else candidate_type
+    print(f"\nFound {len(candidates)} candidates ({scope}).")
 
     if not candidates:
         print("No candidates found.")
@@ -331,7 +348,14 @@ if __name__ == "__main__":
                         help="Halt after N consecutive failures (0=disabled)")
     parser.add_argument("--stats", action="store_true",
                         help="Show current research coverage stats")
+    parser.add_argument("--states", default=None,
+                        help="Comma-separated 2-letter state codes to target "
+                             "(e.g. NY,OH,VA for the beta-state expansion)")
     args = parser.parse_args()
+
+    states = None
+    if args.states:
+        states = [s.strip().upper() for s in args.states.split(",") if s.strip()]
 
     if args.stats:
         print_stats()
@@ -339,4 +363,5 @@ if __name__ == "__main__":
         backfill_grades_and_enhancements()
         print_stats()
     else:
-        run_batch(args.type, args.limit, resume=args.resume, dry_run=args.dry_run, args=args)
+        run_batch(args.type, args.limit, resume=args.resume, dry_run=args.dry_run,
+                  args=args, states=states)
