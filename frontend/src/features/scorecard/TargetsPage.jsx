@@ -86,9 +86,12 @@ export function TargetsPage() {
     <div className="space-y-4">
       <h1 className="font-editorial text-[32px] font-bold">Organizing Targets</h1>
       <p className="text-base text-[#2c2418]">
-        <strong className="text-[#c23a22] text-xl">{statsQuery.data?.flags?.enforcement_true?.toLocaleString() || '---'}</strong>
+        {/* R8 LAUNCH-DEGRADE fix: /api/master/stats has no flags.enforcement_true,
+            so this rendered "--- enforcement targets identified across ---".
+            The scorecard stats endpoint carries both numbers. */}
+        <strong className="text-[#c23a22] text-xl">{scorecardStatsQuery.data?.enforcement?.has_enforcement?.toLocaleString() || '---'}</strong>
         {' '}enforcement targets identified across{' '}
-        {statsQuery.data?.total?.toLocaleString() || '---'} non-union employers
+        {(scorecardStatsQuery.data?.total_scored ?? statsQuery.data?.total)?.toLocaleString() || '---'} non-union employers
       </p>
 
       {/* Gold standard tier distribution bar */}
