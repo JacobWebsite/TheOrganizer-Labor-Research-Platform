@@ -223,6 +223,16 @@ describe('ProfileCards', () => {
     expect(screen.getByText(/Union present: New York State Nurses Association \+2 more/)).toBeInTheDocument()
   })
 
+  it('ProfileHeader shows generic Union present badge when F7 link has no union name', () => {
+    const employer = { display_name: 'Nameless Corp' }
+    const unionPresence = { latest_union_name: null, union_count: 0, unions: [], f7_filing_count: 2 }
+    renderWithProviders(
+      <ProfileHeader employer={employer} sourceType="MASTER" isUnionReference={false} unionPresence={unionPresence} />
+    )
+    expect(screen.getByText('Union present (F7 filing on record)')).toBeInTheDocument()
+    expect(screen.queryByText('No Known Union')).not.toBeInTheDocument()
+  })
+
   it('ProfileHeader prefers entityContext family count over legacy employee_count', () => {
     const employer = { display_name: 'Yale University', employee_count: 59 }
     const entityContext = {

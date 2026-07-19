@@ -158,15 +158,39 @@ nlrb_state_momentum AS (
 -- The EIN path alone loses ~0.9% of 990-linked masters whose master EIN
 -- differs from the canonical filer EIN (e.g. a secondary/typo BMF record):
 -- Yale carried EIN 27-5024008 while the $6.8B filer is 06-0646973. The
--- second branch recovers those via master_employer_source_ids ('990'
--- source_id = national_990_filers.id).
+-- msi branch recovers those via master_employer_source_ids ('990'
+-- source_id = national_990_filers.id), but only when the master's
+-- best-confidence links resolve to a SINGLE filer org -- 4,576 masters
+-- carry link fans across many unrelated orgs (worst: 243), and MAX-ing
+-- across a fan would adopt an unrelated org's revenue.
+msi_990_org AS (
+    SELECT master_id, MIN(ein) AS ein
+    FROM (
+        SELECT sid.master_id, f.ein,
+               RANK() OVER (
+                   PARTITION BY sid.master_id
+                   ORDER BY sid.match_confidence DESC NULLS LAST
+               ) AS conf_rank
+        FROM master_employer_source_ids sid
+        JOIN mv_target_data_sources m ON m.master_id = sid.master_id
+        JOIN national_990_filers f ON f.id::text = sid.source_id
+        WHERE sid.source_system = '990'
+          AND f.total_revenue IS NOT NULL
+    ) ranked
+    WHERE conf_rank = 1
+    GROUP BY master_id
+    HAVING COUNT(DISTINCT ein) = 1
+),
+-- DISTINCT ON keeps revenue/assets/expenses/employees from ONE filing
+-- (the largest-revenue one) rather than per-column MAX, which built
+-- chimera tuples mixing filings (and, on the msi fan, mixing orgs).
 financial_990 AS (
-    SELECT
+    SELECT DISTINCT ON (master_id)
         master_id,
-        MAX(total_revenue) AS latest_revenue,
-        MAX(total_assets) AS latest_assets,
-        MAX(total_expenses) AS latest_expenses,
-        MAX(total_employees) AS n990_employees
+        total_revenue AS latest_revenue,
+        total_assets AS latest_assets,
+        total_expenses AS latest_expenses,
+        total_employees AS n990_employees
     FROM (
         SELECT m.master_id, f.total_revenue, f.total_assets,
                f.total_expenses, f.total_employees
@@ -175,15 +199,13 @@ financial_990 AS (
         WHERE m.ein IS NOT NULL
           AND f.total_revenue IS NOT NULL
         UNION ALL
-        SELECT m.master_id, f.total_revenue, f.total_assets,
+        SELECT o.master_id, f.total_revenue, f.total_assets,
                f.total_expenses, f.total_employees
-        FROM mv_target_data_sources m
-        JOIN master_employer_source_ids sid
-            ON sid.master_id = m.master_id AND sid.source_system = '990'
-        JOIN national_990_filers f ON f.id::text = sid.source_id
+        FROM msi_990_org o
+        JOIN national_990_filers f ON f.ein = o.ein
         WHERE f.total_revenue IS NOT NULL
     ) paths_990
-    GROUP BY master_id
+    ORDER BY master_id, total_revenue DESC NULLS LAST
 ),
 -- Form 5500: benefit plan data linked via master_employer_source_ids
 financial_form5500 AS (

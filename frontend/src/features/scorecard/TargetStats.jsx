@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTargetStats } from '@/shared/api/targets'
+import { useTargetStats, useTargetScorecardStats } from '@/shared/api/targets'
 
 function StatCard({ label, value, accent }) {
   return (
@@ -18,6 +18,9 @@ function StatCard({ label, value, accent }) {
  */
 export function TargetStats() {
   const { data, isLoading } = useTargetStats()
+  // /api/master/stats has no enforcement flag; the enforcement count lives
+  // in the scorecard stats endpoint (same source as the page headline).
+  const { data: scorecardStats } = useTargetScorecardStats()
 
   if (isLoading) {
     return (
@@ -43,7 +46,7 @@ export function TargetStats() {
       <StatCard label="Total targets" value={total?.toLocaleString() || '0'} />
       <StatCard
         label="With enforcement"
-        value={(flags?.enforcement_true || 0).toLocaleString()}
+        value={scorecardStats?.enforcement?.has_enforcement?.toLocaleString() || '---'}
         accent
       />
       <StatCard label="Fed contractors" value={(flags?.contractor_true || 0).toLocaleString()} />

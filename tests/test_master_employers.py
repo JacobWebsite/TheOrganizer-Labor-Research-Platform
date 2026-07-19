@@ -165,6 +165,82 @@ def test_master_detail_non_f7_union_presence_none(client):
     assert r.json().get("union_presence") is None
 
 
+def test_union_presence_dedupes_by_file_number_not_name(client):
+    """Review finding (2026-07-18): the F7 filing spelling differs from the
+    OLMS spelling for the same union file number on ~63% of F7-linked
+    masters. Name-keyed dedup double-counted the union and rendered a false
+    '+1 more'. Pick a master with exactly ONE distinct union file number
+    whose two spellings differ, and require union_count == 1."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT s.master_id
+                FROM master_employer_source_ids s
+                JOIN f7_employers_deduped d ON d.employer_id = s.source_id
+                JOIN f7_union_employer_relations r
+                    ON r.employer_id = s.source_id
+                LEFT JOIN unions_master um
+                    ON um.f_num = r.union_file_number::varchar
+                WHERE s.source_system = 'f7'
+                  AND NULLIF(TRIM(d.latest_union_name), '') IS NOT NULL
+                  AND d.latest_union_fnum = r.union_file_number
+                  AND UPPER(TRIM(d.latest_union_name))
+                      <> UPPER(COALESCE(um.union_name, ''))
+                GROUP BY s.master_id
+                HAVING COUNT(DISTINCT r.union_file_number) = 1
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        pytest.skip("No master with single-union name-mismatch found")
+    r = client.get(f"/api/master/{row[0]}")
+    assert r.status_code == 200
+    up = r.json().get("union_presence")
+    assert up is not None
+    assert up["union_count"] == 1, (
+        f"same union double-counted: {[u['name'] for u in up['unions']]}"
+    )
+
+
+def test_union_presence_nameless_f7_link_still_present(client):
+    """Review finding (2026-07-18): an F7 link with no union name anywhere
+    must still yield a presence block (union_count 0, name None) so the UI
+    never claims 'No Known Union' for a master with a unionized unit."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT s.master_id
+                FROM master_employer_source_ids s
+                JOIN f7_employers_deduped d ON d.employer_id = s.source_id
+                WHERE s.source_system = 'f7'
+                  AND NULLIF(TRIM(d.latest_union_name), '') IS NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM f7_union_employer_relations r
+                      WHERE r.employer_id = s.source_id
+                  )
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        pytest.skip("No name-less F7-linked master found")
+    r = client.get(f"/api/master/{row[0]}")
+    assert r.status_code == 200
+    up = r.json().get("union_presence")
+    assert up is not None
+    assert up["union_count"] == 0
+    assert up["latest_union_name"] is None
+
+
 def test_non_union_targets_excludes_union_rows(client):
     r = client.get("/api/master/non-union-targets?limit=20")
     assert r.status_code == 200

@@ -462,6 +462,7 @@ def master_detail(master_id: int):
                     SELECT DISTINCT
                       COALESCE(um.union_name, 'Unknown union') AS union_name,
                       um.aff_abbr, um.local_number,
+                      r.union_file_number,
                       r.bargaining_unit_size
                     FROM f7_union_employer_relations r
                     LEFT JOIN unions_master um
@@ -476,7 +477,7 @@ def master_detail(master_id: int):
                 cur.execute(
                     """
                     SELECT TRIM(latest_union_name) AS latest_union_name,
-                           latest_unit_size, filing_count
+                           latest_union_fnum, latest_unit_size, filing_count
                     FROM f7_employers_deduped
                     WHERE employer_id = ANY(%s)
                     ORDER BY latest_notice_date DESC NULLS LAST
@@ -486,9 +487,15 @@ def master_detail(master_id: int):
                 )
                 latest = cur.fetchone() or {}
 
+                # Dedupe on union FILE NUMBER, not name: the latest-F7 name is
+                # the filing's spelling while unions_master carries the OLMS
+                # spelling, so the same f_num appears under two strings for
+                # ~63% of F7-linked masters. Name is the fallback key only
+                # when no file number is available on a row.
                 unions: List[Dict[str, Any]] = []
-                seen_names = set()
+                seen_keys = set()
                 latest_name = (latest.get("latest_union_name") or "").strip()
+                latest_fnum = latest.get("latest_union_fnum")
                 if latest_name:
                     unions.append({
                         "name": latest_name,
@@ -496,25 +503,35 @@ def master_detail(master_id: int):
                         "local_number": None,
                         "unit_size": latest.get("latest_unit_size"),
                     })
-                    seen_names.add(latest_name.upper())
+                    if latest_fnum is not None:
+                        seen_keys.add(("fnum", int(latest_fnum)))
+                    seen_keys.add(("name", latest_name.upper()))
                 for r in relation_unions:
                     nm = (r.get("union_name") or "").strip()
-                    if not nm or nm.upper() in seen_names:
+                    fnum = r.get("union_file_number")
+                    key = (
+                        ("fnum", int(fnum)) if fnum is not None
+                        else ("name", nm.upper())
+                    )
+                    if not nm or key in seen_keys or ("name", nm.upper()) in seen_keys:
                         continue
-                    seen_names.add(nm.upper())
+                    seen_keys.add(key)
                     unions.append({
                         "name": nm,
                         "aff_abbr": r.get("aff_abbr"),
                         "local_number": r.get("local_number"),
                         "unit_size": r.get("bargaining_unit_size"),
                     })
-                if unions:
-                    union_presence = {
-                        "latest_union_name": latest_name or unions[0]["name"],
-                        "union_count": len(unions),
-                        "unions": unions,
-                        "f7_filing_count": latest.get("filing_count"),
-                    }
+                # An F7 link means at least one unionized bargaining unit
+                # exists even when no source carries a union name (137
+                # masters) -- emit a name-less presence block rather than
+                # letting the UI claim "No Known Union".
+                union_presence = {
+                    "latest_union_name": latest_name or (unions[0]["name"] if unions else None),
+                    "union_count": len(unions),
+                    "unions": unions,
+                    "f7_filing_count": latest.get("filing_count"),
+                }
 
             osha_ids = src_map.get("osha", [])
             if osha_ids:

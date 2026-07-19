@@ -77,6 +77,17 @@ describe('TargetsPage', () => {
     expect(screen.getByText('80,000')).toBeInTheDocument() // contractors
   })
 
+  it('With-enforcement KPI card reads from scorecard stats (was permanently 0)', () => {
+    useTargetStats.mockReturnValue({ data: MOCK_STATS, isLoading: false })
+    useTargetScorecardStats.mockReturnValue({
+      data: { total_scored: 5782607, enforcement: { has_enforcement: 1162937 } },
+      isLoading: false,
+    })
+    renderWithRoute()
+    // 1,162,937 appears in both the headline and the KPI card
+    expect(screen.getAllByText('1,162,937').length).toBeGreaterThanOrEqual(2)
+  })
+
   it('headline reads enforcement count + total from scorecard stats (R8 interpolation fix)', () => {
     useTargetScorecardStats.mockReturnValue({
       data: { total_scored: 5782607, enforcement: { has_enforcement: 1162937 } },

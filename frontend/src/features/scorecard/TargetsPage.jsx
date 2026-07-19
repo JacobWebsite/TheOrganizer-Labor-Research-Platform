@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Target, SearchX, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTargetsState } from './useTargetsState'
-import { useNonUnionTargets, useTargetStats, useTargetScorecardStats } from '@/shared/api/targets'
+import { useNonUnionTargets, useTargetScorecardStats } from '@/shared/api/targets'
 import { TargetStats } from './TargetStats'
 import { TargetsFilters } from './TargetsFilters'
 import { TargetsTable } from './TargetsTable'
@@ -31,7 +31,6 @@ export function TargetsPage() {
 
   useEffect(() => { document.title = 'Organizing Targets - The Organizer' }, [])
 
-  const statsQuery = useTargetStats()
   const scorecardStatsQuery = useTargetScorecardStats()
 
   const { data, isLoading, isError, error } = useNonUnionTargets({
@@ -91,7 +90,7 @@ export function TargetsPage() {
             The scorecard stats endpoint carries both numbers. */}
         <strong className="text-[#c23a22] text-xl">{scorecardStatsQuery.data?.enforcement?.has_enforcement?.toLocaleString() || '---'}</strong>
         {' '}enforcement targets identified across{' '}
-        {(scorecardStatsQuery.data?.total_scored ?? statsQuery.data?.total)?.toLocaleString() || '---'} non-union employers
+        {scorecardStatsQuery.data?.total_scored?.toLocaleString() || '---'} non-union employers
       </p>
 
       {/* Gold standard tier distribution bar */}

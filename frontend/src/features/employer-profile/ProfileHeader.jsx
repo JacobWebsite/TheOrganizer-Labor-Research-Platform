@@ -106,14 +106,20 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
                 <Landmark className="h-3.5 w-3.5" />
                 Represented by {unionName}
               </span>
-            ) : unionPresence?.latest_union_name ? (
+            ) : unionPresence ? (
               <span
                 className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-[#3a7d44]/20 text-[#3a7d44] border border-[#3a7d44]/30"
-                title={unionPresence.unions?.map(u => u.name).join(' · ')}
+                title={unionPresence.unions?.map(u => u.name).join(' · ') || undefined}
               >
                 <Landmark className="h-3.5 w-3.5" />
-                Union present: {unionPresence.latest_union_name}
-                {unionPresence.union_count > 1 ? ` +${unionPresence.union_count - 1} more` : ''}
+                {unionPresence.latest_union_name ? (
+                  <>
+                    Union present: {unionPresence.latest_union_name}
+                    {unionPresence.union_count > 1 ? ` +${unionPresence.union_count - 1} more` : ''}
+                  </>
+                ) : (
+                  'Union present (F7 filing on record)'
+                )}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-[#faf6ef]/10 text-[#faf6ef]/60 border border-[#faf6ef]/20">
