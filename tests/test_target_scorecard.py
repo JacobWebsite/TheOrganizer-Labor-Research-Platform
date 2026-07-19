@@ -302,3 +302,32 @@ class TestTargetScorecardAPI:
     def test_detail_not_found(self, client):
         r = client.get("/api/targets/scorecard/999999999")
         assert r.status_code == 404
+
+    def test_financial_explanation_never_public_company_for_nonprofit(self, client):
+        """Demo wart: nonprofits with no joined 990 revenue were labeled
+        'Public company'. Nonprofit must take precedence over is_public."""
+        from db_config import get_connection
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT master_id FROM mv_target_scorecard
+                    WHERE signal_financial IS NOT NULL
+                      AND is_nonprofit = TRUE
+                      AND n990_revenue IS NULL
+                    LIMIT 1
+                    """
+                )
+                row = cur.fetchone()
+        finally:
+            conn.close()
+        if not row:
+            import pytest
+            pytest.skip("No nonprofit with financial signal and NULL 990 revenue")
+        r = client.get(f"/api/targets/scorecard/{row[0]}")
+        assert r.status_code == 200
+        fin = [s for s in r.json()["signals"] if s["signal"] == "Financial Profile"]
+        assert fin, "Financial Profile signal missing"
+        assert fin[0]["explanation"] == "Nonprofit (IRS 990 filer)"
+        assert "Public company" not in fin[0]["explanation"]

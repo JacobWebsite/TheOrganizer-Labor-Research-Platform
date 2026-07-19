@@ -44,11 +44,19 @@ function MasterProfileView({ data }) {
   const badges = []
   if (master.is_federal_contractor) badges.push('Federal Contractor')
   if (master.is_nonprofit) badges.push('Nonprofit')
-  if (master.is_public) badges.push('Public Company')
+  // Nonprofit takes precedence: SEC links (bond filings, 13F) can set
+  // is_public on 990-filing nonprofits (e.g. universities, hospitals).
+  if (master.is_public && !master.is_nonprofit) badges.push('Public Company')
 
   return (
     <div className="space-y-4">
-      <ProfileHeader employer={employer} sourceType="MASTER" entityContext={data.entity_context} />
+      <ProfileHeader
+        employer={employer}
+        sourceType="MASTER"
+        isUnionReference={false}
+        entityContext={data.entity_context}
+        unionPresence={data.union_presence}
+      />
 
       {/* Quality + metadata */}
       <Card>

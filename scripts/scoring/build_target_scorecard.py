@@ -154,19 +154,36 @@ nlrb_state_momentum AS (
       AND p.matched_employer_id IS NOT NULL
     GROUP BY f.state
 ),
--- Financial: 990 filers matched by EIN
+-- Financial: 990 filers matched by EIN, plus direct source-id links.
+-- The EIN path alone loses ~0.9% of 990-linked masters whose master EIN
+-- differs from the canonical filer EIN (e.g. a secondary/typo BMF record):
+-- Yale carried EIN 27-5024008 while the $6.8B filer is 06-0646973. The
+-- second branch recovers those via master_employer_source_ids ('990'
+-- source_id = national_990_filers.id).
 financial_990 AS (
     SELECT
-        m.master_id,
-        MAX(f.total_revenue) AS latest_revenue,
-        MAX(f.total_assets) AS latest_assets,
-        MAX(f.total_expenses) AS latest_expenses,
-        MAX(f.total_employees) AS n990_employees
-    FROM mv_target_data_sources m
-    JOIN national_990_filers f ON f.ein = m.ein
-    WHERE m.ein IS NOT NULL
-      AND f.total_revenue IS NOT NULL
-    GROUP BY m.master_id
+        master_id,
+        MAX(total_revenue) AS latest_revenue,
+        MAX(total_assets) AS latest_assets,
+        MAX(total_expenses) AS latest_expenses,
+        MAX(total_employees) AS n990_employees
+    FROM (
+        SELECT m.master_id, f.total_revenue, f.total_assets,
+               f.total_expenses, f.total_employees
+        FROM mv_target_data_sources m
+        JOIN national_990_filers f ON f.ein = m.ein
+        WHERE m.ein IS NOT NULL
+          AND f.total_revenue IS NOT NULL
+        UNION ALL
+        SELECT m.master_id, f.total_revenue, f.total_assets,
+               f.total_expenses, f.total_employees
+        FROM mv_target_data_sources m
+        JOIN master_employer_source_ids sid
+            ON sid.master_id = m.master_id AND sid.source_system = '990'
+        JOIN national_990_filers f ON f.id::text = sid.source_id
+        WHERE f.total_revenue IS NOT NULL
+    ) paths_990
+    GROUP BY master_id
 ),
 -- Form 5500: benefit plan data linked via master_employer_source_ids
 financial_form5500 AS (

@@ -32,7 +32,7 @@ function formatNumber(n) {
   return Number(n).toLocaleString()
 }
 
-export function ProfileHeader({ employer, scorecard, sourceType, isUnionReference, targetSignals, summaryParts, dataSources, entityContext }) {
+export function ProfileHeader({ employer, scorecard, sourceType, isUnionReference, targetSignals, summaryParts, dataSources, entityContext, unionPresence }) {
   if (!employer) return null
 
   const name = employer.employer_name || employer.participant_name || employer.display_name || 'Unknown Employer'
@@ -97,12 +97,23 @@ export function ProfileHeader({ employer, scorecard, sourceType, isUnionReferenc
             )}
           </div>
 
-          {/* Union status label */}
+          {/* Union status label. For target-track masters with an F7 link,
+              union_presence lists unionized bargaining units — "Union present"
+              (partial coverage), not "Represented by" (whole-employer claim). */}
           <div>
             {unionName ? (
               <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-[#3a7d44]/20 text-[#3a7d44] border border-[#3a7d44]/30">
                 <Landmark className="h-3.5 w-3.5" />
                 Represented by {unionName}
+              </span>
+            ) : unionPresence?.latest_union_name ? (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-[#3a7d44]/20 text-[#3a7d44] border border-[#3a7d44]/30"
+                title={unionPresence.unions?.map(u => u.name).join(' · ')}
+              >
+                <Landmark className="h-3.5 w-3.5" />
+                Union present: {unionPresence.latest_union_name}
+                {unionPresence.union_count > 1 ? ` +${unionPresence.union_count - 1} more` : ''}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium bg-[#faf6ef]/10 text-[#faf6ef]/60 border border-[#faf6ef]/20">

@@ -118,6 +118,53 @@ def test_master_detail_404_for_bad_id(client):
     assert r.status_code == 404
 
 
+def _get_master_with_f7_union_name() -> int:
+    """A master whose F7 record carries a non-empty latest_union_name."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT s.master_id
+                FROM master_employer_source_ids s
+                JOIN f7_employers_deduped fe ON fe.employer_id = s.source_id
+                WHERE s.source_system = 'f7'
+                  AND NULLIF(TRIM(fe.latest_union_name), '') IS NOT NULL
+                ORDER BY s.master_id
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+    finally:
+        conn.close()
+
+
+def test_master_detail_f7_includes_union_presence(client):
+    """A target-track master with an F7 link must surface union presence
+    (demo wart: Yale/Montefiore showed 'No Known Union' despite F7 links)."""
+    mid = _get_master_with_f7_union_name()
+    if not mid:
+        pytest.skip("No master with F7 union name found")
+    r = client.get(f"/api/master/{mid}")
+    assert r.status_code == 200
+    up = r.json().get("union_presence")
+    assert up is not None
+    assert up["latest_union_name"]
+    assert up["union_count"] >= 1
+    assert isinstance(up["unions"], list) and len(up["unions"]) == up["union_count"]
+    assert all(u.get("name") for u in up["unions"])
+
+
+def test_master_detail_non_f7_union_presence_none(client):
+    mid = _get_master_without_f7()
+    if not mid:
+        pytest.skip("No master record without f7 source found")
+    r = client.get(f"/api/master/{mid}")
+    assert r.status_code == 200
+    assert r.json().get("union_presence") is None
+
+
 def test_non_union_targets_excludes_union_rows(client):
     r = client.get("/api/master/non-union-targets?limit=20")
     assert r.status_code == 200

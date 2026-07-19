@@ -219,7 +219,9 @@ def _build_identity_panel(p: Dict[str, Any]) -> List:
         sub_bits.append(_truncate(p["industry_text"], 80))
     if p.get("employee_count"):
         sub_bits.append(f"{_fmt_int(p['employee_count'])} employees")
-    if p.get("is_public"):
+    # Nonprofit takes precedence over is_public: SEC links (bond filings,
+    # 13F) can set is_public on 990-filing nonprofits (e.g. universities).
+    if p.get("is_public") and not p.get("is_nonprofit"):
         sub_bits.append("Public company")
     if p.get("is_federal_contractor"):
         sub_bits.append("Federal contractor")

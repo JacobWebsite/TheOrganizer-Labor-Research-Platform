@@ -447,10 +447,74 @@ def master_detail(master_id: int):
             enrichment: Dict[str, Any] = {}
 
             f7_ids = src_map.get("f7", [])
+            union_presence: Optional[Dict[str, Any]] = None
             if f7_ids:
                 f7_id = f7_ids[0]
                 cur.execute("SELECT * FROM mv_unified_scorecard WHERE employer_id::text = %s LIMIT 1", [f7_id])
                 enrichment["scorecard"] = cur.fetchone()
+
+                # Union presence for the profile header: a master with an F7
+                # link has at least one unionized bargaining unit, so the UI
+                # must never say "No Known Union" for it. Collect distinct
+                # unions from F7 relations plus the latest F7 notice.
+                cur.execute(
+                    """
+                    SELECT DISTINCT
+                      COALESCE(um.union_name, 'Unknown union') AS union_name,
+                      um.aff_abbr, um.local_number,
+                      r.bargaining_unit_size
+                    FROM f7_union_employer_relations r
+                    LEFT JOIN unions_master um
+                      ON um.f_num = r.union_file_number::varchar
+                    WHERE r.employer_id = ANY(%s)
+                    ORDER BY r.bargaining_unit_size DESC NULLS LAST
+                    """,
+                    [f7_ids],
+                )
+                relation_unions = cur.fetchall()
+
+                cur.execute(
+                    """
+                    SELECT TRIM(latest_union_name) AS latest_union_name,
+                           latest_unit_size, filing_count
+                    FROM f7_employers_deduped
+                    WHERE employer_id = ANY(%s)
+                    ORDER BY latest_notice_date DESC NULLS LAST
+                    LIMIT 1
+                    """,
+                    [f7_ids],
+                )
+                latest = cur.fetchone() or {}
+
+                unions: List[Dict[str, Any]] = []
+                seen_names = set()
+                latest_name = (latest.get("latest_union_name") or "").strip()
+                if latest_name:
+                    unions.append({
+                        "name": latest_name,
+                        "aff_abbr": None,
+                        "local_number": None,
+                        "unit_size": latest.get("latest_unit_size"),
+                    })
+                    seen_names.add(latest_name.upper())
+                for r in relation_unions:
+                    nm = (r.get("union_name") or "").strip()
+                    if not nm or nm.upper() in seen_names:
+                        continue
+                    seen_names.add(nm.upper())
+                    unions.append({
+                        "name": nm,
+                        "aff_abbr": r.get("aff_abbr"),
+                        "local_number": r.get("local_number"),
+                        "unit_size": r.get("bargaining_unit_size"),
+                    })
+                if unions:
+                    union_presence = {
+                        "latest_union_name": latest_name or unions[0]["name"],
+                        "union_count": len(unions),
+                        "unions": unions,
+                        "f7_filing_count": latest.get("filing_count"),
+                    }
 
             osha_ids = src_map.get("osha", [])
             if osha_ids:
@@ -558,6 +622,7 @@ def master_detail(master_id: int):
                 "enrichment": enrichment,
                 "match_summary": match_summary,
                 "entity_context": entity_context,
+                "union_presence": union_presence,
             }
 
 
