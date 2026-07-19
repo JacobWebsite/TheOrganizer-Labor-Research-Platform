@@ -163,6 +163,15 @@ nlrb_state_momentum AS (
 -- best-confidence links resolve to a SINGLE filer org -- 4,576 masters
 -- carry link fans across many unrelated orgs (worst: 243), and MAX-ing
 -- across a fan would adopt an unrelated org's revenue.
+-- Name-agreement guard (floor 0.30): a shared EIN is NOT proof of same org.
+-- EINs collide across unrelated entities (a master carrying "Flowers Baking
+-- Co. of Houston" holds the "Houston Brass Band" EIN -> would show its 990
+-- revenue) and across parent/subsidiary (a small center linked to its
+-- university's group-EIN 990 -> would show the parent's inflated revenue).
+-- Requiring the filer's name to agree with the master name before attaching
+-- its money is false-drop-safe: a dropped row falls back to the "Nonprofit
+-- (IRS 990 filer)" label, never a wrong dollar figure. Flagships clear it
+-- (Yale/Montefiore sim ~1.0). Applied on all three 990 revenue paths below.
 msi_990_org AS (
     SELECT master_id, MIN(ein) AS ein
     FROM (
@@ -176,6 +185,7 @@ msi_990_org AS (
         JOIN national_990_filers f ON f.id::text = sid.source_id
         WHERE sid.source_system = '990'
           AND f.total_revenue IS NOT NULL
+          AND similarity(LOWER(m.display_name), LOWER(f.business_name)) >= 0.30
     ) ranked
     WHERE conf_rank = 1
     GROUP BY master_id
@@ -198,12 +208,15 @@ financial_990 AS (
         JOIN national_990_filers f ON f.ein = m.ein
         WHERE m.ein IS NOT NULL
           AND f.total_revenue IS NOT NULL
+          AND similarity(LOWER(m.display_name), LOWER(f.business_name)) >= 0.30
         UNION ALL
         SELECT o.master_id, f.total_revenue, f.total_assets,
                f.total_expenses, f.total_employees
         FROM msi_990_org o
         JOIN national_990_filers f ON f.ein = o.ein
+        JOIN mv_target_data_sources m2 ON m2.master_id = o.master_id
         WHERE f.total_revenue IS NOT NULL
+          AND similarity(LOWER(m2.display_name), LOWER(f.business_name)) >= 0.30
     ) paths_990
     ORDER BY master_id, total_revenue DESC NULLS LAST
 ),

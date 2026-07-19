@@ -105,7 +105,7 @@ cd frontend && VITE_DISABLE_AUTH=true npx vite
 # (frontend/.env has VITE_DISABLE_AUTH=true)
 
 # Tests
-py -m pytest tests/ -x -q          # backend (2,204 passed, 8 skipped; verified 2026-07-18)
+py -m pytest tests/ -x -q          # backend (2,209 passed, 8 skipped; verified 2026-07-19)
 cd frontend && npx vitest run       # frontend (454 tests, 63 files; verified 2026-07-18)
 
 # MV rebuild (orchestrated)
@@ -123,7 +123,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Backend
 - **Command:** `py -m pytest tests/ -x -q`
-- **Current count:** 2,204 passed, 8 skipped (verified 2026-07-18)
+- **Current count:** 2,209 passed, 8 skipped (verified 2026-07-19)
 - **Run after every code change.** Report exact pass count before committing.
 - **Match rate tests are F7-only** — `osha_f7_matches`/`whd_f7_matches` track matches to F7 (union employers only). Rates are ~8.3%/~4.7%. Don't set thresholds expecting high rates.
 - **`RESEARCH_SCRAPER_GOOGLE_FALLBACK=false`** — set in tests that mock DB to prevent real URL resolution (Tier 4 Google Search).

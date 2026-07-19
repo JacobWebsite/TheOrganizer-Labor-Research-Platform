@@ -113,7 +113,10 @@ def test_ambiguous_exact_matches_are_flagged_not_auto_selected(matcher):
 
 
 def test_match_tier_ordering_ein_city_state_state_aggressive_then_fuzzy(matcher, monkeypatch):
-    matcher._ein_idx["123456789"] = "F7-EIN"
+    # _ein_idx now stores (f7_employer_id, f7_aggressive_name); the name lets
+    # the accept site gate EIN-unreliable sources. "acmecorp" agrees with the
+    # source name so the match survives the gate regardless of source_system.
+    matcher._ein_idx["123456789"] = ("F7-EIN", "acmecorp")
     matcher._name_city_state_idx[("acmecorp", "SAN JOSE", "CA")] = [("F7-CITY", "Acmecorp City")]
     matcher._name_state_idx[("acmecorp", "CA")] = [("F7-STATE", "Acmecorp State", "SAN JOSE")]
     matcher._agg_state_idx[("acmecorp", "CA")] = [("F7-AGG", "Acmecorp Agg", "SAN JOSE")]
@@ -168,6 +171,43 @@ def db_conn():
     conn.autocommit = True
     yield conn
     conn.close()
+
+
+def test_ein_name_gate_rejects_divergent_990_match(matcher):
+    """990/BMF/Mergent EIN matches are name-gated: a shared/typo EIN that
+    collides with an unrelated F7 employer must NOT accept at conf 1.0."""
+    matcher.source_system = "990"
+    # EIN collides "Houston Brass Band" (source) with "Flowers Baking" (F7).
+    matcher._ein_idx["611466593"] = ("F7-FLOWERS", "flowers baking houston")
+    rec = {"id": "S9", "name": "Houston Brass Band", "state": "TX",
+           "city": "HOUSTON", "ein": "611466593"}
+    result = matcher._match_best(rec)
+    # No name-based candidates exist -> the divergent EIN is the only tier that
+    # could fire; the gate rejects it, so the source is left unmatched.
+    assert result is None or result["method"] != "EIN_EXACT"
+
+
+def test_ein_name_gate_keeps_agreeing_990_match(matcher):
+    """A 990 EIN match whose name agrees with the F7 target still accepts."""
+    matcher.source_system = "990"
+    matcher._ein_idx["060646973"] = ("F7-YALE", "yale university")
+    rec = {"id": "S10", "name": "Yale University", "state": "CT",
+           "city": "NEW HAVEN", "ein": "060646973"}
+    result = matcher._match_best(rec)
+    assert result is not None
+    assert result["method"] == "EIN_EXACT"
+    assert result["target_id"] == "F7-YALE"
+
+
+def test_ein_gate_bypassed_for_reliable_sources(matcher):
+    """OSHA/WHD/SAM/SEC EINs are reliable -> ungated even if names diverge."""
+    matcher.source_system = "osha"  # fixture default, explicit for clarity
+    matcher._ein_idx["611466593"] = ("F7-FLOWERS", "flowers baking houston")
+    rec = {"id": "S11", "name": "Houston Brass Band", "state": "TX",
+           "city": "HOUSTON", "ein": "611466593"}
+    result = matcher._match_best(rec)
+    assert result is not None
+    assert result["method"] == "EIN_EXACT"
 
 
 def _query_one(conn, sql):

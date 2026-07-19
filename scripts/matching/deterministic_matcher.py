@@ -38,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from src.python.matching.name_normalization import (
     normalize_name_standard,
     normalize_name_aggressive,
+    passes_fuzzy_token_gate,
 )
 
 # Optional phonetic encoding
@@ -324,16 +325,22 @@ class DeterministicMatcher:
         print(f"    phonetic keys:         {len(self._phonetic_state_idx):,}")
         print(f"    trigram employers:     {len(self._trigram_names):,}")
 
-        # Load EIN index from crosswalk (EIN is usually unique per employer)
+        # Load EIN index from crosswalk (EIN is usually unique per employer).
+        # Carry the F7 target's aggressive name so the accept site can
+        # name-gate EIN-unreliable sources (990/BMF/Mergent share/sponsor/typo
+        # EINs collide with unrelated F7 employers). LEFT JOIN so an EIN whose
+        # F7 target predates the deduped table still indexes (name = '' ->
+        # gate bypassed, preserving prior behavior for those rows).
         with self.conn.cursor() as cur:
             cur.execute("""
-                SELECT ein, f7_employer_id
-                FROM corporate_identifier_crosswalk
-                WHERE ein IS NOT NULL AND f7_employer_id IS NOT NULL
+                SELECT x.ein, x.f7_employer_id, f.employer_name_aggressive
+                FROM corporate_identifier_crosswalk x
+                LEFT JOIN f7_employers_deduped f ON f.employer_id = x.f7_employer_id
+                WHERE x.ein IS NOT NULL AND x.f7_employer_id IS NOT NULL
             """)
-            for ein, fid in cur.fetchall():
+            for ein, fid, f7_agg in cur.fetchall():
                 if ein not in self._ein_idx:
-                    self._ein_idx[ein] = fid
+                    self._ein_idx[ein] = (fid, f7_agg or "")
 
         print(f"    EIN keys:              {len(self._ein_idx):,}")
         self._indexes_loaded = True
@@ -406,13 +413,27 @@ class DeterministicMatcher:
 
         # Tier 1: EIN exact match (specificity 100)
         if ein and len(ein) >= 8:
-            fid = self._ein_idx.get(ein)
-            if fid:
-                result = self._make_result(
-                    source_id, fid, "EIN_EXACT", "deterministic", "HIGH", 1.0,
-                    {"ein": ein, "source_name": name}
-                )
-                best = (TIER_RANK["EIN_EXACT"], result)
+            entry = self._ein_idx.get(ein)
+            if entry:
+                fid, f7_agg = entry
+                # Name-agreement gate for EIN-unreliable sources. 990/BMF/Mergent
+                # carry shared, sponsor, or typo'd EINs that collide with
+                # unrelated F7 employers, and EIN_EXACT otherwise accepts at
+                # confidence 1.0 with no name check -- e.g. a 990 for "Houston
+                # Brass Band" grafting onto "Flowers Baking Co. of Houston".
+                # OSHA/WHD/SAM/SEC EINs are reliable, so they stay ungated.
+                # passes_fuzzy_token_gate(score=0.0) forces the token-overlap
+                # test (>=0.40 unique-token overlap, with collapsed-spacing
+                # rescue) so a shared city token alone can't graft.
+                ein_ok = True
+                if self.source_system in ("990", "bmf", "mergent") and f7_agg:
+                    ein_ok = passes_fuzzy_token_gate(name_agg, f7_agg, 0.0)
+                if ein_ok:
+                    result = self._make_result(
+                        source_id, fid, "EIN_EXACT", "deterministic", "HIGH", 1.0,
+                        {"ein": ein, "source_name": name}
+                    )
+                    best = (TIER_RANK["EIN_EXACT"], result)
 
         # Tier 2: name_standard + city + state (specificity 90)
         if name_std and city and state and (best is None or best[0] < TIER_RANK["NAME_CITY_STATE_EXACT"]):
