@@ -125,7 +125,7 @@ All support `--refresh` for CONCURRENT refresh. Without `--refresh`: DROP CASCAD
 cd "C:\Users\jakew\.local\bin\Labor Data Project_real"
 py -m uvicorn api.main:app --reload --port 8001          # API
 cd frontend && VITE_DISABLE_AUTH=true npx vite            # Frontend
-py -m pytest tests/ -x -q                                  # Backend tests (2,204 passed, 8 skipped; verified 2026-07-18)
+py -m pytest tests/ -x -q                                  # Backend tests (2,209 passed, 8 skipped; verified 2026-07-19)
 cd frontend && npx vitest run                              # Frontend tests (454; verified 2026-07-18)
 py scripts/maintenance/generate_project_metrics.py         # Auto-metrics
 ```
