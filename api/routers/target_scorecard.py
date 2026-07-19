@@ -380,7 +380,16 @@ def target_scorecard_detail(master_id: int):
             fin_val = scorecard.get("signal_financial")
             if fin_val is not None:
                 rev = scorecard.get("n990_revenue")
-                expl = f"990 revenue: ${float(rev):,.0f}" if rev else "Public company"
+                # Nonprofit takes precedence over is_public: SEC links (bond
+                # filings, 13F) can set is_public on 990-filing nonprofits.
+                if rev:
+                    expl = f"990 revenue: ${float(rev):,.0f}"
+                elif scorecard.get("is_nonprofit"):
+                    expl = "Nonprofit (IRS 990 filer)"
+                elif scorecard.get("is_public"):
+                    expl = "Public company"
+                else:
+                    expl = "Financial data on file"
                 _add_signal("Financial Profile", "leverage", float(fin_val), expl)
 
             density_val = scorecard.get("signal_union_density")

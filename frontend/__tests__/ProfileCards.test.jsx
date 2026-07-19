@@ -191,4 +191,66 @@ describe('ProfileCards', () => {
     renderWithProviders(<ProfileHeader employer={employer} scorecard={{}} sourceType="F7" />)
     expect(screen.getByText('No Known Union')).toBeInTheDocument()
   })
+
+  it('ProfileHeader shows Union present chip from unionPresence (master path)', () => {
+    const employer = { display_name: 'Yale University' }
+    const unionPresence = {
+      latest_union_name: 'Yale Police Benevolent Association',
+      union_count: 1,
+      unions: [{ name: 'Yale Police Benevolent Association' }],
+    }
+    renderWithProviders(
+      <ProfileHeader employer={employer} sourceType="MASTER" isUnionReference={false} unionPresence={unionPresence} />
+    )
+    expect(screen.getByText(/Union present: Yale Police Benevolent Association/)).toBeInTheDocument()
+    expect(screen.queryByText('No Known Union')).not.toBeInTheDocument()
+  })
+
+  it('ProfileHeader shows +N more for multiple unions', () => {
+    const employer = { display_name: 'Montefiore Medical Center' }
+    const unionPresence = {
+      latest_union_name: 'New York State Nurses Association',
+      union_count: 3,
+      unions: [
+        { name: 'New York State Nurses Association' },
+        { name: 'SERVICE EMPLOYEES' },
+        { name: 'ENGINEERS, OPERATING, AFL-CIO' },
+      ],
+    }
+    renderWithProviders(
+      <ProfileHeader employer={employer} sourceType="MASTER" isUnionReference={false} unionPresence={unionPresence} />
+    )
+    expect(screen.getByText(/Union present: New York State Nurses Association \+2 more/)).toBeInTheDocument()
+  })
+
+  it('ProfileHeader shows generic Union present badge when F7 link has no union name', () => {
+    const employer = { display_name: 'Nameless Corp' }
+    const unionPresence = { latest_union_name: null, union_count: 0, unions: [], f7_filing_count: 2 }
+    renderWithProviders(
+      <ProfileHeader employer={employer} sourceType="MASTER" isUnionReference={false} unionPresence={unionPresence} />
+    )
+    expect(screen.getByText('Union present (F7 filing on record)')).toBeInTheDocument()
+    expect(screen.queryByText('No Known Union')).not.toBeInTheDocument()
+  })
+
+  it('ProfileHeader prefers entityContext family count over legacy employee_count', () => {
+    const employer = { display_name: 'Yale University', employee_count: 59 }
+    const entityContext = {
+      display_mode: 'family_primary',
+      unit: null,
+      group: null,
+      family: {
+        primary_count: 11000,
+        primary_source: 'mergent_company',
+        range: null,
+        conflict: { present: false },
+        label: 'Corp. Family',
+      },
+    }
+    renderWithProviders(
+      <ProfileHeader employer={employer} sourceType="MASTER" isUnionReference={false} entityContext={entityContext} />
+    )
+    expect(screen.getByText('11,000')).toBeInTheDocument()
+    expect(screen.queryByText(/59 workers/)).not.toBeInTheDocument()
+  })
 })

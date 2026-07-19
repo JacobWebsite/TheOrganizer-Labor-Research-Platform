@@ -105,8 +105,8 @@ cd frontend && VITE_DISABLE_AUTH=true npx vite
 # (frontend/.env has VITE_DISABLE_AUTH=true)
 
 # Tests
-py -m pytest tests/ -x -q          # backend (1,590 tests collected; verified 2026-05-12)
-cd frontend && npx vitest run       # frontend (379 tests, 49 files; verified 2026-05-12)
+py -m pytest tests/ -x -q          # backend (2,204 passed, 8 skipped; verified 2026-07-18)
+cd frontend && npx vitest run       # frontend (454 tests, 63 files; verified 2026-07-18)
 
 # MV rebuild (orchestrated)
 py scripts/scoring/refresh_all.py              # full chain
@@ -123,7 +123,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Backend
 - **Command:** `py -m pytest tests/ -x -q`
-- **Current count:** 1,590 tests collected (verified 2026-05-12)
+- **Current count:** 2,204 passed, 8 skipped (verified 2026-07-18)
 - **Run after every code change.** Report exact pass count before committing.
 - **Match rate tests are F7-only** — `osha_f7_matches`/`whd_f7_matches` track matches to F7 (union employers only). Rates are ~8.3%/~4.7%. Don't set thresholds expecting high rates.
 - **`RESEARCH_SCRAPER_GOOGLE_FALLBACK=false`** — set in tests that mock DB to prevent real URL resolution (Tier 4 Google Search).
@@ -131,7 +131,7 @@ py scripts/maintenance/generate_project_metrics.py
 
 ### Frontend
 - **Command:** `cd frontend && npx vitest run`
-- **Current count:** 379 tests passing across 49 files, 0 failures (verified 2026-05-12)
+- **Current count:** 454 tests passing across 63 files, 0 failures (verified 2026-07-18)
 - **Vitest + RTL + jsdom.** Mock API hooks with `vi.mock('@/shared/api/...')`. Wrap in `QueryClientProvider` + `MemoryRouter`.
 - **Color assertions:** Use `container.innerHTML.includes('bg-[#hex]')` not CSS selector queries (jsdom bracket escaping issues).
 - **Text changes break tests:** Always grep `__tests__/` for old text strings when changing UI copy.
@@ -359,7 +359,7 @@ Specialist agents in `.claude/agents/` are loaded automatically by Claude Code b
 - **Phase R1: Research Agent Learning Loop — DONE.** Contradiction detection, human fact review API, learning propagation, frontend review UI.
 - **Phase 5 Frontend Redesign — DONE.** All pages redesigned with "Aged Broadsheet" visual theme.
 - **Phase 3 Workstreams A+B+C+D — DONE.** Research quality, similarity rebuild, wage outliers, demographics API.
-- **All tests pass:** 1,590 backend, 379 frontend (verified 2026-05-12).
+- **All tests pass:** 2,204 backend (8 skipped), 454 frontend (verified 2026-07-18).
 
 ### Active Decisions
 | ID | Decision | Status |

@@ -16,7 +16,7 @@ vi.mock('@/shared/api/lookups', () => ({
   useNaicsSectors: vi.fn(() => ({ data: { sectors: [] } })),
 }))
 
-import { useNonUnionTargets, useTargetStats } from '@/shared/api/targets'
+import { useNonUnionTargets, useTargetStats, useTargetScorecardStats } from '@/shared/api/targets'
 
 const MOCK_STATS = {
   total: 2500000,
@@ -62,6 +62,7 @@ describe('TargetsPage', () => {
   beforeEach(() => {
     useNonUnionTargets.mockReturnValue({ data: null, isLoading: false, isError: false })
     useTargetStats.mockReturnValue({ data: null, isLoading: false })
+    useTargetScorecardStats.mockReturnValue({ data: null, isLoading: false })
   })
 
   it('renders page title', () => {
@@ -74,6 +75,29 @@ describe('TargetsPage', () => {
     renderWithRoute()
     expect(screen.getByText('2,500,000')).toBeInTheDocument() // total
     expect(screen.getByText('80,000')).toBeInTheDocument() // contractors
+  })
+
+  it('With-enforcement KPI card reads from scorecard stats (was permanently 0)', () => {
+    useTargetStats.mockReturnValue({ data: MOCK_STATS, isLoading: false })
+    useTargetScorecardStats.mockReturnValue({
+      data: { total_scored: 5782607, enforcement: { has_enforcement: 1162937 } },
+      isLoading: false,
+    })
+    renderWithRoute()
+    // 1,162,937 appears in both the headline and the KPI card
+    expect(screen.getAllByText('1,162,937').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('headline reads enforcement count + total from scorecard stats (R8 interpolation fix)', () => {
+    useTargetScorecardStats.mockReturnValue({
+      data: { total_scored: 5782607, enforcement: { has_enforcement: 1162937 } },
+      isLoading: false,
+    })
+    renderWithRoute()
+    expect(screen.getByText('1,162,937')).toBeInTheDocument()
+    expect(screen.getByText(/5,782,607 non-union employers/)).toBeInTheDocument()
+    // the old bug rendered '---' on both sides permanently
+    expect(screen.queryByText(/--- enforcement targets identified across ---/)).not.toBeInTheDocument()
   })
 
   it('shows loading skeleton when data is loading', () => {

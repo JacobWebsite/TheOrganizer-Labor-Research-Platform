@@ -231,6 +231,8 @@ export function EmployerProfilePage() {
           sourceType="MASTER"
           isUnionReference={false}
           targetSignals={masterScorecard}
+          entityContext={data.entity_context}
+          unionPresence={data.union_presence}
         />
         <SignalInventory scorecard={masterScorecard} signals={masterSignals} />
         {/* Corporate-family rollup -- aggregates NLRB/OSHA/WHD/F-7 across all
